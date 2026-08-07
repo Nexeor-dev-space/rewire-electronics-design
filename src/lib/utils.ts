@@ -25,6 +25,20 @@ export function savingsPercent(price: number, originalPrice: number) {
   return Math.round((1 - price / originalPrice) * 100);
 }
 
+/**
+ * Format a drop timestamp as an editorial date: "14 August 2026".
+ * Pinned to UTC so the server and client always agree — a local-timezone
+ * format would render a different day either side of hydration.
+ */
+export function formatDropDate(iso: string, locale: string = "en-GB") {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(iso));
+}
+
 /** Pad a countdown segment: 7 → "07". */
 export function pad(n: number) {
   return String(Math.max(0, n)).padStart(2, "0");

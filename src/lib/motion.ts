@@ -14,6 +14,7 @@ export const EASE_IN_OUT_SOFT = [0.65, 0, 0.35, 1] as const;
 
 export const DURATION = {
   fast: 0.2, // hover, press, micro feedback
+  menu: 0.22, // mega menu and header disclosures open and close
   base: 0.4, // standard UI transitions
   slow: 0.8, // reveals, entrances
   cinematic: 1.2, // hero-level choreography
@@ -55,9 +56,16 @@ export const scaleIn: Variants = {
   },
 };
 
-/** Editorial text: lines rise out of a clipped container. Pair with overflow-hidden parent. */
+/**
+ * Editorial text: lines rise out of a clipped container.
+ * Pair with an overflow-hidden parent carrying `pb-[0.2em] -mb-[0.2em]` —
+ * tight display leading (1.02–1.05) sets the line box shorter than the
+ * glyphs, so without that padding the clip shears descenders (p, y, g)
+ * even at rest. The hidden offset is 140%, not ~110%, so the line stays
+ * fully hidden inside that taller clip window.
+ */
 export const lineReveal: Variants = {
-  hidden: { y: "110%" },
+  hidden: { y: "140%" },
   visible: {
     y: "0%",
     transition: transitionBase,

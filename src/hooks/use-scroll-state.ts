@@ -25,11 +25,16 @@ export function useScrollState(threshold = 24): ScrollState {
       ticking = true;
       requestAnimationFrame(() => {
         const y = window.scrollY;
-        setState({
-          scrolled: y > threshold,
-          // Only retreat after some depth; never hide near the top.
-          scrollingDown: y > lastY && y > 120,
-        });
+        const scrolled = y > threshold;
+        // Only retreat after some depth; never hide near the top.
+        const scrollingDown = y > lastY && y > 120;
+        // Bail with the previous object when nothing changed — otherwise
+        // every scroll frame re-renders the header for identical values.
+        setState((prev) =>
+          prev.scrolled === scrolled && prev.scrollingDown === scrollingDown
+            ? prev
+            : { scrolled, scrollingDown },
+        );
         lastY = y;
         ticking = false;
       });
