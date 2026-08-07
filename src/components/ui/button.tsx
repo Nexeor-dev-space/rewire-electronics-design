@@ -19,16 +19,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** High-emphasis: inverted — light on dark reads as premium. */
-        primary: "bg-ink text-void hover:bg-white",
-        /** Brand moment: copper. Reserve for drop CTAs ("Notify me", "Reserve"). */
+        /** High-emphasis: solid ink. Hover is a tone shift, never a lift. */
+        primary: "bg-ink text-surface hover:bg-ink-hover",
+        /** Brand moment: same ink fill. Reserve for drop CTAs ("Notify me"). */
         accent:
-          "bg-copper text-void hover:bg-copper-bright shadow-(--shadow-glow)",
-        /** Medium emphasis: hairline outline that solidifies on hover. */
+          "bg-ink text-surface shadow-(--shadow-soft) hover:bg-ink-hover hover:shadow-(--shadow-float)",
+        /** High-emphasis on dark plates: light chip on ink. */
+        inverse: "bg-surface text-ink hover:bg-surface/90",
+        /** Secondary: hairline outline that fills with ink on hover. */
         outline:
-          "border border-line-strong text-ink hover:border-ink hover:bg-white/5",
+          "border border-ink text-ink hover:bg-ink hover:text-surface",
         /** Low emphasis: text-adjacent actions. */
-        ghost: "text-ink-secondary hover:text-ink hover:bg-white/5",
+        ghost: "text-ink-secondary hover:text-ink hover:bg-ink/5",
         /** Inline editorial link with animated underline. */
         link: [
           "rounded-none px-0 text-ink underline-offset-6",

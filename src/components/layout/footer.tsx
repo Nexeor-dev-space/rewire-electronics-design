@@ -13,8 +13,8 @@ export function Footer() {
         <div className="grid gap-12 md:grid-cols-12">
           {/* Brand column */}
           <div className="md:col-span-5">
-            <p className="text-lg font-semibold tracking-tighter">
-              Rewire<span className="text-copper">.</span>
+            <p className="text-lg font-medium tracking-tighter">
+              Rewire<span className="text-accent">.</span>
             </p>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
               {siteConfig.tagline}
@@ -69,7 +69,7 @@ export function Footer() {
 
       {/* Ghost wordmark */}
       <div aria-hidden className="overflow-hidden select-none">
-        <p className="text-center font-display text-[22vw] leading-[0.75] tracking-tighter text-white/[0.025] translate-y-[18%]">
+        <p className="text-center font-sans text-[22vw] font-bold leading-[0.75] tracking-[-0.05em] text-black/[0.03] translate-y-[18%]">
           Rewire
         </p>
       </div>

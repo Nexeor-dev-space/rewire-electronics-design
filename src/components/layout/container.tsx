@@ -69,7 +69,7 @@ export function SectionEyebrow({
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between border-t border-line pt-4 mb-10 md:mb-16",
+        "flex items-baseline justify-between mb-10 md:mb-16",
         className,
       )}
     >

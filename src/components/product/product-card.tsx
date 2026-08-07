@@ -46,8 +46,8 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
           className={cn(
             "relative aspect-4/5 overflow-hidden rounded-xl",
             "surface-gradient edge-light border border-line",
-            "transition-[border-color,box-shadow] duration-(--duration-base) ease-(--ease-out-expo)",
-            "group-hover:border-line-strong group-hover:shadow-(--shadow-float)",
+            "transition-[border-color] duration-(--duration-base) ease-(--ease-out-expo)",
+            "group-hover:border-line-strong",
           )}
           variants={{
             rest: { y: 0 },
@@ -61,7 +61,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
               {product.soldOut ? "Sold out" : dropIsLive ? "Live" : product.brand}
             </Badge>
             {product.edition && (
-              <Badge variant="copper">
+              <Badge variant="accent">
                 {product.edition.number
                   ? `No. ${product.edition.number} / ${product.edition.of}`
                   : `Edition of ${product.edition.of}`}
@@ -87,7 +87,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
                 priority={priority}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 className={cn(
-                  "h-full w-full object-contain drop-shadow-[0_24px_48px_rgb(0_0_0/0.5)]",
+                  "h-full w-full object-contain drop-shadow-[0_24px_48px_rgb(20_20_25/0.25)]",
                   product.soldOut && "opacity-50 saturate-50",
                 )}
               />
@@ -121,7 +121,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
             {product.originalPrice && savings > 0 && (
               <p className="mt-1 font-mono text-xs tabular-nums text-ink-muted">
                 <s>{formatPrice(product.originalPrice, product.currency)}</s>{" "}
-                <span className="text-copper">−{savings}%</span>
+                <span className="text-accent">−{savings}%</span>
               </p>
             )}
           </div>

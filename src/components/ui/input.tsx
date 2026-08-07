@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Inputs — quiet, hairline fields on dark surfaces.
- * The border brightens on hover and turns copper on focus.
+ * The border brightens on hover and turns accent on focus.
  * Invalid state is driven by aria-invalid for accessibility-first styling.
  */
 const fieldStyles = [
@@ -11,7 +11,7 @@ const fieldStyles = [
   "border border-line px-4 text-sm",
   "transition-[border-color,background-color] duration-(--duration-fast) ease-(--ease-out-quart)",
   "hover:border-line-strong",
-  "focus:border-copper focus:outline-none",
+  "focus:border-accent focus:outline-none",
   "aria-invalid:border-danger",
   "disabled:pointer-events-none disabled:opacity-40",
 ];

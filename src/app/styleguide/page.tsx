@@ -90,8 +90,8 @@ export default function StyleguidePage() {
     <div className="pt-32 md:pt-40 pb-24">
       <Container width="wide">
         <p className="eyebrow">Internal · Not indexed</p>
-        <h1 className="mt-6 font-display text-display-xl">
-          Design <em>system</em>
+        <h1 className="mt-6 font-sans text-display-xl font-light">
+          Design <span className="font-bold">system</span>
         </h1>
         <p className="mt-6 max-w-lg text-ink-secondary">
           Every token, voice and component in the Rewire foundation, on one
@@ -105,10 +105,10 @@ export default function StyleguidePage() {
           <SectionEyebrow index="01">Typography</SectionEyebrow>
           <div className="space-y-10">
             <div>
-              <p className="eyebrow mb-3">Display / Instrument Serif</p>
-              <p className="font-display text-display-2xl">Rewired.</p>
-              <p className="font-display text-display-lg mt-2">
-                Second life. <em>First class.</em>
+              <p className="eyebrow mb-3">Söhne — Light · Regular · Medium · Bold</p>
+              <p className="font-sans text-display-2xl font-light">Rewired.</p>
+              <p className="font-sans text-display-lg font-light mt-2">
+                Second life. <span className="font-bold">First class.</span>
               </p>
             </div>
             <div>
@@ -141,7 +141,7 @@ export default function StyleguidePage() {
               ["surface", "bg-surface"],
               ["surface-2", "bg-surface-2"],
               ["surface-3", "bg-surface-3"],
-              ["copper", "bg-copper"],
+              ["accent", "bg-accent"],
               ["live", "bg-live"],
               ["danger", "bg-danger"],
             ].map(([name, cls]) => (
@@ -192,7 +192,7 @@ export default function StyleguidePage() {
           <div className="flex flex-wrap items-center gap-3">
             <Badge>Default</Badge>
             <Badge variant="outline">Laptops</Badge>
-            <Badge variant="copper">No. 14 / 50</Badge>
+            <Badge variant="accent">No. 14 / 50</Badge>
             <Badge variant="live">Live now</Badge>
             <Badge variant="warn">3 left</Badge>
             <Badge variant="soldOut">Sold out</Badge>
@@ -312,8 +312,8 @@ export default function StyleguidePage() {
         <Container width="wide">
           <SectionEyebrow index="10">Motion</SectionEyebrow>
           <Reveal>
-            <p className="max-w-xl font-display text-display-md">
-              Blocks rise <em>28px</em> as they enter, on an expo curve, once.
+            <p className="max-w-xl font-sans text-display-md font-light">
+              Blocks rise <span className="font-medium">28px</span> as they enter, on an expo curve, once.
             </p>
           </Reveal>
         </Container>

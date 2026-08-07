@@ -1,185 +1,357 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { mainNav, siteConfig } from "@/lib/site";
+import { siteConfig } from "@/lib/site";
+import {
+  primaryNav,
+  type MegaMenuId,
+  type PrimaryNavItem,
+} from "@/lib/navigation";
 import { useScrollState } from "@/hooks/use-scroll-state";
+import { getNextDrop } from "@/lib/drops";
 import { cn } from "@/lib/utils";
-import { DURATION, EASE_OUT_EXPO, overlayFade } from "@/lib/motion";
-import { Button } from "@/components/ui/button";
+import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
+import { MegaMenu, megaMenuId } from "./mega-menu";
+import { SearchPanel, SEARCH_PANEL_ID } from "./search-panel";
+import { MobileDrawer } from "./mobile-drawer";
+import { CartButton } from "./cart-button";
+import { AccountMenu } from "./account-menu";
+
+/** Grace period so the pointer can cross the gap into an open panel. */
+const CLOSE_DELAY = 130;
 
 /**
- * Header — floating chrome over the page.
- * Transparent at top, frosted glass once scrolled, retreats on
- * downward scroll and returns instantly on upward intent.
+ * Header — the site's one piece of persistent chrome.
+ *
+ * Three zones from `lg` up: wordmark, the primary links centred, then
+ * search and the drop CTA. Below `lg` the links collapse to a drawer.
+ * Transparent over the hero, settling to glass with a hairline once
+ * scrolled, and retreating on downward scroll — but never while a
+ * panel, the search, or the drawer is open.
  */
 export function Header() {
   const { scrolled, scrollingDown } = useScrollState();
-  const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const nextDrop = getNextDrop();
 
-  // Close menu on route change; lock body scroll while open.
-  useEffect(() => setMenuOpen(false), [pathname]);
+  const [openPanel, setOpenPanel] = useState<MegaMenuId | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+
+  const closeTimer = useRef<number | null>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const anyOverlayOpen = searchOpen || drawerOpen || waitlistOpen;
+
+  /* Close everything on navigation. */
   useEffect(() => {
-    document.documentElement.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.documentElement.style.overflow = "";
+    setOpenPanel(null);
+    setDrawerOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
+  /* Hover intent — a panel shouldn't vanish while the pointer travels to it. */
+  const cancelClose = useCallback(() => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(
+      () => setOpenPanel(null),
+      CLOSE_DELAY,
+    );
+  }, [cancelClose]);
+
+  useEffect(() => () => cancelClose(), [cancelClose]);
+
+  /* Escape closes an open panel; the overlays handle their own. */
+  useEffect(() => {
+    if (!openPanel) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpenPanel(null);
     };
-  }, [menuOpen]);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [openPanel]);
+
+  const isActive = useCallback(
+    (href: string) =>
+      href === "/" ? pathname === "/" : pathname.startsWith(href),
+    [pathname],
+  );
 
   return (
     <>
       <motion.header
         className="fixed inset-x-0 top-0 z-50"
-        animate={{ y: scrollingDown && !menuOpen ? "-100%" : "0%" }}
+        animate={{
+          y: scrollingDown && !anyOverlayOpen && !openPanel ? "-100%" : "0%",
+        }}
         transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
       >
+        {/* `relative` anchors the search panel to the bar's bottom edge.
+            With search open the bar drops the glass for flat `void` so the
+            bar and the panel read as one continuous surface. */}
         <div
+          onMouseLeave={scheduleClose}
           className={cn(
-            "transition-[background-color,border-color,backdrop-filter] duration-(--duration-base)",
-            scrolled && !menuOpen
-              ? "glass border-x-0 border-t-0"
-              : "border-b border-transparent",
+            "relative border-b transition-[background-color,border-color,backdrop-filter,box-shadow] duration-(--duration-base)",
+            searchOpen
+              ? "border-line bg-void"
+              : scrolled && !drawerOpen
+                ? "border-line bg-[var(--glass-bg)] shadow-[0_8px_24px_rgb(20_20_25/0.04)] backdrop-blur-xl backdrop-saturate-150"
+                : "border-transparent bg-transparent",
           )}
         >
-          <div className="mx-auto flex h-16 md:h-20 max-w-[110rem] items-center justify-between px-(--spacing-gutter)">
-            {/* Wordmark */}
+          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-6 px-(--spacing-gutter) md:h-20">
+            {/* ---------- Wordmark ---------- */}
             <Link
               href="/"
-              className="text-lg font-semibold tracking-tighter text-ink"
               aria-label={`${siteConfig.name} — home`}
+              className="shrink-0 transition-opacity duration-(--duration-fast) hover:opacity-70"
             >
-              Rewire
-              <span className="text-copper">.</span>
+              <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
+                REWIRE<span className="text-accent">.</span>
+              </span>
+              <span className="mt-1 hidden font-mono text-[0.75rem] uppercase leading-none tracking-[0.42em] text-ink-muted sm:block">
+                Electronics
+              </span>
             </Link>
 
-            {/* Desktop nav */}
-            <nav aria-label="Primary" className="hidden md:block">
-              <ul className="flex items-center gap-8">
-                {mainNav.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "group relative inline-flex items-center gap-2 py-2 text-sm tracking-tight",
-                        "text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink",
-                        pathname.startsWith(item.href) && "text-ink",
-                      )}
-                    >
-                      {item.label}
-                      {item.badge === "live" && (
-                        <span
-                          aria-label="Live now"
-                          className="size-1.5 rounded-full bg-live animate-pulse-dot"
-                        />
-                      )}
-                      {/* Animated underline */}
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "absolute inset-x-0 bottom-0 h-px origin-right scale-x-0 bg-ink",
-                          "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-                          "group-hover:origin-left group-hover:scale-x-100",
-                          pathname.startsWith(item.href) && "origin-left scale-x-100",
-                        )}
-                      />
-                    </Link>
-                  </li>
+            {/* ---------- Primary links (lg and up) ---------- */}
+            <nav
+              ref={navRef}
+              aria-label="Primary"
+              className="hidden flex-1 justify-center lg:flex"
+              onBlur={(event) => {
+                if (!navRef.current?.contains(event.relatedTarget as Node)) {
+                  setOpenPanel(null);
+                }
+              }}
+            >
+              <ul className="flex items-center gap-1">
+                {primaryNav.map((item) => (
+                  <NavBarItem
+                    key={item.label}
+                    item={item}
+                    active={isActive(item.href)}
+                    open={!!item.menu && openPanel === item.menu}
+                    onOpen={() => {
+                      cancelClose();
+                      if (item.menu) setOpenPanel(item.menu);
+                    }}
+                    onToggle={() =>
+                      setOpenPanel((cur) =>
+                        cur === item.menu ? null : (item.menu ?? null),
+                      )
+                    }
+                  />
                 ))}
               </ul>
             </nav>
 
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="hidden md:inline-flex">
-                Get access
-              </Button>
+            {/* ---------- Utilities: search · cart · account ---------- */}
+            <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+              <button
+                ref={searchTriggerRef}
+                type="button"
+                onClick={() => setSearchOpen((cur) => !cur)}
+                aria-label="Search certified devices"
+                aria-expanded={searchOpen}
+                aria-controls={SEARCH_PANEL_ID}
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-full transition-colors duration-(--duration-fast)",
+                  searchOpen
+                    ? "bg-ink/5 text-ink"
+                    : "text-ink-secondary hover:bg-ink/5 hover:text-ink",
+                )}
+              >
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  className="size-[1.15rem]"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M16.5 16.5L21 21" />
+                </svg>
+              </button>
 
-              {/* Mobile menu toggle */}
+              <AccountMenu />
+
+              <CartButton />
+
+              {/* Hairline between the utilities and the one CTA — the only
+                  rule in the bar, and the thing that keeps four controls
+                  from reading as one undifferentiated row. */}
+              <span
+                aria-hidden
+                className="mx-2 hidden h-5 w-px bg-line lg:block"
+              />
+
               <button
                 type="button"
-                className="md:hidden relative flex size-11 items-center justify-center"
-                aria-expanded={menuOpen}
-                aria-controls="mobile-menu"
-                aria-label={menuOpen ? "Close menu" : "Open menu"}
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={() => setWaitlistOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={waitlistOpen}
+                className={cn(
+                  "hidden h-10 items-center gap-2.5 rounded-full px-5 lg:inline-flex",
+                  "bg-ink text-[0.8125rem] font-medium tracking-tight text-surface",
+                  "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
+                  "hover:bg-ink-hover active:scale-[0.97]",
+                )}
               >
-                <span className="relative block h-3 w-6">
-                  <motion.span
-                    className="absolute left-0 top-0 h-px w-full bg-ink"
-                    animate={menuOpen ? { y: 5.5, rotate: 45 } : { y: 0, rotate: 0 }}
-                    transition={{ duration: DURATION.fast, ease: EASE_OUT_EXPO }}
-                  />
-                  <motion.span
-                    className="absolute left-0 bottom-0 h-px w-full bg-ink"
-                    animate={menuOpen ? { y: -5.5, rotate: -45 } : { y: 0, rotate: 0 }}
-                    transition={{ duration: DURATION.fast, ease: EASE_OUT_EXPO }}
-                  />
+                Join Waitlist
+              </button>
+
+              {/* Hamburger — below lg only */}
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Open menu"
+                aria-haspopup="dialog"
+                aria-expanded={drawerOpen}
+                className="flex size-10 items-center justify-center rounded-full text-ink transition-colors duration-(--duration-fast) hover:bg-ink/5 lg:hidden"
+              >
+                <span aria-hidden className="relative block h-2.5 w-5">
+                  <span className="absolute left-0 top-0 h-px w-full bg-current" />
+                  <span className="absolute bottom-0 left-0 h-px w-full bg-current" />
                 </span>
               </button>
             </div>
           </div>
+
+          <AnimatePresence>
+            {openPanel && (
+              <MegaMenu
+                id={openPanel}
+                labelledBy={navLabelId(openPanel)}
+                onPointerEnter={cancelClose}
+                onJoinWaitlist={() => {
+                  setOpenPanel(null);
+                  setWaitlistOpen(true);
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          <SearchPanel
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            triggerRef={searchTriggerRef}
+          />
         </div>
       </motion.header>
 
-      {/* Mobile menu — full-screen editorial overlay */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            id="mobile-menu"
-            className="fixed inset-0 z-40 md:hidden bg-void/95 backdrop-blur-2xl"
-            variants={overlayFade}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            <nav
-              aria-label="Primary mobile"
-              className="flex h-full flex-col justify-center px-(--spacing-gutter)"
-            >
-              <ul className="space-y-2">
-                {mainNav.map((item, i) => (
-                  <li key={item.href} className="overflow-hidden">
-                    <motion.div
-                      initial={{ y: "110%" }}
-                      animate={{ y: "0%" }}
-                      transition={{
-                        duration: DURATION.slow,
-                        ease: EASE_OUT_EXPO,
-                        delay: 0.06 * i + 0.1,
-                      }}
-                    >
-                      <Link
-                        href={item.href}
-                        className="inline-flex items-baseline gap-3 font-display text-display-lg text-ink"
-                      >
-                        <span className="font-mono text-xs text-ink-faint">
-                          0{i + 1}
-                        </span>
-                        {item.label}
-                        {item.badge === "live" && (
-                          <span className="size-2 rounded-full bg-live animate-pulse-dot" />
-                        )}
-                      </Link>
-                    </motion.div>
-                  </li>
-                ))}
-              </ul>
-              <motion.div
-                className="mt-12"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4, duration: DURATION.base }}
-              >
-                <Button variant="accent" size="lg" className="w-full">
-                  Get access
-                </Button>
-              </motion.div>
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MobileDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onJoinWaitlist={() => setWaitlistOpen(true)}
+        onOpenSearch={() => setSearchOpen(true)}
+        isActive={isActive}
+      />
+
+      <WaitlistModal
+        open={waitlistOpen}
+        onClose={() => setWaitlistOpen(false)}
+        drop={nextDrop}
+      />
     </>
+  );
+}
+
+/* ============================================================
+   One item in the bar — a link, or a trigger for a mega menu
+   ============================================================ */
+
+/** Ties a trigger to its panel for `aria-labelledby`. */
+export function navLabelId(menu: MegaMenuId) {
+  return `nav-trigger-${menu}`;
+}
+
+function NavBarItem({
+  item,
+  active,
+  open,
+  onOpen,
+  onToggle,
+}: {
+  item: PrimaryNavItem;
+  active: boolean;
+  open: boolean;
+  onOpen: () => void;
+  onToggle: () => void;
+}) {
+  const label = (
+    <>
+      {item.label}
+      {item.badge === "live" && (
+        <span
+          aria-hidden
+          className="ml-2 inline-block size-1.5 animate-pulse-dot rounded-full bg-live align-middle"
+        />
+      )}
+      {/* One rule serves three states: solid when current, drawn in on
+          hover, and held open while this item's menu is showing. */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-x-3.5 bottom-1.5 h-px origin-left bg-ink",
+          "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
+          active || open
+            ? "scale-x-100"
+            : "scale-x-0 group-hover/nav:scale-x-100 group-focus-visible/nav:scale-x-100",
+        )}
+      />
+    </>
+  );
+
+  const shared = cn(
+    "group/nav relative inline-flex items-center rounded-md px-3.5 py-2.5",
+    "text-[0.8125rem] font-medium tracking-tight transition-colors duration-(--duration-fast)",
+    active || open ? "text-ink" : "text-ink-secondary hover:text-ink",
+  );
+
+  if (!item.menu) {
+    return (
+      <li>
+        <Link
+          href={item.href}
+          aria-current={active ? "page" : undefined}
+          className={shared}
+        >
+          {label}
+        </Link>
+      </li>
+    );
+  }
+
+  // No `onMouseLeave` here — the whole bar owns closing, so the pointer can
+  // travel from a trigger down into the panel without the menu vanishing.
+  return (
+    <li onPointerEnter={onOpen}>
+      <button
+        type="button"
+        id={navLabelId(item.menu)}
+        onClick={onToggle}
+        onFocus={onOpen}
+        aria-expanded={open}
+        aria-controls={megaMenuId(item.menu)}
+        className={shared}
+      >
+        {label}
+      </button>
+    </li>
   );
 }

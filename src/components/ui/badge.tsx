@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const badgeVariants = cva(
   [
     "inline-flex items-center gap-1.5 rounded-full",
-    "font-mono text-[0.6875rem] uppercase tracking-[0.14em] leading-none",
+    "font-mono text-[0.8125rem] uppercase tracking-[0.14em] leading-none",
     "px-3 py-1.5",
   ],
   {
@@ -17,7 +17,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-surface-2 text-ink-secondary edge-light",
         outline: "border border-line-strong text-ink-secondary",
-        copper: "bg-copper/10 text-copper border border-copper/25",
+        accent: "bg-accent/10 text-accent border border-accent/25",
         /** Live drop — pulsing dot signals urgency without shouting. */
         live: "bg-live/10 text-live border border-live/25",
         warn: "bg-warn/10 text-warn border border-warn/25",
