@@ -52,6 +52,142 @@ export function getNextDrop(): NextDropInfo {
 }
 
 /* ============================================================
+   The live drop — what the hero is selling right now
+   ============================================================ */
+
+/**
+ * One device inside the live drop. Stock is per device, not per drop:
+ * a release goes out as a handful of units of each thing in it, and the
+ * hero's scarcity panel reads whichever device is currently on screen.
+ */
+export interface LiveDropDevice {
+  id: string;
+  name: string;
+  /** Finish and capacity, e.g. "Graphite · 256GB". */
+  variant: string;
+  /** Units allocated to this device. Drops run 10–15 units a device. */
+  unitsTotal: number;
+  /** Selling price in minor units, for `formatPrice`. */
+  price: number;
+  /**
+   * What the device costs new, in minor units. The saving is derived from
+   * the pair rather than stored, so a discount can never disagree with the
+   * two numbers printed beside it.
+   */
+  originalPrice: number;
+  /** Units still unclaimed — the scarcity bar reads `total - left`. */
+  unitsLeft: number;
+  /**
+   * Units claimed in the last 24 hours. This is the only number in the
+   * panel that conveys *rate* rather than level, and rate is what makes a
+   * drop feel like it is happening to you — "5 left" is a fact, "5 went
+   * yesterday" is a deadline. It must come from real order data: a
+   * velocity figure that is not true is a dark pattern, not a design.
+   */
+  claimedRecently: number;
+  image: { url: string; alt: string };
+}
+
+export interface LiveDrop {
+  id: string;
+  slug: string;
+  edition: string;
+  title: string;
+  /**
+   * One currency for the whole drop. `upcomingDrops` below still carries
+   * USD in its (unrendered) data — align the two when the catalogue is
+   * wired, so a single page can never print two currencies.
+   */
+  currency: string;
+  locale: string;
+  /** ISO timestamp the drop closes — the hero countdown's target. */
+  endsAt: string;
+  devices: LiveDropDevice[];
+}
+
+/**
+ * Drop 004 is the one selling; `upcomingDrops` below starts at 005 and
+ * stays upcoming. The two lists are deliberately disjoint — a device
+ * cannot be both live in the hero and awaiting release in Section 02.
+ *
+ * Transparent studio cutouts so the product floats on the canvas with no
+ * plate behind it.
+ */
+const liveDrop: LiveDrop = {
+  id: "drop-004",
+  slug: "drop-004-halo-edit",
+  edition: "Drop 004",
+  title: "The Halo Edit",
+  // Placeholder close date — replace with CMS data. Lands before Drop 005
+  // opens on 14 August so the calendar reads in order.
+  endsAt: "2026-08-12T18:00:00Z",
+  currency: "INR",
+  locale: "en-IN",
+  devices: [
+    {
+      id: "l1",
+      name: "Halo Phone Pro",
+      variant: "Graphite · 256GB",
+      price: 44_999_00,
+      originalPrice: 74_900_00,
+      unitsTotal: 15,
+      unitsLeft: 3,
+      claimedRecently: 5,
+      image: {
+        url: "/images/hero/phone.png",
+        alt: "Matte black phone leaning upright",
+      },
+    },
+    {
+      id: "l2",
+      name: "Vector Book 13",
+      variant: "Silver · 512GB",
+      price: 64_999_00,
+      originalPrice: 109_900_00,
+      unitsTotal: 12,
+      unitsLeft: 5,
+      claimedRecently: 3,
+      image: {
+        url: "/images/hero/laptop.png",
+        alt: "Graphite laptop standing half open",
+      },
+    },
+    {
+      id: "l3",
+      name: "Orbit Watch S",
+      variant: "Slate · 42mm",
+      price: 12_499_00,
+      originalPrice: 21_900_00,
+      unitsTotal: 14,
+      unitsLeft: 8,
+      claimedRecently: 2,
+      image: {
+        url: "/images/hero/watch.png",
+        alt: "Black smartwatch with leather strap",
+      },
+    },
+    {
+      id: "l4",
+      name: "Echo Studio",
+      variant: "Midnight · Over-ear",
+      price: 8_999_00,
+      originalPrice: 14_999_00,
+      unitsTotal: 10,
+      unitsLeft: 2,
+      claimedRecently: 4,
+      image: {
+        url: "/images/hero/headphones.png",
+        alt: "Black over-ear headphones suspended mid-air",
+      },
+    },
+  ],
+};
+
+export function getLiveDrop(): LiveDrop {
+  return liveDrop;
+}
+
+/* ============================================================
    Upcoming drops — featured releases
    ============================================================ */
 
