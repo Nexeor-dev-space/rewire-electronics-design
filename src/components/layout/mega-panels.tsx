@@ -244,17 +244,32 @@ export function CategoriesMenu() {
                 )}
               />
 
-              {/* Ivory floor so the label stays legible on any photograph */}
+              {/* A scrim, not a wash: the photograph stays at full strength
+                  and only the foot darkens, so the label has something to
+                  sit on without the image being flattened. Deepens a touch
+                  on hover as the picture scales up behind it. */}
+              {/* Two layers, because one cannot do both jobs. A flat wash
+                  puts every photograph — the snow-lit mountain and the dark
+                  foliage alike — on the same tonal footing, so the labels
+                  read consistently across the row. The gradient on top then
+                  does the heavy lifting under the text itself. */}
               <span
                 aria-hidden
-                className="absolute inset-x-0 bottom-0 h-3/5 bg-[linear-gradient(180deg,transparent,rgb(246_244_240/0.94)_78%)]"
+                className="absolute inset-0 bg-ink/25 transition-colors duration-(--duration-base) ease-(--ease-out-expo) group-hover/card:bg-ink/20"
+              />
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute inset-0",
+                  "bg-[linear-gradient(180deg,transparent_25%,rgb(17_17_17/0.50)_58%,rgb(17_17_17/0.85)_85%,rgb(17_17_17/0.92)_100%)]",
+                )}
               />
 
               <span className="absolute inset-x-0 bottom-0 p-5">
-                <span className="block text-[0.9375rem] font-medium text-ink">
+                <span className="block text-[0.9375rem] font-medium text-surface [text-shadow:0_1px_8px_rgb(17_17_17/0.45)]">
                   {category.name}
                 </span>
-                <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
+                <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-surface/75 [text-shadow:0_1px_8px_rgb(17_17_17/0.45)]">
                   {category.count} devices
                 </span>
               </span>

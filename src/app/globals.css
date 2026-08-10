@@ -35,6 +35,14 @@
   --color-warn: #d08a34; /* low stock, limited drop, countdown urgency */
   --color-danger: #b4544e; /* errors, sold out */
 
+  /* The drop is selling out. Burnt orange rather than red — urgency
+     without the clearance-sale register — and the one warm note allowed
+     in an otherwise monochrome hero. Measured 4.83:1 on `void`, so it
+     clears AA for small text as well as the 3:1 non-text threshold the
+     stock bar needs. Reserve it for live scarcity: the status dot, the
+     remaining count, the bar. Never a fill, a badge or a button. */
+  --color-urgent: #c2410c;
+
   /* ---------- Typography · Families (wired to next/font/local) ----------
      Two families, no display face. Söhne carries everything structural
      in four weights (300/400/500/700); emphasis comes from weight, size
@@ -168,6 +176,21 @@
    ============================================================ */
 
 @layer base {
+  /**
+   * Tailwind v4's Preflight sets `cursor: default` on buttons, matching the
+   * raw UA default rather than v3's `cursor: pointer`. On a site where the
+   * nav arrows, the drop CTAs and the menu triggers are all `<button>`,
+   * that reads as "nothing here is clickable". Restored once here rather
+   * than sprinkling `cursor-pointer` through every component — two had
+   * already been patched by hand, which is the tell that it belongs in base.
+   * `:disabled` keeps its arrow, since it genuinely is not clickable.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
   :root {
     color-scheme: light;
 
@@ -208,6 +231,7 @@
     --color-live: #8fae9b;
     --color-warn: #e0a45c;
     --color-danger: #d1706a;
+    --color-urgent: #f0762f;
 
     --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.32);
     --shadow-float: 0 12px 32px rgb(0 0 0 / 0.42);
