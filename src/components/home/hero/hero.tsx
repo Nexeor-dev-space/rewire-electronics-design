@@ -278,11 +278,28 @@ export function Hero() {
         className="pointer-events-none absolute inset-x-0 top-[15%] z-0 select-none lg:top-[10%]"
       >
         {/* Full viewport width at every size, centred, cropped by the
-            section's `overflow-hidden`. 15vw is the ceiling before the
-            word stops fitting: the ink runs ~93% of the viewport, so all
-            eleven letters clear both edges; at 18vw it runs ~112% and the
-            centred crop eats the final D, which reads "REFURBISHE" — a
-            typo, not a bleed.
+            section's `overflow-hidden`.
+
+            REIMAGINED is ten letters where REFURBISHED was eleven, and it
+            measures 5.60× its font-size against the old word's 6.20×. At
+            the inherited 15vw it therefore filled only 84% of the viewport
+            and left ~116px of dead air at each end. The width is bought
+            back with **tracking, not size**: `0.015em` restores the ~93%
+            fill the banner was drawn around.
+
+            That choice is load-bearing. Font-size grows the word on both
+            axes, and the vertical axis is spoken for — the panel sits to
+            the right and the clearance below was tuned by hand. Measured
+            at 1280×800, clearance is identical (−13px by the line-box
+            proxy) at −0.045em, −0.02em, 0 and +0.02em, while ink runs 84 →
+            94%. Letter-spacing fills the line for free; 16.5vw bought the
+            same 92% and cost 20px of clearance. If this word is ever
+            swapped again, re-tune the tracking and leave 15vw alone.
+
+            Positive tracking is a deliberate exception to the tight
+            display setting used elsewhere — at 3–6% opacity and this size
+            the word reads as a masthead, and open letterforms suit that
+            better than the condensed setting a headline wants.
 
             It reaches across the panel's columns rather than stopping at
             them: an opaque ground on the rail guillotined the tail
@@ -299,8 +316,8 @@ export function Hero() {
             Together with the panel's tightened rhythm this clears at both
             1440×900 and 1280×800. Phones keep 15%, where the band sits
             over the product and there is no panel beside it. */}
-        <span className="block whitespace-nowrap text-center font-sans text-[15vw] font-medium leading-[0.8] tracking-[-0.045em] text-ink/[0.03] sm:text-ink/[0.06]">
-          REFURBISHED
+        <span className="block whitespace-nowrap text-center font-sans text-[15vw] font-medium leading-[0.8] tracking-[0.015em] text-ink/[0.03] sm:text-ink/[0.06]">
+          REIMAGINED
         </span>
       </div>
 
