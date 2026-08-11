@@ -11,7 +11,6 @@ import {
   type PrimaryNavItem,
 } from "@/lib/navigation";
 import { useScrollState } from "@/hooks/use-scroll-state";
-import { getNextDrop } from "@/lib/drops";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
@@ -36,7 +35,6 @@ const CLOSE_DELAY = 130;
 export function Header() {
   const { scrolled, scrollingDown } = useScrollState();
   const pathname = usePathname();
-  const nextDrop = getNextDrop();
 
   const [openPanel, setOpenPanel] = useState<MegaMenuId | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -116,7 +114,7 @@ export function Header() {
             <Link
               href="/"
               aria-label={`${siteConfig.name} — home`}
-              className="shrink-0 transition-opacity duration-(--duration-fast) hover:opacity-70"
+              className="-my-2 shrink-0 py-2 transition-opacity duration-(--duration-fast) hover:opacity-70"
             >
               <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
                 REWIRE<span className="text-accent">.</span>
@@ -262,10 +260,12 @@ export function Header() {
         isActive={isActive}
       />
 
+      {/* Navbar entry — general waitlist. No `preselect`: the modal
+          opens with device + variant selects because the shopper has
+          not named a product from this surface. */}
       <WaitlistModal
         open={waitlistOpen}
         onClose={() => setWaitlistOpen(false)}
-        drop={nextDrop}
       />
     </>
   );

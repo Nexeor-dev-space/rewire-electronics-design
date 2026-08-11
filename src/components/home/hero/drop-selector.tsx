@@ -194,11 +194,18 @@ export function DropSelector({
                               )}
                             </span>
                             <span aria-hidden>·</span>
+                            {/* "left", not "units left": the selected row
+                                also carries a "Showing" label, and at
+                                AED's nine-character prices the longer
+                                phrase wrapped that one row onto a second
+                                line — 90px against the others' 74px in a
+                                336px sheet. The name above supplies the
+                                noun. */}
                             <span>
                               <span className="text-urgent">
                                 {item.unitsLeft}
                               </span>{" "}
-                              units left
+                              left
                             </span>
                           </span>
                         </span>

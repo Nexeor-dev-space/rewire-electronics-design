@@ -85,7 +85,10 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={panelId}
-          className="group flex w-full cursor-pointer items-start gap-5 py-7 text-left sm:gap-8 sm:py-8"
+          // Tighter rhythm than the original six questions wanted: the
+          // list has since grown to eleven, and a row height set for a
+          // short list turns a long one into a scroll rather than a scan.
+          className="group flex w-full cursor-pointer items-start gap-5 py-5 text-left sm:gap-8 sm:py-6"
         >
           <span
             aria-hidden
@@ -102,7 +105,7 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
 
           <span
             className={cn(
-              "flex-1 font-sans text-[clamp(1.25rem,2.1vw,1.875rem)] font-normal leading-[1.28] tracking-[-0.02em] transition-colors duration-(--duration-base)",
+              "flex-1 font-sans text-[clamp(1.0625rem,1.6vw,1.375rem)] font-normal leading-[1.35] tracking-[-0.02em] transition-colors duration-(--duration-base)",
               open ? "text-ink" : "text-ink-secondary group-hover:text-ink",
             )}
           >
@@ -146,7 +149,7 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
               variants={panelBody}
               // pl = index width (1.5rem) + button gap, so the answer sits flush
               // under the first letter of the question.
-              className="max-w-[46ch] pb-9 pl-11 pr-10 text-[0.9375rem] leading-[1.75] text-ink-secondary sm:pb-11 sm:pl-14"
+              className="max-w-[46ch] pb-7 pl-11 pr-10 text-[0.9375rem] leading-[1.7] text-ink-secondary sm:pb-8 sm:pl-14"
             >
               {faq.answer}
             </motion.p>

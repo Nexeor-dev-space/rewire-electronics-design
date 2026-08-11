@@ -62,6 +62,14 @@ export function getNextDrop(): NextDropInfo {
  */
 export interface LiveDropDevice {
   id: string;
+  /**
+   * Route segment for this device's own page, under `/drops` alongside
+   * the upcoming releases. Devices need their own destination because
+   * anything that names one item and offers to show it — the savings
+   * cards, for instance — would otherwise have to send the reader to the
+   * whole drop and let them find it again.
+   */
+  slug: string;
   name: string;
   /** Finish and capacity, e.g. "Graphite · 256GB". */
   variant: string;
@@ -94,9 +102,16 @@ export interface LiveDrop {
   edition: string;
   title: string;
   /**
-   * One currency for the whole drop. `upcomingDrops` below still carries
-   * USD in its (unrendered) data — align the two when the catalogue is
-   * wired, so a single page can never print two currencies.
+   * One currency for the whole drop. AED on `en-AE` — the company trades
+   * out of Dubai, so the storefront prices in dirhams rather than
+   * converting at the till. Note the amounts below are AED price points in
+   * their own right, not rupee or dollar figures run through a rate: a
+   * converted price reads as an afterthought and lands on numbers no
+   * retailer would choose.
+   *
+   * `upcomingDrops` below still carries USD in its (unrendered) data —
+   * align it when the catalogue is wired, so a single page can never print
+   * two currencies.
    */
   currency: string;
   locale: string;
@@ -118,18 +133,24 @@ const liveDrop: LiveDrop = {
   slug: "drop-004-halo-edit",
   edition: "Drop 004",
   title: "The Halo Edit",
-  // Placeholder close date — replace with CMS data. Lands before Drop 005
-  // opens on 14 August so the calendar reads in order.
-  endsAt: "2026-08-12T18:00:00Z",
-  currency: "INR",
-  locale: "en-IN",
+  // Placeholder close date — replace with CMS data. Set to a clean 3
+  // days out so the countdown (shared by the Hero panel and Scarcity —
+  // both read this same field) reads as an exact "3 days" rather than
+  // the odd, near-expired "1d 06h" a stale date drifts to. Held to
+  // midday rather than the usual 18:00 so it still lands a full 6 hours
+  // before Drop 005 opens on 14 August — moving it to 18:00 would tie
+  // the two and break "the calendar reads in order".
+  endsAt: "2026-08-14T12:00:00Z",
+  currency: "AED",
+  locale: "en-AE",
   devices: [
     {
       id: "l1",
+      slug: "halo-phone-pro",
       name: "Halo Phone Pro",
       variant: "Graphite · 256GB",
-      price: 44_999_00,
-      originalPrice: 74_900_00,
+      price: 1_999_00,
+      originalPrice: 3_399_00,
       unitsTotal: 15,
       unitsLeft: 3,
       claimedRecently: 5,
@@ -140,10 +161,11 @@ const liveDrop: LiveDrop = {
     },
     {
       id: "l2",
+      slug: "vector-book-13",
       name: "Vector Book 13",
       variant: "Silver · 512GB",
-      price: 64_999_00,
-      originalPrice: 109_900_00,
+      price: 2_899_00,
+      originalPrice: 4_899_00,
       unitsTotal: 12,
       unitsLeft: 5,
       claimedRecently: 3,
@@ -154,10 +176,11 @@ const liveDrop: LiveDrop = {
     },
     {
       id: "l3",
+      slug: "orbit-watch-s",
       name: "Orbit Watch S",
       variant: "Slate · 42mm",
-      price: 12_499_00,
-      originalPrice: 21_900_00,
+      price: 549_00,
+      originalPrice: 949_00,
       unitsTotal: 14,
       unitsLeft: 8,
       claimedRecently: 2,
@@ -168,10 +191,11 @@ const liveDrop: LiveDrop = {
     },
     {
       id: "l4",
+      slug: "echo-studio",
       name: "Echo Studio",
       variant: "Midnight · Over-ear",
-      price: 8_999_00,
-      originalPrice: 14_999_00,
+      price: 399_00,
+      originalPrice: 669_00,
       unitsTotal: 10,
       unitsLeft: 2,
       claimedRecently: 4,
@@ -191,6 +215,18 @@ export function getLiveDrop(): LiveDrop {
    Upcoming drops — featured releases
    ============================================================ */
 
+/**
+ * Where a release sits in its life. This drives the card's whole
+ * treatment — label, price emphasis, and which action it offers — so a
+ * shopper can read availability from across the grid without parsing
+ * text. Four states, four different-looking cards, on purpose.
+ */
+export type DropStatus =
+  | "available"
+  | "coming-soon"
+  | "almost-gone"
+  | "sold-out";
+
 export interface UpcomingDrop {
   id: string;
   slug: string;
@@ -199,18 +235,30 @@ export interface UpcomingDrop {
   name: string;
   /** Short descriptor under the name. */
   variant: string;
-  /** Starting price in minor units (cents). */
-  startingPrice: number;
+  /** Catalogue category, shown as the card's eyebrow. */
+  category: string;
+  status: DropStatus;
+  /** Selling price in minor units. */
+  price: number;
+  /** What it costs new, in minor units — the saving is derived. */
+  originalPrice: number;
   currency: string;
-  batteryHealth: number;
-  conditionGrade: string;
+  locale: string;
   warranty: string;
   units: number;
+  /** Units still unclaimed. Only meaningful once a drop is open. */
+  unitsLeft: number;
   /** ISO timestamp the drop opens. */
   startsAt: string;
   image: { url: string; alt: string; width: number; height: number };
 }
 
+/**
+ * The release calendar. All four states are represented on purpose — a
+ * grid where every card looks the same teaches a shopper nothing, and
+ * seeing one already closed is the cheapest possible proof that these
+ * actually run out. AED throughout, matching the live drop.
+ */
 const upcomingDrops: UpcomingDrop[] = [
   {
     id: "u1",
@@ -218,12 +266,15 @@ const upcomingDrops: UpcomingDrop[] = [
     edition: "Drop 005",
     name: "Signal Phone Pro",
     variant: "Graphite · 512GB",
-    startingPrice: 84_900,
-    currency: "USD",
-    batteryHealth: 98,
-    conditionGrade: "Grade A · Pristine",
+    category: "Phones",
+    status: "available",
+    price: 2_299_00,
+    originalPrice: 3_899_00,
+    currency: "AED",
+    locale: "en-AE",
     warranty: "1-year warranty",
     units: 25,
+    unitsLeft: 19,
     startsAt: "2026-08-14T18:00:00Z",
     image: {
       url: "/images/drops/drop-01.jpg",
@@ -238,12 +289,15 @@ const upcomingDrops: UpcomingDrop[] = [
     edition: "Drop 006",
     name: "Meridian Book 14",
     variant: "Titanium · 1TB",
-    startingPrice: 149_900,
-    currency: "USD",
-    batteryHealth: 96,
-    conditionGrade: "Grade A · Pristine",
+    category: "Laptops",
+    status: "coming-soon",
+    price: 3_499_00,
+    originalPrice: 5_999_00,
+    currency: "AED",
+    locale: "en-AE",
     warranty: "1-year warranty",
     units: 18,
+    unitsLeft: 18,
     startsAt: "2026-08-21T18:00:00Z",
     image: {
       url: "/images/drops/drop-02.jpg",
@@ -258,12 +312,15 @@ const upcomingDrops: UpcomingDrop[] = [
     edition: "Drop 007",
     name: "Aria Studio",
     variant: "Midnight · Over-ear",
-    startingPrice: 32_900,
-    currency: "USD",
-    batteryHealth: 97,
-    conditionGrade: "Grade B · Excellent",
+    category: "Audio",
+    status: "almost-gone",
+    price: 449_00,
+    originalPrice: 749_00,
+    currency: "AED",
+    locale: "en-AE",
     warranty: "1-year warranty",
     units: 40,
+    unitsLeft: 3,
     startsAt: "2026-08-28T18:00:00Z",
     image: {
       url: "/images/drops/drop-03.jpg",
@@ -278,12 +335,15 @@ const upcomingDrops: UpcomingDrop[] = [
     edition: "Drop 008",
     name: "Pulse Watch S",
     variant: "Obsidian · 46mm",
-    startingPrice: 24_900,
-    currency: "USD",
-    batteryHealth: 99,
-    conditionGrade: "Grade A · Pristine",
+    category: "Wearables",
+    status: "sold-out",
+    price: 649_00,
+    originalPrice: 1_099_00,
+    currency: "AED",
+    locale: "en-AE",
     warranty: "1-year warranty",
     units: 60,
+    unitsLeft: 0,
     startsAt: "2026-09-04T18:00:00Z",
     image: {
       url: "/images/drops/drop-04.jpg",
@@ -296,4 +356,122 @@ const upcomingDrops: UpcomingDrop[] = [
 
 export function getUpcomingDrops(): UpcomingDrop[] {
   return upcomingDrops;
+}
+
+/* ============================================================
+   Past drops — the archive of releases that sold out
+   ============================================================ */
+
+export interface PastDrop {
+  id: string;
+  /**
+   * Route segment for the drop's own archive page (`/drops/${slug}`).
+   * Matches the pattern the live/upcoming drops use, so the same
+   * `/drops/[slug]` route can render both current and past products
+   * when the archive route is built.
+   */
+  slug: string;
+  edition: string;
+  name: string;
+  variant: string;
+  /** What it sold for, in minor units. */
+  price: number;
+  originalPrice: number;
+  currency: string;
+  locale: string;
+  /** Units in the release — the whole allocation went. */
+  units: number;
+  /** ISO date the drop closed. */
+  soldOutAt: string;
+  image: { url: string; alt: string; width: number; height: number };
+}
+
+/**
+ * Proof of demand, not a shop shelf. Nothing here is buyable, which is
+ * exactly the point: a shopper reads it as "these run out" rather than as
+ * four more things to consider. Kept to the releases that actually
+ * cleared their full allocation — an archive that included a slow drop
+ * would argue the opposite case.
+ */
+const pastDrops: PastDrop[] = [
+  {
+    id: "p1",
+    slug: "halo-phone-pro-drop-003",
+    edition: "Drop 003",
+    name: "Halo Phone Pro",
+    variant: "Graphite · 256GB",
+    price: 1_899_00,
+    originalPrice: 3_299_00,
+    currency: "AED",
+    locale: "en-AE",
+    units: 15,
+    soldOutAt: "2026-07-31T18:00:00Z",
+    image: {
+      url: "/images/drops/drop-01.jpg",
+      alt: "Graphite Halo Phone Pro smartphone, studio lit",
+      width: 1000,
+      height: 1250,
+    },
+  },
+  {
+    id: "p2",
+    slug: "atlas-book-15-drop-003",
+    edition: "Drop 003",
+    name: "Atlas Book 15",
+    variant: "Silver · 512GB",
+    price: 2_699_00,
+    originalPrice: 4_599_00,
+    currency: "AED",
+    locale: "en-AE",
+    units: 12,
+    soldOutAt: "2026-07-31T18:00:00Z",
+    image: {
+      url: "/images/drops/drop-02.jpg",
+      alt: "Silver Atlas Book 15 laptop, studio lit",
+      width: 1000,
+      height: 1250,
+    },
+  },
+  {
+    id: "p3",
+    slug: "nova-buds-pro-drop-002",
+    edition: "Drop 002",
+    name: "Nova Buds Pro",
+    variant: "Ivory · In-ear",
+    price: 249_00,
+    originalPrice: 429_00,
+    currency: "AED",
+    locale: "en-AE",
+    units: 20,
+    soldOutAt: "2026-07-17T18:00:00Z",
+    image: {
+      url: "/images/drops/drop-03.jpg",
+      alt: "Ivory Nova Buds Pro earphones, studio lit",
+      width: 1000,
+      height: 1250,
+    },
+  },
+  {
+    id: "p4",
+    slug: "orbit-watch-classic-drop-002",
+    edition: "Drop 002",
+    name: "Orbit Watch Classic",
+    variant: "Slate · 44mm",
+    price: 499_00,
+    originalPrice: 899_00,
+    currency: "AED",
+    locale: "en-AE",
+    units: 14,
+    soldOutAt: "2026-07-17T18:00:00Z",
+    image: {
+      url: "/images/drops/drop-04.jpg",
+      alt: "Slate Orbit Watch Classic smartwatch, studio lit",
+      width: 1000,
+      height: 1250,
+    },
+  },
+];
+
+export function getPastDrops(): PastDrop[] {
+  return pastDrops;
 }

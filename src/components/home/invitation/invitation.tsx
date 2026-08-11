@@ -58,7 +58,7 @@ export function Invitation() {
         >
           <h2
             id="invitation-heading"
-            className="mx-auto max-w-3xl font-sans text-[clamp(2.5rem,5vw,4.75rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
+            className="mx-auto max-w-3xl font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
           >
             The next one goes quickly too.
           </h2>
@@ -97,10 +97,12 @@ export function Invitation() {
 
       {/* Outside the dark band on purpose: the modal must look the same here
           as it does opened from the header or the hero. */}
+      {/* Section CTA — general waitlist. The section is about "the next
+          one goes quickly too", not any specific device, so the modal
+          opens with device + variant selects rather than a preselect. */}
       <WaitlistModal
         open={waitlistOpen}
         onClose={() => setWaitlistOpen(false)}
-        drop={nextDrop}
       />
     </>
   );

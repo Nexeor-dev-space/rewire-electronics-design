@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { getUpcomingDrops } from "@/lib/drops";
+import { getUpcomingDrops, type UpcomingDrop } from "@/lib/drops";
+import { resolveWaitlistPreselect } from "@/lib/waitlist";
 import { buttonVariants } from "@/components/ui/button";
+import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
 import { DropCard } from "./drop-card";
+import { cn } from "@/lib/utils";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -28,17 +32,35 @@ const lineClip = {
 
 /**
  * Section 02 — Upcoming Drops.
- * Editorial release calendar: an oversized statement, then three drop
- * plates that reveal on scroll with staggered timing, closed by a
- * centered magnetic CTA.
+ *
+ * The release calendar, read as a shopping decision: an oversized
+ * statement, then four plates that each answer what it is, what it
+ * costs, what that saves, whether any are left, and what to do — with
+ * nothing important hidden behind a hover.
+ *
+ * The unbuyable states (upcoming, sold out) share one waitlist dialog
+ * owned here rather than one per card, so four cards cannot mount four
+ * modals. The dialog still opens *for the card that was clicked*: state
+ * holds the drop itself rather than a bare boolean, and its name +
+ * variant resolve to the waitlist catalogue's `preselect` pair so the
+ * modal opens straight to email/phone instead of asking the shopper to
+ * pick, from a dropdown, the exact device they just clicked "Join
+ * Waitlist" on.
  */
 export function UpcomingDrops() {
   const drops = getUpcomingDrops();
+  const [waitlistDrop, setWaitlistDrop] = useState<UpcomingDrop | null>(null);
+  const preselect = waitlistDrop
+    ? resolveWaitlistPreselect(waitlistDrop.name, waitlistDrop.variant)
+    : undefined;
 
   return (
     <section
       aria-labelledby="upcoming-drops-heading"
-      className="relative overflow-hidden pt-(--spacing-section)"
+      // Same closing rhythm as `standard.tsx`: the section carries the
+      // page's top spacing, plus a shorter foot so the trailing CTA is not
+      // left flush against the section edge.
+      className="relative overflow-hidden pt-(--spacing-section) pb-14 lg:pb-16"
     >
       {/* Background depth — soft lighting, no clutter */}
       <div
@@ -59,10 +81,24 @@ export function UpcomingDrops() {
           viewport={viewportOnce}
           variants={staggerChildren(0.1)}
         >
-          <div className="grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
+          {/* Quiet context line: what this section is, and how much of
+              it there is. Mono and muted so it never competes with the
+              statement underneath. */}
+          <motion.p
+            variants={rise}
+            className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted"
+          >
+            Upcoming drops
+            <span aria-hidden className="mx-2.5 text-ink-faint">
+              ·
+            </span>
+            {String(drops.length).padStart(2, "0")} products
+          </motion.p>
+
+          <div className="mt-8 grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
             <h2
               id="upcoming-drops-heading"
-              className="font-sans text-[clamp(2.5rem,5vw,4.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink lg:col-span-7"
+              className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink lg:col-span-7"
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
@@ -93,11 +129,28 @@ export function UpcomingDrops() {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.14, 0.1)}
-          className="mt-16 grid gap-x-6 gap-y-16 sm:grid-cols-2 lg:mt-20 xl:grid-cols-4"
+          className={cn(
+            "mt-16 lg:mt-20",
+            // Phones read the calendar one release at a time: a full-width
+            // plate per drop, stacked. Nothing is cropped at the edge and
+            // no horizontal gesture is required to reach the fourth.
+            "grid grid-cols-1 gap-y-12",
+            // Tablet: two up. Desktop: the full calendar.
+            "sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14",
+            "xl:grid-cols-4",
+          )}
         >
           {drops.map((drop, i) => (
-            <motion.li key={drop.id} variants={rise} className="flex h-full">
-              <DropCard drop={drop} priority={i === 0} />
+            <motion.li
+              key={drop.id}
+              variants={rise}
+              className="flex h-full w-full"
+            >
+              <DropCard
+                drop={drop}
+                priority={i === 0}
+                onJoinWaitlist={() => setWaitlistDrop(drop)}
+              />
             </motion.li>
           ))}
         </motion.ul>
@@ -110,9 +163,13 @@ export function UpcomingDrops() {
           variants={rise}
           className="mt-20 flex justify-center lg:mt-24"
         >
+          {/* Secondary to the cards' own actions, deliberately: buying one
+              of these is the section's job, and browsing the rest is the
+              fallback. Sized below the product CTAs so it cannot outweigh
+              them. */}
           <Link
             href="/drops"
-            className={buttonVariants({ variant: "outline", size: "lg" })}
+            className={buttonVariants({ variant: "outline", size: "md" })}
           >
             View all upcoming drops
             <svg
@@ -130,6 +187,18 @@ export function UpcomingDrops() {
           </Link>
         </motion.div>
       </div>
+
+      {/* Section-shared modal, per-card content: `preselect` is derived
+          from whichever drop set `waitlistDrop`, so the dialog always
+          matches the card that opened it. `undefined` only if a future
+          catalogue entry drifts out of sync with `lib/waitlist.ts` (see
+          `resolveWaitlistPreselect`) — the modal degrades to its general
+          form rather than preselecting the wrong device. */}
+      <WaitlistModal
+        open={!!waitlistDrop}
+        onClose={() => setWaitlistDrop(null)}
+        preselect={preselect}
+      />
     </section>
   );
 }

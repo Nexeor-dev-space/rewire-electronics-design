@@ -70,7 +70,7 @@ export function ProductNav({
       <button
         type="button"
         onClick={onViewAll}
-        className="group/all hidden items-center gap-1.5 text-[0.8125rem] font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink focus-visible:text-ink md:inline-flex"
+        className="group/all -my-2 hidden items-center gap-1.5 py-2 text-[0.8125rem] font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink focus-visible:text-ink md:inline-flex"
       >
         <span className="relative">
           View all drops

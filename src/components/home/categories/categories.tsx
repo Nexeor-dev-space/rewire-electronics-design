@@ -41,7 +41,9 @@ export function Categories() {
   return (
     <section
       aria-labelledby="categories-heading"
-      className="relative overflow-hidden bg-void pt-(--spacing-section)"
+      // Same closing rhythm as the other content sections: page spacing on
+      // top, a shorter foot so the trailing CTA is not flush to the edge.
+      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
     >
       {/* One soft wash, kept low so the photography carries the section */}
       <div
@@ -61,7 +63,7 @@ export function Categories() {
           <div className="grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
             <h2
               id="categories-heading"
-              className="font-sans text-[clamp(2.5rem,5vw,4.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink lg:col-span-7"
+              className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink lg:col-span-7"
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
