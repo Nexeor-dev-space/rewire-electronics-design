@@ -76,7 +76,7 @@ export function Standard() {
 
             <h2
               id="standard-heading"
-              className="mt-9 font-sans text-[clamp(2.25rem,3.4vw,3.75rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
+              className="mt-9 font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">

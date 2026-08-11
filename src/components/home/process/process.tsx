@@ -33,8 +33,8 @@ const STEPS: Step[] = [
     title: "Join Waitlist",
     body: "Register your interest before launch.",
     image: {
-      src: "/images/process/step-01.jpg",
-      alt: "A matte black phone standing upright beside a blank ivory card",
+      src: "/images/process/Join-Waitlist.png",
+      alt: "A laptop on an ivory desk showing an email sign-up form, a phone resting beside it",
     },
   },
   {
@@ -42,8 +42,8 @@ const STEPS: Step[] = [
     title: "Launch Reminder",
     body: "Receive email and WhatsApp notification.",
     image: {
-      src: "/images/drops/drop-04.jpg",
-      alt: "A matte black watch with a leather strap suspended above an ivory surface",
+      src: "/images/process/Launch-Reminder.png",
+      alt: "A laptop against an ivory wall, its screen showing a single notification bell",
     },
   },
   {
@@ -51,8 +51,8 @@ const STEPS: Step[] = [
     title: "Purchase",
     body: "Complete checkout before stock sells out.",
     image: {
-      src: "/images/process/step-03.jpg",
-      alt: "Two hands holding a matte black phone above a warm ivory table",
+      src: "/images/process/Purchase.jpg",
+      alt: "A hand holding out a payment card at checkout",
     },
   },
   {
@@ -60,8 +60,8 @@ const STEPS: Step[] = [
     title: "Delivery",
     body: "Your certified device arrives with warranty.",
     image: {
-      src: "/images/drops/drop-02.jpg",
-      alt: "A slim graphite laptop suspended in mid-air over an ivory surface",
+      src: "/images/process/Delivery.png",
+      alt: "An open matte black gift box on a stone counter, a phone resting inside",
     },
   },
 ];
@@ -99,7 +99,7 @@ export function Process() {
           <div className="grid gap-x-6 gap-y-4 pb-10 lg:grid-cols-12 lg:items-end">
             <h2
               id="process-heading"
-              className="font-sans text-[clamp(2rem,3.4vw,3rem)] font-light leading-[1.06] tracking-[-0.03em] text-ink lg:col-span-7"
+              className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.06] tracking-[-0.03em] text-ink lg:col-span-7"
             >
               How Every Drop Works
             </h2>
@@ -140,7 +140,10 @@ export function Process() {
                   "motion-reduce:hover:translate-y-0",
                 )}
               >
-                <div className="relative h-80 overflow-hidden rounded-lg bg-surface-2">
+                {/* Shorter on phones: at 320px tall the photograph pushed
+                    the step's own title and line off the bottom of the
+                    card, which inverts what the section is for. */}
+                <div className="relative h-52 overflow-hidden rounded-lg bg-surface-2 sm:h-64 lg:h-80">
                   <Image
                     src={step.image.src}
                     alt={step.image.alt}

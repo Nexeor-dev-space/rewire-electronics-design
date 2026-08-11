@@ -257,7 +257,13 @@ export function Hero() {
       onMouseLeave={handleMouseLeave}
       onFocusCapture={pause}
       onBlurCapture={resume}
-      className="relative flex min-h-svh flex-col overflow-hidden bg-void"
+      // `min-h-svh` is a landscape assumption: on a portrait desktop-width
+      // canvas (iPad Pro 12.9", 1024×1366) stretching to the viewport
+      // opens a ~500px void between the masthead and the product, because
+      // the composition is bottom-anchored and the content column is only
+      // ~700px tall. In portrait the banner sizes to its content instead
+      // and hands the rest of the screen to the calendar below.
+      className="relative flex min-h-svh flex-col overflow-hidden bg-void md:portrait:min-h-0"
     >
       {/* Paper grain, nothing else */}
       <div aria-hidden className="grain absolute inset-0" />
@@ -275,7 +281,7 @@ export function Hero() {
           running underneath the panel's numbers. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[15%] z-0 select-none lg:top-[10%]"
+        className="pointer-events-none absolute inset-x-0 top-[15%] z-0 select-none md:top-[10%]"
       >
         {/* Full viewport width at every size, centred, cropped by the
             section's `overflow-hidden`.
@@ -301,22 +307,26 @@ export function Hero() {
             the word reads as a masthead, and open letterforms suit that
             better than the condensed setting a headline wants.
 
-            It reaches across the panel's columns rather than stopping at
-            them: an opaque ground on the rail guillotined the tail
-            mid-word, and sizing the type to fit the canvas cost the
-            full-bleed span the word exists for. Both were tried; both were
-            worse than the thing they fixed.
-
-            So the two are separated *vertically* instead. `10%` from `lg`
-            rather than `15%` is what lifts the letters clear of the
-            panel's top edge — the panel is bottom-anchored, so it rides
-            higher on a short window and 15% put the baseline 21px into it
-            at 1280×800. Measured against the real glyph box (cap height,
-            not the line box, which overstates by ~55px at this size).
-            Together with the panel's tightened rhythm this clears at both
-            1440×900 and 1280×800. Phones keep 15%, where the band sits
-            over the product and there is no panel beside it. */}
-        <span className="block whitespace-nowrap text-center font-sans text-[15vw] font-medium leading-[0.8] tracking-[0.015em] text-ink/[0.03] sm:text-ink/[0.06]">
+            Vertical separation alone was fragile — on shorter windows
+            the panel rides up (it is bottom-anchored) and the word's tail
+            slid into its top edge at 1280×800 (measured −13px). Fixed
+            here on the *right axis* instead, without shrinking the word
+            or clipping it hard: a linear-gradient mask fades the last 30%
+            to transparent from `lg` up, so the ink is at full strength
+            across the main hero canvas and dissolves before it reaches
+            the rail. That is the difference from the earlier clipping
+            attempt — a hard boundary "guillotines" the tail (`REIMAGINE`
+            reads as a typo); a soft one lets the D taper into paper the
+            way a masthead half-cropped by a page edge does. Panels can
+            grow, the mask goes with them. Phones/tablets keep the full
+            bleed — no rail beside the word at those sizes. */}
+        <span
+          className={cn(
+            "block whitespace-nowrap text-center font-sans text-[15vw] font-medium leading-[0.8]",
+            "tracking-[0.015em] text-ink/[0.03] sm:text-ink/[0.06]",
+            "md:[mask-image:linear-gradient(to_right,black_70%,transparent_100%)]",
+          )}
+        >
           REIMAGINED
         </span>
       </div>
@@ -329,26 +339,36 @@ export function Hero() {
         {/* Three arrangements of the same five blocks.
             Mobile: one column — device, then everything needed to buy it,
             then the brand statement.
-            Tablet: two columns — the device full width above, then the CTA
-            beside the scarcity panel, brand copy last. Its trailing `1fr`
-            row takes the panel's overhang so a tall panel can't push the
-            CTA away from the copy it belongs to.
-            Desktop: the 12-column frame, where row 1 is the `1fr` that
+            Tablet and desktop share the same three-column frame — the
+            drop's argument left, the device centre, its ledger rail right
+            — so an iPad reads exactly like the reference composition
+            rather than a rearrangement of it. From `md` the columns run
+            in equal thirds (the rail needs every pixel at 768); from `lg`
+            the desktop ratio returns (4 / 5 / 3). Row 1 is the `1fr` that
             swallows the slack and keeps label → headline → CTA tight
             together at a baseline shared with the product and the rail. */}
-        <div className="grid w-full gap-y-6 sm:gap-y-10 md:grid-cols-2 md:grid-rows-[auto_auto_auto_auto_1fr] md:gap-x-10 lg:grid-cols-12 lg:grid-rows-[1fr_auto_auto_auto] lg:gap-x-6 lg:gap-y-0">
+        {/* Between `sm` and `md` the single column caps itself at the
+            device's own max-width and centres — a 640–767px canvas given
+            full-bleed hairline rows reads as a phone layout on a rack,
+            not a tablet design. */}
+        {/* 480–767 — the foldable band (Surface Duo, small tablets) — is
+            the reference folded once: too narrow for three columns, so the
+            device holds the left half and the ledger the right, with the
+            CTAs and statement centred beneath. Same reading order, one
+            fold. */}
+        <div className="grid w-full gap-y-6 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-10 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[1fr_auto_auto_auto] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
           {/* ---------- Drop label ---------- */}
           <motion.p
             {...enter(0)}
-            className="order-1 flex items-center justify-between gap-4 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-muted md:col-span-2 md:row-start-1 lg:col-span-4 lg:col-start-1 lg:row-start-2"
+            className="order-1 flex items-center justify-between gap-4 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-muted min-[480px]:max-md:col-span-2 md:col-span-4 md:col-start-1 md:row-start-2"
           >
             <span>
               {drop.edition} · {drop.title}
             </span>
 
-            {/* Phones and tablets only — redundant from `lg`, where the
-                rail is already in view beside the product. */}
-            <span className="flex items-center gap-2 text-ink lg:hidden">
+            {/* Phones only — redundant from `md`, where the rail is
+                already in view beside the product. */}
+            <span className="flex items-center gap-2 text-ink md:hidden">
               <span
                 aria-hidden
                 className="size-1.5 shrink-0 animate-pulse-dot rounded-full bg-urgent"
@@ -369,7 +389,7 @@ export function Hero() {
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
-            className="relative order-2 md:col-span-2 md:row-start-2 lg:col-span-5 lg:col-start-5 lg:row-span-4 lg:row-start-1"
+            className="relative order-2 min-[480px]:max-md:col-start-1 min-[480px]:max-md:row-start-2 md:col-span-4 md:col-start-5 md:row-span-4 md:row-start-1 lg:col-span-5 lg:col-start-5"
           >
             <motion.div
               style={
@@ -384,7 +404,14 @@ export function Hero() {
               // are `object-contain`, so a tall box does not make the
               // device bigger — it pads it with air and pushes the price
               // of admission below the fold.
-              className="relative z-10 mx-auto h-[30svh] max-h-[15rem] w-full max-w-xl sm:h-[46svh] sm:max-h-[24rem] lg:h-[68svh] lg:max-h-none lg:max-w-none lg:translate-x-[6%]"
+              // From `lg` the box height is the *smaller* of 68svh and
+              // 44vw. The cutouts are roughly square and `object-contain`
+              // renders them at the column's width (~42vw), so any box
+              // taller than that is pure air — which is exactly what a
+              // portrait viewport produced (a 929px box around a 437px
+              // image). On landscape desktops 68svh is already the smaller
+              // term, so nothing changes there.
+              className="relative z-10 mx-auto h-[30svh] max-h-[15rem] w-full max-w-xl min-[480px]:max-h-[18rem] sm:h-[46svh] sm:max-h-[24rem] md:h-[min(68svh,44vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
             >
               <motion.div
                 animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
@@ -410,14 +437,21 @@ export function Hero() {
             </motion.div>
 
             {/* Sits under the plinth, not over it — the product keeps the
-                whole frame and the caption reads as the next line down. */}
+                whole frame and the caption reads as the next line down.
+                Centred on the cell rather than the product image: the
+                image is biased 6% right so its mass lands at ~56% of the
+                viewport, and matching the nav to that shift made the
+                caption read as off-centre when the product was out of
+                frame. Small trade — the nav is no longer perfectly
+                under the product's optical centre — for a nav that
+                always looks centred in its own column. */}
             <ProductNav
               total={count}
               index={active}
               onPrev={goPrev}
               onNext={goNext}
               onViewAll={openSelector}
-              className="mt-4 sm:mt-6 lg:mt-8 lg:translate-x-[6%]"
+              className="mt-4 sm:mt-6 lg:mt-8"
             />
 
             {/* ---------- Identity · below `lg` ----------
@@ -437,7 +471,7 @@ export function Hero() {
               }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-              className="mt-5 text-center lg:hidden"
+              className="mt-5 text-center md:hidden"
             >
               <p className="text-[1.125rem] font-medium leading-tight tracking-[-0.015em] text-ink">
                 {device.name}
@@ -469,9 +503,14 @@ export function Hero() {
               ease: EASE_OUT_EXPO,
             }}
             className={cn(
-              "order-3 md:col-start-2 md:row-span-3 md:row-start-3",
-              "lg:relative lg:col-span-3 lg:col-start-10 lg:row-span-4 lg:row-start-1",
-              "lg:flex lg:flex-col lg:justify-end lg:pl-8",
+              // Foldable band: the ledger rides beside the device, centred
+              // on its mass so the pair reads as one row.
+              "order-3 min-[480px]:max-md:col-start-2 min-[480px]:max-md:row-start-2 min-[480px]:max-md:self-center",
+              "md:relative md:col-span-4 md:col-start-9 md:row-span-4 md:row-start-1",
+              // The rail's inset scales with the frame: at 768 the column
+              // is ~225px and any real indent starves the ledger; it
+              // widens step by step as the canvas can afford it.
+              "md:flex md:flex-col md:justify-end md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
             )}
           >
             <LiveDropPanel
@@ -487,19 +526,29 @@ export function Hero() {
 
           {/* ---------- Action ----------
               Directly under price and stock below `lg`. The two pills
-              measure 337px side by side, which is 2px wider than a 375px
-              column — left to wrap they read as a mistake rather than a
-              choice, so below `sm` they go full-width and stacked. */}
+              measure ~340px side by side, so the arrangement follows the
+              width actually available, band by band:
+
+              · <480 — full-width, stacked. Phone pattern.
+              · 480–767 — side by side. A foldable half-screen (540) has
+                the room, and two 500px pills read as an error, not a
+                choice.
+              · 768–1279 — full-width, stacked *inside the column*. The
+                tablet and early-desktop columns run 300–360px, where
+                auto-width pills wrap into a ragged stagger; a deliberate
+                stack aligned to the column edge is the premium version
+                of the same answer.
+              · ≥1280 — side by side, the desktop composition. */}
           <motion.div
             ref={ctaRef}
             {...enter(0.2)}
-            className="order-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:col-start-1 md:row-start-3 lg:col-span-4 lg:col-start-1 lg:row-start-4 lg:mt-10"
+            className="order-4 flex flex-col gap-3 min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-3 min-[480px]:max-md:flex-row min-[480px]:max-md:flex-wrap min-[480px]:max-md:items-center min-[480px]:max-md:justify-center xl:flex-row xl:flex-wrap xl:items-center md:col-span-4 md:col-start-1 md:row-start-4 md:mt-10"
           >
             <Link
               href={buyHref}
               className={cn(
                 buttonVariants({ variant: "accent", size: "lg" }),
-                "w-full sm:w-auto max-lg:px-7",
+                "w-full min-[480px]:max-md:w-auto xl:w-auto max-lg:px-7",
               )}
             >
               Grab It Now
@@ -508,7 +557,7 @@ export function Hero() {
               href="/drops"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full sm:w-auto max-lg:px-7",
+                "w-full min-[480px]:max-md:w-auto xl:w-auto max-lg:px-7",
               )}
             >
               Browse Devices
@@ -520,7 +569,7 @@ export function Hero() {
             <button
               type="button"
               onClick={openSelector}
-              className="group/all mt-1 inline-flex items-center gap-1.5 self-center text-[0.8125rem] font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink md:hidden"
+              className="group/all mt-1 inline-flex items-center gap-1.5 self-center px-3 py-2.5 text-[0.8125rem] font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink md:hidden"
             >
               <span className="relative">
                 View all drops
@@ -554,7 +603,7 @@ export function Hero() {
               just no longer stands between a shopper and the button. */}
           <motion.div
             {...enter(0.1)}
-            className="order-5 max-w-[26.25rem] md:col-start-1 md:row-start-4 lg:col-span-4 lg:col-start-1 lg:row-start-3 lg:mt-6"
+            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-3 md:mt-6"
           >
             <h1
               id="hero-heading"

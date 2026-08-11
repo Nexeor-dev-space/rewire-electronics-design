@@ -72,20 +72,15 @@ export function LiveDropPanel({
         // No max-width of its own: the grid column already bounds this at
         // every size, and a 384px cap left the card 6px narrower than the
         // CTA beneath it on a 430px phone — a misalignment with no cause.
+        // Hairlines carry the panel at every size — from `md` it is the
+        // desktop rail in its own column, and on phones it is the middle
+        // of one continuous purchase block that a box would break apart.
         "w-full",
-        // Tablet only. There the panel sits in its own column beside the
-        // CTA, so a plate is what stops it reading as a loose column of
-        // hairlines. On a phone it is the middle of one continuous
-        // purchase block — price above, buttons below — and boxing it
-        // there would break the block into "text, card, buttons" for no
-        // gain. Hairlines carry it instead; the house rule is borders
-        // first, and a hero with three cards in it has too many.
-        "md:max-lg:rounded-2xl md:max-lg:border md:max-lg:border-line md:max-lg:bg-surface md:max-lg:p-5 md:max-lg:shadow-(--shadow-soft)",
         className,
       )}
     >
       {/* ---------- Status · the same index the nav caption shows ---------- */}
-      <div className="flex items-center justify-between gap-4 border-t border-line pt-5 max-md:pt-4 md:max-lg:border-t-0 md:max-lg:pt-0">
+      <div className="flex items-center justify-between gap-4 border-t border-line pt-5 max-md:pt-4">
         <span className="flex items-center gap-2 font-mono text-[0.6875rem] uppercase leading-none tracking-[0.22em] text-ink">
           {/* Urgent rather than the site's green `live`: green reads
               "certified, all is well", and this dot says the opposite. */}
@@ -111,11 +106,11 @@ export function LiveDropPanel({
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
       >
-        {/* Hidden below `lg`: the identity lives directly under the
+        {/* Hidden below `md`: the identity lives directly under the
             carousel controls at those sizes, where the tap happens, so
             repeating it here would name the device twice on one screen.
-            From `lg` this row is the only place the device is named. */}
-        <div className="mt-4 max-lg:hidden">
+            From `md` this row is the only place the device is named. */}
+        <div className="mt-4 max-md:hidden">
           <p className="text-[1.0625rem] font-medium leading-tight tracking-[-0.01em] text-ink">
             {device.name}
           </p>
@@ -135,18 +130,18 @@ export function LiveDropPanel({
           currency={drop.currency}
           locale={drop.locale}
           scale="panel"
-          // Hidden below `lg`: the identity block under the carousel
+          // Hidden below `md`: the identity block under the carousel
           // already states the price above the CTA at those sizes, and
           // printing the same money twice on one screen invites the reader
           // to check whether the two figures agree.
-          className="mt-4 border-t border-line pt-5 max-lg:hidden"
+          className="mt-4 border-t border-line pt-5 max-md:hidden"
         />
 
         {/* ---------- What is left ---------- */}
-        <div className="mt-4 border-t border-line pt-5 max-lg:mt-4 max-lg:pt-4 max-md:mt-3 max-md:pt-3">
+        <div className="mt-4 border-t border-line pt-5 max-md:mt-3 max-md:pt-3">
           {/* The orange count says "available now" on its own; on a phone
               the label was a row of type earning nothing. */}
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-muted max-lg:hidden">
+          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-muted max-md:hidden">
             Available now
           </p>
 
@@ -158,8 +153,8 @@ export function LiveDropPanel({
           {/* On a phone the denominator sits on the count's baseline
               rather than under it — a 335px column has the width for it,
               and it saves a whole row without shrinking the number. */}
-          <div className="max-lg:flex max-lg:flex-wrap max-lg:items-baseline max-lg:justify-between max-lg:gap-x-3">
-            <p className="mt-2 flex items-baseline gap-2 text-urgent max-lg:mt-0">
+          <div className="max-md:flex max-md:flex-wrap max-md:items-baseline max-md:justify-between max-md:gap-x-3">
+            <p className="mt-2 flex items-baseline gap-2 text-urgent max-md:mt-0">
               <span className="text-[1.75rem] font-light leading-[0.85] tracking-[-0.035em] tabular-nums">
                 {device.unitsLeft}
               </span>
@@ -167,7 +162,7 @@ export function LiveDropPanel({
                 units remaining
               </span>
             </p>
-            <p className="mt-2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted max-lg:mt-0">
+            <p className="mt-2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted max-md:mt-0">
               of {device.unitsTotal} devices
             </p>
           </div>
@@ -178,7 +173,7 @@ export function LiveDropPanel({
             aria-valuemax={device.unitsTotal}
             aria-valuenow={claimed}
             aria-label={`${claimed} of ${device.unitsTotal} ${device.name} devices claimed`}
-            className="mt-4 h-[3px] w-full overflow-hidden rounded-full bg-line-strong max-lg:mt-4 max-md:mt-3"
+            className="mt-4 h-[3px] w-full overflow-hidden rounded-full bg-line-strong max-md:mt-3"
           >
             <motion.span
               initial={{ scaleX: 0 }}
@@ -206,7 +201,7 @@ export function LiveDropPanel({
         </div>
 
         {/* ---------- Close ---------- */}
-        <div className="mt-4 flex items-center justify-between gap-4 border-t border-line pt-4 max-lg:mt-4 max-lg:pt-4 max-md:mt-3 max-md:pt-3">
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-line pt-4 max-md:mt-3 max-md:pt-3">
           <span className="font-mono text-[0.6875rem] uppercase leading-none tracking-[0.16em] text-ink-muted">
             Closes in
           </span>
@@ -224,17 +219,15 @@ export function LiveDropPanel({
           href={`/drops/${drop.slug}`}
           aria-label={`View and shop ${device.name}`}
           className={cn(
-            // Below `lg` the card is purely informational and stops at the
-            // countdown: every action lives in the CTA block, which now
-            // sits above this card on phones and directly beside it on
-            // tablet. Two buttons to the same place within one screen is
-            // an ambiguity, not an offer. From `lg` the CTA is a column
-            // away and this earns its place.
-            "group/shop mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full max-lg:hidden",
+            // Below `md` the panel is purely informational and stops at
+            // the countdown: every action lives in the CTA block within
+            // the same purchase column. Two buttons to the same place
+            // within one screen is an ambiguity, not an offer. From `md`
+            // the CTA is a column away and this earns its place.
+            "group/shop mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full max-md:hidden",
             "border border-ink text-[0.8125rem] font-medium tracking-tight text-ink",
             "transition-colors duration-(--duration-fast) ease-(--ease-out-quart)",
             "hover:bg-ink hover:text-surface focus-visible:bg-ink focus-visible:text-surface",
-            "max-lg:mt-5",
           )}
         >
           View &amp; Shop

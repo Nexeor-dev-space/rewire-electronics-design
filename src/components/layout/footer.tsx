@@ -34,7 +34,7 @@ export function Footer() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                      className="-my-1.5 inline-block py-1.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
                     >
                       {item.label}
                     </Link>
@@ -53,13 +53,13 @@ export function Footer() {
           <div className="flex gap-6">
             <Link
               href="/privacy"
-              className="font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
+              className="-my-2 inline-block py-2 font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
             >
               Privacy
             </Link>
             <Link
               href="/terms"
-              className="font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
+              className="-my-2 inline-block py-2 font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
             >
               Terms
             </Link>

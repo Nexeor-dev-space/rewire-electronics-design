@@ -54,7 +54,7 @@ export function Faq() {
           >
             <h2
               id="faq-heading"
-              className="font-sans text-[clamp(2.5rem,5vw,4.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink"
+              className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink"
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
