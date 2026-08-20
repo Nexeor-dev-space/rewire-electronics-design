@@ -48,19 +48,19 @@ export interface PrimaryNavItem extends NavItem {
  * the menu and the homepage gallery can never drift apart.
  */
 export const mainNav: PrimaryNavItem[] = [
-  { label: "Upcoming Drops", href: "/drops", badge: "live" },
-  { label: "Shop", href: "/collection" },
+  { label: "Upcoming Drops", href: "/", badge: "live" },
+  { label: "Shop", href: "/" },
   {
     label: "Categories",
-    href: "/collection",
+    href: "/",
     panel: {
       wide: true,
       items: getCategories().map((category) => ({
         label: category.name,
-        href: `/collection/${category.slug}`,
+        href: "/",
         note: category.note,
       })),
-      footer: { label: "Browse the full collection", href: "/collection" },
+      footer: { label: "Browse the full collection", href: "/" },
     },
   },
   { label: "How It Works", href: "/process" },
@@ -87,6 +87,7 @@ export const mainNav: PrimaryNavItem[] = [
  */
 export const accountNav: NavItem[] = [
   { label: "My Orders", href: "/account/orders" },
+  { label: "Wishlist", href: "/wishlist" },
   { label: "My Waitlists", href: "/account/waitlists" },
   { label: "Support Tickets", href: "/account/support" },
   { label: "Returns", href: "/account/returns" },
@@ -106,9 +107,9 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
   {
     title: "Shop",
     items: [
-      { label: "Live Drops", href: "/drops" },
-      { label: "Collection", href: "/collection" },
-      { label: "Archive", href: "/archive" },
+      { label: "Live Drops", href: "/" },
+      { label: "Collection", href: "/" },
+      { label: "Archive", href: "/" },
     ],
   },
   {

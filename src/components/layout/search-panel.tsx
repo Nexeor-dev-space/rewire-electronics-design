@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { searchCatalogue } from "@/lib/search";
+import { productHrefForCategory, productHrefForDrop } from "@/lib/route-map";
 import { EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -211,7 +212,7 @@ export function SearchPanel({ open, onClose, triggerRef }: SearchPanelProps) {
                         {results.categories.map((category) => (
                           <li key={category.slug}>
                             <Link
-                              href={`/collection/${category.slug}`}
+                              href={productHrefForCategory(category.slug)}
                               onClick={onClose}
                               className="-mx-2 block rounded-md px-2 py-2 text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:text-accent"
                             >
@@ -229,7 +230,7 @@ export function SearchPanel({ open, onClose, triggerRef }: SearchPanelProps) {
                         {results.drops.map((drop) => (
                           <li key={drop.id}>
                             <Link
-                              href={`/drops/${drop.slug}`}
+                              href={productHrefForDrop(drop.slug)}
                               onClick={onClose}
                               className="group/drop -mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
                             >

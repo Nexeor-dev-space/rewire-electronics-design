@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { DropStatus, UpcomingDrop } from "@/lib/drops";
+import { productHrefForDrop } from "@/lib/route-map";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 import { Countdown } from "@/components/ui/countdown";
 
@@ -214,7 +215,7 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
         <div className="flex items-baseline justify-between gap-4">
           <h3 className="text-[1.25rem] font-medium leading-tight tracking-[-0.02em] text-ink">
             <Link
-              href={`/drops/${drop.slug}`}
+              href={productHrefForDrop(drop.slug)}
               // Whole plate is one link (see the `after:inset-0`).
               // Actions that need to open the modal live above it on
               // `z-10`.
@@ -226,7 +227,7 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
 
           {state.action === "view" ? (
             <Link
-              href={`/drops/${drop.slug}`}
+              href={productHrefForDrop(drop.slug)}
               className={ctaClass}
               aria-label={`${state.cta} — ${drop.name}`}
             >

@@ -1,8 +1,9 @@
 import { Hero } from "@/components/home/hero/hero";
 import { UpcomingDrops } from "@/components/home/upcoming-drops/upcoming-drops";
 import { Categories } from "@/components/home/categories/categories";
+import { Featured } from "@/components/home/featured/featured";
+import { Setup } from "@/components/home/setup/setup";
 import { Savings } from "@/components/home/savings/savings";
-import { Scarcity } from "@/components/home/scarcity/scarcity";
 import { PastDrops } from "@/components/home/past-drops/past-drops";
 import { Standard } from "@/components/home/standard/standard";
 import { Process } from "@/components/home/process/process";
@@ -18,7 +19,6 @@ import { Invitation } from "@/components/home/invitation/invitation";
  *   UpcomingDrops want it       — three more, each in a visibly different state
  *   Categories    find it       — or start from the kind of device you want
  *   Savings       value it      — whichever you pick, up to 42% less than new
- *   Scarcity      act on it     — 2 left, closing in two days
  *   PastDrops     believe it    — and these already sold out
  *   Standard      trust it      — inspection, battery, grade, warranty
  *   Process       understand it — and this is what happens when you buy
@@ -38,22 +38,22 @@ import { Invitation } from "@/components/home/invitation/invitation";
  * already holding a number. If that reads as cheap-first, the fix is to
  * swap `Savings` and `Standard` back — not to soften either section.
  *
- * **Scarcity now follows Savings directly**, so the deadline lands right
- * after the number that makes it worth acting on — "2 left" reads very
- * differently once the reader already knows what staying in the drop is
- * worth. This trades away the older logic of holding urgency until last:
- * it now fires before `PastDrops` has made the case with history, and
- * before `Standard` has made it with the inspection numbers. If urgency
- * this early starts reading as pressure rather than information, move
- * `Scarcity` back below `Stories`, not just below `PastDrops`.
+ * Two sections are preserved but no longer rendered here — see
+ * `components/home/scarcity/` and `components/home/certification/`.
+ * Both were doing legitimate work; both were also loading urgency the
+ * hero (Scarcity) and Standard (Certification) already carry. Neither
+ * has been deleted:
  *
- * The `Certification` section (`components/home/certification/`) is
- * preserved but no longer rendered here: it was too much depth for the
- * homepage's trust beat, and the ground it covers — inspection, grade,
- * warranty — is already carried by `Standard`. The full document belongs
- * on the About page (`/about/certification`, already linked from the nav
- * and footer). Import it there when that route is built; do not delete
- * the component or `lib/certification.ts`.
+ * - **Scarcity** — the closing "current drop will not wait" band. Hero
+ *   already prints stock and countdown per device, and every calendar
+ *   card carries units left; a section-level restatement was pressure
+ *   for pressure's sake. Reinstate below `Stories` (never above `PastDrops`)
+ *   if a late-page deadline turns out to be needed.
+ * - **Certification** — the five-step programme document. The full
+ *   version belongs on the About page (`/about/certification`, already
+ *   linked from nav and footer). Wire it there when that route is built.
+ *
+ * Do not delete either component or its data adapter.
  */
 export default function Home() {
   return (
@@ -61,8 +61,9 @@ export default function Home() {
       <Hero />
       <UpcomingDrops />
       <Categories />
+      <Featured />
+      <Setup />
       <Savings />
-      <Scarcity />
       <PastDrops />
       <Standard />
       <Process />

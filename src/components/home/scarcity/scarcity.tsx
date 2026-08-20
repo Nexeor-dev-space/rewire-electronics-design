@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getLiveDrop } from "@/lib/drops";
+import { productHrefForDrop } from "@/lib/route-map";
 import { useCountdown } from "@/hooks/use-countdown";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, formatPrice, pad, savingsPercent } from "@/lib/utils";
@@ -195,7 +196,7 @@ export function Scarcity() {
             </p>
 
             <Link
-              href={`/drops/${drop.slug}`}
+              href={productHrefForDrop(drop.slug)}
               aria-label={`Grab ${device.name} now`}
               className={cn(
                 buttonVariants({ variant: "accent", size: "md" }),

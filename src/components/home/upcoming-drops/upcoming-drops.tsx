@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getUpcomingDrops, type UpcomingDrop } from "@/lib/drops";
+import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { resolveWaitlistPreselect } from "@/lib/waitlist";
 import { buttonVariants } from "@/components/ui/button";
 import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
@@ -168,7 +169,7 @@ export function UpcomingDrops() {
               fallback. Sized below the product CTAs so it cannot outweigh
               them. */}
           <Link
-            href="/drops"
+            href={SHOP_INDEX_HREF}
             className={buttonVariants({ variant: "outline", size: "md" })}
           >
             View all upcoming drops

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getPastDrops } from "@/lib/drops";
+import { productHrefForDrop } from "@/lib/route-map";
 import { cn, formatPrice, formatDropDate, savingsPercent } from "@/lib/utils";
 import {
   DURATION,
@@ -128,7 +129,7 @@ export function PastDrops() {
                   (only on hover), so the click surface exists without
                   turning the card into a shelf tile. */}
               <Link
-                href={`/drops/${drop.slug}`}
+                href={productHrefForDrop(drop.slug)}
                 aria-label={`View the ${drop.name} archive`}
                 className="group/past block"
               >

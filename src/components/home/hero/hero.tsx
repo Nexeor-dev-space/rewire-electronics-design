@@ -9,23 +9,16 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   motion,
-  AnimatePresence,
   useMotionValue,
   useSpring,
   useTransform,
   useReducedMotion,
 } from "framer-motion";
-import { buttonVariants } from "@/components/ui/button";
 import { getLiveDrop } from "@/lib/drops";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { LiveDropPanel } from "./live-drop-panel";
-import { ProductNav } from "./product-nav";
-import { DropSelector } from "./drop-selector";
-import { PriceBlock } from "./price-block";
 
 /** Dwell per device before the next crossfade. */
 const CYCLE_MS = 6000;
@@ -56,10 +49,9 @@ function enter(delay: number) {
  * marketing headline, and the drop's numbers appear once, attached to the
  * product they describe, rather than again in a card further down.
  *
- * The plinth turns over every six seconds and everything bound to it moves
- * together. Rotation stops on reduced motion, while the pointer is over
- * the panel, while focus is inside the hero, and for good once the visitor
- * works the controls.
+ * The plinth turns over every six seconds. Rotation stops on reduced
+ * motion, while focus is inside the hero, and while the pointer is on the
+ * device itself.
  */
 export function Hero() {
   const drop = getLiveDrop();
@@ -67,16 +59,8 @@ export function Hero() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [steered, setSteered] = useState(false);
-  /** +1 forward, −1 back. Only drives which way the copy enters from. */
-  const [direction, setDirection] = useState(1);
-  const [selectorOpen, setSelectorOpen] = useState(false);
-  const [showStickyBuy, setShowStickyBuy] = useState(false);
 
   const count = drop.devices.length;
-  const device = drop.devices[active];
-
-  const sectionRef = useRef<HTMLElement>(null);
-  const ctaRef = useRef<HTMLDivElement>(null);
 
   /* ---------- Crossfade rotation ----------
       Stops for good the moment the visitor works the controls: once
@@ -91,101 +75,19 @@ export function Hero() {
     return () => window.clearInterval(id);
   }, [prefersReducedMotion, paused, steered, count]);
 
-  /* ---------- Sticky buy bar ----------
-      Shows whenever the inline CTA is not *fully* in view and the hero
-      still is — which means it is already up on first paint, when the
-      buttons sit below the fold, and retires the moment the real ones
-      scroll into view. Triggering on "scrolled past" instead would leave
-      the one screen that most needs a buy action without one. It also
-      never doubles up: bar and buttons are never both visible.
-
-      Two observers rather than a scroll listener, so nothing runs per
-      frame; `threshold: 1` is what makes "fully visible" the test. */
-  useEffect(() => {
-    const cta = ctaRef.current;
-    const section = sectionRef.current;
-    if (!cta || !section) return;
-
-    // Measure once, synchronously. An observer's first callback is only
-    // guaranteed "at some point after observe()", and on a page that opens
-    // with the buttons already below the fold that gap is exactly when the
-    // bar is most needed. This also means the bar is correct on first
-    // paint rather than appearing a beat late.
-    const measure = () => {
-      const c = cta.getBoundingClientRect();
-      const s = section.getBoundingClientRect();
-      return {
-        ctaHidden: !(c.top >= 0 && c.bottom <= window.innerHeight),
-        heroOnScreen: s.bottom > 0 && s.top < window.innerHeight,
-      };
-    };
-
-    let { ctaHidden, heroOnScreen } = measure();
-    setShowStickyBuy(ctaHidden && heroOnScreen);
-
-    const sync = () => setShowStickyBuy(ctaHidden && heroOnScreen);
-
-    const ctaObserver = new IntersectionObserver(
-      ([e]) => {
-        ctaHidden = !e.isIntersecting;
-        sync();
-      },
-      { threshold: 1 },
-    );
-    const heroObserver = new IntersectionObserver(
-      ([e]) => {
-        heroOnScreen = e.isIntersecting;
-        sync();
-      },
-      { threshold: 0 },
-    );
-
-    ctaObserver.observe(cta);
-    heroObserver.observe(section);
-
-    // A resize can move the buttons across the fold without either
-    // observer firing — the intersection ratio may not change.
-    const onResize = () => {
-      ({ ctaHidden, heroOnScreen } = measure());
-      sync();
-    };
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      ctaObserver.disconnect();
-      heroObserver.disconnect();
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
 
   const pause = useCallback(() => setPaused(true), []);
   const resume = useCallback(() => setPaused(false), []);
 
   const goPrev = useCallback(() => {
     setSteered(true);
-    setDirection(-1);
     setActive((i) => (i - 1 + count) % count);
   }, [count]);
 
   const goNext = useCallback(() => {
     setSteered(true);
-    setDirection(1);
     setActive((i) => (i + 1) % count);
   }, [count]);
-
-  /** Jump straight to a device from the drop list. */
-  const goTo = useCallback(
-    (next: number) => {
-      setSteered(true);
-      setDirection(next >= active ? 1 : -1);
-      setActive(next);
-      setSelectorOpen(false);
-    },
-    [active],
-  );
-
-  const openSelector = useCallback(() => setSelectorOpen(true), []);
-  const closeSelector = useCallback(() => setSelectorOpen(false), []);
 
   /* ---------- Swipe ----------
       Pointer events rather than touch, so a trackpad drag works too.
@@ -247,11 +149,9 @@ export function Hero() {
     my.set(0);
   }, [mx, my]);
 
-  const buyHref = `/drops/${drop.slug}`;
 
   return (
     <section
-      ref={sectionRef}
       aria-labelledby="hero-heading"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -436,64 +336,12 @@ export function Hero() {
               </motion.div>
             </motion.div>
 
-            {/* Sits under the plinth, not over it — the product keeps the
-                whole frame and the caption reads as the next line down.
-                Centred on the cell rather than the product image: the
-                image is biased 6% right so its mass lands at ~56% of the
-                viewport, and matching the nav to that shift made the
-                caption read as off-centre when the product was out of
-                frame. Small trade — the nav is no longer perfectly
-                under the product's optical centre — for a nav that
-                always looks centred in its own column. */}
-            <ProductNav
-              total={count}
-              index={active}
-              onPrev={goPrev}
-              onNext={goNext}
-              onViewAll={openSelector}
-              className="mt-4 sm:mt-6 lg:mt-8"
-            />
-
-            {/* ---------- Identity · below `lg` ----------
-                Name, variant, price — the answer that has to arrive with
-                the tap. No stock line here: the scarcity module sits
-                directly beneath and would otherwise state the same count
-                twice in 120px. From `lg` the rail carries all of this.
-
-                Keyed on the device so the block re-enters per change,
-                sliding a step in from the direction of travel. Reduced
-                motion drops the slide and keeps the fade. */}
-            <motion.div
-              key={device.id}
-              initial={{
-                opacity: 0,
-                x: prefersReducedMotion ? 0 : 18 * direction,
-              }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-              className="mt-5 text-center md:hidden"
-            >
-              <p className="text-[1.125rem] font-medium leading-tight tracking-[-0.015em] text-ink">
-                {device.name}
-              </p>
-              <p className="mt-1 text-[0.8125rem] text-ink-secondary">
-                {device.variant}
-              </p>
-
-              <PriceBlock
-                price={device.price}
-                originalPrice={device.originalPrice}
-                currency={drop.currency}
-                locale={drop.locale}
-                className="mt-4 flex flex-col items-center"
-              />
-            </motion.div>
           </motion.div>
 
-          {/* ---------- Scarcity ----------
-              Third below `lg`, attached to the product it describes and
-              sitting between the price and the button — which is where a
-              shopper asks "how many are left" and nowhere else. */}
+          {/* ---------- Tagline · right rail ----------
+              Where the LiveDropPanel used to live. Editorial statement
+              rather than a commerce panel — the hero now hands the page
+              to the calendar below rather than trying to sell inline. */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -503,99 +351,19 @@ export function Hero() {
               ease: EASE_OUT_EXPO,
             }}
             className={cn(
-              // Foldable band: the ledger rides beside the device, centred
-              // on its mass so the pair reads as one row.
               "order-3 min-[480px]:max-md:col-start-2 min-[480px]:max-md:row-start-2 min-[480px]:max-md:self-center",
               "md:relative md:col-span-4 md:col-start-9 md:row-span-4 md:row-start-1",
-              // The rail's inset scales with the frame: at 768 the column
-              // is ~225px and any real indent starves the ledger; it
-              // widens step by step as the canvas can afford it.
               "md:flex md:flex-col md:justify-end md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
             )}
           >
-            <LiveDropPanel
-              drop={drop}
-              device={device}
-              index={active}
-              total={count}
-              direction={direction}
-              onPause={pause}
-              onResume={resume}
-            />
-          </motion.div>
-
-          {/* ---------- Action ----------
-              Directly under price and stock below `lg`. The two pills
-              measure ~340px side by side, so the arrangement follows the
-              width actually available, band by band:
-
-              · <480 — full-width, stacked. Phone pattern.
-              · 480–767 — side by side. A foldable half-screen (540) has
-                the room, and two 500px pills read as an error, not a
-                choice.
-              · 768–1279 — full-width, stacked *inside the column*. The
-                tablet and early-desktop columns run 300–360px, where
-                auto-width pills wrap into a ragged stagger; a deliberate
-                stack aligned to the column edge is the premium version
-                of the same answer.
-              · ≥1280 — side by side, the desktop composition. */}
-          <motion.div
-            ref={ctaRef}
-            {...enter(0.2)}
-            className="order-4 flex flex-col gap-3 min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-3 min-[480px]:max-md:flex-row min-[480px]:max-md:flex-wrap min-[480px]:max-md:items-center min-[480px]:max-md:justify-center xl:flex-row xl:flex-wrap xl:items-center md:col-span-4 md:col-start-1 md:row-start-4 md:mt-10"
-          >
-            <Link
-              href={buyHref}
-              className={cn(
-                buttonVariants({ variant: "accent", size: "lg" }),
-                "w-full min-[480px]:max-md:w-auto xl:w-auto max-lg:px-7",
-              )}
-            >
-              Grab It Now
-            </Link>
-            <Link
-              href="/drops"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full min-[480px]:max-md:w-auto xl:w-auto max-lg:px-7",
-              )}
-            >
-              Browse Devices
-            </Link>
-
-            {/* Phones get the drop list here rather than under the nav —
-                by the time the CTA is on screen the thumb is already at
-                the bottom of the phone. */}
-            <button
-              type="button"
-              onClick={openSelector}
-              className="group/all mt-1 inline-flex items-center gap-1.5 self-center px-3 py-2.5 text-[0.8125rem] font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink md:hidden"
-            >
-              <span className="relative">
-                View all drops
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute inset-x-0 -bottom-0.5 h-px origin-right scale-x-0 bg-current",
-                    "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-                    "group-hover/all:origin-left group-hover/all:scale-x-100",
-                    "group-focus-visible/all:origin-left group-focus-visible/all:scale-x-100",
-                  )}
-                />
+            <p className="max-w-[16rem] font-mono text-[0.6875rem] uppercase leading-loose tracking-[0.22em] text-ink-secondary md:max-w-none">
+              A limited release, once a month.
+              <br />
+              <span className="text-ink-muted">
+                Certified refurbished electronics, released in numbered
+                editions.
               </span>
-              <svg
-                aria-hidden
-                viewBox="0 0 14 14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.25"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-3 transition-transform duration-(--duration-base) ease-(--ease-out-expo) motion-safe:group-hover/all:translate-x-1"
-              >
-                <path d="M1.5 7h11M8.5 3.5L12 7l-3.5 3.5" />
-              </svg>
-            </button>
+            </p>
           </motion.div>
 
           {/* ---------- The argument ----------
@@ -627,63 +395,6 @@ export function Hero() {
         <div className="border-t border-line" />
       </div>
 
-      {/* ---------- Sticky buy bar · phones ----------
-          The purchase action follows the reader down the rest of the hero
-          rather than scrolling away with the block it belongs to. It
-          carries the price and the count so the bar is a decision, not
-          just a button, and it retires the moment the hero does. Sits
-          under the header (z-50) and under any dialog (z-100). */}
-      <AnimatePresence>
-        {showStickyBuy && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-            className={cn(
-              "fixed inset-x-0 bottom-0 z-40 md:hidden",
-              "border-t border-line bg-[var(--glass-bg-strong)] backdrop-blur-xl",
-              "px-(--spacing-gutter) pt-3",
-              "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-            )}
-          >
-            <div className="flex items-center gap-4">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[0.8125rem] font-medium leading-tight text-ink">
-                  {device.name}
-                </p>
-                <p className="mt-0.5 font-mono text-[0.75rem] tabular-nums text-urgent">
-                  {formatPrice(device.price, drop.currency, drop.locale)}
-                  <span className="text-ink-muted">
-                    {" "}
-                    · {device.unitsLeft} left
-                  </span>
-                </p>
-              </div>
-
-              <Link
-                href={buyHref}
-                className={cn(
-                  "inline-flex h-12 shrink-0 items-center rounded-full px-6",
-                  "bg-ink text-[0.8125rem] font-medium tracking-tight text-surface",
-                  "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-                  "hover:bg-ink-hover active:scale-[0.97]",
-                )}
-              >
-                Grab It Now
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <DropSelector
-        open={selectorOpen}
-        onClose={closeSelector}
-        drop={drop}
-        activeIndex={active}
-        onSelect={goTo}
-      />
     </section>
   );
 }
