@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getLiveDrop, type LiveDrop, type LiveDropDevice } from "@/lib/drops";
+import { productHrefForDrop } from "@/lib/route-map";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 import {
   DURATION,
@@ -411,7 +412,7 @@ function SavingTile({
   }
 
   return (
-    <Link href={`/drops/${device.slug}`} className={shell}>
+    <Link href={productHrefForDrop(device.slug)} className={shell}>
       {body}
     </Link>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { LiveDrop, LiveDropDevice } from "@/lib/drops";
+import { productHrefForDrop } from "@/lib/route-map";
 import { cn, pad } from "@/lib/utils";
 import { useCountdown } from "@/hooks/use-countdown";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -216,7 +217,7 @@ export function LiveDropPanel({
             that just convinced you, and unambiguously about the device the
             panel is describing rather than whatever the page defaults to. */}
         <Link
-          href={`/drops/${drop.slug}`}
+          href={productHrefForDrop(drop.slug)}
           aria-label={`View and shop ${device.name}`}
           className={cn(
             // Below `md` the panel is purely informational and stops at

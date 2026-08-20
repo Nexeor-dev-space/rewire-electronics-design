@@ -11,6 +11,7 @@ import {
 } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/categories";
+import { productHrefForCategory } from "@/lib/route-map";
 
 interface CategoryCardProps {
   category: Category;
@@ -59,7 +60,7 @@ export function CategoryCard({ category, priority }: CategoryCardProps) {
   // ring on a child risks leaving keyboard users with no indicator at
   // all. The hover visuals below are mirrored on focus as enhancement.
   return (
-    <Link href={`/collection/${category.slug}`} className="group block">
+    <Link href={productHrefForCategory(category.slug)} className="group block">
       <div
         ref={plateRef}
         onMouseMove={handleMouseMove}

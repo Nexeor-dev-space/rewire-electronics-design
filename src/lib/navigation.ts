@@ -9,6 +9,11 @@
 
 import { getUpcomingDrops } from "./drops";
 import { getCategories } from "./categories";
+import {
+  productHrefForCategory,
+  productHrefForDrop,
+  SHOP_INDEX_HREF,
+} from "./route-map";
 
 export type MegaMenuId = "drops" | "shop" | "categories" | "about" | "support";
 
@@ -28,9 +33,9 @@ export interface PrimaryNavItem {
 }
 
 export const primaryNav: PrimaryNavItem[] = [
-  { label: "Upcoming Drops", href: "/drops", menu: "drops", badge: "live" },
-  { label: "Shop", href: "/collection", menu: "shop" },
-  { label: "Categories", href: "/collection", menu: "categories" },
+  { label: "Upcoming Drops", href: SHOP_INDEX_HREF, menu: "drops", badge: "live" },
+  { label: "Shop", href: SHOP_INDEX_HREF, menu: "shop" },
+  { label: "Categories", href: SHOP_INDEX_HREF, menu: "categories" },
   { label: "About", href: "/about", menu: "about" },
   { label: "Support", href: "/support", menu: "support" },
 ];
@@ -38,11 +43,11 @@ export const primaryNav: PrimaryNavItem[] = [
 /* ---------- Shop ---------- */
 
 export const shopBrowse: MenuLink[] = [
-  { label: "All Devices", href: "/collection" },
-  { label: "Phones", href: "/collection/phones" },
-  { label: "Laptops", href: "/collection/laptops" },
-  { label: "Tablets", href: "/collection/tablets" },
-  { label: "Accessories", href: "/collection/accessories" },
+  { label: "All Devices", href: SHOP_INDEX_HREF },
+  { label: "Phones", href: productHrefForCategory("phones") },
+  { label: "Laptops", href: productHrefForCategory("laptops") },
+  { label: "Tablets", href: productHrefForCategory("tablets") },
+  { label: "Accessories", href: productHrefForCategory("accessories") },
 ];
 
 /** Straight to search — these are queries, not catalogue routes. */
@@ -159,25 +164,28 @@ export function getDrawerSections(): DrawerSection[] {
     .slice(0, 4)
     .map((drop) => ({
       label: drop.name,
-      href: `/drops/${drop.slug}`,
+      href: productHrefForDrop(drop.slug),
       note: drop.edition,
     }));
 
   const categories = getCategories().map((category) => ({
     label: category.name,
-    href: `/collection/${category.slug}`,
+    href: productHrefForCategory(category.slug),
     note: `${category.count} devices`,
   }));
 
   return [
     {
       label: "Upcoming Drops",
-      href: "/drops",
+      href: SHOP_INDEX_HREF,
       badge: "live",
-      items: [...drops, { label: "View all upcoming drops", href: "/drops" }],
+      items: [
+        ...drops,
+        { label: "View all upcoming drops", href: SHOP_INDEX_HREF },
+      ],
     },
-    { label: "Shop", href: "/collection", items: shopBrowse },
-    { label: "Categories", href: "/collection", items: categories },
+    { label: "Shop", href: SHOP_INDEX_HREF, items: shopBrowse },
+    { label: "Categories", href: SHOP_INDEX_HREF, items: categories },
     {
       label: "About",
       href: "/about",

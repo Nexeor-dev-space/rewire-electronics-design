@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { fontVariables } from "@/lib/fonts";
 import { siteConfig } from "@/lib/site";
 import { Providers } from "@/components/providers";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,26 +41,22 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * Root layout — the html/body shell and app-wide providers only.
+ *
+ * The site chrome (header, footer, skip-link, `<main id="main">`) lives
+ * in the `(site)` route group's layout so it wraps every marketing and
+ * shop page. Reduced-chrome flows — checkout, in the first instance —
+ * sit outside that group and bring their own header, keeping the visitor
+ * focused on the one action the page is asking of them.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={fontVariables}>
       <body className="min-h-dvh flex flex-col antialiased">
-        {/* Keyboard users can bypass the fixed header */}
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:rounded-full focus:bg-ink focus:px-5 focus:py-3 focus:text-sm focus:text-void"
-        >
-          Skip to content
-        </a>
-        <Providers>
-          <Header />
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

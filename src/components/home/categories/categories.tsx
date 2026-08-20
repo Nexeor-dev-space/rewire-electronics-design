@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { buttonVariants } from "@/components/ui/button";
 import { getFeaturedCategories } from "@/lib/categories";
+import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -120,7 +121,7 @@ export function Categories() {
         className="relative z-10 mx-auto mt-16 flex w-full max-w-[110rem] justify-center px-(--spacing-gutter) lg:mt-20"
       >
         <Link
-          href="/collection"
+          href={SHOP_INDEX_HREF}
           className={buttonVariants({ variant: "outline", size: "lg" })}
         >
           Browse the full collection

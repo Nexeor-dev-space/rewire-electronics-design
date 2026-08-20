@@ -12,6 +12,11 @@ import {
   supportContact,
   supportLinks,
 } from "@/lib/navigation";
+import {
+  productHrefForCategory,
+  productHrefForDrop,
+  SHOP_INDEX_HREF,
+} from "@/lib/route-map";
 import { Countdown } from "@/components/ui/countdown";
 import { formatDropDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -43,7 +48,7 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
           gone.
         </p>
         <div className="mt-auto pt-8">
-          <MenuCta href="/drops">View Upcoming Drops</MenuCta>
+          <MenuCta href={SHOP_INDEX_HREF}>View Upcoming Drops</MenuCta>
         </div>
       </div>
 
@@ -54,7 +59,7 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
           {rest.map((drop) => (
             <li key={drop.id}>
               <Link
-                href={`/drops/${drop.slug}`}
+                href={productHrefForDrop(drop.slug)}
                 className={cn(
                   "group/card -mx-3 flex items-center gap-5 rounded-xl px-3 py-3",
                   "transition-colors duration-(--duration-fast) hover:bg-surface-2",
@@ -163,7 +168,7 @@ export function ShopMenu() {
 
       <div className="col-span-6">
         <Link
-          href="/collection"
+          href={SHOP_INDEX_HREF}
           className={cn(
             "group/card flex h-full overflow-hidden rounded-2xl border border-line bg-void",
             "transition-[border-color] duration-(--duration-base) ease-(--ease-out-expo)",
@@ -209,7 +214,7 @@ export function CategoriesMenu() {
     <div>
       <div className="flex items-baseline justify-between gap-6">
         <MenuLabel>Shop by category</MenuLabel>
-        <MenuCta href="/collection" className="text-[0.875rem]">
+        <MenuCta href={SHOP_INDEX_HREF} className="text-[0.875rem]">
           Browse everything
         </MenuCta>
       </div>
@@ -218,7 +223,7 @@ export function CategoriesMenu() {
         {categories.map((category) => (
           <li key={category.id}>
             <Link
-              href={`/collection/${category.slug}`}
+              href={productHrefForCategory(category.slug)}
               className={cn(
                 "group/card relative block overflow-hidden rounded-2xl border border-line bg-surface-2",
                 // Wide plate, not a portrait tile — the menu has to stay

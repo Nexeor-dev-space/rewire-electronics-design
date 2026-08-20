@@ -37,7 +37,7 @@ export function ProductCard({ product, priority, className }: ProductCardProps) 
       animate="rest"
     >
       <Link
-        href={`/products/${product.slug}`}
+        href={`/product/${product.slug}`}
         className="block outline-none"
         aria-label={`${product.name}, ${product.variant}, ${formatPrice(product.price, product.currency)}`}
       >

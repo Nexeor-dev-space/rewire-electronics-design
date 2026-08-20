@@ -1,132 +1,141 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import type { Product } from "@/types";
-import { CONDITION_LABELS } from "@/types";
-import { cn, formatPrice, savingsPercent } from "@/lib/utils";
-import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { Badge } from "@/components/ui/badge";
-import { Countdown } from "@/components/ui/countdown";
-
-interface ProductCardProps {
-  product: Product;
-  /** Deferred images below the fold should keep the default lazy loading. */
-  priority?: boolean;
-  className?: string;
-}
+import Link from "next/link";
+import {
+  availabilityLabel,
+  commerceCta,
+  productHref,
+  savingPercent,
+  type Product,
+} from "@/lib/products";
+import { cn, formatPrice } from "@/lib/utils";
+import { WishlistButton } from "./wishlist-button";
 
 /**
- * ProductCard — a floating artifact, not a shop tile.
- * The device sits on a dark radial stage; the card lifts and the
- * product eases forward on hover. Price is set in the mono voice.
+ * StorefrontCard — the catalogue's unit of stock.
+ *
+ * Distinct from `DropCard`, which sells an event and therefore leads with
+ * an edition and a countdown. This one answers the four questions a
+ * shopper asks of ordinary stock — what is it, what does it cost, what
+ * does that save, can I have it — and nothing else.
+ *
+ * The whole card is the link (a stretched pseudo-element over the plate
+ * and copy) so the hit target is the card rather than the small text CTA.
+ * The wishlist control sits above that overlay on its own z-layer,
+ * because a secondary action inside a link is otherwise unreachable.
  */
-export function ProductCard({ product, priority, className }: ProductCardProps) {
-  const image = product.images[0];
-  const savings = product.originalPrice
-    ? savingsPercent(product.price, product.originalPrice)
-    : 0;
-  const dropIsLive = product.drop?.status === "live";
+export function StorefrontCard({
+  product,
+  priority,
+  className,
+}: {
+  product: Product;
+  priority?: boolean;
+  className?: string;
+}) {
+  const saving = savingPercent(product);
+  const cta = commerceCta(product.availability);
+  const soldOut = product.availability === "sold-out";
+  const low = product.availability === "low-stock";
 
   return (
-    <motion.article
-      className={cn("group relative", className)}
-      whileHover="hover"
-      initial="rest"
-      animate="rest"
+    <article
+      className={cn("group/card relative flex h-full flex-col", className)}
     >
-      <Link
-        href={`/products/${product.slug}`}
-        className="block outline-none"
-        aria-label={`${product.name}, ${product.variant}, ${formatPrice(product.price, product.currency)}`}
-      >
-        {/* Stage */}
-        <motion.div
+      {/* ---------- Plate ---------- */}
+      <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-surface">
+        <Image
+          src={product.image.url}
+          alt={product.image.alt}
+          fill
+          priority={priority}
+          sizes="(max-width: 640px) 78vw, (max-width: 1024px) 45vw, 23vw"
           className={cn(
-            "relative aspect-4/5 overflow-hidden rounded-xl",
-            "surface-gradient edge-light border border-line",
-            "transition-[border-color] duration-(--duration-base) ease-(--ease-out-expo)",
-            "group-hover:border-line-strong",
+            "object-contain p-8 transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+            "group-hover/card:scale-[1.04]",
+            // A sold-out product should look unavailable before the label
+            // is read, but must stay identifiable.
+            soldOut && "opacity-45 grayscale",
           )}
-          variants={{
-            rest: { y: 0 },
-            hover: { y: -6 },
-          }}
-          transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-        >
-          {/* Status chrome */}
-          <div className="absolute inset-x-4 top-4 z-10 flex items-start justify-between">
-            <Badge variant={product.soldOut ? "soldOut" : dropIsLive ? "live" : "outline"}>
-              {product.soldOut ? "Sold out" : dropIsLive ? "Live" : product.brand}
-            </Badge>
-            {product.edition && (
-              <Badge variant="accent">
-                {product.edition.number
-                  ? `No. ${product.edition.number} / ${product.edition.of}`
-                  : `Edition of ${product.edition.of}`}
-              </Badge>
-            )}
-          </div>
+        />
 
-          {/* Product image floats above its stage */}
-          {image && (
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center p-10"
-              variants={{
-                rest: { scale: 1, y: 0 },
-                hover: { scale: 1.04, y: -4 },
-              }}
-              transition={{ duration: DURATION.slow, ease: EASE_OUT_EXPO }}
-            >
-              <Image
-                src={image.url}
-                alt={image.alt}
-                width={image.width}
-                height={image.height}
-                priority={priority}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+        {/* Both pills share one flex row so a long availability label
+            ("Only 2 left") cannot overrun the fixed-position OFF pill.
+            `ml-auto` on the OFF pill keeps it flush right whether or
+            not the availability chip is rendered. */}
+        {((low || soldOut) || (saving > 0 && !soldOut)) && (
+          <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start gap-2">
+            {(low || soldOut) && (
+              <span
                 className={cn(
-                  "h-full w-full object-contain drop-shadow-[0_24px_48px_rgb(20_20_25/0.25)]",
-                  product.soldOut && "opacity-50 saturate-50",
+                  "rounded-full px-2.5 py-1",
+                  "bg-surface/90 font-mono text-[0.5625rem] uppercase tracking-[0.16em] backdrop-blur-sm",
+                  soldOut ? "text-ink-muted" : "text-urgent",
                 )}
-              />
-            </motion.div>
-          )}
-
-          {/* Live drop countdown, pinned to the stage floor */}
-          {dropIsLive && product.drop?.endsAt && !product.soldOut && (
-            <div className="absolute inset-x-4 bottom-4 z-10 flex justify-end">
-              <span className="glass rounded-full px-3.5 py-2">
-                <Countdown compact target={product.drop.endsAt} label="Drop ends in" />
+              >
+                {availabilityLabel(product)}
               </span>
-            </div>
-          )}
-        </motion.div>
+            )}
 
-        {/* Meta — editorial, outside the stage */}
-        <div className="mt-5 flex items-start justify-between gap-4 px-1">
-          <div className="min-w-0">
-            <h3 className="text-base font-medium tracking-tight text-ink truncate">
-              {product.name}
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted truncate">
-              {product.variant} · {CONDITION_LABELS[product.condition]}
-            </p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="font-mono text-sm tabular-nums text-ink">
-              {formatPrice(product.price, product.currency)}
-            </p>
-            {product.originalPrice && savings > 0 && (
-              <p className="mt-1 font-mono text-xs tabular-nums text-ink-muted">
-                <s>{formatPrice(product.originalPrice, product.currency)}</s>{" "}
-                <span className="text-accent">−{savings}%</span>
-              </p>
+            {saving > 0 && !soldOut && (
+              <span className="ml-auto rounded-full bg-ink px-2.5 py-1 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-surface">
+                {saving}% off
+              </span>
             )}
           </div>
-        </div>
-      </Link>
-    </motion.article>
+        )}
+
+        <WishlistButton
+          product={product}
+          className="absolute bottom-3 right-3 z-20"
+        />
+      </div>
+
+      {/* ---------- Copy ---------- */}
+      <div className="flex flex-1 flex-col pt-5">
+        <h3 className="text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+          <Link
+            href={productHref(product)}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {product.name}
+          </Link>
+        </h3>
+        <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+          {product.variant}
+        </p>
+
+        <p className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
+            {formatPrice(product.price, product.currency, product.locale)}
+          </span>
+          <span className="sr-only">was </span>
+          <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+            {formatPrice(
+              product.originalPrice,
+              product.currency,
+              product.locale,
+            )}
+          </s>
+        </p>
+
+        <p className="mt-4 inline-flex items-center gap-2 text-[0.8125rem] font-medium text-ink">
+          {cta.label}
+          <svg
+            aria-hidden
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3 transition-transform duration-(--duration-fast) ease-(--ease-out-quart) group-hover/card:translate-x-1"
+          >
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </p>
+      </div>
+    </article>
   );
 }
