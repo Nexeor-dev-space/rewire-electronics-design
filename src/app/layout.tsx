@@ -39,7 +39,7 @@ export const viewport: Viewport = {
   // Matches `--color-void` — the mobile status-bar and tab-strip pick this
   // up on iOS/Android, so the OS chrome flows into the page ground rather
   // than flashing an off-white band above a dark canvas on scroll.
-  themeColor: "#0b0d0f",
+  themeColor: "#282929",
   width: "device-width",
   initialScale: 1,
 };

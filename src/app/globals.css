@@ -18,7 +18,7 @@
      luminance over the previous pass; the brief's #0b0d0f read as
      oppressive under real photography and the section-to-card
      separation collapsed under it. */
-  --color-void: #14171b; /* page canvas — warm slate, never pure black */
+  --color-void: #282929; /* page canvas — warm charcoal */
   --color-surface: #21252a; /* card / raised panel */
   --color-surface-2: #181c20; /* alternate section ground (between void and card) */
   --color-surface-3: #292d33; /* elevated: menus, popovers, modals */

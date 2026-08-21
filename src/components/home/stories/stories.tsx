@@ -49,7 +49,7 @@ export function Stories() {
       // Top rhythm only — see the note in `standard.tsx`.
       // A shade lifted from `void`, so the testimonials read as their own
       // band between the sections either side of them.
-      className="relative overflow-hidden bg-surface-2 pt-(--spacing-section-sm)"
+      className="relative overflow-hidden bg-surface-2 py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

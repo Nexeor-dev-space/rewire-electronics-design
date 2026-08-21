@@ -385,6 +385,9 @@ export function Hero() {
               // the new `auto auto 1fr` grid the tagline reads directly
               // opposite the argument at the head of the frame.
               "md:relative md:col-span-4 md:col-start-9 md:row-start-1",
+              // Nudged below the REIMAGINED background word so the mono
+              // tagline reads under the masthead, not through it.
+              "md:mt-[9vw]",
               "md:flex md:flex-col md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
             )}
           >
@@ -403,7 +406,7 @@ export function Hero() {
               just no longer stands between a shopper and the button. */}
           <motion.div
             {...enter(0.1)}
-            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-1"
+            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-1 md:mt-[9vw]"
           >
             <h1
               id="hero-heading"

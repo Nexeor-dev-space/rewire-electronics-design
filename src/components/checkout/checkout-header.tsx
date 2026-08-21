@@ -11,7 +11,9 @@ import { siteConfig } from "@/lib/site";
  *
  * The wordmark still links home so a shopper who genuinely changes their
  * mind can leave, but it is the only outward path from the page. The
- * back-to-cart link on the right is the intended reverse gear.
+ * back-to-cart link on the right is the intended reverse gear; "Need
+ * help?" opens a support-focused escape hatch that never leaves the
+ * shopper stranded.
  */
 export function CheckoutHeader() {
   return (
@@ -49,6 +51,13 @@ export function CheckoutHeader() {
           </span>
 
           <Link
+            href="/support"
+            className="hidden text-[0.8125rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink sm:inline-flex"
+          >
+            Need help?
+          </Link>
+
+          <Link
             href="/cart"
             className="inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-[0.8125rem] text-ink transition-colors duration-(--duration-fast) hover:border-line-strong"
           >
@@ -64,7 +73,8 @@ export function CheckoutHeader() {
             >
               <path d="M13 8H3M7 4l-4 4 4 4" />
             </svg>
-            Back to cart
+            <span className="hidden sm:inline">Back to cart</span>
+            <span className="sm:hidden">Cart</span>
           </Link>
         </div>
       </div>

@@ -4,14 +4,6 @@ import { useAccount } from "@/components/providers/account-provider";
 import { cn } from "@/lib/utils";
 
 /**
- * WishlistButton — save for later, from anywhere a product appears.
- *
- * Reads and writes the shared account provider so the heart, the /wishlist
- * page, and the account nav all agree on what is saved. The button itself
- * remains a pure visual toggle: no confirmation, no toast — the
- * consequence is visible immediately on the same icon that was clicked.
- */
-/**
  * Structural minimum needed to wishlist an item. Both `Product` (the
  * homepage catalogue) and `ShopProduct` (the shop listing) satisfy it,
  * so the same button works from either source without a shared type.
@@ -21,6 +13,14 @@ export interface WishlistTarget {
   name: string;
 }
 
+/**
+ * WishlistButton — save for later, from anywhere a product appears.
+ *
+ * Reads and writes the shared account provider so the heart, the /wishlist
+ * page, and the account nav all agree on what is saved. The button itself
+ * remains a pure visual toggle: no confirmation, no toast — the
+ * consequence is visible immediately on the same icon that was clicked.
+ */
 export function WishlistButton({
   product,
   className,
@@ -34,7 +34,11 @@ export function WishlistButton({
   return (
     <button
       type="button"
-      onClick={() => toggleSaved(product.slug)}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSaved(product.slug);
+      }}
       aria-pressed={saved}
       aria-label={
         saved
@@ -46,8 +50,6 @@ export function WishlistButton({
         "flex size-9 items-center justify-center rounded-full",
         "border border-line bg-surface/90 backdrop-blur-sm",
         "transition-[color,border-color,opacity] duration-(--duration-fast)",
-        // Quiet until wanted: visible on touch, revealed on hover for
-        // pointers, and always visible once it holds a saved state.
         saved
           ? "text-urgent opacity-100"
           : "text-ink-muted opacity-100 hover:border-line-strong hover:text-ink lg:opacity-0 lg:group-hover/card:opacity-100 lg:focus-visible:opacity-100",

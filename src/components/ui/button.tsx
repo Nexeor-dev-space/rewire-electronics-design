@@ -20,19 +20,18 @@ const buttonVariants = cva(
     variants: {
       variant: {
         /**
-         * High-emphasis commerce action. Burnt-orange fill against the
-         * graphite ground reads as premium and unambiguously purchasable
-         * — the previous off-white chip on dark rendered as pastel and
-         * lost its status as the commit action. Reserved for the moment
-         * on any screen that closes the sale (Add to Cart, Notify Me,
-         * Join Waitlist, Continue to Checkout). Secondary and tertiary
-         * actions should reach for `outline` or `ghost` rather than
-         * dilute the meaning of this one.
+         * High-emphasis commerce action. Cool-blue fill (#94b2f3) against
+         * the graphite ground carries the commit weight and pairs with
+         * dark ink for contrast. Reserved for the moment on any screen
+         * that closes the sale (Add to Cart, Notify Me, Join Waitlist,
+         * Continue to Checkout). Secondary and tertiary actions should
+         * reach for `outline` or `ghost` rather than dilute the meaning
+         * of this one.
          */
-        primary: "bg-accent text-white hover:bg-accent-hover",
+        primary: "bg-[#94b2f3] text-[#0f1419] hover:bg-[#a8c1f6]",
         /** Drop-level moment: same commerce fill, lifted with shadow. */
         accent:
-          "bg-accent text-white shadow-(--shadow-soft) hover:bg-accent-hover hover:shadow-(--shadow-float)",
+          "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft) hover:bg-[#a8c1f6] hover:shadow-(--shadow-float)",
         /**
          * Inverse for the rare surface where the accent is unavailable
          * (e.g. an orange plate that already carries the accent). Bright

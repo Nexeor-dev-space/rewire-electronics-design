@@ -62,7 +62,13 @@ export function StorefrontCard({
           priority={priority}
           sizes="(max-width: 640px) 85vw, (max-width: 1024px) 45vw, (max-width: 1536px) 30vw, 23vw"
           className={cn(
-            "object-contain p-5 sm:p-6 [mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+            // Matches the `DropCard` treatment: image covers the plate
+            // edge-to-edge. The previous `object-contain p-5 sm:p-6`
+            // padded the shot to ~78% of the plate area, which read as
+            // Best-sellers cards being physically smaller than the
+            // drop cards on the same page even though the plates
+            // themselves were the same size.
+            "object-cover [mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
             "group-hover/card:scale-[1.04]",
             // A sold-out product should look unavailable before the label
             // is read, but must stay identifiable.

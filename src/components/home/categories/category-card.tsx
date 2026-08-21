@@ -1,128 +1,72 @@
 "use client";
 
-import { useRef, type MouseEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useReducedMotion,
-} from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/categories";
 import { productHrefForCategory } from "@/lib/route-map";
 
 interface CategoryCardProps {
   category: Category;
-  /** First two cards are above the fold on wide screens. */
+  /** First two are above the fold on wide screens. */
   priority?: boolean;
 }
 
 /**
- * CategoryCard — a way in, not a product tile.
+ * CategoryCard — the homepage's browse-the-catalogue cell.
  *
- * The photograph is the whole card: a soft plate that warms and lifts,
- * with the name and count set plainly beneath it. No price, no badge,
- * no button — this is navigation, and anything else would turn it into
- * a shop tile.
+ * Matches the mega-menu category tile: photograph behind, one uniform
+ * light-dark wash across the whole plate, white type on top. The two
+ * surfaces are visually the same object, so a reader who has already
+ * seen the header's category dropdown recognises the row instantly.
  *
- * The image leans a few pixels toward the cursor while it is over the
- * plate. That is the whole "cursor interaction": under 2% of the plate's
- * width, spring-damped, and switched off entirely under reduced motion.
+ * The plate itself lifts a hair on hover, the arrow slides, and the
+ * scrim eases up a touch as the picture scales behind it. No product
+ * price, no badge, no CTA — this remains navigation, not a shelf.
  */
 export function CategoryCard({ category, priority }: CategoryCardProps) {
-  const plateRef = useRef<HTMLDivElement>(null);
-  const prefersReducedMotion = useReducedMotion();
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 140, damping: 20, mass: 0.4 });
-  const sy = useSpring(y, { stiffness: 140, damping: 20, mass: 0.4 });
-
-  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
-    if (prefersReducedMotion) return;
-    const plate = plateRef.current;
-    if (!plate) return;
-    const rect = plate.getBoundingClientRect();
-    // −0.5 … 0.5 across the plate, then a very short throw.
-    x.set(((event.clientX - rect.left) / rect.width - 0.5) * 18);
-    y.set(((event.clientY - rect.top) / rect.height - 0.5) * 14);
-  }
-
-  function handleMouseLeave() {
-    x.set(0);
-    y.set(0);
-  }
-
-  // No `outline-none` on the link: the global accent `:focus-visible`
-  // ring is the site's focus affordance, and swapping it for a custom
-  // ring on a child risks leaving keyboard users with no indicator at
-  // all. The hover visuals below are mirrored on focus as enhancement.
   return (
-    <Link href={productHrefForCategory(category.slug)} className="group block">
-      <div
-        ref={plateRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+    <Link
+      href={productHrefForCategory(category.slug)}
+      className={cn(
+        "group relative flex h-full aspect-[4/5] flex-col justify-between overflow-hidden rounded-2xl",
+        "border border-line bg-surface-2",
+        "transition-[transform,border-color] duration-(--duration-base) ease-(--ease-out-expo)",
+        "hover:-translate-y-1.5 hover:border-line-strong",
+        "focus-visible:-translate-y-1.5 focus-visible:border-line-strong",
+        "motion-reduce:hover:translate-y-0",
+      )}
+    >
+      {/* Photograph behind — the same asset the mega-menu uses, so the
+          two rows read as one object. Prefers the wide cut where it
+          exists; the portrait shot is only a fallback. */}
+      <Image
+        src={(category.menuImage ?? category.image).url}
+        alt=""
+        fill
+        priority={priority}
+        sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 20vw"
         className={cn(
-          // Square plate rather than 4:5 portrait — the section was
-          // reading as five tall rectangles when a category tile does
-          // not need product-shot height. Square keeps every product
-          // legible (phones stay tall, headphones stay wide) while
-          // taking a fifth off the row's total height.
-          "relative aspect-square overflow-hidden rounded-xl bg-surface-2",
-          "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-          "group-hover:-translate-y-1.5",
-          "group-focus-visible:-translate-y-1.5",
-          "motion-reduce:group-hover:translate-y-0",
+          "object-cover",
+          "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+          "group-hover:scale-[1.04] group-focus-visible:scale-[1.04]",
         )}
-      >
-        {/* Warm wash under the product — the subtle background shift */}
-        <div
-          aria-hidden
-          className={cn(
-            "absolute inset-0 opacity-0",
-            // Copper ember rather than blue — matches the dark-theme accent
-            // and picks up the same warm register as the drop cards.
-            "bg-[radial-gradient(120%_90%_at_50%_10%,rgb(194_65_12/0.14),transparent_65%)]",
-            "transition-opacity duration-(--duration-slow) ease-(--ease-out-expo)",
-            "group-hover:opacity-100 group-focus-visible:opacity-100",
-          )}
-        />
+      />
 
-        <motion.div
-          style={{ x: sx, y: sy }}
-          className="absolute inset-0 will-change-transform"
-        >
-          <Image
-            src={category.image.url}
-            alt={category.image.alt}
-            fill
-            priority={priority}
-            sizes="(max-width: 640px) 68vw, (max-width: 1024px) 42vw, (max-width: 1280px) 30vw, 18vw"
-            className={cn(
-              "object-cover",
-              "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-              "group-hover:scale-[1.03] group-focus-visible:scale-[1.03]",
-            )}
-          />
-        </motion.div>
+      {/* Uniform ink wash — bumped to 55% (from 40%) so the photography
+          reads as a *ground* for the type rather than competing with it.
+          Eases to 45% on hover so the picture opens up under the cursor. */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-0",
+          "bg-black/55 transition-colors duration-(--duration-base) ease-(--ease-out-expo)",
+          "group-hover:bg-black/45 group-focus-visible:bg-black/45",
+        )}
+      />
 
-      </div>
-
-      {/* ---------- Meta ---------- */}
-      <div className="mt-5 flex items-baseline justify-between gap-4 px-1">
-        <div className="min-w-0">
-          <h3 className="text-[1.25rem] font-medium leading-tight tracking-[-0.02em] text-ink">
-            {category.name}
-          </h3>
-          <p className="mt-1.5 font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
-            {category.count} devices
-          </p>
-        </div>
-
-        {/* Direction cue — slides out on hover, the way a nav item should */}
+      {/* ---------- Top row — direction cue only ---------- */}
+      <div className="relative flex items-start justify-end p-5 lg:p-6">
         <svg
           aria-hidden
           viewBox="0 0 16 16"
@@ -132,7 +76,7 @@ export function CategoryCard({ category, priority }: CategoryCardProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
           className={cn(
-            "size-3.5 shrink-0 translate-y-0.5 text-ink-faint",
+            "size-3.5 text-ink/70 [filter:drop-shadow(0_1px_6px_rgb(17_17_17/0.5))]",
             "transition-[transform,color] duration-(--duration-base) ease-(--ease-out-expo)",
             "group-hover:translate-x-1 group-hover:text-ink",
             "group-focus-visible:translate-x-1 group-focus-visible:text-ink",
@@ -142,9 +86,18 @@ export function CategoryCard({ category, priority }: CategoryCardProps) {
         </svg>
       </div>
 
-      <p className="mt-2 px-1 text-xs leading-relaxed text-ink-faint">
-        {category.note}
-      </p>
+      {/* ---------- Bottom — name, count, note ---------- */}
+      <div className="relative p-5 lg:p-6">
+        <h3 className="font-sans text-[clamp(1.5rem,2.1vw,2rem)] font-light leading-[1.05] tracking-[-0.03em] text-ink [text-shadow:0_1px_10px_rgb(17_17_17/0.5)]">
+          {category.name}
+        </h3>
+        <p className="mt-2.5 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-ink/70 [text-shadow:0_1px_8px_rgb(17_17_17/0.45)]">
+          {category.count} devices
+        </p>
+        <p className="mt-3.5 text-sm leading-relaxed text-ink/80 [text-shadow:0_1px_8px_rgb(17_17_17/0.5)]">
+          {category.note}
+        </p>
+      </div>
     </Link>
   );
 }

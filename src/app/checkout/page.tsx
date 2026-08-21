@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { CheckoutHeader } from "@/components/checkout/checkout-header";
 import { CheckoutView } from "@/components/checkout/checkout-view";
 import { TrustFooter } from "@/components/checkout/trust-footer";
-import { getCheckoutBag, totalsFor } from "@/lib/checkout";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -10,19 +9,24 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/** UAE standard VAT — 5% on the discounted subtotal. */
+const VAT_RATE = 0.05;
+
 /** Delivery options — labels only, no invented partner names. */
 const DELIVERY = [
   {
     value: "standard",
     label: "Standard delivery",
-    supporting: "Tracked, 2–3 working days",
+    supporting: "Tracked, 2–4 working days",
+    estimate: "2–4 working days",
     trailing: "Free",
     price: 0,
   },
   {
     value: "express",
     label: "Express delivery",
-    supporting: "Tracked, next working day",
+    supporting: "Tracked, 1–2 working days",
+    estimate: "1–2 working days",
     trailing: "AED 35",
     price: 35_00,
   },
@@ -30,12 +34,13 @@ const DELIVERY = [
     value: "collect",
     label: "Collect in Dubai",
     supporting: "Ready in 24 hours at the workshop",
+    estimate: "Ready within 24 hours",
     trailing: "Free",
     price: 0,
   },
 ];
 
-/** Payment methods — categories only, no third-party brand marks. */
+/** Payment methods — categories, no invented provider brand marks. */
 const PAYMENT = [
   {
     value: "card",
@@ -55,18 +60,14 @@ const PAYMENT = [
 ];
 
 export default function CheckoutPage() {
-  const lines = getCheckoutBag();
-  const totals = totalsFor(lines);
-
   return (
     <>
       <CheckoutHeader />
       <div className="flex-1">
         <CheckoutView
-          lines={lines}
-          totals={totals}
           delivery={DELIVERY}
           payment={PAYMENT}
+          vatRate={VAT_RATE}
         />
       </div>
       <TrustFooter />

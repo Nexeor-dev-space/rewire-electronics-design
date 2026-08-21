@@ -481,7 +481,7 @@ function ModalFooter({
         <Link
           href="/cart"
           onClick={onContinue}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-accent-hover"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#94b2f3] px-5 text-sm font-medium text-[#0f1419] transition-colors duration-(--duration-fast) hover:bg-[#a8c1f6]"
         >
           View Cart
           <svg

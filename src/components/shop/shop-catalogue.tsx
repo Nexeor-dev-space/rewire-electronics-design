@@ -119,38 +119,45 @@ export function ShopCatalogue({
       {/* ---------- Filters + grid ---------- */}
       <div className="mx-auto mt-8 w-full max-w-[110rem] px-(--spacing-gutter) lg:mt-12">
         <div className="lg:flex lg:items-start lg:gap-10 xl:gap-14">
-          {/* ---------- Sidebar (lg and up) ---------- */}
+          {/* ---------- Sidebar (lg and up) ----------
+              Sticky on the aside itself (not on an inner div). The parent
+              is `lg:flex`, so the aside's containing block is the flex row
+              — which stretches to the height of the tall product grid on
+              the right. If `sticky` lived on an inner div, its containing
+              block would be this aside, which collapses to filter-content
+              height and unsticks the moment the reader scrolls past.
+              With sticky here, the panel stays pinned below the header
+              through the whole grid, and only scrolls internally when the
+              filter list itself is taller than the remaining viewport. */}
           <aside
             aria-label="Filters"
-            className="hidden shrink-0 lg:block lg:w-[16rem] xl:w-[17.5rem]"
+            className={cn(
+              "hidden shrink-0 self-start lg:block lg:w-[16rem] xl:w-[17.5rem]",
+              "lg:sticky lg:top-28",
+              "lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:pr-1",
+            )}
           >
-            {/* Sticky below the 5rem header so the panel stays reachable
-                through a long grid without becoming its own scroll area. */}
-            <div className="sticky top-28">
-              <div className="flex items-baseline justify-between gap-4 pb-5">
-                <h2 className="eyebrow text-ink">Filters</h2>
-                {activeCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className={cn(
-                      "text-[0.8125rem] text-ink-secondary underline underline-offset-4",
-                      "transition-colors duration-(--duration-fast) hover:text-ink",
-                    )}
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-
-              <div className="max-h-[calc(100dvh-12rem)] overflow-y-auto pr-1">
-                <FilterPanel
-                  idPrefix="sidebar"
-                  filters={filters}
-                  onToggle={toggle}
-                />
-              </div>
+            <div className="flex items-baseline justify-between gap-4 pb-5">
+              <h2 className="eyebrow text-ink">Filters</h2>
+              {activeCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className={cn(
+                    "text-[0.8125rem] text-ink-secondary underline underline-offset-4",
+                    "transition-colors duration-(--duration-fast) hover:text-ink",
+                  )}
+                >
+                  Clear all
+                </button>
+              )}
             </div>
+
+            <FilterPanel
+              idPrefix="sidebar"
+              filters={filters}
+              onToggle={toggle}
+            />
           </aside>
 
           {/* ---------- Results ---------- */}

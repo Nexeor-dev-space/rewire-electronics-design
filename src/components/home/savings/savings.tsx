@@ -140,11 +140,9 @@ export function Savings() {
           variants={staggerChildren(0.09, 0.1)}
           className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 lg:mt-16 lg:gap-10"
         >
-          {drop.devices.map((device, i) => (
+          {drop.devices.map((device) => (
             <motion.li key={device.id} variants={rise}>
-              {/* Ground is index-driven rather than hard-coded per device,
-                  so a reorder in the drop cannot break the sequence. */}
-              <SavingTile device={device} drop={drop} tone={i} />
+              <SavingTile device={device} drop={drop} />
             </motion.li>
           ))}
         </motion.ul>
@@ -154,131 +152,60 @@ export function Savings() {
 }
 
 /**
- * SavingTile — one composition, three horizontal bands.
+ * SavingTile — split editorial: cream photography plate on the left,
+ * dark data panel on the right.
  *
- * Header at the top (variant eyebrow + name), product photograph in the
- * middle, pricing block at the bottom. The three read as one editorial
- * spread rather than an image with a caption stapled to it, because the
- * middle band is nothing but space around a floating device — the tile's
- * own ground runs unbroken behind all three bands.
+ * The previous version buried the product (matte-black cutouts on
+ * dark-tinted graphite grounds read as an empty rectangle) and asked
+ * four subtle tint variants to do the work of visual differentiation
+ * that the products themselves already do. The redesign accepts that
+ * the product is the star and gives it a lit plate to sit on: the
+ * warm `--color-plate` cream that the drop cards and storefront cards
+ * use, with `mix-blend-mode: multiply` on the image so the baked-in
+ * white studio background bleeds into the plate and the cutout picks
+ * up only a whisper of warm cast.
  *
- * The middle band owns a fixed height and the tile grows around it, so
- * the product keeps its scale at every width. That is what makes four
- * different silhouettes read as one set: the frame does not change, and
- * each device fills the middle as it naturally wants to — phone tall,
- * laptop wide, watch compact, headphones broad.
+ * The data panel opposite it holds the pricing at editorial scale:
+ * variant + name at the top, big burnt-orange price beneath, struck
+ * original and % off below that on a hairline row, the AED saving
+ * line on its own row separated by another hairline, and the CTA at
+ * the foot. One accent per tile (the price and its saving), no bg
+ * variation between the four — the product silhouettes carry the
+ * variety on their own.
+ *
+ * `soldOut` still renders the whole card in ink rather than accent —
+ * urgent orange on an unbuyable device reads "buy me", and the
+ * section's argument is about value, not stock.
  */
-/**
- * The four grounds, in order. Each is a pale wash lifted a shade at the
- * product's centre and settling to its own tone at the edges, so the
- * device still has something to sit against rather than floating on flat
- * colour.
- *
- * Chosen at very low chroma and kept warm-leaning: ink stays the darkest
- * thing on the tile, and the orange price reads as the one accent rather
- * than competing with the ground. Anything more saturated turns a value
- * argument into a toy shop.
- *
- * The tint is capped by contrast, not by taste. `urgent` (#c2410c) is
- * printed here at 12px ("41% off") and 18px ("You save …"), both of
- * which need 4.5:1 — so every edge stop is held at roughly the page's
- * own luminance, where that accent clears AA. Deepening these a couple
- * of shades looks richer and quietly drops the saving line to ~4.1.
- */
-/**
- * Four graphite variants of the same tile. Dark-theme reinterpretation
- * of the previous sand/sage/blush/mist set — each carries a barely-there
- * temperature shift (warm amber, cool green, warm red, cool blue) so the
- * grid reads as a family of tinted panels rather than as one repeated
- * card, without breaking the sophisticated dark register.
- *
- * All stops sit inside the void → elevated range (11 → 34 luminance);
- * saturation is capped at ~6% so the burnt-orange price stamp stays
- * legible on every ground.
- */
-const TONES = [
-  // Ember — warm amber-tinted graphite
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#1e1a15_0%,#141210_100%)]",
-  // Moss — cool green-tinted graphite
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#161c18_0%,#101412_100%)]",
-  // Rust — warm red-tinted graphite
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#1e1815_0%,#141110_100%)]",
-  // Steel — cool blue-tinted graphite
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#161a1f_0%,#101216_100%)]",
-] as const;
-
 function SavingTile({
   device,
   drop,
-  tone = 0,
 }: {
   device: LiveDropDevice;
   drop: LiveDrop;
-  /** Index into `TONES`; wraps, so the grid can grow past four. */
-  tone?: number;
 }) {
   const saving = savingsPercent(device.price, device.originalPrice);
   const savedAmount = device.originalPrice - device.price;
-
-  // Availability comes from stock, not from a flag. A device with
-  // nothing left still prints its full pricing — the argument the
-  // section makes holds whether or not this particular one can be
-  // bought today.
   const soldOut = device.unitsLeft <= 0;
 
   const body = (
     <>
-      {/* ---------- Header ---------- */}
-      <div className="lg:col-start-1 lg:row-start-1">
-        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-          {device.variant}
-        </p>
-        <h3 className="mt-2 text-[clamp(1.375rem,1.9vw,1.75rem)] font-medium leading-tight tracking-[-0.02em] text-ink">
-          {device.name}
-        </h3>
-      </div>
-
-      {/* ---------- Product ----------
-          An explicit height, not `flex-1`. The tile used to be locked to
-          a fixed aspect ratio and hand the product whatever the two text
-          blocks left over — which was 45px on desktop and 14px on a
-          phone, so the device was effectively invisible at every size.
-          Giving the band its own height and letting the tile grow to fit
-          is what makes the photograph the centre of the composition it
-          was always described as.
-
-          `object-contain` keeps every silhouette honest — no cropping,
-          no forced parity, just the device at its real proportions. */}
-      {/* Tight margins on purpose: the cutouts already carry ~10% of
-          their own transparent breathing room, so a generous margin here
-          reads as a hole between the product and its price.
-
-          From `lg` the band leaves the stack and takes its own column
-          beside the text, spanning both rows. The cutouts are square, so
-          a contained product can only ever be as wide as the band is
-          tall — in a full-width band that stranded ~330px of every card
-          as dead space and pushed the card 300px taller than it needed
-          to be. Beside the text, that width becomes the product. */}
-      <div
-        className={cn(
-          "relative my-4 h-52 shrink-0 sm:my-5 sm:h-60",
-          // The band's min-height is what sets the card's height at `lg`:
-          // it exceeds the text column, so the two rows size to the
-          // product rather than to the pricing block.
-          "lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:my-0 lg:h-auto lg:min-h-[19rem]",
-        )}
-      >
+      {/* ---------- Product plate ----------
+          Cream editorial ground, same as every other product plate on
+          the site so the section reads as part of the shop rather than
+          as its own brand moment. Fixed portrait aspect on phones,
+          full-height on the split layout at `sm+` — the two-column card
+          gives the plate its own vertical rail. */}
+      <div className="relative aspect-[5/4] shrink-0 overflow-hidden bg-plate sm:aspect-auto sm:w-[46%]">
         <Image
           src={device.image.url}
-          /* Decorative — the name is announced immediately after,
-             inside the same link. */
           alt=""
           fill
-          sizes="(max-width: 768px) 88vw, (max-width: 1280px) 46vw, 40vw"
+          sizes="(max-width: 640px) 92vw, (max-width: 1280px) 22vw, 20vw"
           className={cn(
-            "object-contain",
-            soldOut && "opacity-50",
+            "object-cover [mix-blend-mode:multiply]",
             "transition-transform duration-(--duration-cinematic) ease-(--ease-out-expo)",
+            soldOut && "opacity-50 grayscale",
             !soldOut && [
               "motion-safe:group-hover/save:scale-[1.04]",
               "motion-safe:group-focus-visible/save:scale-[1.04]",
@@ -287,130 +214,125 @@ function SavingTile({
         />
       </div>
 
-      {/* ---------- Pricing ---------- */}
-      <div className="lg:col-start-1 lg:row-start-2 lg:self-end">
-        {/* The strongest thing after the photograph. Sold-out tiles go
-            to ink because urgent orange on an unbuyable device reads
-            "buy me" and the argument here is about value, not stock. */}
-        <p
-          className={cn(
-            "font-sans font-light leading-none tracking-[-0.035em] tabular-nums",
-            "text-[clamp(2.25rem,3.2vw,2.75rem)]",
-            soldOut ? "text-ink-muted" : "text-urgent",
-          )}
-        >
-          {formatPrice(device.price, drop.currency, drop.locale)}
-        </p>
-
-        {/* What it costs new, and by how much that is beaten. The word
-            "new" labels the struck price rather than leaving it to the
-            reader to guess — a crossed number without a label is a
-            price you have to interpret. */}
-        <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[0.75rem] tabular-nums">
-          <span className="sr-only">Was </span>
-          <s className="text-ink-muted">
-            {formatPrice(device.originalPrice, drop.currency, drop.locale)}
-          </s>
-          <span aria-hidden className="text-ink-faint">
-            new
-          </span>
-          {!soldOut && saving > 0 && (
-            <span className="ms-0.5 font-medium uppercase tracking-[0.14em] text-urgent">
-              {saving}% off
-            </span>
-          )}
-        </p>
-
-        {/* The figure that actually lands: what stays in your pocket, in
-            AED rather than percent. Above a hairline that separates the
-            comparison from the take-away. */}
-        {!soldOut && savedAmount > 0 && (
-          <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-line pt-3.5">
-            <span
-              className={cn(
-                "font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted",
-                "transition-colors duration-(--duration-base)",
-                "group-hover/save:text-ink group-focus-visible/save:text-ink",
-              )}
-            >
-              You save
-            </span>
-            <span className="font-sans text-[1.125rem] font-normal tabular-nums tracking-[-0.02em] text-urgent">
-              {formatPrice(savedAmount, drop.currency, drop.locale)}
-            </span>
+      {/* ---------- Data panel ----------
+          Vertical hierarchy inside a flex-col: identity at the top,
+          pricing pushed to the bottom by `mt-auto`, so the CTA sits on
+          the same baseline regardless of variant-line length. */}
+      <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-8">
+        <div>
+          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
+            {device.variant}
           </p>
-        )}
+          <h3 className="mt-2 text-[clamp(1.25rem,1.7vw,1.625rem)] font-medium leading-tight tracking-[-0.02em] text-ink">
+            {device.name}
+          </h3>
+        </div>
 
-        {/* Editorial link, not a button: the section is a value
-            argument, and a filled pill would turn it into the product
-            grid it is not. */}
-        {soldOut ? (
-          <span className="mt-4 inline-block text-[0.8125rem] font-medium text-ink-muted">
-            Sold out
-          </span>
-        ) : (
-          <span
+        <div className="mt-auto pt-8">
+          {/* Big burnt-orange price — the strongest figure on the tile
+              after the photograph. Sold-out slips to ink because
+              accent on an unbuyable device is a false promise. */}
+          <p
             className={cn(
-              "mt-4 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium",
-              "text-ink-secondary transition-colors duration-(--duration-fast)",
-              "group-hover/save:text-ink group-focus-visible/save:text-ink",
+              "font-sans font-light leading-none tracking-[-0.035em] tabular-nums",
+              "text-[clamp(1.875rem,2.6vw,2.5rem)]",
+              soldOut ? "text-ink-muted" : "text-urgent",
             )}
           >
-            <span className="relative">
-              View device
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute inset-x-0 -bottom-0.5 h-px origin-right scale-x-0 bg-current",
-                  "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-                  "group-hover/save:origin-left group-hover/save:scale-x-100",
-                  "group-focus-visible/save:origin-left group-focus-visible/save:scale-x-100",
-                )}
-              />
+            {formatPrice(device.price, drop.currency, drop.locale)}
+          </p>
+
+          {/* Struck original + saving %, on a hairline row that reads
+              as the comparison against `new`. */}
+          <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-line pt-3 font-mono text-[0.75rem] tabular-nums">
+            <span className="sr-only">Was </span>
+            <s className="text-ink-muted">
+              {formatPrice(device.originalPrice, drop.currency, drop.locale)}
+            </s>
+            <span aria-hidden className="text-ink-faint">
+              new
             </span>
-            <svg
-              aria-hidden
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={cn(
-                "size-3 transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-                "motion-safe:group-hover/save:translate-x-1",
-                "motion-safe:group-focus-visible/save:translate-x-1",
-              )}
-            >
-              <path d="M1.5 7h11M8.5 3.5L12 7l-3.5 3.5" />
-            </svg>
-          </span>
-        )}
+            {!soldOut && saving > 0 && (
+              <span className="ms-auto font-medium uppercase tracking-[0.14em] text-urgent">
+                {saving}% off
+              </span>
+            )}
+          </p>
+
+          {/* The AED that stays in your pocket — the take-away figure,
+              on its own row above the CTA hairline. */}
+          {!soldOut && savedAmount > 0 && (
+            <p className="mt-3 flex items-baseline justify-between gap-4">
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+                You save
+              </span>
+              <span className="font-sans text-[1rem] font-medium tabular-nums tracking-[-0.02em] text-accent">
+                {formatPrice(savedAmount, drop.currency, drop.locale)}
+              </span>
+            </p>
+          )}
+
+          {/* CTA sits below the whole pricing block, separated by
+              another hairline for editorial rhythm. */}
+          <div className="mt-6 border-t border-line pt-4">
+            {soldOut ? (
+              <span className="text-[0.8125rem] font-medium text-ink-muted">
+                Sold out
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-[0.8125rem] font-medium",
+                  "text-ink-secondary transition-colors duration-(--duration-fast)",
+                  "group-hover/save:text-ink group-focus-visible/save:text-ink",
+                )}
+              >
+                <span className="relative">
+                  View device
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute inset-x-0 -bottom-0.5 h-px origin-right scale-x-0 bg-current",
+                      "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
+                      "group-hover/save:origin-left group-hover/save:scale-x-100",
+                      "group-focus-visible/save:origin-left group-focus-visible/save:scale-x-100",
+                    )}
+                  />
+                </span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={cn(
+                    "size-3 transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
+                    "motion-safe:group-hover/save:translate-x-1",
+                    "motion-safe:group-focus-visible/save:translate-x-1",
+                  )}
+                >
+                  <path d="M1.5 7h11M8.5 3.5L12 7l-3.5 3.5" />
+                </svg>
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );
 
-  // One link over the whole tile — the visible affordance is "View
-  // device" but nobody aims for text when a card-sized target exists.
-  // A sold-out device has nowhere useful to send anyone, so it is
-  // deliberately not a link at all.
-  // No fixed aspect ratio: the tile sizes to its own content, so the
-  // product band keeps its height at every width instead of being
-  // squeezed out by the text above and below it.
-  //
-  // The tile itself does not lift or cast a shadow on hover. The
-  // interaction is carried by the product (a slight zoom) and the "View
-  // device" link (underline and arrow) — the plate stays put. Keyboard
-  // users still get the global accent `:focus-visible` ring on the link.
   const shell = cn(
-    "group/save relative grid h-full grid-cols-1 content-start overflow-hidden rounded-3xl",
-    // From `lg`: text column, product column. `1fr` rows put the pricing
-    // at the foot of its column while the product spans the full height.
-    "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:grid-rows-[auto_1fr] lg:gap-x-8",
-    "border border-line p-6 sm:p-7 lg:p-8",
-    TONES[tone % TONES.length],
+    "group/save relative flex h-full flex-col overflow-hidden rounded-3xl",
+    // Stacked on phones (plate on top, data below); side-by-side from
+    // `sm+` so the tile reads as a two-column editorial spread on any
+    // canvas wider than a phone. `min-h-[18rem]` on the split layout
+    // gives the plate enough vertical rail for the product to breathe.
+    "sm:flex-row sm:min-h-[18rem]",
+    "border border-line-strong bg-surface",
     "transition-colors duration-(--duration-base) ease-(--ease-out-expo)",
-    !soldOut && "hover:border-line-strong focus-within:border-line-strong",
+    !soldOut && "hover:border-white/[0.22] focus-within:border-white/[0.22]",
   );
 
   if (soldOut) {
