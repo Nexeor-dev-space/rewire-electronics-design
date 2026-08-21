@@ -163,10 +163,29 @@ export function Hero() {
       // the composition is bottom-anchored and the content column is only
       // ~700px tall. In portrait the banner sizes to its content instead
       // and hands the rest of the screen to the calendar below.
-      className="relative flex min-h-svh flex-col overflow-hidden bg-void md:portrait:min-h-0"
+      //
+      // The height subtracts the masthead offset it sits below. `mt-16`
+      // (`md:mt-20`) pushes this section down by the fixed header, so a
+      // flat `min-h-svh` made the banner a full header taller than the
+      // screen — and because the composition is bottom-anchored, every
+      // one of those 64–80px came off the *bottom*, running the product
+      // past the fold and leaving the band under the masthead empty.
+      // Subtracting the same offset the margin adds puts the whole
+      // composition back inside one screen, which lifts the product.
+      className="relative mt-16 flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-void md:mt-20 md:min-h-[calc(100svh-5rem)] md:portrait:min-h-0"
     >
       {/* Paper grain, nothing else */}
       <div aria-hidden className="grain absolute inset-0" />
+
+      {/* Warm backlight behind the product — a low-key radial that gives
+          matte-black devices a stage on the graphite ground. Sized to the
+          product column on `lg` (right-biased with the composition) and
+          centred on the plate below. Alpha capped at 8% so it never
+          reads as glow — just an edge of light. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 size-[70vmin] max-w-[46rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(255_255_255/0.08),transparent_72%)] blur-3xl lg:left-[58%]"
+      />
 
       {/* The one decoration. It bleeds off both edges on purpose — the
           section's `overflow-hidden` crops it — and stays at z-0 behind
@@ -181,7 +200,7 @@ export function Hero() {
           running underneath the panel's numbers. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[15%] z-0 select-none md:top-[10%]"
+        className="pointer-events-none absolute inset-x-0 top-[6%] z-0 select-none md:top-[4%]"
       >
         {/* Full viewport width at every size, centred, cropped by the
             section's `overflow-hidden`.
@@ -220,11 +239,19 @@ export function Hero() {
             way a masthead half-cropped by a page edge does. Panels can
             grow, the mask goes with them. Phones/tablets keep the full
             bleed — no rail beside the word at those sizes. */}
+        {/* Symmetric side-fade mask, from `md` up: the letters at the
+            outer thirds dissolve into the ground so they do not overrun
+            the argument column on the left or the tagline rail on the
+            right. The middle ~40% (where the product sits) stays at
+            full ink, so REIMAGINED still reads as a masthead behind the
+            device. Opacity was dropped a hair (5% at `sm+`) so even the
+            central letters do not compete with the small type above
+            them. */}
         <span
           className={cn(
             "block whitespace-nowrap text-center font-sans text-[15vw] font-medium leading-[0.8]",
-            "tracking-[0.015em] text-ink/[0.03] sm:text-ink/[0.06]",
-            "md:[mask-image:linear-gradient(to_right,black_70%,transparent_100%)]",
+            "tracking-[0.015em] text-ink/[0.025] sm:text-ink/[0.05]",
+            "md:[mask-image:linear-gradient(to_right,transparent_0%,black_28%,black_72%,transparent_100%)]",
           )}
         >
           REIMAGINED
@@ -235,7 +262,7 @@ export function Hero() {
           112px the desktop frame wants — on a phone that gap was pushing
           the purchase block most of a screen down before anything was
           read. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-10 pt-[5.5rem] sm:pb-12 sm:pt-[7rem] md:pt-28 lg:pb-16">
+      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-10 pt-16 sm:pb-12 sm:pt-20 md:pt-24 lg:pb-16 lg:pt-28">
         {/* Three arrangements of the same five blocks.
             Mobile: one column — device, then everything needed to buy it,
             then the brand statement.
@@ -256,25 +283,26 @@ export function Hero() {
             device holds the left half and the ledger the right, with the
             CTAs and statement centred beneath. Same reading order, one
             fold. */}
-        <div className="grid w-full gap-y-6 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-10 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[1fr_auto_auto_auto] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
-          {/* ---------- Drop label ---------- */}
+        {/* Grid now runs `auto auto 1fr` — content-first from the top,
+            slack at the bottom — so the argument and the tagline rail
+            sit at the head of the frame instead of pinning to the fold.
+            The drop-edition line above them was removed with the same
+            intent: the edition/title reads on the calendar below, and
+            repeating it here was pushing the promise "Premium certified
+            electronics." down a rank on the page it is meant to open. */}
+        <div className="grid w-full gap-y-6 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-10 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[auto_auto_1fr] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
+          {/* Phone-only live indicator — the drop-edition line above
+              carried it on mobile before; now it stands alone as the one
+              chrome the top of the mobile hero needs. */}
           <motion.p
             {...enter(0)}
-            className="order-1 flex items-center justify-between gap-4 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-muted min-[480px]:max-md:col-span-2 md:col-span-4 md:col-start-1 md:row-start-2"
+            className="order-1 flex items-center justify-end gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink min-[480px]:max-md:col-span-2 md:hidden"
           >
-            <span>
-              {drop.edition} · {drop.title}
-            </span>
-
-            {/* Phones only — redundant from `md`, where the rail is
-                already in view beside the product. */}
-            <span className="flex items-center gap-2 text-ink md:hidden">
-              <span
-                aria-hidden
-                className="size-1.5 shrink-0 animate-pulse-dot rounded-full bg-urgent"
-              />
-              Live
-            </span>
+            <span
+              aria-hidden
+              className="size-1.5 shrink-0 animate-pulse-dot rounded-full bg-urgent"
+            />
+            Live
           </motion.p>
 
           {/* ---------- Centrepiece · columns 5–9 ---------- */}
@@ -352,8 +380,15 @@ export function Hero() {
             }}
             className={cn(
               "order-3 min-[480px]:max-md:col-start-2 min-[480px]:max-md:row-start-2 min-[480px]:max-md:self-center",
-              "md:relative md:col-span-4 md:col-start-9 md:row-span-4 md:row-start-1",
-              "md:flex md:flex-col md:justify-end md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
+              // Anchored to the top of the rail now, not the bottom:
+              // `justify-end` was pinning the statement to the fold. On
+              // the new `auto auto 1fr` grid the tagline reads directly
+              // opposite the argument at the head of the frame.
+              "md:relative md:col-span-4 md:col-start-9 md:row-start-1",
+              // Nudged below the REIMAGINED background word so the mono
+              // tagline reads under the masthead, not through it.
+              "md:mt-[9vw]",
+              "md:flex md:flex-col md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
             )}
           >
             <p className="max-w-[16rem] font-mono text-[0.6875rem] uppercase leading-loose tracking-[0.22em] text-ink-secondary md:max-w-none">
@@ -371,7 +406,7 @@ export function Hero() {
               just no longer stands between a shopper and the button. */}
           <motion.div
             {...enter(0.1)}
-            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-3 md:mt-6"
+            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-1 md:mt-[9vw]"
           >
             <h1
               id="hero-heading"

@@ -1,30 +1,28 @@
 import type { ConditionGrade, Product } from "@/types";
+import type { CartItem } from "@/components/providers/account-provider";
 import { getProductBySlug } from "./catalog";
 
 /**
- * Checkout basket adapter — the demo bag.
+ * Checkout adapter — resolves cart lines to display-ready shape.
  *
- * A checkout page needs *something* in the bag to render honestly; the
- * three lines below are that something. Reads from the catalogue so
- * every price, image, condition and grade agrees with the same product's
- * detail page — no chance of a checkout that quietly disagrees with what
- * the shopper just added.
- *
- * When a real cart store lands, replace the body of `getCheckoutBag`
- * with the store read; the return type is stable.
+ * The cart store keeps its lines lean: slug + qty + line id. The
+ * checkout page needs the enriched view — product, price, image,
+ * condition, grade. This module does that resolution and derives the
+ * per-order totals. Nothing here talks to the store directly; the
+ * caller passes `items` in so the same helpers work for the summary,
+ * the success page, and any future admin surface.
  */
 
 export interface CheckoutLine {
   key: string;
   product: Product;
-  /** Storage / size / colour label — one line, no icon. */
+  /** Storage / colour label — one line, no icon. */
   variantLabel: string;
   /** Condition family, e.g. "Refurbished". */
   condition: string;
   /** Grade string when applicable, e.g. "A — Pristine". */
   grade?: string;
   quantity: number;
-  /** Selling price at time of add, in minor units. */
   unitPrice: number;
   originalUnitPrice?: number;
 }
@@ -35,20 +33,15 @@ const GRADE_LABELS: Record<ConditionGrade, string> = {
   good: "C — Good",
 };
 
-/** Demo composition: one flagship phone, one companion, one accessory. */
-const bag: { slug: string; quantity: number }[] = [
-  { slug: "iphone-15-pro-max", quantity: 1 },
-  { slug: "airpods-max", quantity: 1 },
-  { slug: "96w-usb-c-adapter", quantity: 1 },
-];
-
-export function getCheckoutBag(): CheckoutLine[] {
-  return bag
+/** Turn cart lines into checkout lines, dropping any slug that no
+ *  longer resolves against the catalogue. */
+export function resolveCheckoutLines(items: CartItem[]): CheckoutLine[] {
+  return items
     .map((entry): CheckoutLine | null => {
-      const product = getProductBySlug(entry.slug);
+      const product = getProductBySlug(entry.productSlug);
       if (!product) return null;
       return {
-        key: `${product.slug}-${entry.quantity}`,
+        key: entry.id,
         product,
         variantLabel: product.variant,
         condition: "Refurbished",
@@ -72,7 +65,7 @@ export interface CheckoutTotals {
 /**
  * Totals derived from the bag alone — delivery and any discount are
  * decided in the UI and folded in there, so this function stays
- * agnostic to which delivery option is selected.
+ * agnostic to which delivery option or promo is selected.
  */
 export function totalsFor(lines: CheckoutLine[]): CheckoutTotals {
   const subtotal = lines.reduce(
@@ -92,4 +85,101 @@ export function totalsFor(lines: CheckoutLine[]): CheckoutTotals {
     currency: first?.currency ?? "AED",
     locale: first?.locale ?? "en-AE",
   };
+}
+
+/**
+ * Promo codes — a small demo set so the input can be exercised. Real
+ * codes will come from the discounts collection in the CMS; this shape
+ * is the same, so the check function stays.
+ */
+export interface PromoCode {
+  code: string;
+  /** Percentage off subtotal, 0–100. */
+  percent: number;
+  label: string;
+}
+
+const PROMO_CODES: PromoCode[] = [
+  { code: "REWIRE10", percent: 10, label: "10% off · welcome" },
+  { code: "KIT5", percent: 5, label: "5% off · kit builder" },
+];
+
+export function findPromo(code: string): PromoCode | undefined {
+  const normalised = code.trim().toUpperCase();
+  return PROMO_CODES.find((p) => p.code === normalised);
+}
+
+export function discountAmount(subtotal: number, promo: PromoCode | undefined) {
+  if (!promo) return 0;
+  return Math.round((subtotal * promo.percent) / 100);
+}
+
+/**
+ * Persisted order shape — what the success page reads back after a
+ * `Place Order`. localStorage-backed until a real backend lands.
+ */
+export interface PlacedOrder {
+  id: string;
+  number: string;
+  placedAt: string;
+  lines: {
+    slug: string;
+    name: string;
+    variantLabel: string;
+    condition: string;
+    grade?: string;
+    quantity: number;
+    unitPrice: number;
+    imageUrl?: string;
+    imageAlt?: string;
+    imageFit?: "cover" | "contain";
+  }[];
+  contact: { email: string; phone: string };
+  address: {
+    name: string;
+    line1: string;
+    line2?: string;
+    city: string;
+    emirate: string;
+    country: string;
+    postalCode?: string;
+    phone: string;
+  };
+  deliveryLabel: string;
+  deliveryEstimate: string;
+  deliveryPrice: number;
+  paymentLabel: string;
+  promoCode?: string;
+  discount: number;
+  subtotal: number;
+  total: number;
+  currency: string;
+  locale: string;
+}
+
+const ORDER_KEY = "rewire.lastOrder";
+
+export function persistOrder(order: PlacedOrder) {
+  try {
+    window.localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function readLastOrder(): PlacedOrder | null {
+  try {
+    const raw = window.localStorage.getItem(ORDER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PlacedOrder;
+  } catch {
+    return null;
+  }
+}
+
+/** Produces a stable, human-facing order reference. */
+export function nextOrderNumber(): string {
+  const stamp = Date.now().toString(36).toUpperCase().slice(-5);
+  const rand = Math.random().toString(36).toUpperCase().slice(2, 5);
+  return `RW-${stamp}${rand}`;
 }

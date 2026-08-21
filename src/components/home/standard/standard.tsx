@@ -56,7 +56,7 @@ export function Standard() {
       {/* One wash, one light. Nothing else behind the content. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-void)_0%,#faf8f4_46%,var(--color-void)_100%)]"
+        className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-void)_0%,var(--color-surface-3)_46%,var(--color-void)_100%)]"
       />
       <div aria-hidden className="grain absolute inset-0" />
 

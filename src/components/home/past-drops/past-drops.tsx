@@ -136,19 +136,22 @@ export function PastDrops() {
                 {/* Square, not 4:5. A tall plate gives a sold-out device
                     the same stage as a buyable one; square keeps the
                     product legible while taking a third less height. */}
+                {/* Archive plates step *down* from the active drop cards
+                    — a muted graphite plate (`bg-surface-2`), not the
+                    cream showcase. `mix-blend-mode: multiply` folds the
+                    image's baked-in white studio background into that
+                    graphite so the past drops read as record photography
+                    rather than as active shelf tiles. The `grayscale +
+                    opacity-65` treatment already carries the "closed"
+                    register on top of that. */}
                 <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-surface-2">
                   <Image
                     src={drop.image.url}
                     alt={drop.image.alt}
                     fill
                     sizes="(max-width: 768px) 85vw, (max-width: 1280px) 44vw, 22vw"
-                    // Grayscale and slightly dimmed — reads as closed at
-                    // a glance rather than after reading four labels.
-                    // Hover lifts opacity back to full: the earlier flat
-                    // `opacity-55` buried the photography permanently,
-                    // which is the one thing this section exists to show.
                     className={cn(
-                      "object-cover grayscale opacity-65",
+                      "object-cover grayscale opacity-65 [mix-blend-mode:multiply]",
                       "transition-[transform,opacity] duration-(--duration-slow) ease-(--ease-out-expo)",
                       "group-hover/past:opacity-100 group-focus-visible/past:opacity-100",
                       "motion-safe:group-hover/past:scale-[1.03]",

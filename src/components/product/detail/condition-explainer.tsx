@@ -52,32 +52,59 @@ export function ConditionExplainer({ active, grade }: Props) {
     : undefined;
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-6 sm:p-10">
+    <div>
+      {/* ---------- Active state header ----------
+          The wrapping card is gone. On the previous pass the outer
+          rounded-2xl frame turned the block into a card-inside-a-card
+          when the section it lives in already carries its own eyebrow
+          above; the visual weight fought the four-column table that
+          this component exists to render.
+          The header now sits directly on the page ground as an
+          editorial masthead: "On this listing" as a small mono label,
+          the state as a display-scale line with the grade beside it
+          picked out in the accent, the plain-language definition
+          below, and the general reassurance to the right rather than
+          fighting for the same column. */}
       {activeCondition && (
-        <div className="flex flex-wrap items-baseline justify-between gap-4">
-          <div>
-            <p className="eyebrow">On this listing</p>
-            <p className="mt-2 text-display-sm font-light text-ink">
+        <div className="grid gap-6 border-b border-line pb-10 md:pb-12 lg:grid-cols-12 lg:gap-8">
+          <div className="lg:col-span-7">
+            <p className="eyebrow text-ink-muted">On this listing</p>
+            <p className="mt-4 font-sans text-[clamp(1.75rem,3vw,2.5rem)] font-light leading-[1.05] tracking-[-0.025em] text-ink">
               {activeCondition.label}
               {grade && (
-                <span className="text-ink-muted">
-                  <span aria-hidden> · </span>
-                  <span className="text-ink">{grade}</span>
-                </span>
+                <>
+                  <span aria-hidden className="mx-3 text-ink-faint">
+                    ·
+                  </span>
+                  <span className="text-accent">{grade}</span>
+                </>
               )}
             </p>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
+              {activeCondition.detail}
+            </p>
           </div>
-          <p className="max-w-xs text-[0.9375rem] text-ink-secondary">
+          <p className="max-w-xs text-[0.9375rem] leading-relaxed text-ink-muted lg:col-span-4 lg:col-start-9 lg:justify-self-end lg:pt-8">
             Every state we sell is defined here, so you always know what
             arrives in the box.
           </p>
         </div>
       )}
 
+      {/* ---------- Comparison row ----------
+          Four boxes now, one per state. The active box is lifted a step
+          in surface luminance (`bg-surface-3` on the elevated ground),
+          carries a copper hairline instead of the neutral one, and
+          takes an inset accent bar along the top — three quiet cues
+          that stack rather than shouting. The others sit on the card
+          ground with a plain line-strong hairline and muted type, so
+          the row reads as a comparison spread where one column is
+          obviously "yours" without turning the other three into
+          greyed-out ghosts. */}
       <dl
         className={cn(
-          "grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4",
-          activeCondition && "mt-10",
+          "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4 lg:gap-6",
+          activeCondition && "mt-10 md:mt-14",
         )}
       >
         {CONDITIONS.map((condition) => {
@@ -86,10 +113,25 @@ export function ConditionExplainer({ active, grade }: Props) {
             <div
               key={condition.key}
               className={cn(
-                "relative flex flex-col gap-3 bg-surface p-6",
-                isActive && "bg-surface-2",
+                "relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border p-6 transition-colors duration-(--duration-fast)",
+                isActive
+                  ? "border-accent/70 bg-surface-3"
+                  : "border-line-strong bg-surface",
               )}
             >
+              {/* Inset accent bar — one pixel tall, spans the full top
+                  edge of the active card, sits just inside the border so
+                  it reads as a mark on the card rather than as part of
+                  the frame. Suppressed on the inactive cards; combined
+                  with the bg lift and the accent border it makes the
+                  active state unambiguous at a glance. */}
+              {isActive && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-accent"
+                />
+              )}
+
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden

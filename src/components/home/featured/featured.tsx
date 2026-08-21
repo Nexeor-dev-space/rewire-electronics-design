@@ -109,16 +109,27 @@ export function Featured() {
           variants={staggerChildren(0.09, 0.1)}
           className={cn(
             "mt-14 lg:mt-16",
-            "no-scrollbar -mx-(--spacing-gutter) flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-4",
-            "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 sm:overflow-visible sm:px-0 sm:pb-0",
-            "xl:grid-cols-4",
+            "no-scrollbar -mx-(--spacing-gutter) flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-4",
+            // Grid, gap, and column count matched to `UpcomingDrops` above:
+            // four across from `xl` (not three then four), and a 24px
+            // gutter (not 32px). The previous mismatch shrank each
+            // Featured card by ~40px against a same-viewport drop card
+            // and left obvious whitespace between them.
+            "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14 sm:overflow-visible sm:px-0 sm:pb-0",
+            "xl:grid-cols-4 xl:gap-x-7",
           )}
         >
           {products.map((product, i) => (
             <motion.li
               key={product.id}
               variants={rise}
-              className="flex w-[78%] shrink-0 snap-start sm:w-auto"
+              // `w-full` (not `w-auto`) — a flex item's default is
+              // content-width, which was letting each card shrink to its
+              // photograph and leave the rest of the grid cell empty.
+              // The wrapping `<ul>` above is a grid on `sm+`, so the
+              // grid layout itself sizes the columns; `w-full` just tells
+              // the card to occupy the column it was placed in.
+              className="flex w-[85%] shrink-0 snap-start sm:w-full"
             >
               <StorefrontCard product={product} priority={i < 2} />
             </motion.li>

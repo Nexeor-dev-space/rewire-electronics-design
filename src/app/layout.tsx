@@ -36,7 +36,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f4f0",
+  // Matches `--color-void` — the mobile status-bar and tab-strip pick this
+  // up on iOS/Android, so the OS chrome flows into the page ground rather
+  // than flashing an off-white band above a dark canvas on scroll.
+  themeColor: "#282929",
   width: "device-width",
   initialScale: 1,
 };

@@ -42,7 +42,7 @@ export function AboutCta() {
     >
       <div
         aria-hidden
-        className="absolute inset-x-0 top-0 h-full bg-[radial-gradient(120%_90%_at_50%_0%,rgb(255_255_255/0.7),transparent_70%)]"
+        className="absolute inset-x-0 top-0 h-full bg-[radial-gradient(120%_90%_at_50%_0%,rgb(255_255_255/0.05),transparent_70%)]"
       />
       <div aria-hidden className="grain absolute inset-0" />
 

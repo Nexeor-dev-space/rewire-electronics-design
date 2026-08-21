@@ -16,8 +16,8 @@ import { Invitation } from "@/components/home/invitation/invitation";
  * question the previous one raises, and the order is the design:
  *
  *   Hero          see it        — the product, its price, what is left
+ *   Categories    find it       — the catalogue index, offered upfront
  *   UpcomingDrops want it       — three more, each in a visibly different state
- *   Categories    find it       — or start from the kind of device you want
  *   Savings       value it      — whichever you pick, up to 42% less than new
  *   PastDrops     believe it    — and these already sold out
  *   Standard      trust it      — inspection, battery, grade, warranty
@@ -26,12 +26,13 @@ import { Invitation } from "@/components/home/invitation/invitation";
  *   Faq           last doubts
  *   Invitation    act
  *
- * **Categories sits directly after the calendar**, so a reader who does
- * not want any of the four releases on offer is handed a way through the
- * catalogue immediately rather than after five more sections of argument.
- * The browse route and the drop route fork at the same point, and
- * **Savings answers both at once** — the price argument applies whichever
- * fork was taken, so it sits under the fork rather than after one branch.
+ * **Categories sits directly under the hero**, so the second viewport
+ * opens on the catalogue's index rather than the drop calendar — a
+ * reader who has no interest in the four current releases is handed a
+ * way in immediately, and the calendar is what follows for the reader
+ * who is here for a specific drop. **Savings answers both routes at
+ * once** — the price argument applies whichever fork was taken, so it
+ * sits under the fork rather than after one branch.
  *
  * One consequence worth knowing: the saving now lands *before* the trust
  * case rather than after it, so `Standard` is arguing quality to someone
@@ -59,8 +60,8 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <UpcomingDrops />
       <Categories />
+      <UpcomingDrops />
       <Featured />
       <Setup />
       <Savings />

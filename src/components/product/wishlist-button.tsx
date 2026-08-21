@@ -1,8 +1,17 @@
 "use client";
 
-import type { Product } from "@/lib/products";
 import { useAccount } from "@/components/providers/account-provider";
 import { cn } from "@/lib/utils";
+
+/**
+ * Structural minimum needed to wishlist an item. Both `Product` (the
+ * homepage catalogue) and `ShopProduct` (the shop listing) satisfy it,
+ * so the same button works from either source without a shared type.
+ */
+export interface WishlistTarget {
+  slug: string;
+  name: string;
+}
 
 /**
  * WishlistButton — save for later, from anywhere a product appears.
@@ -16,7 +25,7 @@ export function WishlistButton({
   product,
   className,
 }: {
-  product: Product;
+  product: WishlistTarget;
   className?: string;
 }) {
   const { isSaved, toggleSaved } = useAccount();
@@ -25,7 +34,11 @@ export function WishlistButton({
   return (
     <button
       type="button"
-      onClick={() => toggleSaved(product.slug)}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleSaved(product.slug);
+      }}
       aria-pressed={saved}
       aria-label={
         saved
@@ -37,8 +50,6 @@ export function WishlistButton({
         "flex size-9 items-center justify-center rounded-full",
         "border border-line bg-surface/90 backdrop-blur-sm",
         "transition-[color,border-color,opacity] duration-(--duration-fast)",
-        // Quiet until wanted: visible on touch, revealed on hover for
-        // pointers, and always visible once it holds a saved state.
         saved
           ? "text-urgent opacity-100"
           : "text-ink-muted opacity-100 hover:border-line-strong hover:text-ink lg:opacity-0 lg:group-hover/card:opacity-100 lg:focus-visible:opacity-100",

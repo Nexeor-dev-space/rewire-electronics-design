@@ -85,7 +85,7 @@ export function Process() {
       // Top rhythm only: every section owns its own lead-in, and the next
       // section's top padding supplies the gap. Adding a bottom here
       // doubles it into a dead band.
-      className="relative bg-void pt-(--spacing-section)"
+      className="relative bg-void pt-(--spacing-section) pb-(--spacing-section-sm)"
     >
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
         {/* ---------- Header, between rules ---------- */}
