@@ -47,9 +47,9 @@ export function Stories() {
     <section
       aria-labelledby="stories-heading"
       // Top rhythm only — see the note in `standard.tsx`.
-      // A shade lighter than `void`, so the testimonials read as their own
+      // A shade lifted from `void`, so the testimonials read as their own
       // band between the sections either side of them.
-      className="relative overflow-hidden bg-[#faf9f8] pt-(--spacing-section-sm)"
+      className="relative overflow-hidden bg-surface-2 pt-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

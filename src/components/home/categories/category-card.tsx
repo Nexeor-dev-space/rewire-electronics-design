@@ -66,7 +66,12 @@ export function CategoryCard({ category, priority }: CategoryCardProps) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         className={cn(
-          "relative aspect-4/5 overflow-hidden rounded-xl bg-surface-2",
+          // Square plate rather than 4:5 portrait — the section was
+          // reading as five tall rectangles when a category tile does
+          // not need product-shot height. Square keeps every product
+          // legible (phones stay tall, headphones stay wide) while
+          // taking a fifth off the row's total height.
+          "relative aspect-square overflow-hidden rounded-xl bg-surface-2",
           "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
           "group-hover:-translate-y-1.5",
           "group-focus-visible:-translate-y-1.5",
@@ -78,7 +83,9 @@ export function CategoryCard({ category, priority }: CategoryCardProps) {
           aria-hidden
           className={cn(
             "absolute inset-0 opacity-0",
-            "bg-[radial-gradient(120%_90%_at_50%_10%,rgb(122_165_232/0.20),transparent_65%)]",
+            // Copper ember rather than blue — matches the dark-theme accent
+            // and picks up the same warm register as the drop cards.
+            "bg-[radial-gradient(120%_90%_at_50%_10%,rgb(194_65_12/0.14),transparent_65%)]",
             "transition-opacity duration-(--duration-slow) ease-(--ease-out-expo)",
             "group-hover:opacity-100 group-focus-visible:opacity-100",
           )}

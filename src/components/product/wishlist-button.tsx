@@ -1,6 +1,5 @@
 "use client";
 
-import type { Product } from "@/lib/products";
 import { useAccount } from "@/components/providers/account-provider";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +11,21 @@ import { cn } from "@/lib/utils";
  * remains a pure visual toggle: no confirmation, no toast — the
  * consequence is visible immediately on the same icon that was clicked.
  */
+/**
+ * Structural minimum needed to wishlist an item. Both `Product` (the
+ * homepage catalogue) and `ShopProduct` (the shop listing) satisfy it,
+ * so the same button works from either source without a shared type.
+ */
+export interface WishlistTarget {
+  slug: string;
+  name: string;
+}
+
 export function WishlistButton({
   product,
   className,
 }: {
-  product: Product;
+  product: WishlistTarget;
   className?: string;
 }) {
   const { isSaved, toggleSaved } = useAccount();

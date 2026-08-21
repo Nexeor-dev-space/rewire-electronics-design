@@ -35,7 +35,7 @@ function RelatedCard({ product }: { product: Product }) {
 
   return (
     <article className="group/card relative flex h-full flex-col">
-      <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-surface">
+      <div className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
         {image && (
           <Image
             src={image.url}
@@ -43,7 +43,7 @@ function RelatedCard({ product }: { product: Product }) {
             fill
             sizes="(max-width: 640px) 78vw, (max-width: 1024px) 45vw, 23vw"
             className={cn(
-              "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+              "[mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
               "group-hover/card:scale-[1.04]",
               image.fit === "cover" ? "object-cover" : "object-contain p-8",
               soldOut && "opacity-45 grayscale",

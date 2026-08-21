@@ -6,6 +6,8 @@ import type { DropStatus, UpcomingDrop } from "@/lib/drops";
 import { productHrefForDrop } from "@/lib/route-map";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 import { Countdown } from "@/components/ui/countdown";
+import { WishlistButton } from "@/components/product/wishlist-button";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 
 interface DropCardProps {
   drop: UpcomingDrop;
@@ -16,132 +18,62 @@ interface DropCardProps {
 }
 
 /**
- * One row per state. `action` decides who the card sends the reader to;
- * the chip and the bottom-of-image fact both key off the same enum so
- * treatment is decided in one place rather than scattered through the
- * markup.
+ * Availability facts specific to each drop state. The reference card
+ * treats availability as a small top-left mono note; a drop's states
+ * carry more information than an ordinary product's, so this maps each
+ * to a concrete row rather than reusing the shop's `availabilityLabel`.
  */
-const STATES: Record<
-  DropStatus,
-  {
-    cta: string;
-    action: "view" | "waitlist";
-    dot: boolean;
-    /** Low stock — the one place the urgent tone is allowed. */
-    urgent: boolean;
-    muted: boolean;
-  }
-> = {
-  available: {
-    cta: "View Product",
-    action: "view",
-    dot: true,
-    urgent: false,
-    muted: false,
-  },
-  "coming-soon": {
-    cta: "Join Waitlist",
-    action: "waitlist",
-    // No dot on upcoming — the countdown overlay carries the sense of
-    // activity, and a static dot beside a ticking clock reads as noise.
-    dot: false,
-    urgent: false,
-    muted: false,
-  },
-  "almost-gone": {
-    cta: "View Product",
-    action: "view",
-    dot: true,
-    urgent: true,
-    muted: false,
-  },
-  "sold-out": {
-    cta: "Join Waitlist",
-    action: "waitlist",
-    dot: false,
-    urgent: false,
-    muted: true,
-  },
-};
-
-/**
- * The chip's label — the state as a name. The bottom-of-image overlay
- * carries the *fact* (count / clock / SOLD OUT), so this line does not
- * need to. Split cleanly and neither element has to do both jobs.
- */
-function chipLabel(drop: UpcomingDrop): string {
+function availabilityFor(drop: UpcomingDrop): string | null {
   switch (drop.status) {
     case "available":
-      return "Available now";
-    case "coming-soon":
-      return "Upcoming drop";
+      return `${drop.unitsLeft} units left`;
     case "almost-gone":
-      return "Almost sold out";
+      return `LOW STOCK — ${drop.unitsLeft} LEFT`;
     case "sold-out":
-      return "Sold out";
+      return "SOLD OUT";
+    case "coming-soon":
+      return null; // countdown carries this state's information
   }
 }
 
-function Arrow() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn(
-        "size-3.5 shrink-0",
-        // 5px shift — inside the brief's 4–6px range and consistent
-        // with the `View device →` links elsewhere on the page.
-        "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-        "group-hover:translate-x-[5px] group-focus-within:translate-x-[5px]",
-        "motion-reduce:group-hover:translate-x-0 motion-reduce:group-focus-within:translate-x-0",
-      )}
-    >
-      <path d="M3 8h10M9 4l4 4-4 4" />
-    </svg>
-  );
-}
-
 /**
- * DropCard — a launch plate in four decisive stops.
+ * DropCard — a release calendar entry, in the site's one product-card
+ * shape.
  *
- * The whole dynamic story rides on the image now: status at the top
- * corner, the live fact (count · clock · SOLD OUT) at the bottom
- * corner. That freed the block below to be pure product identity — one
- * horizontal header row of name + text CTA, the variant on the next
- * line, and the price stack under that. No bottom action row, no rule,
- * no reserved slack. Same information as before, shorter card, cleaner
- * hierarchy.
+ * Same plate / brand / name / variant / price / actions layout as
+ * `StorefrontCard`, so a shopper reads the same object whether they
+ * are in the release calendar or the shop. What is drop-specific is
+ * *what fills each slot*, not the slots themselves:
  *
- * The AED-saving line was already at the Savings section further down
- * the page — repeating it inside every calendar card had put the two
- * sections in competition. One saving, one place.
+ *   corner text      → units left / LOW STOCK / SOLD OUT / (countdown)
+ *   coming-soon      → countdown chip bottom-left of the plate
+ *   primary action   → Add to cart (buyable) or Join Waitlist (not)
  *
- * Reading order: name + CTA → variant → price → struck original + % off.
- * Everything a shopper needs to decide, in the order they ask the
- * questions.
+ * The whole plate is a link to the PDP (or drop page for unlaunched
+ * releases); the wishlist and cart controls sit above the stretched
+ * pseudo-element on `z-20` and cancel the navigation on click.
  */
 export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
-  const state = STATES[drop.status];
   const isSoldOut = drop.status === "sold-out";
+  const isComingSoon = drop.status === "coming-soon";
+  const isBuyable = !isSoldOut && !isComingSoon;
   const saving = savingsPercent(drop.price, drop.originalPrice);
-
-  const ctaClass = cn(
-    "inline-flex shrink-0 items-center gap-1.5 text-[0.8125rem] font-medium",
-    "text-ink transition-colors duration-(--duration-fast)",
-    "hover:text-ink-hover focus-visible:text-ink-hover",
-    // Invisible tap padding: the text stays 13px, the target becomes ~36px.
-    "-my-2 py-2",
-  );
+  const availability = availabilityFor(drop);
+  const brand = drop.name.split(" ")[0];
 
   return (
-    <article className="group relative flex h-full w-full flex-col">
-      {/* ---------- The photograph ---------- */}
-      <div className="relative aspect-3/4 overflow-hidden rounded-xl bg-surface">
+    <article className="group/card relative flex h-full w-full flex-col">
+      {/* ---------- Plate ----------
+          Warm editorial plate (`--color-plate`) rather than the dark
+          surface token — product cutouts here ship with white studio
+          backgrounds baked in, and setting the plate to a warm cream
+          makes those photos read as intentional showcase art rather
+          than as bright rectangles punched through a dark grid.
+          `mix-blend-mode: multiply` on the image then bleeds the raw
+          #FFF background into the plate's cream so the join is invisible;
+          the product itself (mostly dark cutouts) multiplies with cream
+          to a very slightly warmed version of the same colour. */}
+      <div className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
         <Image
           src={drop.image.url}
           alt={drop.image.alt}
@@ -149,133 +81,141 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
           priority={priority}
           sizes="(max-width: 640px) 86vw, (max-width: 1280px) 46vw, 24vw"
           className={cn(
-            "object-cover",
-            // Zooms from anywhere on the card — the whole plate is one
-            // link, so it behaves like one. Slight lift alongside the
-            // scale is the "premium hover" the brief asks for; both
-            // stay inside the 1.03–1.05 range at 400ms easing.
-            "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-            "group-hover:-translate-y-1 group-hover:scale-[1.04]",
-            "group-focus-within:-translate-y-1 group-focus-within:scale-[1.04]",
-            "motion-reduce:group-hover:scale-100 motion-reduce:group-hover:translate-y-0",
-            "motion-reduce:group-focus-within:scale-100 motion-reduce:group-focus-within:translate-y-0",
+            "object-cover [mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+            "group-hover/card:scale-[1.04]",
+            isSoldOut && "opacity-45 grayscale",
           )}
         />
 
-        {/* Status chip — top-left, where a scanning eye lands first.
-            `glass-strong` on ivory keeps the label readable over any
-            photograph without becoming a badge. */}
-        <span
-          className={cn(
-            "glass-strong absolute left-4 top-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5",
-            "font-mono text-[0.6875rem] uppercase tracking-[0.14em]",
-            state.urgent ? "text-urgent" : "text-ink",
-            state.muted && "text-ink-muted",
-          )}
-        >
-          {state.dot && (
-            <span
-              aria-hidden
-              className={cn(
-                "size-1.5 rounded-full",
-                state.urgent ? "bg-urgent animate-pulse-dot" : "bg-accent",
-              )}
-            />
-          )}
-          {chipLabel(drop)}
-        </span>
-
-        {/* Bottom-of-image fact — one line per state. This is what
-            replaced the bottom row of the card: the *fact* about
-            availability belongs *on* the product, not stacked as a
-            second row of metadata below it. Same `glass-strong`
-            material as the chip above so the two read as a set. */}
-        <UrgencyOverlay drop={drop} state={state} />
-
-        {/* Sold out earns the strongest treatment available without a
-            badge: the photograph itself steps down. Softer than the
-            previous 45% ivory + hard grayscale — the brief was
-            specific about not making sold-out cards look dead. */}
-        {isSoldOut && (
+        {/* Top-left: availability signal, small mono like the reference.
+            Not rendered for coming-soon — the countdown at the bottom
+            of the plate carries that state's information instead. */}
+        {availability && (
           <span
-            aria-hidden
-            className="absolute inset-0 bg-void/20 grayscale-[85%]"
-          />
+            className={cn(
+              "pointer-events-none absolute left-3.5 top-3.5 font-mono text-[0.5625rem] uppercase tracking-[0.18em]",
+              statusToneClass(drop.status),
+            )}
+          >
+            {availability}
+          </span>
         )}
+
+        {/* Top-right: discount pill. Suppressed on sold-out because
+            "42% OFF" on an unbuyable line item is misleading. */}
+        {saving > 0 && !isSoldOut && (
+          <span className="pointer-events-none absolute right-3.5 top-3.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-void">
+            {saving}% OFF
+          </span>
+        )}
+
+        {/* Coming-soon: countdown docked bottom-left of the plate. The
+            drop card's one drop-specific chrome — every other corner
+            behaves like an ordinary product card. */}
+        {isComingSoon && (
+          <span className="glass-strong pointer-events-none absolute bottom-3.5 left-3.5 inline-flex items-center gap-2 rounded-full px-3 py-1.5 shadow-(--shadow-soft)">
+            <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+              Opens in
+            </span>
+            <Countdown
+              compact
+              target={drop.startsAt}
+              label={`${drop.name} drop opens in`}
+              className="font-mono text-[0.625rem] leading-none tracking-[0.06em] text-ink"
+            />
+          </span>
+        )}
+
+        <WishlistButton
+          product={{ slug: drop.slug, name: drop.name }}
+          className="absolute bottom-3 right-3 z-20"
+        />
       </div>
 
-      {/* ---------- Identity and action ----------
-          Header row: name on the left, text CTA on the right. Sharing a
-          line pulls the action next to the thing it acts on, which is
-          the whole point of consolidating the old bottom row into this
-          spot. `items-baseline` keeps the small CTA sitting on the
-          name's baseline; `shrink-0` on the CTA holds it upright even
-          when the name eats the row. */}
-      <div className="flex flex-1 flex-col px-1 pt-6">
-        <div className="flex items-baseline justify-between gap-4">
-          <h3 className="text-[1.25rem] font-medium leading-tight tracking-[-0.02em] text-ink">
-            <Link
-              href={productHrefForDrop(drop.slug)}
-              // Whole plate is one link (see the `after:inset-0`).
-              // Actions that need to open the modal live above it on
-              // `z-10`.
-              className="after:absolute after:inset-0 after:content-['']"
-            >
-              {drop.name}
-            </Link>
-          </h3>
+      {/* ---------- Copy ---------- */}
+      <div className="flex flex-1 flex-col pt-5">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+          {brand}
+        </p>
 
-          {state.action === "view" ? (
-            <Link
-              href={productHrefForDrop(drop.slug)}
-              className={ctaClass}
-              aria-label={`${state.cta} — ${drop.name}`}
-            >
-              {state.cta}
-              <Arrow />
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onJoinWaitlist}
-              aria-haspopup="dialog"
-              aria-label={`${state.cta} — ${drop.name}`}
-              className={cn(ctaClass, "relative z-10")}
-            >
-              {state.cta}
-              <Arrow />
-            </button>
-          )}
-        </div>
+        <h3 className="mt-2 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+          <Link
+            href={productHrefForDrop(drop.slug)}
+            // Whole plate is one link; the wishlist and cart controls
+            // sit above it on `z-20` and stop propagation.
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {drop.name}
+          </Link>
+        </h3>
 
-        <p className="mt-1.5 truncate text-sm text-ink-muted">{drop.variant}</p>
+        <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+          {drop.variant}
+        </p>
 
-        {/* ---------- What it costs ----------
-            The strongest figure below the name. Sold-out drops go to
-            `-ink-muted` because urgent orange on an unbuyable device
-            signals "buy me". */}
-        <div className="mt-5">
-          <p
+        <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
+          <span
             className={cn(
-              "font-sans text-[2rem] font-light leading-none tracking-[-0.035em] tabular-nums",
-              isSoldOut ? "text-ink-muted" : "text-urgent",
+              "text-[1.0625rem] font-medium tabular-nums",
+              isSoldOut ? "text-ink-muted line-through" : "text-ink",
             )}
           >
             {formatPrice(drop.price, drop.currency, drop.locale)}
-          </p>
-
-          {!isSoldOut && (
-            <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-[0.75rem] tabular-nums">
-              <span className="sr-only">Was </span>
-              <s className="text-ink-muted">
+          </span>
+          {drop.originalPrice > drop.price && !isSoldOut && (
+            <>
+              <span className="sr-only">was </span>
+              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
                 {formatPrice(drop.originalPrice, drop.currency, drop.locale)}
               </s>
-              {saving > 0 && (
-                <span className="font-medium uppercase tracking-[0.14em] text-urgent">
-                  {saving}% off
-                </span>
+            </>
+          )}
+        </p>
+
+        {/* Primary action — Add to cart when the drop is buyable, a
+            waitlist button otherwise. Both share the AddToCartButton's
+            visual shape so a grid of mixed-state cards has a single
+            action bar rhythm. `z-20` keeps the button above the
+            stretched plate link. */}
+        <div className="relative z-20 mt-4">
+          {isBuyable ? (
+            <AddToCartButton
+              product={{ slug: drop.slug, name: drop.name, soldOut: false }}
+              className="w-full"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onJoinWaitlist();
+              }}
+              aria-haspopup="dialog"
+              className={cn(
+                "inline-flex h-11 w-full items-center justify-center gap-2 rounded-full",
+                "text-[0.8125rem] font-medium tracking-tight",
+                isSoldOut
+                  ? "border border-line-strong text-ink hover:border-ink"
+                  : "bg-ink text-void hover:bg-ink-hover",
+                "transition-[background-color,border-color,transform] duration-(--duration-fast)",
+                "active:scale-[0.98]",
               )}
-            </p>
+            >
+              {isSoldOut ? "Notify Me" : "Join Waitlist"}
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -283,53 +223,15 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
   );
 }
 
-/**
- * The line at the bottom of the image. One label per state, mono
- * uppercase, small — reads as metadata belonging to the photograph
- * rather than as a second banner sitting on it.
- *
- * `glass-strong` for its own quiet frost; the same `shadow-soft` the
- * archive pills carry, so the two systems read as one badge family.
- * The status chip at the top stays flat on purpose — the shadow
- * belongs to the *live* fact, not the label above it.
- *
- * Kept at bottom-left rather than centred: centring puts the pill in
- * the same optical column as whichever product silhouette sits mid-
- * frame, which reads as an accidental stamp on the product. A corner
- * position is unambiguous chrome.
- */
-function UrgencyOverlay({
-  drop,
-  state,
-}: {
-  drop: UpcomingDrop;
-  state: (typeof STATES)[DropStatus];
-}) {
-  const shell = cn(
-    "glass-strong absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5",
-    "font-mono text-[0.6875rem] uppercase leading-none tracking-[0.14em]",
-    "shadow-(--shadow-soft)",
-    state.urgent ? "text-urgent" : "text-ink",
-    state.muted && "text-ink-muted",
-  );
-
-  switch (drop.status) {
-    case "available":
+function statusToneClass(status: DropStatus): string {
+  switch (status) {
     case "almost-gone":
-      return <span className={shell}>{drop.unitsLeft} units left</span>;
-    case "coming-soon":
-      return (
-        <span className={shell}>
-          <span className="text-ink-muted">Opens in</span>
-          <Countdown
-            compact
-            target={drop.startsAt}
-            label={`${drop.name} drop opens in`}
-            className="text-[0.6875rem] leading-none normal-case tracking-[0.06em] text-ink"
-          />
-        </span>
-      );
+      return "text-urgent";
     case "sold-out":
-      return <span className={shell}>Sold out</span>;
+      return "text-ink-muted";
+    case "available":
+      return "text-ink-secondary";
+    case "coming-soon":
+      return "text-ink-muted";
   }
 }

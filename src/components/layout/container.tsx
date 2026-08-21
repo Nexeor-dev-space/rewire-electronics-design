@@ -56,9 +56,17 @@ export function Section({
   );
 }
 
-/** Editorial section header: eyebrow + index number, hairline rule. */
+/**
+ * Editorial section header: eyebrow label only.
+ *
+ * The `index` prop is accepted for backwards compatibility with call
+ * sites that still pass `"01"`, `"02"`, etc., but the number is no
+ * longer rendered — the right-side stamp read as a table-of-contents
+ * artefact rather than as editorial chrome, and dropping it lets the
+ * left-hand label carry the section on its own.
+ */
 export function SectionEyebrow({
-  index,
+  index: _index,
   children,
   className,
 }: {
@@ -67,14 +75,8 @@ export function SectionEyebrow({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "flex items-baseline justify-between mb-10 md:mb-16",
-        className,
-      )}
-    >
+    <div className={cn("mb-10 md:mb-16", className)}>
       <span className="eyebrow">{children}</span>
-      {index && <span className="eyebrow text-ink-faint">{index}</span>}
     </div>
   );
 }

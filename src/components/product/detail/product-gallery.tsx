@@ -69,7 +69,7 @@ export function ProductGallery({ images }: { images: Media[] }) {
       <div className="flex-1">
         <div
           className={cn(
-            "relative aspect-square overflow-hidden rounded-2xl border border-line bg-surface",
+            "relative aspect-square overflow-hidden rounded-2xl border border-white/[0.04] bg-plate",
             "sm:aspect-[4/5] lg:aspect-square",
           )}
         >
@@ -81,7 +81,7 @@ export function ProductGallery({ images }: { images: Media[] }) {
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"
             className={cn(
-              "transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
+              "[mix-blend-mode:multiply] transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
               active.fit === "cover"
                 ? "object-cover"
                 : "object-contain p-10 sm:p-16",

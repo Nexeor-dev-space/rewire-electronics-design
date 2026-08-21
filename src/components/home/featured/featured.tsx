@@ -109,16 +109,19 @@ export function Featured() {
           variants={staggerChildren(0.09, 0.1)}
           className={cn(
             "mt-14 lg:mt-16",
-            "no-scrollbar -mx-(--spacing-gutter) flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-4",
-            "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-12 sm:overflow-visible sm:px-0 sm:pb-0",
-            "xl:grid-cols-4",
+            "no-scrollbar -mx-(--spacing-gutter) flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-4",
+            "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-8 sm:gap-y-14 sm:overflow-visible sm:px-0 sm:pb-0",
+            // Three across at xl gives each card ~30% more plate area than
+            // four across did on the same viewport, then only push to four
+            // once the screen is genuinely wide.
+            "xl:grid-cols-3 2xl:grid-cols-4",
           )}
         >
           {products.map((product, i) => (
             <motion.li
               key={product.id}
               variants={rise}
-              className="flex w-[78%] shrink-0 snap-start sm:w-auto"
+              className="flex w-[85%] shrink-0 snap-start sm:w-auto"
             >
               <StorefrontCard product={product} priority={i < 2} />
             </motion.li>

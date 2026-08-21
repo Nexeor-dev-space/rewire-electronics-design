@@ -17,6 +17,7 @@ import {
   productHrefForDrop,
   SHOP_INDEX_HREF,
 } from "@/lib/route-map";
+import { shopHrefForTerm } from "@/lib/shop";
 import { Countdown } from "@/components/ui/countdown";
 import { formatDropDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -159,7 +160,10 @@ export function ShopMenu() {
               key={term}
               item={{
                 label: term,
-                href: `/search?q=${encodeURIComponent(term)}`,
+                // Resolves to the shop, pre-filtered by category and
+                // brand. These used to point at `/search?q=…`, a route
+                // that has never existed — every one of them 404'd.
+                href: shopHrefForTerm(term),
               }}
             />
           ))}

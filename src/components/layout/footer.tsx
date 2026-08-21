@@ -69,7 +69,7 @@ export function Footer() {
 
       {/* Ghost wordmark */}
       <div aria-hidden className="overflow-hidden select-none">
-        <p className="text-center font-sans text-[22vw] font-bold leading-[0.75] tracking-[-0.05em] text-black/[0.03] translate-y-[18%]">
+        <p className="text-center font-sans text-[22vw] font-bold leading-[0.75] tracking-[-0.05em] text-white/[0.035] translate-y-[18%]">
           Rewire
         </p>
       </div>

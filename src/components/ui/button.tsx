@@ -19,18 +19,36 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /** High-emphasis: solid ink. Hover is a tone shift, never a lift. */
-        primary: "bg-ink text-surface hover:bg-ink-hover",
-        /** Brand moment: same ink fill. Reserve for drop CTAs ("Notify me"). */
+        /**
+         * High-emphasis commerce action. Burnt-orange fill against the
+         * graphite ground reads as premium and unambiguously purchasable
+         * — the previous off-white chip on dark rendered as pastel and
+         * lost its status as the commit action. Reserved for the moment
+         * on any screen that closes the sale (Add to Cart, Notify Me,
+         * Join Waitlist, Continue to Checkout). Secondary and tertiary
+         * actions should reach for `outline` or `ghost` rather than
+         * dilute the meaning of this one.
+         */
+        primary: "bg-accent text-white hover:bg-accent-hover",
+        /** Drop-level moment: same commerce fill, lifted with shadow. */
         accent:
-          "bg-ink text-surface shadow-(--shadow-soft) hover:bg-ink-hover hover:shadow-(--shadow-float)",
-        /** High-emphasis on dark plates: light chip on ink. */
-        inverse: "bg-surface text-ink hover:bg-surface/90",
-        /** Secondary: hairline outline that fills with ink on hover. */
+          "bg-accent text-white shadow-(--shadow-soft) hover:bg-accent-hover hover:shadow-(--shadow-float)",
+        /**
+         * Inverse for the rare surface where the accent is unavailable
+         * (e.g. an orange plate that already carries the accent). Bright
+         * chip on the graphite ground.
+         */
+        inverse: "bg-ink text-void hover:bg-ink-hover",
+        /**
+         * Secondary — the hairline pill. `line-strong` is a 14% white
+         * border on dark, so the button reads as a raised edge rather
+         * than a cut line, and hover fills to the accent so the state
+         * change matches the meaning shift (from "see more" to "commit").
+         */
         outline:
-          "border border-ink text-ink hover:bg-ink hover:text-surface",
+          "border border-line-strong text-ink hover:border-accent hover:bg-accent hover:text-white",
         /** Low emphasis: text-adjacent actions. */
-        ghost: "text-ink-secondary hover:text-ink hover:bg-ink/5",
+        ghost: "text-ink-secondary hover:text-ink hover:bg-white/5",
         /** Inline editorial link with animated underline. */
         link: [
           "rounded-none px-0 text-ink underline-offset-6",

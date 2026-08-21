@@ -7,40 +7,59 @@
    ============================================================ */
 
 @theme {
-  /* ---------- Color · Surfaces (light-first) ---------- */
-  --color-void: #f8f7f4; /* page canvas — warm off-white, never pure white */
-  --color-surface: #ffffff; /* cards and raised panels sit pure white on it */
-  --color-surface-2: #f2f0ec; /* hover / nested surfaces */
-  --color-surface-3: #eae7e1; /* highest elevation (menus, popovers) */
+  /* ---------- Color · Surfaces (dark-first premium commerce) ----------
+     Four layered graphite tones — page → section → card → elevated. The
+     tonal spread is deliberately narrow (11 → 29 luminance) so depth
+     reads as machined material rather than as high-contrast UI chrome. */
+  /* Warm slate rather than cool near-black — the ground has a hair of
+     red in the neutral mix (see the R > G > B ordering) so photography,
+     copper accents and product plates all read against a natural
+     material rather than a machine-grey. The whole scale lifted ~5pt in
+     luminance over the previous pass; the brief's #0b0d0f read as
+     oppressive under real photography and the section-to-card
+     separation collapsed under it. */
+  --color-void: #14171b; /* page canvas — warm slate, never pure black */
+  --color-surface: #21252a; /* card / raised panel */
+  --color-surface-2: #181c20; /* alternate section ground (between void and card) */
+  --color-surface-3: #292d33; /* elevated: menus, popovers, modals */
+
+  /* Editorial photography plate — deliberately warm off-white, used only
+     as the ground behind product cutouts. On a magazine layout an art
+     directed product sits on a lit plate, not on the page's ground; the
+     token makes that shift explicit so a light rectangle under a phone
+     reads as intent rather than as an unstyled card. */
+  --color-plate: #ebe5d8;
 
   /* ---------- Color · Ink ---------- */
-  --color-ink: #111111; /* primary text — near black, never #000 */
-  --color-ink-hover: #222222; /* filled-button hover */
-  --color-ink-secondary: #6d6d6d; /* supporting text */
-  --color-ink-muted: #9a9a9a; /* supporting labels — see §10 on contrast */
-  --color-ink-faint: #c4c1ba; /* decorative only, never text */
+  --color-ink: #f5f5f2; /* primary text — bright off-white, never pure #fff */
+  --color-ink-hover: #ffffff; /* filled-button hover, focus */
+  --color-ink-secondary: #a7aaad; /* supporting text */
+  --color-ink-muted: #73777c; /* supporting labels, metadata */
+  --color-ink-faint: rgb(255 255 255 / 0.14); /* decorative only, never text */
 
-  /* ---------- Color · Lines ---------- */
-  --color-line: #e6e3dd; /* default hairline borders */
-  --color-line-strong: #d8d4cc; /* hover / focus borders */
+  /* ---------- Color · Lines ----------
+     Hairlines are rgba white at low alpha rather than a fixed dark grey
+     so borders retain the same optical weight over every surface tone. */
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
 
-  /* ---------- Color · Brand ---------- */
-  /* Under 5% of any view. Highlighted words, small badges, the live
-     countdown, hairline dividers, micro icons — never a section ground. */
-  --color-accent: #b7864a;
-  --color-accent-hover: #9f6c37;
+  /* ---------- Color · Brand ----------
+     The Rewire accent moves to the burnt-orange commerce tone. Reserved
+     for the moments the eye must land: price, saving, low-stock signal,
+     the primary CTA. Never a section ground, never a decorative fill. */
+  --color-accent: #c2410c;
+  --color-accent-hover: #d45118;
 
-  /* ---------- Color · Signals ---------- */
-  --color-live: #6f8d7a; /* certified, battery health, inspection passed */
-  --color-warn: #d08a34; /* low stock, limited drop, countdown urgency */
-  --color-danger: #b4544e; /* errors, sold out */
+  /* ---------- Color · Signals ----------
+     Tuned brighter on dark so status labels retain contrast without
+     losing the muted-editorial register. */
+  --color-live: #7fb391; /* certified, battery health, inspection passed */
+  --color-warn: #e0a45c; /* low stock, limited drop, countdown urgency */
+  --color-danger: #d1706a; /* errors, sold out */
 
-  /* The drop is selling out. Burnt orange rather than red — urgency
-     without the clearance-sale register — and the one warm note allowed
-     in an otherwise monochrome hero. Measured 4.83:1 on `void`, so it
-     clears AA for small text as well as the 3:1 non-text threshold the
-     stock bar needs. Reserve it for live scarcity: the status dot, the
-     remaining count, the bar. Never a fill, a badge or a button. */
+  /* The scarcity accent — the same #c2410c as the brand accent, exposed
+     under the `urgent` name so the semantic call-sites (stock bar,
+     remaining count, live dot) read as scarcity rather than as branding. */
   --color-urgent: #c2410c;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
@@ -111,11 +130,13 @@
   --radius-xl: 1.5rem;
   --radius-2xl: 2rem;
 
-  /* ---------- Shadows (light-tuned: soft, realistic) ---------- */
-  /* Cards should feel as though they gently float, never cast drama. */
-  --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.06);
-  --shadow-float: 0 12px 32px rgb(0 0 0 / 0.09);
-  --shadow-edge: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  /* ---------- Shadows (dark-tuned: depth without drama) ----------
+     On dark grounds, box-shadow does less work than a hairline top-edge
+     highlight. Kept for compatibility with cards that already reach for
+     `shadow-soft`, but the primary depth cue is `--shadow-edge`. */
+  --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.42);
+  --shadow-float: 0 16px 40px rgb(0 0 0 / 0.55);
+  --shadow-edge: inset 0 1px 0 rgb(255 255 255 / 0.06);
 
   /* ---------- Motion ---------- */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* default — cinematic */
@@ -192,57 +213,70 @@
   }
 
   :root {
-    color-scheme: light;
+    color-scheme: dark;
 
-    /* Surface treatments that must flip with the local palette. */
-    --glass-bg: rgb(253 252 250 / 0.65);
-    --glass-bg-strong: rgb(253 252 250 / 0.86);
-    --glass-border: rgb(255 255 255 / 0.6);
-    --grain-opacity: 0.025;
+    /* Glass and grain that must move with the surface palette. Glass
+       sits on top of dark grounds, so its base is a low-lightness graphite
+       lifted just enough to read as its own material over photography. */
+    --glass-bg: rgb(23 26 29 / 0.65);
+    --glass-bg-strong: rgb(23 26 29 / 0.88);
+    --glass-border: rgb(255 255 255 / 0.10);
+    --grain-opacity: 0.045;
   }
 
   /**
-   * Dark band — a scoped palette inversion for full-bleed contrast
-   * sections. Tailwind v4 utilities resolve `var(--color-*)` at use
-   * time, so redefining the tokens here flips every child component
-   * without a single hard-coded color.
+   * `.theme-dark` — kept as a deepest-ground scope for the moments the
+   * page needs to close out into premium (invitation strip, footer band,
+   * modal shells). Since the site is dark by default this reads as a
+   * further step down in luminance rather than a palette flip.
    */
   .theme-dark {
     color-scheme: dark;
 
-    --color-void: #141312;
-    --color-surface: #1c1a18;
-    --color-surface-2: #232120;
-    --color-surface-3: #2b2927;
+    --color-void: #06080a;
+    --color-surface: #101315;
+    --color-surface-2: #0b0d10;
+    --color-surface-3: #171a1d;
 
-    --color-ink: #f5f3ef;
-    --color-ink-hover: #ffffff;
-    --color-ink-secondary: #a8a49d;
-    --color-ink-muted: #837f78;
-    --color-ink-faint: #56524c;
-
-    --color-line: rgb(255 255 255 / 0.12);
-    --color-line-strong: rgb(255 255 255 / 0.22);
-
-    /* The accent lightens on dark to keep the same perceived weight. */
-    --color-accent: #c9a06e;
-    --color-accent-hover: #dbb684;
-
-    --color-live: #8fae9b;
-    --color-warn: #e0a45c;
-    --color-danger: #d1706a;
-    --color-urgent: #f0762f;
-
-    --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.32);
-    --shadow-float: 0 12px 32px rgb(0 0 0 / 0.42);
-    --shadow-edge: inset 0 1px 0 rgb(255 255 255 / 0.06);
-
-    --glass-bg: rgb(19 19 23 / 0.6);
-    --glass-bg-strong: rgb(19 19 23 / 0.85);
-    --glass-border: rgb(255 255 255 / 0.12);
-    --grain-opacity: 0.045;
+    --color-line: rgb(255 255 255 / 0.10);
+    --color-line-strong: rgb(255 255 255 / 0.18);
 
     background-color: var(--color-void);
+    color: var(--color-ink);
+  }
+
+  /**
+   * Commerce dark — the Add-to-Cart modal's scope.
+   *
+   * A cooler, more industrial neutral than the editorial `.theme-dark`
+   * band above; every hex here is the exact value commerce design signed
+   * off on for the transactional confirmation surface. Kept in CSS
+   * (rather than an inline `style` object) because Tailwind v4's JIT
+   * hoists any `--color-*` value it discovers in JS source into the
+   * `:root` theme layer, which would leak the modal's palette site-wide.
+   */
+  .commerce-dark {
+    color-scheme: dark;
+
+    --color-void: #0b0d0f;
+    --color-surface: #171a1d;
+    --color-surface-2: #1d2125;
+    --color-surface-3: #23272b;
+
+    --color-ink: #f5f5f2;
+    --color-ink-hover: #ffffff;
+    --color-ink-secondary: #a7aaad;
+    --color-ink-muted: #73777c;
+    --color-ink-faint: #4a4e52;
+
+    --color-line: rgb(255 255 255 / 0.08);
+    --color-line-strong: rgb(255 255 255 / 0.18);
+
+    --color-accent: #c2410c;
+    --color-accent-hover: #d9531c;
+
+    --color-live: #8fae9b;
+
     color: var(--color-ink);
   }
 
@@ -323,11 +357,14 @@
 }
 
 @utility surface-gradient {
-  /* Soft radial sheen for product stages and feature panels */
+  /* Soft radial sheen for product stages and feature panels.
+     On dark the highlight is a thin edge-of-light rather than a bloom —
+     `0.04` is enough to lift the top of the surface without competing
+     with the product photography sitting on it. */
   background:
     radial-gradient(
       120% 90% at 50% 0%,
-      rgb(255 255 255 / 0.9) 0%,
+      rgb(255 255 255 / 0.04) 0%,
       transparent 55%
     ),
     var(--color-surface-2);

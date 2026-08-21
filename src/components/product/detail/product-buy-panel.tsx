@@ -6,6 +6,8 @@ import { AVAILABILITY_LABELS } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
+import { useAccount } from "@/components/providers/account-provider";
+import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 
 /**
  * ProductBuyPanel — the right-hand column on desktop, the second block on
@@ -33,8 +35,14 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
   const [color, setColor] = useState<ProductOption | undefined>(
     product.colorOptions?.find((o) => o.available),
   );
-  const [qty, setQty] = useState(1);
   const [saved, setSaved] = useState(false);
+
+  const { items, addItem, updateQuantity, removeItem } = useAccount();
+  const { notifyAdded } = useCartFeedback();
+
+  // The line for THIS product, if any — drives the stepper state.
+  const line = items.find((l) => l.productSlug === product.slug);
+  const inCartQty = line?.quantity ?? 0;
 
   const price = useMemo(() => {
     const delta = (storage?.priceDelta ?? 0) + (color?.priceDelta ?? 0);
@@ -52,13 +60,44 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
   const comingSoon = availability === "coming-soon";
   const low = availability === "low-stock";
 
+  const purchasable = !soldOut && !comingSoon;
   const cta = soldOut
     ? "Notify me"
     : comingSoon
       ? "Join waitlist"
-      : "Add to bag";
+      : "Add to Cart";
 
-  const maxQty = Math.max(1, Math.min(product.stock || 1, 5));
+  const currentVariantLabel = [color?.label, storage?.label]
+    .filter(Boolean)
+    .join(" · ") || product.variant;
+
+  function handleAddToCart() {
+    if (!purchasable) return;
+    addItem(product.slug, 1);
+    notifyAdded({
+      productSlug: product.slug,
+      variantLabel: currentVariantLabel,
+      quantity: 1,
+      unitPrice: price,
+      currency: product.currency,
+      locale: product.locale ?? "en-AE",
+    });
+  }
+
+  const maxStock = Math.max(1, Math.min(product.stock || 1, 5));
+
+  function handleIncrement() {
+    if (!line || inCartQty >= maxStock) return;
+    updateQuantity(line.id, inCartQty + 1);
+  }
+  function handleDecrement() {
+    if (!line) return;
+    if (inCartQty <= 1) {
+      removeItem(line.id);
+    } else {
+      updateQuantity(line.id, inCartQty - 1);
+    }
+  }
 
   return (
     <div className="flex flex-col">
@@ -67,6 +106,25 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       <h1 className="mt-3 text-display-md font-light text-ink">
         {product.name}
       </h1>
+
+      {/* ---------- Price (sits directly under the name) ---------- */}
+      <div className="mt-5 flex flex-wrap items-end gap-x-4 gap-y-2">
+        <span className="text-4xl font-medium tabular-nums text-ink">
+          {formatPrice(price, product.currency, product.locale)}
+        </span>
+        {originalPrice && originalPrice > price && (
+          <>
+            <s className="font-mono text-sm tabular-nums text-ink-muted">
+              {formatPrice(originalPrice, product.currency, product.locale)}
+            </s>
+            {saving > 0 && (
+              <Badge variant="accent" className="text-[0.6875rem]">
+                Save {saving}%
+              </Badge>
+            )}
+          </>
+        )}
+      </div>
 
       {product.description && (
         <p className="mt-5 text-base leading-relaxed text-ink-secondary">
@@ -114,27 +172,8 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         </ul>
       )}
 
-      {/* ---------- Price ---------- */}
-      <div className="mt-8 flex flex-wrap items-end gap-x-4 gap-y-2">
-        <span className="text-4xl font-medium tabular-nums text-ink">
-          {formatPrice(price, product.currency, product.locale)}
-        </span>
-        {originalPrice && originalPrice > price && (
-          <>
-            <s className="font-mono text-sm tabular-nums text-ink-muted">
-              {formatPrice(originalPrice, product.currency, product.locale)}
-            </s>
-            {saving > 0 && (
-              <Badge variant="accent" className="text-[0.6875rem]">
-                Save {saving}%
-              </Badge>
-            )}
-          </>
-        )}
-      </div>
-
       {/* ---------- Availability ---------- */}
-      <div className="mt-4 flex items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.16em]">
+      <div className="mt-8 flex items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.16em]">
         <span
           aria-hidden
           className={cn(
@@ -215,44 +254,63 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         />
       )}
 
-      {/* ---------- Quantity + CTAs ---------- */}
+      {/* ---------- CTA ----------
+          One button until the item is added, then the same footprint
+          becomes a trash / qty / plus stepper (à la noon). No separate
+          quantity picker in the panel — the stepper handles it. */}
       <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-        {!soldOut && !comingSoon && (
-          <div className="flex h-14 items-center rounded-full border border-line px-2">
+        {purchasable && inCartQty > 0 ? (
+          <div
+            role="group"
+            aria-label={`${product.name} in cart`}
+            className={cn(
+              "flex h-14 flex-1 items-center justify-between rounded-full px-2",
+              "bg-[#c2410c] text-[#f5f5f2] shadow-(--shadow-soft)",
+            )}
+          >
             <button
               type="button"
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-              disabled={qty <= 1}
-              aria-label="Decrease quantity"
-              className="flex size-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5 disabled:opacity-30"
+              onClick={handleDecrement}
+              aria-label={
+                inCartQty <= 1
+                  ? `Remove ${product.name} from cart`
+                  : `Decrease quantity`
+              }
+              className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-white/15"
             >
-              <MinusIcon />
+              {inCartQty <= 1 ? <TrashIcon /> : <MinusIcon />}
             </button>
             <span
               aria-live="polite"
-              className="w-8 text-center font-mono text-sm tabular-nums text-ink"
+              className="min-w-8 text-center font-mono text-base font-medium tabular-nums"
             >
-              {qty}
+              {inCartQty}
             </span>
             <button
               type="button"
-              onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
-              disabled={qty >= maxQty}
+              onClick={handleIncrement}
+              disabled={inCartQty >= maxStock}
               aria-label="Increase quantity"
-              className="flex size-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5 disabled:opacity-30"
+              className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-white/15 disabled:opacity-40"
             >
               <PlusIcon />
             </button>
           </div>
+        ) : (
+          <Button
+            size="lg"
+            variant="primary"
+            onClick={handleAddToCart}
+            className={cn(
+              "flex-1",
+              purchasable &&
+                "bg-[#c2410c] text-[#f5f5f2] shadow-(--shadow-soft) hover:bg-[#d9531c]",
+            )}
+            disabled={soldOut}
+          >
+            {cta}
+          </Button>
         )}
-        <Button
-          size="lg"
-          variant="primary"
-          className="flex-1"
-          disabled={soldOut}
-        >
-          {cta}
-        </Button>
         <button
           type="button"
           onClick={() => setSaved((s) => !s)}
@@ -284,28 +342,35 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         </button>
       </div>
 
-      {/* ---------- Micro trust row ---------- */}
-      <ul className="mt-8 grid grid-cols-2 gap-3 border-t border-line pt-6 text-[0.8125rem] text-ink-secondary sm:grid-cols-4">
-        {[
-          "Free delivery",
-          "12-month warranty",
-          "14-day returns",
-          "Secure checkout",
-        ].map((line) => (
-          <li key={line} className="flex items-start gap-2">
-            <svg
+      {/* ---------- Trust row ----------
+          Rewritten to earn attention: two-column card grid on mobile,
+          four across from sm. Each cell carries a distinct outlined
+          icon in an accent-tinted tile, a bold label, and a one-line
+          reassurance — the promise is scannable, not a whisper. */}
+      <ul className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {TRUST_ITEMS.map(({ title, sub, icon: Icon }) => (
+          <li
+            key={title}
+            className={cn(
+              "flex flex-col items-start gap-3 rounded-xl border border-line bg-surface p-4",
+              "transition-colors duration-(--duration-fast)",
+              "hover:border-line-strong hover:bg-ink/[0.02]",
+            )}
+          >
+            <span
               aria-hidden
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="mt-0.5 size-3.5 shrink-0 text-accent"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              className="flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent"
             >
-              <path d="m3 8 3.5 3.5L13 4.5" />
-            </svg>
-            <span>{line}</span>
+              <Icon />
+            </span>
+            <div>
+              <p className="text-[0.8125rem] font-semibold leading-tight text-ink">
+                {title}
+              </p>
+              <p className="mt-1 text-[0.75rem] leading-snug text-ink-muted">
+                {sub}
+              </p>
+            </div>
           </li>
         ))}
       </ul>
@@ -328,12 +393,12 @@ function OptionGroup({
 }) {
   return (
     <fieldset className="mt-8">
-      <legend className="flex w-full items-baseline justify-between">
-        <span className="eyebrow">{label}</span>
-        {value && (
-          <span className="text-[0.8125rem] text-ink-secondary">{value}</span>
-        )}
-      </legend>
+      {/* Legend carries the group name only. The trailing selection
+          summary ("128GB", "Hazel") was removed — the pressed pill in the
+          row below already communicates the choice, and repeating it in
+          the corner read as a form-field label the reader had to reconcile
+          with the pill they had just tapped. */}
+      <legend className="eyebrow">{label}</legend>
       <div className="mt-3 flex flex-wrap gap-2.5">
         {options.map((option) => {
           const selected = option.label === value;
@@ -355,17 +420,65 @@ function OptionGroup({
   );
 }
 
+const TRUST_ICON_CLS = "size-4";
+
+function TruckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={TRUST_ICON_CLS}>
+      <path d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM7.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+    </svg>
+  );
+}
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={TRUST_ICON_CLS}>
+      <path d="M12 3 4.5 6v6c0 4.5 3.2 8.2 7.5 9 4.3-.8 7.5-4.5 7.5-9V6L12 3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+function ReturnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={TRUST_ICON_CLS}>
+      <path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" />
+      <path d="M18 3v4h-4M6 21v-4h4" />
+    </svg>
+  );
+}
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={TRUST_ICON_CLS}>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+    </svg>
+  );
+}
+
+const TRUST_ITEMS = [
+  { title: "Free delivery", sub: "On every order", icon: TruckIcon },
+  { title: "12-mo warranty", sub: "Rewire-backed", icon: ShieldIcon },
+  { title: "14-day returns", sub: "No questions asked", icon: ReturnIcon },
+  { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
+] as const;
+
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="size-3.5">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="size-4">
       <path d="M8 3v10M3 8h10" />
     </svg>
   );
 }
 function MinusIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="size-3.5">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="size-4">
       <path d="M3 8h10" />
+    </svg>
+  );
+}
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="size-[1.125rem]">
+      <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6" />
     </svg>
   );
 }

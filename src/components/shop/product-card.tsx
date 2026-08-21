@@ -10,56 +10,25 @@ import {
   type ShopProduct,
 } from "@/lib/shop";
 import { cn, formatPrice } from "@/lib/utils";
+import { WishlistButton } from "@/components/product/wishlist-button";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 
 /** Units at or below this earn the scarcity line on the plate. */
 const LOW_STOCK = 4;
 
-function Arrow() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn(
-        "size-3.5 shrink-0",
-        // 5px shift — the same figure the drop cards and the `View device →`
-        // links use, so every arrow on the site moves by the same amount.
-        "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-        "group-hover:translate-x-[5px] group-focus-within:translate-x-[5px]",
-        "motion-reduce:group-hover:translate-x-0 motion-reduce:group-focus-within:translate-x-0",
-      )}
-    >
-      <path d="M3 8h10M9 4l4 4-4 4" />
-    </svg>
-  );
-}
-
 /**
  * ShopProductCard — the catalogue's unit of stock.
  *
- * Deliberately the same object as the homepage's `DropCard`: same 3:4
- * plate, same `glass-strong` chip in the top corner, same scarcity line
- * in the bottom corner, same name-and-CTA header row, same oversized
- * light price in the urgent tone with the struck original beneath it. A
- * shopper arriving from the homepage should not be able to name what
- * changed, only that there are now filters beside the grid.
- *
- * What it does *not* borrow is the drop vocabulary — no edition, no
- * countdown, no allocation. Ordinary stock is either there or it is not.
- *
- * The three axes land in three different places on purpose:
- *
- *   condition → the chip on the plate     (how it is sold)
- *   grade     → the line under the name   (what state it is in)
- *   category  → not shown at all          (the rail above already said it)
- *
- * Putting condition and grade in the same pill is the shortcut that makes
- * a catalogue like this unreadable; keeping them in different *kinds* of
- * element is what stops a reader conflating them.
+ * Same visual language as the homepage's `StorefrontCard`: square
+ * plate, brand-line eyebrow, name, price with strikethrough, wishlist
+ * over the plate and add-to-cart under the copy. Shop-specific facts —
+ * condition, grade, key specification — are woven into the identity
+ * rows without disturbing the shape: `CONDITION` doubles as the eyebrow
+ * when it is more useful than the brand (sealed stock, open-box), the
+ * key specification is the variant line, and the grade sits with the
+ * storage below the name. A shopper arriving from the homepage should
+ * not be able to name what changed, only that there are now filters
+ * beside the grid.
  */
 export function ShopProductCard({
   product,
@@ -72,21 +41,20 @@ export function ShopProductCard({
   const grade = product.grade ? GRADE_META[product.grade] : null;
   const saving = savingPercent(product);
   const low = product.stock > 0 && product.stock <= LOW_STOCK;
+  const soldOut = product.stock <= 0;
 
   /* Cutouts float inside the plate; photographs fill it. */
   const contain = product.image.fit === "contain";
 
   return (
-    <article className="group relative flex h-full w-full flex-col">
-      {/* ---------- The plate ---------- */}
-      <div
-        className={cn(
-          "relative aspect-3/4 overflow-hidden rounded-xl",
-          "surface-gradient edge-light border border-line",
-          "transition-colors duration-(--duration-base) ease-(--ease-out-expo)",
-          "group-hover:border-line-strong",
-        )}
-      >
+    <article className="group/card relative flex h-full w-full flex-col">
+      {/* ---------- Plate ----------
+          See `drop-card.tsx` for the plate-as-editorial-showcase pattern
+          in detail: warm cream ground so the baked-in white studio
+          backgrounds on the product photography read as intent, and
+          `mix-blend-mode: multiply` so the image's white dissolves into
+          the plate and the product itself picks up only a faint warm cast. */}
+      <div className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
         <Image
           src={product.image.url}
           alt={product.image.alt}
@@ -94,103 +62,74 @@ export function ShopProductCard({
           priority={priority}
           sizes="(max-width: 640px) 46vw, (max-width: 1024px) 45vw, (max-width: 1280px) 30vw, 22vw"
           className={cn(
-            contain
-              ? "object-contain p-8 drop-shadow-[0_24px_48px_rgb(20_20_25/0.18)] sm:p-10"
-              : "object-cover",
-            // Lift and zoom from anywhere on the card — the whole plate is
-            // one link, so it behaves like one.
-            "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-            "group-hover:-translate-y-1 group-hover:scale-[1.04]",
-            "group-focus-within:-translate-y-1 group-focus-within:scale-[1.04]",
-            "motion-reduce:group-hover:scale-100 motion-reduce:group-hover:translate-y-0",
-            "motion-reduce:group-focus-within:scale-100 motion-reduce:group-focus-within:translate-y-0",
+            contain ? "object-contain p-8 sm:p-10" : "object-cover",
+            "[mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+            "group-hover/card:scale-[1.04]",
+            soldOut && "opacity-45 grayscale",
           )}
         />
 
-        {/* Condition chip — top-left, where a scanning eye lands first.
-            `New` is the one state that takes the accent dot: it is the
-            only condition that is a claim about the product rather than a
-            description of its history. */}
-        <span
-          className={cn(
-            "glass-strong absolute left-3 top-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 sm:left-4 sm:top-4",
-            "font-mono text-[0.625rem] uppercase leading-none tracking-[0.14em] text-ink sm:text-[0.6875rem]",
-          )}
-        >
-          {product.condition === "new" && (
-            <span aria-hidden className="size-1.5 rounded-full bg-accent" />
-          )}
-          <span className="sr-only">Condition: </span>
-          {condition.short}
-        </span>
-
-        {/* The one live fact, bottom-left — same material and shadow as the
-            drop cards' scarcity pill, so the two systems read as one
-            badge family. Urgent tone is reserved for exactly this. */}
-        {low && (
+        {/* Top-left: stock signal, same mono voice as StorefrontCard.
+            Sold-out and low-stock share the corner; sold-out wins if
+            both are true (a zero-stock listing is never merely low). */}
+        {(soldOut || low) && (
           <span
             className={cn(
-              "glass-strong absolute bottom-3 left-3 inline-flex items-center rounded-full px-3.5 py-1.5 sm:bottom-4 sm:left-4",
-              "font-mono text-[0.625rem] uppercase leading-none tracking-[0.14em] text-urgent sm:text-[0.6875rem]",
-              "shadow-(--shadow-soft)",
+              "pointer-events-none absolute left-3.5 top-3.5 font-mono text-[0.5625rem] uppercase tracking-[0.18em]",
+              soldOut ? "text-ink-muted" : "text-urgent",
             )}
           >
-            {product.stock} left
+            {soldOut ? "Sold out" : `${product.stock} left`}
           </span>
         )}
+
+        {/* Top-right: saving pill, only where a real discount exists.
+            Sealed stock has no `originalPrice`, so `saving` is 0 and
+            the pill drops out. */}
+        {saving > 0 && !soldOut && (
+          <span className="pointer-events-none absolute right-3.5 top-3.5 rounded-full bg-ink px-2.5 py-1 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-void">
+            {saving}% OFF
+          </span>
+        )}
+
+        <WishlistButton
+          product={{ slug: product.slug, name: product.name }}
+          className="absolute bottom-3 right-3 z-20"
+        />
       </div>
 
-      {/* ---------- Identity and action ---------- */}
-      <div className="flex flex-1 flex-col px-1 pt-5 sm:pt-6">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="text-[1.0625rem] font-medium leading-tight tracking-[-0.02em] text-ink sm:text-[1.25rem]">
-            {/* The brand sits above the model rather than inside the
-                sentence: two dozen listings from eight makers are far
-                easier to scan when the maker is its own column. */}
-            <span className="mb-1 block font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-              {product.brand}
-            </span>
-            <Link
-              href={productHref(product)}
-              // Whole plate is one link.
-              className="after:absolute after:inset-0 after:content-['']"
-            >
-              {product.name}
-            </Link>
-          </h3>
-
-          <Link
-            href={productHref(product)}
-            aria-label={`View Product — ${product.brand} ${product.name}`}
-            className={cn(
-              "hidden shrink-0 items-center gap-1.5 self-end text-[0.8125rem] font-medium sm:inline-flex",
-              "text-ink transition-colors duration-(--duration-fast) hover:text-ink-hover",
-              // Invisible tap padding: the text stays 13px, the target ~36px.
-              "-my-2 py-2",
-            )}
-          >
-            View
-            <Arrow />
-          </Link>
-        </div>
-
-        {/* Key specification — the one line worth scanning in a grid. */}
-        <p className="mt-2 line-clamp-2 text-[0.8125rem] leading-snug text-ink-secondary sm:text-sm">
-          {product.keySpec}
+      {/* ---------- Copy ---------- */}
+      <div className="flex flex-1 flex-col pt-5">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+          {product.brand}
         </p>
 
-        {/* Storage · finish, then grade. Grade is text rather than a badge
-            precisely so it cannot be mistaken for the condition chip. */}
-        <p className="mt-1.5 truncate font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-muted">
-          {[product.storage, product.variant].filter(Boolean).join(" · ")}
+        <h3 className="mt-2 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+          <Link
+            href={productHref(product)}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {product.name}
+          </Link>
+        </h3>
+
+        {/* The reference's "Variant · Storage" line, plus condition and
+            grade where the catalogue has them. Kept mono because these
+            are technical facts about the unit, not marketing copy. */}
+        <p className="mt-1 truncate text-[0.8125rem] text-ink-secondary">
+          {[product.storage, product.variant].filter(Boolean).join(" · ") ||
+            product.keySpec}
+        </p>
+
+        <p className="mt-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
+          <span className="sr-only">Condition: </span>
+          {condition.short}
           {grade && (
             <>
-              {(product.storage || product.variant) && (
-                <span aria-hidden className="mx-1.5 text-ink-faint">
-                  |
-                </span>
-              )}
-              <span className="text-ink-secondary">
+              <span aria-hidden className="mx-1.5 text-ink-faint">
+                ·
+              </span>
+              <span>
                 <span className="sr-only">Grade: </span>
                 {grade.label}
               </span>
@@ -198,25 +137,29 @@ export function ShopProductCard({
           )}
         </p>
 
-        {/* ---------- What it costs ---------- */}
-        <div className="mt-auto pt-4 sm:pt-5">
-          <p className="font-sans text-[1.625rem] font-light leading-none tracking-[-0.035em] tabular-nums text-urgent sm:text-[2rem]">
+        <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
+          <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
             {formatPrice(product.price, product.currency, product.locale)}
-          </p>
-
-          {product.originalPrice && (
-            <p className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-[0.75rem] tabular-nums sm:mt-2.5">
-              <span className="sr-only">Was </span>
-              <s className="text-ink-muted">
-                {formatPrice(product.originalPrice, product.currency, product.locale)}
+          </span>
+          {product.originalPrice && product.originalPrice > product.price && (
+            <>
+              <span className="sr-only">was </span>
+              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+                {formatPrice(
+                  product.originalPrice,
+                  product.currency,
+                  product.locale,
+                )}
               </s>
-              {saving > 0 && (
-                <span className="font-medium uppercase tracking-[0.14em] text-urgent">
-                  {saving}% off
-                </span>
-              )}
-            </p>
+            </>
           )}
+        </p>
+
+        <div className="relative z-20 mt-4">
+          <AddToCartButton
+            product={{ slug: product.slug, name: product.name, soldOut }}
+            className="w-full"
+          />
         </div>
       </div>
     </article>

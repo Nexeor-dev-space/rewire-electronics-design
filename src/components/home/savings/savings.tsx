@@ -185,15 +185,26 @@ export function Savings() {
  * own luminance, where that accent clears AA. Deepening these a couple
  * of shades looks richer and quietly drops the saving line to ~4.1.
  */
+/**
+ * Four graphite variants of the same tile. Dark-theme reinterpretation
+ * of the previous sand/sage/blush/mist set — each carries a barely-there
+ * temperature shift (warm amber, cool green, warm red, cool blue) so the
+ * grid reads as a family of tinted panels rather than as one repeated
+ * card, without breaking the sophisticated dark register.
+ *
+ * All stops sit inside the void → elevated range (11 → 34 luminance);
+ * saturation is capped at ~6% so the burnt-orange price stamp stays
+ * legible on every ground.
+ */
 const TONES = [
-  // Sand
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#FBF8F1_0%,#F5F1E7_100%)]",
-  // Sage
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#F6F9F3_0%,#EFF3EC_100%)]",
-  // Blush
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#FCF6F3_0%,#F7EFEB_100%)]",
-  // Mist
-  "bg-[radial-gradient(130%_100%_at_50%_15%,#F5F9FB_0%,#EDF2F5_100%)]",
+  // Ember — warm amber-tinted graphite
+  "bg-[radial-gradient(130%_100%_at_50%_15%,#1e1a15_0%,#141210_100%)]",
+  // Moss — cool green-tinted graphite
+  "bg-[radial-gradient(130%_100%_at_50%_15%,#161c18_0%,#101412_100%)]",
+  // Rust — warm red-tinted graphite
+  "bg-[radial-gradient(130%_100%_at_50%_15%,#1e1815_0%,#141110_100%)]",
+  // Steel — cool blue-tinted graphite
+  "bg-[radial-gradient(130%_100%_at_50%_15%,#161a1f_0%,#101216_100%)]",
 ] as const;
 
 function SavingTile({

@@ -66,11 +66,14 @@ export function UpcomingDrops() {
       {/* Background depth — soft lighting, no clutter */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-void)_0%,#faf8f4_45%,var(--color-void)_100%)]"
+        className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-void)_0%,var(--color-surface-2)_45%,var(--color-void)_100%)]"
       />
+      {/* Warm ember behind the calendar — burnt-orange at low alpha lifts
+          the middle of the section without the cool steel-blue reading as
+          a light-theme leftover on the graphite ground. */}
       <div
         aria-hidden
-        className="absolute left-1/2 top-[18%] size-[46rem] max-w-[90vw] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(44_90_160/0.07),transparent_72%)] blur-2xl"
+        className="absolute left-1/2 top-[18%] size-[46rem] max-w-[90vw] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(194_65_12/0.10),transparent_72%)] blur-2xl"
       />
       <div aria-hidden className="grain absolute inset-0" />
 

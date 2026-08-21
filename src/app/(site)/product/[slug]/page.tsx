@@ -16,6 +16,7 @@ import { productHrefForCategory, SHOP_INDEX_HREF } from "@/lib/route-map";
 import { ProductGallery } from "@/components/product/detail/product-gallery";
 import { ProductBuyPanel } from "@/components/product/detail/product-buy-panel";
 import { ConditionExplainer } from "@/components/product/detail/condition-explainer";
+import { ProductOverview } from "@/components/product/detail/product-overview";
 import { SpecTable } from "@/components/product/detail/spec-table";
 import { IncludedList } from "@/components/product/detail/included-list";
 import { TrustBlocks } from "@/components/product/detail/trust-blocks";
@@ -100,10 +101,28 @@ export default async function ProductPage({ params }: Params) {
         </div>
       </Container>
 
+      {/* ---------- Overview ----------
+          Editorial read of the listing — the description, the four
+          guarantee numbers, and the highlight cards. Placed above the
+          condition explainer so a shopper who scrolls past the price
+          panel meets the *why* of the device before the *what* of the
+          condition grade. Auto-hides if the catalogue entry has no
+          description and no highlights (accessories, adapters). */}
+      <Section spacing="sm">
+        <Container width="wide">
+          <SectionEyebrow>Overview</SectionEyebrow>
+          <ProductOverview
+            product={product}
+            condition={condition}
+            grade={grade}
+          />
+        </Container>
+      </Section>
+
       {/* ---------- Condition explainer ---------- */}
       <Section spacing="sm">
         <Container width="wide">
-          <SectionEyebrow index="01">The Condition</SectionEyebrow>
+          <SectionEyebrow>The Condition</SectionEyebrow>
           <ConditionExplainer active="refurbished" grade={grade} />
         </Container>
       </Section>
