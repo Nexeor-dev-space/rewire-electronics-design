@@ -84,6 +84,66 @@ export function resolveCategory(segment?: string): CategorySlug | null {
 }
 
 /* ============================================================
+   Popular search terms → the shop, pre-filtered
+   ============================================================ */
+
+/**
+ * The navigation's "Popular" column lists product families and makers —
+ * iPhone, MacBook, Samsung — not routes. They used to point at
+ * `/search?q=…`, which has never existed and returned a 404 on every
+ * click.
+ *
+ * There is no text search on the catalogue, and inventing one to serve
+ * six menu links would be the wrong trade. What these terms actually
+ * *mean* is a category, a brand, or both — which the shop already
+ * filters on. So each term resolves to the filtered listing that answers
+ * it, and the menu stops being a dead end.
+ */
+const popularTerms: Record<string, { category?: CategorySlug; brand?: string }> = {
+  iphone: { category: "smartphones", brand: "Apple" },
+  ipad: { category: "tablets", brand: "Apple" },
+  macbook: { category: "laptops", brand: "Apple" },
+  airpods: { category: "audio", brand: "Apple" },
+  "apple watch": { category: "smartwatches", brand: "Apple" },
+  apple: { brand: "Apple" },
+  samsung: { brand: "Samsung" },
+  "google pixel": { brand: "Google" },
+  google: { brand: "Google" },
+  sony: { brand: "Sony" },
+  bose: { brand: "Bose" },
+  dell: { brand: "Dell" },
+  microsoft: { brand: "Microsoft" },
+  lenovo: { brand: "Lenovo" },
+};
+
+/**
+ * Where a popular term should land. Unrecognised terms fall back to the
+ * unfiltered shop rather than a 404 — a slightly broad answer beats no
+ * answer, and it means adding a term to the menu can never break a link.
+ */
+export function shopHrefForTerm(term: string): string {
+  const match = popularTerms[term.trim().toLowerCase()];
+  if (!match) return "/collection";
+
+  const path = match.category ? `/collection/${match.category}` : "/collection";
+  return match.brand
+    ? `${path}?brand=${encodeURIComponent(match.brand)}`
+    : path;
+}
+
+/** Reads a `?brand=` value into the filter axis, ignoring anything unknown. */
+export function brandsFromParam(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  const requested = (Array.isArray(value) ? value : [value]).flatMap((entry) =>
+    entry.split(","),
+  );
+  const known = new Set(getBrands());
+  return requested
+    .map((entry) => entry.trim())
+    .filter((entry) => known.has(entry));
+}
+
+/* ============================================================
    Condition — how it is being sold
    ============================================================ */
 

@@ -48,12 +48,21 @@ const PAGE_SIZE = 12;
  */
 export function ShopCatalogue({
   initialCategory,
+  initialBrands = [],
 }: {
   initialCategory: CategorySlug | null;
+  /**
+   * Seeds the brand axis from the URL, so a link can open the shop
+   * already narrowed — the navigation's "Popular" terms (iPhone, Samsung)
+   * resolve to a category and a brand rather than to a search page that
+   * does not exist.
+   */
+  initialBrands?: string[];
 }) {
   const [filters, setFilters] = useState<ShopFilters>(() => ({
     ...emptyFilters,
     categories: initialCategory ? [initialCategory] : [],
+    brands: initialBrands,
   }));
   const [sort, setSort] = useState<SortId>("recommended");
   const [visible, setVisible] = useState(PAGE_SIZE);

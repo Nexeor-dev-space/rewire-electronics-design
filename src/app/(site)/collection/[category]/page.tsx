@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
 import { ShopHero } from "@/components/shop/shop-hero";
-import { CATEGORY_LABELS, resolveCategory, shopCategories } from "@/lib/shop";
+import {
+  brandsFromParam,
+  CATEGORY_LABELS,
+  resolveCategory,
+  shopCategories,
+} from "@/lib/shop";
 
 /**
  * The shop, entered at a category.
@@ -19,6 +24,7 @@ import { CATEGORY_LABELS, resolveCategory, shopCategories } from "@/lib/shop";
 
 interface PageProps {
   params: Promise<{ category: string }>;
+  searchParams: Promise<{ brand?: string | string[] }>;
 }
 
 export function generateStaticParams() {
@@ -36,15 +42,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function CollectionCategoryPage({ params }: PageProps) {
+export default async function CollectionCategoryPage({
+  params,
+  searchParams,
+}: PageProps) {
   const category = resolveCategory((await params).category);
   if (!category) notFound();
+
+  const brands = brandsFromParam((await searchParams).brand);
 
   return (
     <>
       <ShopHero />
       <div className="pb-(--spacing-section) pt-10 lg:pt-14">
-        <ShopCatalogue initialCategory={category} />
+        <ShopCatalogue initialCategory={category} initialBrands={brands} />
       </div>
     </>
   );
