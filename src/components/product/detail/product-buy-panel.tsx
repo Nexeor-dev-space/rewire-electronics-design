@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 import { useAccount } from "@/components/providers/account-provider";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
+import { addOnsFor, defaultSelection } from "@/lib/add-ons";
+import { ProductAddOns } from "./product-add-ons";
 
 /**
  * ProductBuyPanel — the right-hand column on desktop, the second block on
@@ -36,6 +38,23 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
     product.colorOptions?.find((o) => o.available),
   );
   const [saved, setSaved] = useState(false);
+
+  // Add-ons: category-scoped list (accessories drop through with an
+  // empty list), and a local set of ticked IDs.
+  const addOns = useMemo(
+    () => addOnsFor(product.categorySlug ?? product.category),
+    [product.categorySlug, product.category],
+  );
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
+    defaultSelection,
+  );
+  function toggleAddOn(id: string) {
+    setSelectedAddOns((current) =>
+      current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id],
+    );
+  }
 
   const { items, addItem, updateQuantity, removeItem } = useAccount();
   const { notifyAdded } = useCartFeedback();
@@ -253,6 +272,23 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
           )}
         />
       )}
+
+      {/* ---------- Add to your order ----------
+          The fourth axis after Storage / Colour / Grade: category-scoped
+          extras (charger, sleeve, warranty extension, …) shown as
+          checkbox rows with their own prices. Silently absent for
+          categories with no add-ons defined (accessories). See
+          `product-add-ons.tsx` for the two rules the panel enforces
+          (every row states its price; the total appears only after
+          something is ticked). */}
+      <ProductAddOns
+        addOns={addOns}
+        selected={selectedAddOns}
+        onToggle={toggleAddOn}
+        basePrice={price}
+        currency={product.currency}
+        locale={product.locale}
+      />
 
       {/* ---------- CTA ----------
           One button until the item is added, then the same footprint

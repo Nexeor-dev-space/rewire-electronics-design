@@ -123,7 +123,7 @@ export function AccountMenu() {
 
             <ul className="py-1.5">
               {accountNav.map((item) => (
-                <li key={item.href}>
+                <li key={item.label}>
                   <Link
                     href={item.href}
                     role="menuitem"

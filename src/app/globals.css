@@ -23,12 +23,11 @@
   --color-surface-2: #181c20; /* alternate section ground (between void and card) */
   --color-surface-3: #292d33; /* elevated: menus, popovers, modals */
 
-  /* Editorial photography plate — deliberately warm off-white, used only
-     as the ground behind product cutouts. On a magazine layout an art
-     directed product sits on a lit plate, not on the page's ground; the
-     token makes that shift explicit so a light rectangle under a phone
-     reads as intent rather than as an unstyled card. */
-  --color-plate: #ebe5d8;
+  /* Photography plate — the ground behind product cutouts on every
+     product card, gallery and drop tile. A hair lighter than the page
+     canvas (`--color-void` #282929) so the tile still reads as a
+     distinct card object without breaking the dark-on-dark palette. */
+  --color-plate: #37393b;
 
   /* ---------- Color · Ink ---------- */
   --color-ink: #f5f5f2; /* primary text — bright off-white, never pure #fff */
@@ -44,11 +43,16 @@
   --color-line-strong: rgb(255 255 255 / 0.14);
 
   /* ---------- Color · Brand ----------
-     The Rewire accent moves to the burnt-orange commerce tone. Reserved
-     for the moments the eye must land: price, saving, low-stock signal,
-     the primary CTA. Never a section ground, never a decorative fill. */
-  --color-accent: #c2410c;
-  --color-accent-hover: #d45118;
+     The Rewire accent is a cool periwinkle blue. Reserved for the
+     moments the eye must land: price, saving, low-stock signal, the
+     primary CTA. Never a section ground, never a decorative fill.
+
+     It is a *light* accent, which inverts one rule the burnt-orange
+     pass could ignore: anything filled with `accent` takes dark ink on
+     top (`--color-void` or #0f1419), never white. As a colour on the
+     graphite ground it is ~9:1; as a ground under white it is ~1.6:1. */
+  --color-accent: #94b2f3;
+  --color-accent-hover: #a8c1f6;
 
   /* ---------- Color · Signals ----------
      Tuned brighter on dark so status labels retain contrast without
@@ -57,10 +61,10 @@
   --color-warn: #e0a45c; /* low stock, limited drop, countdown urgency */
   --color-danger: #d1706a; /* errors, sold out */
 
-  /* The scarcity accent — the same #c2410c as the brand accent, exposed
+  /* The scarcity accent — the same #94b2f3 as the brand accent, exposed
      under the `urgent` name so the semantic call-sites (stock bar,
      remaining count, live dot) read as scarcity rather than as branding. */
-  --color-urgent: #c2410c;
+  --color-urgent: #94b2f3;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
      Two families, no display face. Söhne carries everything structural
@@ -272,8 +276,8 @@
     --color-line: rgb(255 255 255 / 0.08);
     --color-line-strong: rgb(255 255 255 / 0.18);
 
-    --color-accent: #c2410c;
-    --color-accent-hover: #d9531c;
+    --color-accent: #94b2f3;
+    --color-accent-hover: #a8c1f6;
 
     --color-live: #8fae9b;
 

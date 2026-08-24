@@ -19,6 +19,7 @@ import {
 import { getLiveDrop } from "@/lib/drops";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { CategoryStrip } from "./category-strip";
 
 /** Dwell per device before the next crossfade. */
 const CYCLE_MS = 6000;
@@ -262,7 +263,13 @@ export function Hero() {
           112px the desktop frame wants — on a phone that gap was pushing
           the purchase block most of a screen down before anything was
           read. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-10 pt-16 sm:pb-12 sm:pt-20 md:pt-24 lg:pb-16 lg:pt-28">
+      {/* The bottom padding is deliberately small from `md` up: the
+          category strip below now supplies the banner's floor, and the
+          old `lg:pb-16` under it stacked two full gutters between the
+          product and the cards. Top padding came down one step for the
+          same reason — every pixel spent above the composition is a
+          pixel the strip loses at the fold. */}
+      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-6 pt-12 sm:pb-8 sm:pt-16 md:pt-20 lg:pb-8 lg:pt-24">
         {/* Three arrangements of the same five blocks.
             Mobile: one column — device, then everything needed to buy it,
             then the brand statement.
@@ -332,14 +339,23 @@ export function Hero() {
               // are `object-contain`, so a tall box does not make the
               // device bigger — it pads it with air and pushes the price
               // of admission below the fold.
-              // From `lg` the box height is the *smaller* of 68svh and
-              // 44vw. The cutouts are roughly square and `object-contain`
+              // From `lg` the box height is the *smaller* of 55svh and
+              // 38vw. The cutouts are roughly square and `object-contain`
               // renders them at the column's width (~42vw), so any box
               // taller than that is pure air — which is exactly what a
               // portrait viewport produced (a 929px box around a 437px
-              // image). On landscape desktops 68svh is already the smaller
-              // term, so nothing changes there.
-              className="relative z-10 mx-auto h-[30svh] max-h-[15rem] w-full max-w-xl min-[480px]:max-h-[18rem] sm:h-[46svh] sm:max-h-[24rem] md:h-[min(68svh,44vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
+              // image). On landscape desktops the svh term is already the
+              // smaller one, so that is the term the banner is tuned on.
+              //
+              // It was 68svh before the category strip existed. The strip
+              // costs ~170px at the foot of the banner, and the whole
+              // point of this composition is that it resolves inside one
+              // screen — at 68svh the cards landed 30px above a 900px
+              // fold, which is a strip nobody sees. The height came out
+              // of the device rather than out of the strip because a
+              // half-visible row of five plates reads as a bug, while a
+              // slightly smaller product still reads as the product.
+              className="relative z-10 mx-auto h-[26svh] max-h-[12rem] w-full max-w-xl min-[480px]:max-h-[16rem] sm:h-[40svh] sm:max-h-[21rem] md:h-[min(55svh,38vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
             >
               <motion.div
                 animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
@@ -421,6 +437,15 @@ export function Hero() {
           </motion.div>
         </div>
       </div>
+
+      {/* ---------- The catalogue index ----------
+          Five families, directly under the product. It sits outside the
+          `flex-1` block above rather than inside the grid, so the slack
+          the banner distributes still belongs to the composition (label
+          → product → tagline) and the strip simply parks on its floor.
+          Put inside the grid it would have to claim a row, and every
+          pixel it took would come off the device. */}
+      <CategoryStrip />
 
       {/* Hairline that closes the banner and hands the page to the calendar. */}
       <div

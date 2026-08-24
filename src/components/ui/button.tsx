@@ -34,7 +34,7 @@ const buttonVariants = cva(
           "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft) hover:bg-[#a8c1f6] hover:shadow-(--shadow-float)",
         /**
          * Inverse for the rare surface where the accent is unavailable
-         * (e.g. an orange plate that already carries the accent). Bright
+         * (e.g. a blue plate that already carries the accent). Bright
          * chip on the graphite ground.
          */
         inverse: "bg-ink text-void hover:bg-ink-hover",
@@ -45,7 +45,7 @@ const buttonVariants = cva(
          * change matches the meaning shift (from "see more" to "commit").
          */
         outline:
-          "border border-line-strong text-ink hover:border-accent hover:bg-accent hover:text-white",
+          "border border-line-strong text-ink hover:border-accent hover:bg-accent hover:text-void",
         /** Low emphasis: text-adjacent actions. */
         ghost: "text-ink-secondary hover:text-ink hover:bg-white/5",
         /** Inline editorial link with animated underline. */

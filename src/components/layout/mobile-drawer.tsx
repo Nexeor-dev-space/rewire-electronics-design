@@ -96,7 +96,7 @@ export function MobileDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.base }}
-            className="absolute inset-0 bg-ink/35 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/65 backdrop-blur-sm"
           />
 
           <motion.div
@@ -304,7 +304,7 @@ export function MobileDrawer({
 
                     <ul className="pt-2">
                       {accountNav.map((item) => (
-                        <li key={item.href}>
+                        <li key={item.label}>
                           <Link
                             href={item.href}
                             onClick={onClose}
