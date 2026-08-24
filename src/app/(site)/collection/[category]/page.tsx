@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
-import { ShopHero } from "@/components/shop/shop-hero";
 import {
   brandsFromParam,
   CATEGORY_LABELS,
@@ -52,11 +51,11 @@ export default async function CollectionCategoryPage({
   const brands = brandsFromParam((await searchParams).brand);
 
   return (
-    <>
-      <ShopHero />
-      <div className="pb-(--spacing-section) pt-10 lg:pt-14">
-        <ShopCatalogue initialCategory={category} initialBrands={brands} />
-      </div>
-    </>
+    // Same header-clearance padding as `/collection` — see the note on
+    // that page for why `pt-10 lg:pt-14` was tucking the first row under
+    // the fixed masthead.
+    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+      <ShopCatalogue initialCategory={category} initialBrands={brands} />
+    </div>
   );
 }

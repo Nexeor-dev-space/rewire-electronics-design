@@ -48,7 +48,19 @@ export function StorefrontCard({
 
   return (
     <article
-      className={cn("group/card relative flex h-full flex-col", className)}
+      className={cn(
+        // `w-full` (not the flex-item default of content-width): every
+        // call site wraps this card in a flex parent — the featured
+        // grid row on the homepage, the wishlist grid, the shop
+        // ProductCard — and without an explicit width the flex item
+        // collapses to the intrinsic width of the price row or button.
+        // The `aspect-square` plate then has nothing to base its ratio
+        // on and shrinks to the same intrinsic width, so cards look
+        // ~200px wide in a 320px column. `w-full` claims the whole
+        // column the parent laid out.
+        "group/card relative flex h-full w-full flex-col",
+        className,
+      )}
     >
       {/* ---------- Plate ----------
           See `drop-card.tsx` on the plate-as-editorial-showcase pattern:

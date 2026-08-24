@@ -34,6 +34,10 @@ import { getWishlistSeed } from "@/lib/catalog";
 export interface AccountUser {
   name: string;
   email: string;
+  /** E.164 or human-formatted; the account page shows it verbatim. */
+  phone?: string;
+  /** ISO date the account was created. */
+  memberSince?: string;
 }
 
 /**
@@ -64,6 +68,7 @@ interface AccountContextValue {
   removeSaved: (productSlug: string) => void;
   signIn: () => void;
   signOut: () => void;
+  updateUser: (patch: Partial<AccountUser>) => void;
   addItem: (productSlug: string, quantity?: number) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
@@ -82,6 +87,8 @@ const WISHLIST_SEED_MARKER_KEY = "rewire.wishlist.seeded";
 const DEMO_USER: AccountUser = {
   name: "Alex Mercer",
   email: "alex@example.com",
+  phone: "+971 50 214 8837",
+  memberSince: "2026-02-14",
 };
 
 /**
@@ -174,6 +181,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     setUser(null);
     persist(SESSION_KEY, null);
   }, [persist]);
+
+  const updateUser = useCallback(
+    (patch: Partial<AccountUser>) => {
+      setUser((current) => {
+        if (!current) return current;
+        const next = { ...current, ...patch };
+        persist(SESSION_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    [persist],
+  );
 
   const addItem = useCallback(
     (productSlug: string, quantity = 1) => {
@@ -299,6 +318,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       removeSaved,
       signIn,
       signOut,
+      updateUser,
       addItem,
       updateQuantity,
       removeItem,
@@ -315,6 +335,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       removeSaved,
       signIn,
       signOut,
+      updateUser,
       addItem,
       updateQuantity,
       removeItem,

@@ -225,10 +225,14 @@ export function WaitlistModal({
           variants={overlayFade}
           onKeyDown={handleKeyDown}
         >
-          {/* Scrim */}
+          {/* Scrim — dark, not `bg-ink/N`. The `--color-ink` token is
+              `#f5f5f2` on the dark theme, so an ink-tinted scrim
+              lightens the page behind the modal instead of darkening
+              it. `bg-black/70` (with the blur) matches the site's dark
+              register and pushes attention onto the panel. */}
           <div
             aria-hidden
-            className="absolute inset-0 bg-ink/45 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -253,10 +257,28 @@ export function WaitlistModal({
               // phone can still scroll the form. `dvh` accounts for iOS
               // Safari's dynamic address-bar height.
               "max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]",
-              "border border-line bg-surface shadow-(--shadow-float) focus:outline-none",
+              // `surface-3` is the elevated token — the one the scale
+              // documents for "menus, popovers, modals" — and this
+              // dialog was sitting on `surface`, the *card* tone, one
+              // step down. On a card that reads as raised; floating over
+              // a blurred page with nothing behind it to be raised
+              // against, it just read as a dark hole. The lift also buys
+              // the form its field contrast back: `Input` and `Select`
+              // ground themselves in `surface`, which on a `surface`
+              // panel made every control a hairline outline around
+              // nothing.
+              "border border-line bg-surface-3 shadow-(--shadow-float) focus:outline-none",
             )}
           >
             <div aria-hidden className="grain absolute inset-0" />
+            {/* Top light. The same device the page's section grounds use,
+                at half their alpha — enough to keep the head of a tall
+                dialog from flattening into one unbroken tone, not enough
+                to read as a gradient. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[linear-gradient(to_bottom,rgb(255_255_255/0.04),transparent)]"
+            />
 
             <div className="relative sm:grid sm:grid-cols-[15rem_1fr] lg:grid-cols-[17rem_1fr]">
               {/* ---------- Preview ----------
@@ -281,7 +303,7 @@ export function WaitlistModal({
                   type="button"
                   onClick={onClose}
                   aria-label="Close waitlist"
-                  className="-m-2 flex size-9 items-center justify-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) hover:bg-black/5 hover:text-ink"
+                  className="-m-2 flex size-9 items-center justify-center rounded-full text-ink-muted transition-colors duration-(--duration-fast) hover:bg-white/5 hover:text-ink"
                 >
                   <svg
                     aria-hidden
@@ -571,16 +593,41 @@ function DevicePreview({
   return (
     <div
       className={cn(
-        "flex items-center gap-4 border-b border-line bg-void p-6",
+        // Same ground as the dialog, not `void`. The rail carried the
+        // page canvas while the panel carried the card tone, which made
+        // it the darkest large area on a dialog that was already too
+        // dark — and the hairline below/beside it is doing the dividing
+        // work the tone change was there for anyway.
+        "flex items-center gap-4 border-b border-line bg-surface-3 p-6",
         // Centred rather than top-aligned: the form column is the taller
         // of the two, and a preview pinned to the top leaves a third of
         // the panel visibly empty underneath it.
         "sm:flex-col sm:items-stretch sm:justify-center sm:gap-0 sm:border-b-0 sm:border-r sm:p-8",
       )}
     >
+      {/* The site's product plate — `--color-plate` and the same 4%
+          hairline `StorefrontCard` and `DropCard` use. This was a
+          `surface` well, a tone the plate token does not sit on
+          anywhere else, with the cutout floated inside it on padding:
+          the one product photograph in the purchase flow that did not
+          look like a product photograph on any other screen.
+
+          `object-cover` rather than the old contained-and-padded fit.
+          Every waitlist asset is a square cutout (see
+          `public/images/hero/`), so on a square plate cover crops
+          nothing and the device fills the frame at the scale the cards
+          give it.
+
+          The one thing not carried over from those cards is
+          `mix-blend-mode: multiply`. It earns its place there because
+          the catalogue shots are JPEGs with a baked-in white studio
+          ground that has to dissolve into the plate. These are
+          transparent PNGs with nothing to dissolve, and multiplying an
+          already-dark cutout against an already-dark plate would take
+          the device most of the way to black. */}
       <div
         className={cn(
-          "relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface",
+          "relative size-16 shrink-0 overflow-hidden rounded-lg border border-white/[0.04] bg-plate",
           "sm:aspect-square sm:size-auto sm:w-full sm:rounded-xl",
         )}
       >
@@ -591,7 +638,7 @@ function DevicePreview({
             alt={image.alt}
             fill
             sizes="(max-width: 640px) 64px, 17rem"
-            className="object-contain p-2 sm:p-6"
+            className="object-cover"
           />
         ) : (
           <span

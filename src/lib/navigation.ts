@@ -14,6 +14,7 @@ import {
   productHrefForDrop,
   SHOP_INDEX_HREF,
 } from "./route-map";
+import { supportContact, supportSections } from "./support";
 
 export type MegaMenuId = "drops" | "shop" | "categories" | "about" | "support";
 
@@ -69,7 +70,7 @@ export const aboutColumns: { title: string; items: MenuLink[] }[] = [
       { label: "The Rewire Standard", href: "/process" },
       { label: "Our Story", href: "/about" },
       { label: "Inspection Process", href: "/process" },
-      { label: "Warranty", href: "/support/warranty" },
+      { label: "Warranty", href: "/support#warranty" },
     ],
   },
   {
@@ -93,23 +94,20 @@ export const aboutFeature = {
   cta: { label: "Learn More", href: "/about" },
 };
 
-/* ---------- Support ---------- */
+/* ---------- Support ----------
+   Every editorial destination is a section of `/support`, so the hrefs
+   are generated from the page's own anchor list rather than typed here.
+   The five routes this menu used to name — /support/faq, /shipping,
+   /returns, /warranty and /contact — were never built, so each of them
+   was a nav item that 404'd. Track Order is the one entry that is not
+   editorial: it belongs to the account area and still points there. */
 
 export const supportLinks: MenuLink[] = [
-  { label: "FAQ", href: "/support/faq" },
-  { label: "Shipping", href: "/support/shipping" },
-  { label: "Returns", href: "/support/returns" },
-  { label: "Warranty", href: "/support/warranty" },
+  ...supportSections.map(({ label, href }) => ({ label, href })),
   { label: "Track Order", href: "/account/orders" },
-  { label: "Contact", href: "/contact" },
 ];
 
-export const supportContact = {
-  heading: "Need help?",
-  email: "support@rewire-electronics.com",
-  chat: { label: "Live Chat", href: "/support/chat" },
-  hours: ["Monday – Friday, 9:00 – 18:00 GMT", "Weekend cover during a live drop"],
-};
+export { supportContact };
 
 /* ---------- Category glyphs ----------
    Raw `d` strings on a 24×24 grid, single weight, no fills — the house

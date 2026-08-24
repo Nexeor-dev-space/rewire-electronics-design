@@ -21,7 +21,6 @@ import {
 } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { CategoryNav } from "./category-nav";
 import { FilterDrawer } from "./filter-drawer";
 import { FilterPanel } from "./filter-panel";
 import { ShopProductCard } from "./product-card";
@@ -93,31 +92,19 @@ export function ShopCatalogue({
     });
   }
 
-  function selectCategory(category: CategorySlug | null) {
-    if (category === null) {
-      updateFilters({ ...filters, categories: [] });
-      return;
-    }
-    toggle("categories", category);
-  }
-
   function clearAll() {
     updateFilters(emptyFilters);
   }
 
   return (
     <>
-      {/* ---------- Category rail ---------- */}
+      {/* ---------- Filters + grid ----------
+          The top category-chip rail (All Products / Smartphones /
+          Laptops / …) was removed — the same list is available in the
+          sidebar's category filter and repeating it above the grid
+          made the shop page feel double-navigated. The sidebar is the
+          one place to change categories now. */}
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
-        <CategoryNav
-          selected={filters.categories}
-          onSelect={selectCategory}
-          counts={counts}
-        />
-      </div>
-
-      {/* ---------- Filters + grid ---------- */}
-      <div className="mx-auto mt-8 w-full max-w-[110rem] px-(--spacing-gutter) lg:mt-12">
         <div className="lg:flex lg:items-start lg:gap-10 xl:gap-14">
           {/* ---------- Sidebar (lg and up) ----------
               Sticky on the aside itself (not on an inner div). The parent
@@ -131,10 +118,17 @@ export function ShopCatalogue({
               filter list itself is taller than the remaining viewport. */}
           <aside
             aria-label="Filters"
+            // `data-lenis-prevent` hands wheel + touch events inside this
+            // element back to the browser. Without it Lenis' virtual
+            // scroll intercepts every wheel tick and scrolls the *page*
+            // instead of this pane, so the sidebar reads as "scrollable
+            // by scrollbar-drag only" — which is exactly the bug it
+            // fixes.
+            data-lenis-prevent
             className={cn(
               "hidden shrink-0 self-start lg:block lg:w-[16rem] xl:w-[17.5rem]",
               "lg:sticky lg:top-28",
-              "lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:pr-1",
+              "lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1",
             )}
           >
             <div className="flex items-baseline justify-between gap-4 pb-5">

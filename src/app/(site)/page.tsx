@@ -1,9 +1,8 @@
 import { Hero } from "@/components/home/hero/hero";
 import { UpcomingDrops } from "@/components/home/upcoming-drops/upcoming-drops";
-import { Categories } from "@/components/home/categories/categories";
 import { Featured } from "@/components/home/featured/featured";
 import { Setup } from "@/components/home/setup/setup";
-import { Savings } from "@/components/home/savings/savings";
+import { WhatYouHave } from "@/components/home/conditions/what-you-have";
 import { PastDrops } from "@/components/home/past-drops/past-drops";
 import { Standard } from "@/components/home/standard/standard";
 import { Process } from "@/components/home/process/process";
@@ -15,8 +14,10 @@ import { Invitation } from "@/components/home/invitation/invitation";
  * The homepage is one argument, told in order. Each section answers the
  * question the previous one raises, and the order is the design:
  *
- *   Hero          see it        — the product, its price, what is left
- *   Categories    find it       — the catalogue index, offered upfront
+ *   Hero          see it        — the product, and under it the five
+ *                                 families, so the catalogue is offered
+ *                                 in the first viewport rather than the
+ *                                 second (see `hero/category-strip.tsx`)
  *   UpcomingDrops want it       — three more, each in a visibly different state
  *   Savings       value it      — whichever you pick, up to 42% less than new
  *   PastDrops     believe it    — and these already sold out
@@ -26,24 +27,31 @@ import { Invitation } from "@/components/home/invitation/invitation";
  *   Faq           last doubts
  *   Invitation    act
  *
- * **Categories sits directly under the hero**, so the second viewport
- * opens on the catalogue's index rather than the drop calendar — a
- * reader who has no interest in the four current releases is handed a
- * way in immediately, and the calendar is what follows for the reader
- * who is here for a specific drop. **Savings answers both routes at
- * once** — the price argument applies whichever fork was taken, so it
- * sits under the fork rather than after one branch.
+ * **The catalogue index is inside the banner**, not a section under it.
+ * A reader with no interest in the four current releases is handed a way
+ * in before the first scroll, and the second viewport goes to the drop
+ * calendar for the reader who is here for a specific drop — previously
+ * those two audiences cost a viewport each. **Savings answers both
+ * routes at once** — the price argument applies whichever fork was
+ * taken, so it sits under the fork rather than after one branch.
  *
  * One consequence worth knowing: the saving now lands *before* the trust
  * case rather than after it, so `Standard` is arguing quality to someone
  * already holding a number. If that reads as cheap-first, the fix is to
  * swap `Savings` and `Standard` back — not to soften either section.
  *
- * Two sections are preserved but no longer rendered here — see
- * `components/home/scarcity/` and `components/home/certification/`.
- * Both were doing legitimate work; both were also loading urgency the
- * hero (Scarcity) and Standard (Certification) already carry. Neither
- * has been deleted:
+ * Three sections are preserved but no longer rendered here — see
+ * `components/home/categories/`, `components/home/scarcity/` and
+ * `components/home/certification/`. All three were doing legitimate
+ * work; each is also now said elsewhere — by the banner (Categories),
+ * the hero's own numbers (Scarcity), and Standard (Certification).
+ * None has been deleted:
+ *
+ * - **Categories** — the five-card catalogue index. Now the banner's
+ *   closing strip. Reinstate below `Hero` only if the index outgrows
+ *   one row; note that the section carries a "Browse the full
+ *   collection" link the strip does not, and that link is otherwise
+ *   only in the nav and footer.
  *
  * - **Scarcity** — the closing "current drop will not wait" band. Hero
  *   already prints stock and countdown per device, and every calendar
@@ -54,17 +62,16 @@ import { Invitation } from "@/components/home/invitation/invitation";
  *   version belongs on the About page (`/about/certification`, already
  *   linked from nav and footer). Wire it there when that route is built.
  *
- * Do not delete either component or its data adapter.
+ * Do not delete any of these components or their data adapters.
  */
 export default function Home() {
   return (
     <>
       <Hero />
-      <Categories />
       <UpcomingDrops />
       <Featured />
       <Setup />
-      <Savings />
+      <WhatYouHave />
       <PastDrops />
       <Standard />
       <Process />

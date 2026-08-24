@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
-import { ShopHero } from "@/components/shop/shop-hero";
 import { brandsFromParam } from "@/lib/shop";
 
 export const metadata: Metadata = {
@@ -28,11 +27,14 @@ export default async function CollectionPage({
   const brands = brandsFromParam((await searchParams).brand);
 
   return (
-    <>
-      <ShopHero />
-      <div className="pb-(--spacing-section) pt-10 lg:pt-14">
-        <ShopCatalogue initialCategory={null} initialBrands={brands} />
-      </div>
-    </>
+    // Header is `fixed top-0` at 64px / 80px, so `pt-10 lg:pt-14`
+    // (40/56px) left the top row tucked *under* the masthead —
+    // "4 products" and the Recommended sort trigger collided with the
+    // main nav. `pt-24 lg:pt-32` clears the header (64/80px) with a
+    // 32px/48px breathing gap on top so the first row does not read as
+    // flush against the nav.
+    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+      <ShopCatalogue initialCategory={null} initialBrands={brands} />
+    </div>
   );
 }

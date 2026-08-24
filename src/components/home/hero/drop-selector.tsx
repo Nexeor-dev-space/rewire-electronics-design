@@ -101,7 +101,7 @@ export function DropSelector({
         >
           <div
             aria-hidden
-            className="absolute inset-0 bg-ink/45 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
 

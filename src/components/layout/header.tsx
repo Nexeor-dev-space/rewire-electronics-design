@@ -146,11 +146,6 @@ export function Header() {
                       cancelClose();
                       if (item.menu) setOpenPanel(item.menu);
                     }}
-                    onToggle={() =>
-                      setOpenPanel((cur) =>
-                        cur === item.menu ? null : (item.menu ?? null),
-                      )
-                    }
                   />
                 ))}
               </ul>
@@ -285,13 +280,11 @@ function NavBarItem({
   active,
   open,
   onOpen,
-  onToggle,
 }: {
   item: PrimaryNavItem;
   active: boolean;
   open: boolean;
   onOpen: () => void;
-  onToggle: () => void;
 }) {
   const label = (
     <>
@@ -339,19 +332,27 @@ function NavBarItem({
 
   // No `onMouseLeave` here — the whole bar owns closing, so the pointer can
   // travel from a trigger down into the panel without the menu vanishing.
+  //
+  // The trigger is a `Link`, not a `button`: clicking About should go to the
+  // About page, clicking Shop should open the shop index. The mega panel is
+  // supplementary — it opens on hover (pointer-enter) and on keyboard focus,
+  // but never blocks navigation. On touch, users get the same behaviour
+  // (tap navigates); the mobile drawer covers small-screen category browsing
+  // separately, so no one loses access to the sub-links.
   return (
     <li onPointerEnter={onOpen}>
-      <button
-        type="button"
+      <Link
+        href={item.href}
         id={navLabelId(item.menu)}
-        onClick={onToggle}
         onFocus={onOpen}
+        aria-current={active ? "page" : undefined}
+        aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={megaMenuId(item.menu)}
         className={shared}
       >
         {label}
-      </button>
+      </Link>
     </li>
   );
 }

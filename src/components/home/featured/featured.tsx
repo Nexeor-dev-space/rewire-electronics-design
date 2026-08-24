@@ -116,7 +116,10 @@ export function Featured() {
             // Featured card by ~40px against a same-viewport drop card
             // and left obvious whitespace between them.
             "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14 sm:overflow-visible sm:px-0 sm:pb-0",
-            "xl:grid-cols-4 xl:gap-x-7",
+            // Card widths follow the drop grid exactly — same 4-across
+            // step at `xl` and the same 24px gutter — so cards on this
+            // section never render narrower than the drop cards above.
+            "xl:grid-cols-4 xl:gap-x-6",
           )}
         >
           {products.map((product, i) => (

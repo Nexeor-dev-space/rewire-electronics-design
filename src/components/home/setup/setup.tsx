@@ -90,7 +90,7 @@ export function Setup() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewportOnce}
           transition={{ duration: DURATION.slow, ease: EASE_OUT_EXPO }}
-          className="mt-12 grid overflow-hidden rounded-3xl border border-line bg-surface shadow-(--shadow-soft) lg:mt-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
+          className="mt-12 grid overflow-hidden rounded-3xl border border-line bg-surface lg:mt-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
         >
           <AnchorPanel product={anchor} />
           <KitBuilder anchor={anchor} additions={additions} />
@@ -115,7 +115,7 @@ function AnchorPanel({ product }: { product: Product }) {
           alt={product.image.alt}
           fill
           sizes="(max-width: 1024px) 100vw, 40vw"
-          className="object-contain p-8 [mix-blend-mode:multiply] sm:p-12 lg:p-14"
+          className="object-contain p-8 sm:p-12 lg:p-14"
         />
         {/* Overlay chapter marker — anchors the composition without a
             second block of chrome. */}
@@ -287,9 +287,9 @@ function KitBuilder({
                   href="/cart"
                   className={cn(
                     "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                    "bg-[#c2410c] text-[#f5f5f2] shadow-(--shadow-soft)",
+                    "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
                     "text-sm font-medium",
-                    "transition-colors duration-(--duration-fast) hover:bg-[#d9531c]",
+                    "transition-colors duration-(--duration-fast) hover:bg-[#a8c1f6]",
                   )}
                 >
                   View cart
@@ -313,10 +313,10 @@ function KitBuilder({
                 onClick={commitKit}
                 className={cn(
                   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                  "bg-[#c2410c] text-[#f5f5f2] shadow-(--shadow-soft)",
+                  "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
                   "text-sm font-medium",
                   "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-                  "hover:bg-[#d9531c] active:scale-[0.98]",
+                  "hover:bg-[#a8c1f6] active:scale-[0.98]",
                 )}
               >
                 Add kit to bag
@@ -377,7 +377,7 @@ function CompanionCard({
             fill
             sizes="(max-width: 640px) 100vw, 22vw"
             className={cn(
-              "object-contain p-5 [mix-blend-mode:multiply]",
+              "object-contain p-5",
               "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
               "group-hover/card:scale-[1.04]",
             )}

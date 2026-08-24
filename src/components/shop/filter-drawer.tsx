@@ -99,7 +99,7 @@ export function FilterDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
-            className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
           />
 
           <motion.div
@@ -150,8 +150,14 @@ export function FilterDrawer({
               </button>
             </div>
 
-            {/* ---------- Body ---------- */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-(--spacing-gutter) pb-8">
+            {/* ---------- Body ----------
+                `data-lenis-prevent` keeps wheel + touch scroll inside
+                this pane rather than handing it to the page's Lenis
+                driver behind the drawer. */}
+            <div
+              data-lenis-prevent
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-(--spacing-gutter) pb-8"
+            >
               <FilterPanel
                 idPrefix="drawer"
                 filters={filters}

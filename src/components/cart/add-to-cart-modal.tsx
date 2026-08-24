@@ -169,7 +169,12 @@ export function AddToCartModal() {
 
             <ModalHeader onClose={close} />
 
-            <div className="flex-1 overflow-y-auto">
+            {/*
+              `data-lenis-prevent` stops the page's Lenis driver from
+              swallowing wheel/touch events inside the modal body — the
+              add-on list needs to scroll on its own when it overflows.
+            */}
+            <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain">
               <div className="px-5 pb-2 sm:px-7">
                 <AddedProduct
                   product={anchor}

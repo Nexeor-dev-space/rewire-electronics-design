@@ -74,8 +74,8 @@ export function OrderSuccess() {
           href={`/account/orders/${encodeURIComponent(number.toLowerCase())}`}
           className={cn(
             "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-            "bg-[#c2410c] text-[#f5f5f2] text-sm font-medium",
-            "transition-colors duration-(--duration-fast) hover:bg-[#d9531c]",
+            "bg-[#94b2f3] text-[#0f1419] text-sm font-medium",
+            "transition-colors duration-(--duration-fast) hover:bg-[#a8c1f6]",
           )}
         >
           Track order
