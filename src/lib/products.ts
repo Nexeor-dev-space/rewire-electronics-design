@@ -20,10 +20,7 @@
  * slug.
  */
 
-import {
-  getAllProducts as getCatalogProducts,
-  getProductBySlug as getCatalogProductBySlug,
-} from "./catalog";
+import { getProductBySlug as getCatalogProductBySlug } from "./catalog";
 import type { Product as CatalogProduct } from "@/types";
 
 export type Availability = "in-stock" | "low-stock" | "sold-out" | "pre-order";

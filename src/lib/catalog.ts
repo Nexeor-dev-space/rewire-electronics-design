@@ -9,7 +9,6 @@ import type {
   SpecGroup,
 } from "@/types";
 import { availabilityFromStock } from "@/types";
-import { savingsPercent } from "./utils";
 
 /**
  * Catalogue adapter — mock for now, Payload CMS later.

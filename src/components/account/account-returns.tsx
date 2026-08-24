@@ -282,7 +282,10 @@ function RequestReturnPanel({
                           checked={active}
                           onChange={() => {
                             setDraft((d) => ({ ...d, itemId: item.id }));
-                            setStep((s) => (s < 2 ? 2 : s));
+                            // `step` is a union with "confirmed", so an
+                            // ordering compare doesn't type-check; the
+                            // only value below 2 is literally 1.
+                            setStep((s) => (s === 1 ? 2 : s));
                           }}
                         />
                         <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-plate">

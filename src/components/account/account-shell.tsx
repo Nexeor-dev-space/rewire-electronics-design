@@ -16,7 +16,12 @@ interface Props {
   subtitle?: string;
   /** Right-hand chrome next to the title (e.g., a "Sign out" button). */
   aside?: ReactNode;
-  children: ReactNode;
+  /**
+   * Optional so a page can render the bare frame as its loading state
+   * (`if (!ready) return <AccountShell title="…" />`) — sidebar and
+   * title paint immediately, content follows when the store hydrates.
+   */
+  children?: ReactNode;
 }
 
 export function AccountShell({ title, subtitle, aside, children }: Props) {

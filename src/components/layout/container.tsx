@@ -66,10 +66,10 @@ export function Section({
  * left-hand label carry the section on its own.
  */
 export function SectionEyebrow({
-  index: _index,
   children,
   className,
 }: {
+  /** Accepted but unrendered — see the note above. */
   index?: string;
   children: React.ReactNode;
   className?: string;

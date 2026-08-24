@@ -8,7 +8,6 @@ import {
   CONDITION_META,
   GRADE_META,
   activeFilterCount,
-  categoryCounts,
   emptyFilters,
   filterProducts,
   priceBands,
@@ -67,7 +66,6 @@ export function ShopCatalogue({
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const counts = useMemo(() => categoryCounts(), []);
   const results = useMemo(
     () => sortProducts(filterProducts(filters), sort),
     [filters, sort],

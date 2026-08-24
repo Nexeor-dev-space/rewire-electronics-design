@@ -204,8 +204,8 @@ export function AccountSettings() {
             <div>
               <h2 className="text-[1rem] font-medium text-ink">Sign out of this session</h2>
               <p className="mt-1 text-[0.875rem] text-ink-secondary">
-                We'll take you back to the homepage. Your cart and saved items
-                stay on this device.
+                We&rsquo;ll take you back to the homepage. Your cart and saved
+                items stay on this device.
               </p>
             </div>
             <button
