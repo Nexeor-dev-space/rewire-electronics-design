@@ -352,6 +352,32 @@ const upcomingDrops: UpcomingDrop[] = [
       height: 1250,
     },
   },
+  {
+    id: "u5",
+    slug: "atlas-tab-11",
+    edition: "Drop 009",
+    name: "Atlas Tab 11",
+    variant: "Slate · 256GB",
+    category: "Tablets",
+    // Second buyable card in the row — the calendar already shows
+    // coming-soon, almost-gone and sold-out, and a fifth unbuyable
+    // state would tip the shelf from "selling" to "waiting".
+    status: "available",
+    price: 1_499_00,
+    originalPrice: 2_399_00,
+    currency: "AED",
+    locale: "en-AE",
+    warranty: "1-year warranty",
+    units: 30,
+    unitsLeft: 12,
+    startsAt: "2026-09-11T18:00:00Z",
+    image: {
+      url: "/images/categories/tablets.jpg",
+      alt: "Slate Atlas Tab 11 tablet standing on a desk",
+      width: 1000,
+      height: 1250,
+    },
+  },
 ];
 
 export function getUpcomingDrops(): UpcomingDrop[] {

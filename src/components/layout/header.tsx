@@ -151,20 +151,47 @@ export function Header() {
               </ul>
             </nav>
 
-            {/* ---------- Utilities: search · cart · account ---------- */}
-            <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+            {/* ---------- Utilities: search · account · cart ----------
+                The Join Waitlist CTA and its hairline divider are gone —
+                the bar now closes on commerce chrome (search, account,
+                cart), which is the register an e-commerce masthead
+                should end on. The waitlist modal itself survives below:
+                the mega menu's panels and the mobile drawer still open
+                it from their own entry points. */}
+            <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2 lg:ml-0">
+              {/* One trigger, two shapes. Below `md` it is the compact
+                  icon chip the mobile bar has always had. From `md` it
+                  widens into a field-shaped trigger — icon, placeholder
+                  copy, quiet surface and hairline — so search reads as
+                  a primary storefront affordance rather than an
+                  easter-egg icon. It stays a <button> on purpose: the
+                  real <input> lives in the SearchPanel this opens, and
+                  a decoy input here would trap focus in a control that
+                  cannot actually take a query.
+                  Width steps with the frame: roomy on tablet (no centre
+                  links to share with), narrower at `lg` where the five
+                  primary links land, opening back up from `xl`. */}
               <button
                 ref={searchTriggerRef}
                 type="button"
                 onClick={() => setSearchOpen((cur) => !cur)}
-                aria-label="Search certified devices"
+                aria-label="Search products, brands and devices"
                 aria-expanded={searchOpen}
                 aria-controls={SEARCH_PANEL_ID}
                 className={cn(
                   "flex size-10 items-center justify-center rounded-full transition-colors duration-(--duration-fast)",
+                  "md:size-auto md:h-10 md:w-64 md:justify-start md:gap-3 md:border md:px-4",
+                  "lg:w-44 xl:w-72 2xl:w-80",
                   searchOpen
-                    ? "bg-ink/5 text-ink"
-                    : "text-ink-secondary hover:bg-ink/5 hover:text-ink",
+                    ? cn(
+                        "bg-ink/5 text-ink",
+                        "md:border-accent/50 md:bg-white/[0.05] md:text-ink",
+                      )
+                    : cn(
+                        "text-ink-secondary hover:bg-ink/5 hover:text-ink",
+                        "md:border-line md:bg-white/[0.04] md:text-ink-muted",
+                        "md:hover:border-line-strong md:hover:bg-white/[0.06] md:hover:text-ink-secondary",
+                      ),
                 )}
               >
                 <svg
@@ -174,39 +201,19 @@ export function Header() {
                   stroke="currentColor"
                   strokeWidth="1.4"
                   strokeLinecap="round"
-                  className="size-[1.15rem]"
+                  className="size-[1.15rem] shrink-0"
                 >
                   <circle cx="11" cy="11" r="7" />
                   <path d="M16.5 16.5L21 21" />
                 </svg>
+                <span className="hidden truncate text-[0.8125rem] tracking-tight md:inline">
+                  Search products, brands &amp; devices
+                </span>
               </button>
 
               <AccountMenu />
 
               <CartButton />
-
-              {/* Hairline between the utilities and the one CTA — the only
-                  rule in the bar, and the thing that keeps four controls
-                  from reading as one undifferentiated row. */}
-              <span
-                aria-hidden
-                className="mx-2 hidden h-5 w-px bg-line lg:block"
-              />
-
-              <button
-                type="button"
-                onClick={() => setWaitlistOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={waitlistOpen}
-                className={cn(
-                  "hidden h-10 items-center gap-2.5 rounded-full px-5 lg:inline-flex",
-                  "bg-ink text-[0.8125rem] font-medium tracking-tight text-surface",
-                  "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-                  "hover:bg-ink-hover active:scale-[0.97]",
-                )}
-              >
-                Join Waitlist
-              </button>
 
               {/* Hamburger — below lg only */}
               <button

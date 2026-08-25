@@ -9,6 +9,7 @@ import type {
   ReturnStatus,
 } from "@/types";
 import { getProductBySlug } from "./catalog";
+import { addOnsFor } from "./add-ons";
 
 /**
  * Account data adapter — mock for now, CMS/DB later.
@@ -43,7 +44,13 @@ interface OrderSeed {
   trackingNumber?: string;
   addressId: string;
   paymentId: string;
-  items: { slug: string; quantity: number; returnable?: boolean }[];
+  items: {
+    slug: string;
+    quantity: number;
+    returnable?: boolean;
+    /** Add-on ids ticked on this line at checkout, resolved from `add-ons`. */
+    addOnIds?: string[];
+  }[];
   tracking: { label: string; note: string; at?: string }[];
 }
 
@@ -61,7 +68,11 @@ const orderSeeds: OrderSeed[] = [
     addressId: "addr-1",
     paymentId: "pay-1",
     items: [
-      { slug: "iphone-15-pro-max", quantity: 1 },
+      {
+        slug: "iphone-15-pro-max",
+        quantity: 1,
+        addOnIds: ["screen-fitted", "phone-case", "warranty-24"],
+      },
       { slug: "airpods-pro-2", quantity: 1 },
     ],
     tracking: [
@@ -84,7 +95,13 @@ const orderSeeds: OrderSeed[] = [
     trackingNumber: "AR-8603-DX",
     addressId: "addr-1",
     paymentId: "pay-1",
-    items: [{ slug: "macbook-air-13-m2", quantity: 1 }],
+    items: [
+      {
+        slug: "macbook-air-13-m2",
+        quantity: 1,
+        addOnIds: ["sleeve", "charger-96w", "warranty-24"],
+      },
+    ],
     tracking: [
       { label: "Order confirmed", note: "Payment authorised, unit reserved.", at: "2026-07-28T14:44:00Z" },
       { label: "Processing", note: "Final QA and packaging.", at: "2026-07-29T09:12:00Z" },
@@ -198,13 +215,26 @@ const GRADE_LABELS = {
 } as const;
 
 function resolveItems(
-  entries: { slug: string; quantity: number; returnable?: boolean }[],
+  entries: {
+    slug: string;
+    quantity: number;
+    returnable?: boolean;
+    addOnIds?: string[];
+  }[],
   orderId: string,
 ): OrderItem[] {
   return entries
     .map((entry, index): OrderItem | null => {
       const product = getProductBySlug(entry.slug);
       if (!product) return null;
+      // Resolve add-on ids to their labels + prices at seed time. Same
+      // pattern the checkout uses (`resolveCheckoutLines`) so an order
+      // stays honest even if the add-ons catalogue changes later.
+      const available = addOnsFor(product.categorySlug ?? product.category);
+      const chosen = (entry.addOnIds ?? [])
+        .map((id) => available.find((a) => a.id === id))
+        .filter((a): a is (typeof available)[number] => Boolean(a))
+        .map((a) => ({ id: a.id, label: a.label, price: a.price }));
       return {
         id: `${orderId}-${index + 1}`,
         slug: product.slug,
@@ -215,13 +245,22 @@ function resolveItems(
         price: product.price,
         quantity: entry.quantity,
         returnable: entry.returnable ?? true,
+        addOns: chosen.length > 0 ? chosen : undefined,
       };
     })
     .filter((line): line is OrderItem => Boolean(line));
 }
 
+/**
+ * Line subtotal — device (unit × qty) + add-ons (priced once per line,
+ * matching the checkout's `extrasPrice` semantics).
+ */
 function subtotalFor(items: OrderItem[]): number {
-  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return items.reduce((sum, item) => {
+    const addOnTotal =
+      item.addOns?.reduce((s, addOn) => s + addOn.price, 0) ?? 0;
+    return sum + item.price * item.quantity + addOnTotal;
+  }, 0);
 }
 
 function buildOrder(seed: OrderSeed): Order {

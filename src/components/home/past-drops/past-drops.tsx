@@ -108,7 +108,7 @@ export function PastDrops() {
         aria-label="Sold-out drops"
         className={cn(
           "no-scrollbar relative z-10 mt-9 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-2 lg:mt-11",
-          "md:grid md:grid-cols-2 md:gap-6 md:overflow-visible xl:grid-cols-4 xl:gap-7",
+          "md:grid md:grid-cols-2 md:gap-6 md:overflow-visible xl:grid-cols-5 xl:gap-6",
         )}
       >
         {drops.map((drop) => {

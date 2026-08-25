@@ -1,11 +1,7 @@
 import { Hero } from "@/components/home/hero/hero";
 import { UpcomingDrops } from "@/components/home/upcoming-drops/upcoming-drops";
 import { Featured } from "@/components/home/featured/featured";
-import { Setup } from "@/components/home/setup/setup";
 import { WhatYouHave } from "@/components/home/conditions/what-you-have";
-import { PastDrops } from "@/components/home/past-drops/past-drops";
-import { Standard } from "@/components/home/standard/standard";
-import { Process } from "@/components/home/process/process";
 import { Stories } from "@/components/home/stories/stories";
 import { Faq } from "@/components/home/faq/faq";
 import { Invitation } from "@/components/home/invitation/invitation";
@@ -20,9 +16,6 @@ import { Invitation } from "@/components/home/invitation/invitation";
  *                                 second (see `hero/category-strip.tsx`)
  *   UpcomingDrops want it       — three more, each in a visibly different state
  *   Savings       value it      — whichever you pick, up to 42% less than new
- *   PastDrops     believe it    — and these already sold out
- *   Standard      trust it      — inspection, battery, grade, warranty
- *   Process       understand it — and this is what happens when you buy
  *   Stories       trust it      — from people who already did
  *   Faq           last doubts
  *   Invitation    act
@@ -35,17 +28,13 @@ import { Invitation } from "@/components/home/invitation/invitation";
  * routes at once** — the price argument applies whichever fork was
  * taken, so it sits under the fork rather than after one branch.
  *
- * One consequence worth knowing: the saving now lands *before* the trust
- * case rather than after it, so `Standard` is arguing quality to someone
- * already holding a number. If that reads as cheap-first, the fix is to
- * swap `Savings` and `Standard` back — not to soften either section.
- *
- * Three sections are preserved but no longer rendered here — see
- * `components/home/categories/`, `components/home/scarcity/` and
- * `components/home/certification/`. All three were doing legitimate
- * work; each is also now said elsewhere — by the banner (Categories),
- * the hero's own numbers (Scarcity), and Standard (Certification).
- * None has been deleted:
+ * Five sections are preserved but no longer rendered here — see
+ * `components/home/categories/`, `components/home/scarcity/`,
+ * `components/home/certification/`, `components/home/standard/` and
+ * `components/home/process/`. All five were doing legitimate work; each
+ * is also now said elsewhere — by the banner (Categories), the hero's
+ * own numbers (Scarcity), the About page (Standard, Certification, and
+ * now Process), and Standard (Certification). None has been deleted:
  *
  * - **Categories** — the five-card catalogue index. Now the banner's
  *   closing strip. Reinstate below `Hero` only if the index outgrows
@@ -56,8 +45,14 @@ import { Invitation } from "@/components/home/invitation/invitation";
  * - **Scarcity** — the closing "current drop will not wait" band. Hero
  *   already prints stock and countdown per device, and every calendar
  *   card carries units left; a section-level restatement was pressure
- *   for pressure's sake. Reinstate below `Stories` (never above `PastDrops`)
- *   if a late-page deadline turns out to be needed.
+ *   for pressure's sake. Reinstate below `Stories` if a late-page
+ *   deadline turns out to be needed.
+ *
+ * - **PastDrops** — the "Gone in a drop" archive. Removed from the flow
+ *   at the client's request; the sold-out proof now rides on the
+ *   calendar cards' own SOLD OUT state. The component and its
+ *   `getPastDrops()` adapter remain intact — reinstate between
+ *   `WhatYouHave` and `Stories` if the believe-it beat is wanted back.
  * - **Certification** — the five-step programme document. The full
  *   version belongs on the About page (`/about/certification`, already
  *   linked from nav and footer). Wire it there when that route is built.
@@ -70,11 +65,7 @@ export default function Home() {
       <Hero />
       <UpcomingDrops />
       <Featured />
-      <Setup />
       <WhatYouHave />
-      <PastDrops />
-      <Standard />
-      <Process />
       <Stories />
       <Faq />
       <Invitation />

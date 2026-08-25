@@ -197,7 +197,7 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
                 "text-[0.8125rem] font-medium tracking-tight",
                 isSoldOut
                   ? "border border-line-strong text-ink hover:border-ink"
-                  : "bg-accent text-void hover:bg-accent-hover",
+                  : "bg-accent text-white hover:bg-accent-hover",
                 "transition-[background-color,border-color,transform] duration-(--duration-fast)",
                 "active:scale-[0.98]",
               )}

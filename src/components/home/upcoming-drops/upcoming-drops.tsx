@@ -61,7 +61,7 @@ export function UpcomingDrops() {
       // Same closing rhythm as `standard.tsx`: the section carries the
       // page's top spacing, plus a shorter foot so the trailing CTA is not
       // left flush against the section edge.
-      className="relative overflow-hidden pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden py-(--spacing-section-sm)"
     >
       {/* Background depth — soft lighting, no clutter */}
       <div
@@ -92,11 +92,11 @@ export function UpcomingDrops() {
             variants={rise}
             className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted"
           >
-            Upcoming drops
+            Certified refurbished
             <span aria-hidden className="mx-2.5 text-ink-faint">
               ·
             </span>
-            {String(drops.length).padStart(2, "0")} products
+            {String(drops.length).padStart(2, "0")} devices
           </motion.p>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
@@ -106,12 +106,12 @@ export function UpcomingDrops() {
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
-                  Upcoming
+                  Refurbished.
                 </motion.span>
               </span>
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
-                  drops.
+                  Ready to ship.
                 </motion.span>
               </span>
             </h2>
@@ -120,9 +120,9 @@ export function UpcomingDrops() {
               variants={rise}
               className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:justify-self-end"
             >
-              Discover our next exclusive releases. Every device is
-              professionally tested, certified, and available only during
-              limited-time product drops.
+              Premium devices, professionally restored to the Rewire
+              standard — 68-point inspection, certified battery health, and a
+              12-month warranty on every unit.
             </motion.p>
           </div>
         </motion.div>
@@ -141,7 +141,7 @@ export function UpcomingDrops() {
             "grid grid-cols-1 gap-y-12",
             // Tablet: two up. Desktop: the full calendar.
             "sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14",
-            "xl:grid-cols-4",
+            "xl:grid-cols-5",
           )}
         >
           {drops.map((drop, i) => (
@@ -175,7 +175,7 @@ export function UpcomingDrops() {
             href={SHOP_INDEX_HREF}
             className={buttonVariants({ variant: "outline", size: "md" })}
           >
-            View all upcoming drops
+            Browse the full catalogue
             <svg
               aria-hidden
               viewBox="0 0 16 16"

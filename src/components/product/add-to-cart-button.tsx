@@ -58,7 +58,7 @@ export function AddToCartButton({
       className={cn(
         className,
         "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5",
-        "bg-accent text-[0.8125rem] font-medium tracking-tight text-void",
+        "bg-accent text-[0.8125rem] font-medium tracking-tight text-white",
         "transition-[background-color,transform,opacity] duration-(--duration-fast)",
         "hover:bg-accent-hover active:scale-[0.98]",
         "disabled:pointer-events-none disabled:opacity-40",

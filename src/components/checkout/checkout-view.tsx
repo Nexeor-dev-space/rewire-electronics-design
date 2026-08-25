@@ -803,10 +803,10 @@ function StickyMobileCta({
         aria-busy={placing || undefined}
         className={cn(
           "flex h-13 w-full items-center justify-between gap-3 rounded-full px-5",
-          "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
+          "bg-accent text-white",
           "text-[0.9375rem] font-medium",
           "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-          "hover:bg-[#a8c1f6] active:scale-[0.99]",
+          "hover:bg-accent-hover active:scale-[0.99]",
           "disabled:pointer-events-none disabled:opacity-70",
           "h-12",
         )}
@@ -849,8 +849,8 @@ function EmptyBag() {
         href="/shop"
         className={cn(
           "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-          "bg-[#94b2f3] text-[#0f1419] text-sm font-medium",
-          "transition-colors duration-(--duration-fast) hover:bg-[#a8c1f6]",
+          "bg-accent text-white text-sm font-medium",
+          "transition-colors duration-(--duration-fast) hover:bg-accent-hover",
         )}
       >
         Browse the shop

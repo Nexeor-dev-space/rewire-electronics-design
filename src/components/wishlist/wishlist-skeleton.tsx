@@ -7,7 +7,7 @@ export function WishlistSkeleton() {
   return (
     <div
       aria-hidden
-      className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8"
+      className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-x-6"
     >
       {[0, 1, 2, 3].map((i) => (
         <div key={i} className="flex flex-col gap-4">

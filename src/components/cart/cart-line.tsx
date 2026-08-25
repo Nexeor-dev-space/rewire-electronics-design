@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CONDITION_LABELS, type Product } from "@/types";
 import type { CartItem } from "@/components/providers/account-provider";
+import { addOnsFor, addOnsTotal, type AddOn } from "@/lib/add-ons";
 import { cn, formatPrice } from "@/lib/utils";
 
 interface CartLineProps {
@@ -11,6 +12,8 @@ interface CartLineProps {
   product: Product;
   onQuantityChange: (quantity: number) => void;
   onRemove: () => void;
+  /** Tick / untick one of this line's add-ons. */
+  onToggleAddOn: (addOnId: string) => void;
 }
 
 /**
@@ -31,10 +34,20 @@ export function CartLine({
   product,
   onQuantityChange,
   onRemove,
+  onToggleAddOn,
 }: CartLineProps) {
   const image = product.images[0];
   const contain = image?.fit !== "cover";
-  const lineTotal = product.price * line.quantity;
+
+  // Category-scoped extras, same list the PDP buy panel offers — so a
+  // shopper who skipped them there gets a second, quieter chance here.
+  const addOns = addOnsFor(product.categorySlug ?? product.category);
+  const selectedAddOns = line.addOnIds ?? [];
+  const extrasTotal = addOnsTotal(addOns, selectedAddOns);
+
+  // Device price scales with quantity; add-ons are priced once per line
+  // (see the note on `CartItem.addOnIds`).
+  const lineTotal = product.price * line.quantity + extrasTotal;
   const grade = product.condition
     ? CONDITION_LABELS[product.condition]
     : undefined;
@@ -136,6 +149,18 @@ export function CartLine({
               Remove
             </button>
           </div>
+
+          {/* ---------- Add-ons ---------- */}
+          {addOns.length > 0 && (
+            <LineAddOns
+              addOns={addOns}
+              selected={selectedAddOns}
+              onToggle={onToggleAddOn}
+              productName={product.name}
+              currency={product.currency}
+              locale={product.locale}
+            />
+          )}
         </div>
 
         {/* ---------- Desktop price ---------- */}
@@ -149,9 +174,131 @@ export function CartLine({
               each
             </p>
           )}
+          {extrasTotal > 0 && (
+            <p className="mt-1 font-mono text-[0.75rem] tabular-nums text-ink-muted">
+              incl. {formatPrice(extrasTotal, product.currency, product.locale)}{" "}
+              accessories
+            </p>
+          )}
         </div>
       </div>
     </article>
+  );
+}
+
+/* ============================================================
+   Local: per-line add-ons
+   ============================================================
+   A chip row, not a disclosure. The old collapsed "Add accessories ▾"
+   line read as unfinished chrome and hid what is only ever four
+   items; the chips put every option one tap away and wear their own
+   state — the ticked chip carries the accent hairline, a soft accent
+   tint and a check where the plus was. Reads as "complete the setup",
+   not as a form. */
+
+function LineAddOns({
+  addOns,
+  selected,
+  onToggle,
+  productName,
+  currency,
+  locale,
+}: {
+  addOns: AddOn[];
+  selected: string[];
+  onToggle: (addOnId: string) => void;
+  productName: string;
+  currency: string;
+  locale?: string;
+}) {
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <p className="flex items-baseline gap-2.5 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+        Complete the setup
+        {selected.length > 0 && (
+          <span className="text-accent">
+            {selected.length} added
+          </span>
+        )}
+      </p>
+
+      <ul className="mt-3.5 flex flex-wrap gap-2">
+        {addOns.map((addOn) => {
+          const checked = selected.includes(addOn.id);
+          return (
+            <li key={addOn.id}>
+              <button
+                type="button"
+                onClick={() => onToggle(addOn.id)}
+                aria-pressed={checked}
+                aria-label={`${addOn.label}, ${
+                  checked ? "remove from" : "add to"
+                } ${productName} for ${formatPrice(addOn.price, currency, locale)}`}
+                className={cn(
+                  "group/chip inline-flex h-9 items-center gap-2 rounded-full border pl-2.5 pr-3.5",
+                  "text-[0.8125rem] tracking-tight",
+                  "transition-[border-color,background-color,color] duration-(--duration-fast) ease-(--ease-out-quart)",
+                  "active:scale-[0.97]",
+                  checked
+                    ? "border-accent/60 bg-accent/10 text-ink"
+                    : "border-line bg-surface-2/60 text-ink-secondary hover:border-line-strong hover:text-ink",
+                )}
+              >
+                {/* Plus that becomes a check — the one moving part.
+                    Drawn as a ring so the chip reads as an action at
+                    rest and as a confirmation once ticked. */}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "flex size-4.5 shrink-0 items-center justify-center rounded-full",
+                    "transition-colors duration-(--duration-fast)",
+                    checked
+                      ? "bg-accent text-white"
+                      : "border border-line-strong text-ink-muted group-hover/chip:border-ink-muted group-hover/chip:text-ink",
+                  )}
+                >
+                  {checked ? (
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-2.5"
+                    >
+                      <path d="m3.5 8.5 3 3 6-7" />
+                    </svg>
+                  ) : (
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      className="size-2.5"
+                    >
+                      <path d="M8 3.5v9M3.5 8h9" />
+                    </svg>
+                  )}
+                </span>
+
+                <span className="whitespace-nowrap">{addOn.label}</span>
+
+                <span
+                  className={cn(
+                    "whitespace-nowrap font-mono text-[0.6875rem] tabular-nums",
+                    checked ? "text-accent" : "text-ink-muted",
+                  )}
+                >
+                  +{formatPrice(addOn.price, currency, locale)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

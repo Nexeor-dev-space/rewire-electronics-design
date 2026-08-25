@@ -43,16 +43,18 @@
   --color-line-strong: rgb(255 255 255 / 0.14);
 
   /* ---------- Color · Brand ----------
-     The Rewire accent is a cool periwinkle blue. Reserved for the
-     moments the eye must land: price, saving, low-stock signal, the
-     primary CTA. Never a section ground, never a decorative fill.
+     The Rewire accent is the brand's burnt orange — the wordmark dot,
+     the price, the saving, the low-stock signal, the primary CTA. It is
+     the one warm note on the graphite ground and the same hue the cream
+     product plates flatter, which is why a cool accent never sat right
+     here. Reserved for the moments the eye must land; never a section
+     ground, never a decorative fill.
 
-     It is a *light* accent, which inverts one rule the burnt-orange
-     pass could ignore: anything filled with `accent` takes dark ink on
-     top (`--color-void` or #0f1419), never white. As a colour on the
-     graphite ground it is ~9:1; as a ground under white it is ~1.6:1. */
-  --color-accent: #94b2f3;
-  --color-accent-hover: #a8c1f6;
+     Filled surfaces take white text: white on #c2410c measures ~4.5:1,
+     AA for the button sizes in use. As small text on `void` the accent
+     itself reads ~4.9:1. */
+  --color-accent: #c2410c;
+  --color-accent-hover: #d45118;
 
   /* ---------- Color · Signals ----------
      Tuned brighter on dark so status labels retain contrast without
@@ -61,10 +63,10 @@
   --color-warn: #e0a45c; /* low stock, limited drop, countdown urgency */
   --color-danger: #d1706a; /* errors, sold out */
 
-  /* The scarcity accent — the same #94b2f3 as the brand accent, exposed
+  /* The scarcity accent — the same #c2410c as the brand accent, exposed
      under the `urgent` name so the semantic call-sites (stock bar,
      remaining count, live dot) read as scarcity rather than as branding. */
-  --color-urgent: #94b2f3;
+  --color-urgent: #c2410c;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
      Two families, no display face. Söhne carries everything structural
@@ -276,8 +278,12 @@
     --color-line: rgb(255 255 255 / 0.08);
     --color-line-strong: rgb(255 255 255 / 0.18);
 
-    --color-accent: #94b2f3;
-    --color-accent-hover: #a8c1f6;
+    /* Same accent as the base palette — the deep band steps the ground
+       down, not the brand. A hair brighter would be needed only if the
+       accent ever printed as small text on this ground; as fills and
+       15px+ labels it holds. */
+    --color-accent: #c2410c;
+    --color-accent-hover: #d45118;
 
     --color-live: #8fae9b;
 

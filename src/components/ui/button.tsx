@@ -20,18 +20,19 @@ const buttonVariants = cva(
     variants: {
       variant: {
         /**
-         * High-emphasis commerce action. Cool-blue fill (#94b2f3) against
-         * the graphite ground carries the commit weight and pairs with
-         * dark ink for contrast. Reserved for the moment on any screen
-         * that closes the sale (Add to Cart, Notify Me, Join Waitlist,
-         * Continue to Checkout). Secondary and tertiary actions should
-         * reach for `outline` or `ghost` rather than dilute the meaning
-         * of this one.
+         * High-emphasis commerce action. The Rewire burnt-orange fill
+         * (`--color-accent`) against the graphite ground — the same warm
+         * note as the wordmark dot and the price, so the commit action
+         * reads as the brand asking, not a third-party widget. White
+         * text on the fill (~4.5:1, AA at these sizes). Reserved for
+         * the moment on any screen that closes the sale (Add to Cart,
+         * Notify Me, Join Waitlist, Continue to Checkout). Secondary
+         * and tertiary actions reach for `outline` or `ghost` rather
+         * than dilute the meaning of this one.
          */
-        primary: "bg-[#94b2f3] text-[#0f1419] hover:bg-[#a8c1f6]",
-        /** Drop-level moment: same commerce fill, lifted with shadow. */
-        accent:
-          "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft) hover:bg-[#a8c1f6] hover:shadow-(--shadow-float)",
+        primary: "bg-accent text-white hover:bg-accent-hover",
+        /** Drop-level moment — same commerce fill as primary. */
+        accent: "bg-accent text-white hover:bg-accent-hover",
         /**
          * Inverse for the rare surface where the accent is unavailable
          * (e.g. a blue plate that already carries the accent). Bright
@@ -45,7 +46,7 @@ const buttonVariants = cva(
          * change matches the meaning shift (from "see more" to "commit").
          */
         outline:
-          "border border-line-strong text-ink hover:border-accent hover:bg-accent hover:text-void",
+          "border border-line-strong text-ink hover:border-accent hover:bg-accent hover:text-white",
         /** Low emphasis: text-adjacent actions. */
         ghost: "text-ink-secondary hover:text-ink hover:bg-white/5",
         /** Inline editorial link with animated underline. */

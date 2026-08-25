@@ -52,6 +52,13 @@ export interface CartItem {
   id: string;
   productSlug: string;
   quantity: number;
+  /**
+   * Add-on ids (from `lib/add-ons`) attached to this line. Priced once
+   * per line, not per device quantity — an extended warranty covers the
+   * line's device and a sleeve ships once per order line. Optional so
+   * carts persisted before this field existed load unchanged.
+   */
+  addOnIds?: string[];
 }
 
 interface AccountContextValue {
@@ -72,6 +79,8 @@ interface AccountContextValue {
   addItem: (productSlug: string, quantity?: number) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
+  /** Tick or untick one add-on on one cart line. */
+  toggleLineAddOn: (id: string, addOnId: string) => void;
   clearCart: () => void;
 }
 
@@ -245,6 +254,26 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     [persistItems],
   );
 
+  const toggleLineAddOn = useCallback(
+    (id: string, addOnId: string) => {
+      setItems((current) => {
+        const next = current.map((line) => {
+          if (line.id !== id) return line;
+          const selected = line.addOnIds ?? [];
+          return {
+            ...line,
+            addOnIds: selected.includes(addOnId)
+              ? selected.filter((entry) => entry !== addOnId)
+              : [...selected, addOnId],
+          };
+        });
+        persistItems(next);
+        return next;
+      });
+    },
+    [persistItems],
+  );
+
   const clearCart = useCallback(() => {
     setItems([]);
     persistItems([]);
@@ -322,6 +351,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       addItem,
       updateQuantity,
       removeItem,
+      toggleLineAddOn,
       clearCart,
     }),
     [
@@ -339,6 +369,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       addItem,
       updateQuantity,
       removeItem,
+      toggleLineAddOn,
       clearCart,
     ],
   );

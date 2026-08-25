@@ -36,6 +36,7 @@ const DROP_TO_PRODUCT: Record<string, string> = {
   "meridian-book-14": "macbook-pro-14-m1-pro",
   "aria-studio-headphones": "wh-1000xm4",
   "pulse-watch-s": "apple-watch-series-8",
+  "atlas-tab-11": "ipad-pro-11-m2",
 
   // Past drops (drops.ts → pastDrops)
   "halo-phone-pro-drop-003": "iphone-14-pro",

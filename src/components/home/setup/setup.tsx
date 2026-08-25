@@ -287,9 +287,9 @@ function KitBuilder({
                   href="/cart"
                   className={cn(
                     "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                    "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
+                    "bg-accent text-white",
                     "text-sm font-medium",
-                    "transition-colors duration-(--duration-fast) hover:bg-[#a8c1f6]",
+                    "transition-colors duration-(--duration-fast) hover:bg-accent-hover",
                   )}
                 >
                   View cart
@@ -313,10 +313,10 @@ function KitBuilder({
                 onClick={commitKit}
                 className={cn(
                   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                  "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
+                  "bg-accent text-white",
                   "text-sm font-medium",
                   "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-                  "hover:bg-[#a8c1f6] active:scale-[0.98]",
+                  "hover:bg-accent-hover active:scale-[0.98]",
                 )}
               >
                 Add kit to bag

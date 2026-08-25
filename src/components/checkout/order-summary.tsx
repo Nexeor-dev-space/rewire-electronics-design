@@ -131,10 +131,10 @@ export function OrderSummary({
             aria-busy={placing || undefined}
             className={cn(
               "relative inline-flex h-14 w-full items-center justify-center gap-2 rounded-full px-6",
-              "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
+              "bg-accent text-white",
               "text-[0.9375rem] font-medium",
               "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-              "hover:bg-[#a8c1f6] active:scale-[0.99]",
+              "hover:bg-accent-hover active:scale-[0.99]",
               "disabled:pointer-events-none disabled:opacity-70",
             )}
           >

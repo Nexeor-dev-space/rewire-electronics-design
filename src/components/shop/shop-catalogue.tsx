@@ -252,12 +252,17 @@ export function ShopCatalogue({
               <>
                 <ul
                   className={cn(
-                    "grid gap-x-4 gap-y-10 pt-8 sm:gap-x-6 sm:gap-y-14 lg:pt-10",
+                    "grid gap-x-4 gap-y-10 pt-8 sm:gap-x-5 sm:gap-y-12 lg:pt-10",
                     // Two up from 360px — a catalogue of thirty-two devices
                     // read one-per-row is a very long scroll, and the card's
                     // compact type holds at ~165px. Below 360 the price and
                     // the spec line start colliding, so it drops to one.
-                    "grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+                    // Each desktop tier runs one column denser than the
+                    // previous pass (3/4/5 instead of 2/3/4): the catalogue
+                    // is a browsing surface, and the denser grid shows a
+                    // full extra column per screen without the cards
+                    // dropping below ~230px at any tier.
+                    "grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
                   )}
                 >
                   {shown.map((product, index) => (

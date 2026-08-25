@@ -68,7 +68,7 @@ export default async function ProductPage({ params }: Params) {
   const product = getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = getRelatedProducts(product, 4);
+  const related = getRelatedProducts(product, 5);
   const condition = "Refurbished";
   const grade = GRADE_LABELS[product.condition];
 

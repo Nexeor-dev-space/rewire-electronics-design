@@ -64,6 +64,9 @@ export function AccountOrderDetail({ order }: { order: Order }) {
           <PaymentCard order={order} />
           <PriceBreakdown order={order} />
 
+          {/* Track shipment lives under the delivery-progress card itself
+              — see ProgressTracker. Only the invoice and Request-a-return
+              actions belong to the ledger rail. */}
           <div className="flex flex-col gap-2.5">
             <button
               type="button"
@@ -72,18 +75,10 @@ export function AccountOrderDetail({ order }: { order: Order }) {
             >
               Download / view invoice
             </button>
-            {order.trackingNumber && (
-              <a
-                href="#"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line-strong text-[0.875rem] font-medium text-ink hover:border-ink"
-              >
-                Track shipment · {order.trackingNumber}
-              </a>
-            )}
             {hasAnyReturnable && (
               <Link
                 href={`/account/returns?order=${order.id}`}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-[#94b2f3] text-[0.875rem] font-medium text-[#0f1419] hover:bg-[#a8c1f6]"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-accent text-[0.875rem] font-medium text-white hover:bg-accent-hover"
               >
                 Request a return
               </Link>
@@ -151,7 +146,7 @@ function ProgressTracker({ order, currentStep }: { order: Order; currentStep: nu
                       "flex size-6 shrink-0 items-center justify-center rounded-full border",
                       reached
                         ? active
-                          ? "border-[#94b2f3] bg-[#94b2f3]/15 text-[#94b2f3]"
+                          ? "border-accent bg-accent/15 text-accent"
                           : "border-live/60 bg-live/15 text-live"
                         : "border-line-strong text-ink-muted",
                     )}
@@ -212,6 +207,30 @@ function ProgressTracker({ order, currentStep }: { order: Order; currentStep: nu
             ))}
         </ul>
       )}
+
+      {/* Track-shipment lives here, immediately under the progress rail
+          it acts on. It was previously stacked in the right-hand ledger
+          rail where it read as unrelated to the tracker. */}
+      {order.trackingNumber && !isCancelled && (
+        <a
+          href="#"
+          className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
+        >
+          Track shipment · {order.trackingNumber}
+          <svg
+            aria-hidden
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3.5"
+          >
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </a>
+      )}
     </section>
   );
 }
@@ -266,6 +285,30 @@ function OrderItems({ order }: { order: Order }) {
                     <dd className="mt-0.5 text-ink">{item.quantity}</dd>
                   </div>
                 </dl>
+
+                {/* Add-ons captured at checkout. Priced once per line —
+                    the running "+ AED …" figure on each row makes the
+                    ledger's subtotal add up without a separate footnote. */}
+                {item.addOns && item.addOns.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-line bg-surface-2/60 p-3.5">
+                    <p className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+                      Add-ons purchased
+                    </p>
+                    <ul className="mt-2 flex flex-col gap-1.5">
+                      {item.addOns.map((addOn) => (
+                        <li
+                          key={addOn.id}
+                          className="flex items-baseline justify-between gap-4 text-[0.8125rem]"
+                        >
+                          <span className="text-ink">{addOn.label}</span>
+                          <span className="shrink-0 font-mono tabular-nums text-ink-secondary">
+                            + {formatPrice(addOn.price, order.currency, order.locale)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="w-full shrink-0 text-left sm:w-auto sm:text-right">
@@ -331,12 +374,11 @@ function PaymentCard({ order }: { order: Order }) {
       <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
         Paid with
       </p>
-      <p className="mt-3 text-[0.9375rem] text-ink">
-        {order.payment.brand} ending {order.payment.last4}
-      </p>
-      <p className="mt-1 text-[0.8125rem] text-ink-muted">
-        Expiry {order.payment.expiry}
-      </p>
+      {/* Brand alone — the card number and expiry belong on the
+          Payment Methods surface under Settings, not on an order card
+          a customer already trusts and a support agent should not
+          need to see. */}
+      <p className="mt-3 text-[0.9375rem] text-ink">{order.payment.brand}</p>
     </section>
   );
 }
