@@ -99,9 +99,9 @@ export function Featured() {
           </div>
         </motion.div>
 
-        {/* Four up on desktop, two on tablet, and a peek rail on phones —
-            a four-card column makes a shopper scroll the whole section to
-            learn how much of it there is. */}
+        {/* Grid at every width — the old phone peek-rail is gone in
+            favour of the shop page's two-up mobile grid, so the shelf
+            reads the same way here as it does on the PLP. */}
         <motion.ul
           initial="hidden"
           whileInView="visible"
@@ -109,31 +109,18 @@ export function Featured() {
           variants={staggerChildren(0.09, 0.1)}
           className={cn(
             "mt-14 lg:mt-16",
-            "no-scrollbar -mx-(--spacing-gutter) flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-px-(--spacing-gutter) px-(--spacing-gutter) pb-4",
-            // Grid, gap, and column count matched to `UpcomingDrops` above:
-            // four across from `xl` (not three then four), and a 24px
-            // gutter (not 32px). The previous mismatch shrank each
-            // Featured card by ~40px against a same-viewport drop card
-            // and left obvious whitespace between them.
-            "sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14 sm:overflow-visible sm:px-0 sm:pb-0",
-            // Card widths follow the drop grid exactly — same 4-across
-            // step at `xl` and the same 24px gutter — so cards on this
-            // section never render narrower than the drop cards above.
+            // Two up from 360px, matching the shop grid; one below it
+            // where the card copy starts colliding.
+            "grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2",
+            // Grid, gap, and column count matched to `UpcomingDrops`
+            // above so cards on this section never render narrower than
+            // the drop cards.
+            "sm:gap-x-6 sm:gap-y-14",
             "xl:grid-cols-5 xl:gap-x-6",
           )}
         >
           {products.map((product, i) => (
-            <motion.li
-              key={product.id}
-              variants={rise}
-              // `w-full` (not `w-auto`) — a flex item's default is
-              // content-width, which was letting each card shrink to its
-              // photograph and leave the rest of the grid cell empty.
-              // The wrapping `<ul>` above is a grid on `sm+`, so the
-              // grid layout itself sizes the columns; `w-full` just tells
-              // the card to occupy the column it was placed in.
-              className="flex w-[85%] shrink-0 snap-start sm:w-full"
-            >
+            <motion.li key={product.id} variants={rise} className="flex">
               <StorefrontCard product={product} priority={i < 2} />
             </motion.li>
           ))}

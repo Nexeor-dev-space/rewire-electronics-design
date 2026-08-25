@@ -25,6 +25,7 @@ export function ProductGallery({ images }: { images: Media[] }) {
       {images.length > 1 && (
         <ul
           aria-label="Product thumbnails"
+          data-lenis-prevent
           className={cn(
             "no-scrollbar flex gap-3 overflow-x-auto",
             "lg:flex-col lg:overflow-y-auto lg:pb-0",

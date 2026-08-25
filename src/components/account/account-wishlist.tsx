@@ -45,7 +45,7 @@ export function AccountWishlist() {
           </Link>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-x-4 gap-y-6 min-[360px]:grid-cols-2 sm:gap-6 xl:grid-cols-3">
           {resolved.map((product, index) => (
             <li key={product.slug}>
               <WishlistCard

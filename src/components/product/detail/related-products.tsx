@@ -13,7 +13,7 @@ import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 export function RelatedProducts({ items }: { items: Product[] }) {
   if (!items.length) return null;
   return (
-    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+    <ul className="grid grid-cols-1 gap-x-4 gap-y-8 min-[360px]:grid-cols-2 sm:gap-6 lg:grid-cols-4 xl:grid-cols-5">
       {items.map((product) => (
         <li key={product.slug}>
           <RelatedCard product={product} />

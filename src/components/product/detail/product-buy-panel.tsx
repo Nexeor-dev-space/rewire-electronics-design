@@ -293,8 +293,11 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       {/* ---------- CTA ----------
           One button until the item is added, then the same footprint
           becomes a trash / qty / plus stepper (à la noon). No separate
-          quantity picker in the panel — the stepper handles it. */}
-      <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+          quantity picker in the panel — the stepper handles it.
+          Row layout at every width: on narrow phones stacking left an
+          orphaned 56px heart under a full-width CTA looked accidental.
+          Inline keeps the two actions reading as one control cluster. */}
+      <div className="mt-10 flex gap-3 sm:gap-4">
         {purchasable && inCartQty > 0 ? (
           <div
             role="group"

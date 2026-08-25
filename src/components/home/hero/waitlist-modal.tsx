@@ -243,6 +243,10 @@ export function WaitlistModal({
             aria-labelledby="waitlist-title"
             aria-describedby="waitlist-desc"
             tabIndex={-1}
+            // Hands wheel/touch back to the browser so the dialog can
+            // scroll on short viewports — Lenis otherwise swallows the
+            // gesture against the locked page. See the drawer/sidebar.
+            data-lenis-prevent
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.99 }}

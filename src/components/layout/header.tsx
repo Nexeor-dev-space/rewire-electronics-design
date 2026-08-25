@@ -3,82 +3,64 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { siteConfig } from "@/lib/site";
-import {
-  primaryNav,
-  type MegaMenuId,
-  type PrimaryNavItem,
-} from "@/lib/navigation";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
-import { MegaMenu, megaMenuId } from "./mega-menu";
 import { SearchPanel, SEARCH_PANEL_ID } from "./search-panel";
 import { MobileDrawer } from "./mobile-drawer";
 import { CartButton } from "./cart-button";
 import { AccountMenu } from "./account-menu";
-
-/** Grace period so the pointer can cross the gap into an open panel. */
-const CLOSE_DELAY = 130;
+import { InlineSearch } from "./inline-search";
+import { CategoryBar } from "./category-bar";
 
 /**
- * Header — the site's one piece of persistent chrome.
+ * Header — the site's persistent chrome, two levels deep.
  *
- * Three zones from `lg` up: wordmark, the primary links centred, then
- * search and the drop CTA. Below `lg` the links collapse to a drawer.
- * Transparent over the hero, settling to glass with a hairline once
- * scrolled, and retreating on downward scroll — but never while a
- * panel, the search, or the drawer is open.
+ * Row 1 (all widths): logo · centered search · account · cart
+ *   Below `md` the mobile bar folds: hamburger · logo · search icon · cart.
+ * Row 2 (from `md`): the category rail (`CategoryBar`) — real e-commerce
+ *   navigation into `/collection/*` with brand-filtered submenus.
+ *
+ * Both rows share one hairline surface and one scroll-hide behaviour, so
+ * they read as a single chrome, not two competing bars. The search field
+ * is the row's centrepiece and hands off to the existing `SearchPanel`
+ * overlay on focus, which owns the real query, results and navigation.
  */
+
 export function Header() {
   const { scrolled, scrollingDown } = useScrollState();
   const pathname = usePathname();
 
-  const [openPanel, setOpenPanel] = useState<MegaMenuId | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [initialQuery, setInitialQuery] = useState("");
 
-  const closeTimer = useRef<number | null>(null);
-  const navRef = useRef<HTMLDivElement>(null);
-  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchIconRef = useRef<HTMLButtonElement>(null);
 
-  const anyOverlayOpen = searchOpen || drawerOpen || waitlistOpen;
+  const anyOverlayOpen = searchOpen || drawerOpen;
 
-  /* Close everything on navigation. */
+  /* Close overlays on navigation. */
   useEffect(() => {
-    setOpenPanel(null);
     setDrawerOpen(false);
     setSearchOpen(false);
   }, [pathname]);
 
-  /* Hover intent — a panel shouldn't vanish while the pointer travels to it. */
-  const cancelClose = useCallback(() => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelClose();
-    closeTimer.current = window.setTimeout(
-      () => setOpenPanel(null),
-      CLOSE_DELAY,
-    );
-  }, [cancelClose]);
-
-  useEffect(() => () => cancelClose(), [cancelClose]);
-
-  /* Escape closes an open panel; the overlays handle their own. */
+  /* Global Escape closes overlays — the search panel handles its own too. */
   useEffect(() => {
-    if (!openPanel) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setOpenPanel(null);
+      if (event.key !== "Escape") return;
+      setSearchOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [openPanel]);
+  }, []);
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
 
   const isActive = useCallback(
     (href: string) =>
@@ -91,25 +73,41 @@ export function Header() {
       <motion.header
         className="fixed inset-x-0 top-0 z-50"
         animate={{
-          y: scrollingDown && !anyOverlayOpen && !openPanel ? "-100%" : "0%",
+          y: scrollingDown && !anyOverlayOpen ? "-100%" : "0%",
         }}
         transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
       >
-        {/* `relative` anchors the search panel to the bar's bottom edge.
-            With search open the bar drops the glass for flat `void` so the
-            bar and the panel read as one continuous surface. */}
+        {/* One surface, two rows. With search open the bar drops the
+            glass for flat `void` so the bar and the overlay panel read
+            as one continuous surface. */}
         <div
-          onMouseLeave={scheduleClose}
           className={cn(
-            "relative border-b transition-[background-color,border-color,backdrop-filter,box-shadow] duration-(--duration-base)",
+            "transition-[background-color,border-color,backdrop-filter,box-shadow] duration-(--duration-base)",
+            "border-b",
             searchOpen
               ? "border-line bg-void"
               : scrolled && !drawerOpen
-                ? "border-line bg-[var(--glass-bg)] shadow-[0_8px_24px_rgb(20_20_25/0.04)] backdrop-blur-xl backdrop-saturate-150"
-                : "border-transparent bg-transparent",
+                ? "border-line bg-[var(--glass-bg)] shadow-[0_8px_24px_rgb(0_0_0/0.24)] backdrop-blur-xl backdrop-saturate-150"
+                : "border-transparent bg-void/70 backdrop-blur-md",
           )}
         >
-          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-6 px-(--spacing-gutter) md:h-20">
+          {/* ---------- Row 1 — utility bar ---------- */}
+          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-3 px-(--spacing-gutter) md:h-[4.5rem] md:gap-5 lg:gap-8">
+            {/* Mobile: hamburger sits before the logo. */}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open menu"
+              aria-haspopup="dialog"
+              aria-expanded={drawerOpen}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink transition-colors duration-(--duration-fast) hover:bg-white/[0.05] md:hidden"
+            >
+              <span aria-hidden className="relative block h-2.5 w-5">
+                <span className="absolute left-0 top-0 h-px w-full bg-current" />
+                <span className="absolute bottom-0 left-0 h-px w-full bg-current" />
+              </span>
+            </button>
+
             {/* ---------- Wordmark ---------- */}
             <Link
               href="/"
@@ -124,132 +122,74 @@ export function Header() {
               </span>
             </Link>
 
-            {/* ---------- Primary links (lg and up) ---------- */}
-            <nav
-              ref={navRef}
-              aria-label="Primary"
-              className="hidden flex-1 justify-center lg:flex"
-              onBlur={(event) => {
-                if (!navRef.current?.contains(event.relatedTarget as Node)) {
-                  setOpenPanel(null);
-                }
-              }}
+            {/* ---------- Inline search — visually centred on desktop ----------
+                From `md` the field takes over the middle of the row.
+                Wrapping in `mx-auto flex-1 max-w-*` makes the input
+                grow to fill the free space while staying centred
+                between the logo and the utility cluster. */}
+            <div className="mx-auto hidden max-w-2xl flex-1 md:block">
+              <InlineSearch
+                ref={searchInputRef}
+                onFocus={openSearch}
+                onQuery={(value) => {
+                  setInitialQuery(value);
+                  openSearch();
+                }}
+                ariaExpanded={searchOpen}
+                ariaControls={SEARCH_PANEL_ID}
+              />
+            </div>
+
+            {/* Mobile: search as an icon that opens the overlay. */}
+            <button
+              ref={searchIconRef}
+              type="button"
+              onClick={openSearch}
+              aria-label="Search products, brands and devices"
+              aria-expanded={searchOpen}
+              aria-controls={SEARCH_PANEL_ID}
+              className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.05] hover:text-ink md:hidden"
             >
-              <ul className="flex items-center gap-1">
-                {primaryNav.map((item) => (
-                  <NavBarItem
-                    key={item.label}
-                    item={item}
-                    active={isActive(item.href)}
-                    open={!!item.menu && openPanel === item.menu}
-                    onOpen={() => {
-                      cancelClose();
-                      if (item.menu) setOpenPanel(item.menu);
-                    }}
-                  />
-                ))}
-              </ul>
-            </nav>
-
-            {/* ---------- Utilities: search · account · cart ----------
-                The Join Waitlist CTA and its hairline divider are gone —
-                the bar now closes on commerce chrome (search, account,
-                cart), which is the register an e-commerce masthead
-                should end on. The waitlist modal itself survives below:
-                the mega menu's panels and the mobile drawer still open
-                it from their own entry points. */}
-            <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2 lg:ml-0">
-              {/* One trigger, two shapes. Below `md` it is the compact
-                  icon chip the mobile bar has always had. From `md` it
-                  widens into a field-shaped trigger — icon, placeholder
-                  copy, quiet surface and hairline — so search reads as
-                  a primary storefront affordance rather than an
-                  easter-egg icon. It stays a <button> on purpose: the
-                  real <input> lives in the SearchPanel this opens, and
-                  a decoy input here would trap focus in a control that
-                  cannot actually take a query.
-                  Width steps with the frame: roomy on tablet (no centre
-                  links to share with), narrower at `lg` where the five
-                  primary links land, opening back up from `xl`. */}
-              <button
-                ref={searchTriggerRef}
-                type="button"
-                onClick={() => setSearchOpen((cur) => !cur)}
-                aria-label="Search products, brands and devices"
-                aria-expanded={searchOpen}
-                aria-controls={SEARCH_PANEL_ID}
-                className={cn(
-                  "flex size-10 items-center justify-center rounded-full transition-colors duration-(--duration-fast)",
-                  "md:size-auto md:h-10 md:w-64 md:justify-start md:gap-3 md:border md:px-4",
-                  "lg:w-44 xl:w-72 2xl:w-80",
-                  searchOpen
-                    ? cn(
-                        "bg-ink/5 text-ink",
-                        "md:border-accent/50 md:bg-white/[0.05] md:text-ink",
-                      )
-                    : cn(
-                        "text-ink-secondary hover:bg-ink/5 hover:text-ink",
-                        "md:border-line md:bg-white/[0.04] md:text-ink-muted",
-                        "md:hover:border-line-strong md:hover:bg-white/[0.06] md:hover:text-ink-secondary",
-                      ),
-                )}
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                className="size-[1.15rem]"
               >
-                <svg
-                  aria-hidden
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  className="size-[1.15rem] shrink-0"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M16.5 16.5L21 21" />
-                </svg>
-                <span className="hidden truncate text-[0.8125rem] tracking-tight md:inline">
-                  Search products, brands &amp; devices
-                </span>
-              </button>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M16.5 16.5L21 21" />
+              </svg>
+            </button>
 
-              <AccountMenu />
-
+            {/* ---------- Right utility cluster — account · cart ----------
+                Account is hidden below `md` on purpose: mobile reaches
+                it through the drawer, so the top bar keeps to logo /
+                search / cart and the row never gets crowded. */}
+            <div className="flex shrink-0 items-center gap-1 md:gap-2">
+              <div className="hidden md:block">
+                <AccountMenu />
+              </div>
               <CartButton />
-
-              {/* Hamburger — below lg only */}
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(true)}
-                aria-label="Open menu"
-                aria-haspopup="dialog"
-                aria-expanded={drawerOpen}
-                className="flex size-10 items-center justify-center rounded-full text-ink transition-colors duration-(--duration-fast) hover:bg-ink/5 lg:hidden"
-              >
-                <span aria-hidden className="relative block h-2.5 w-5">
-                  <span className="absolute left-0 top-0 h-px w-full bg-current" />
-                  <span className="absolute bottom-0 left-0 h-px w-full bg-current" />
-                </span>
-              </button>
             </div>
           </div>
 
-          <AnimatePresence>
-            {openPanel && (
-              <MegaMenu
-                id={openPanel}
-                labelledBy={navLabelId(openPanel)}
-                onPointerEnter={cancelClose}
-                onJoinWaitlist={() => {
-                  setOpenPanel(null);
-                  setWaitlistOpen(true);
-                }}
-              />
-            )}
-          </AnimatePresence>
+          {/* ---------- Row 2 — category rail (md+) ---------- */}
+          <CategoryBar />
 
+          {/* Search overlay is anchored to the whole bar, not one
+              trigger, so it drops beneath the second row too — reading
+              as an extension of the chrome, not a floating dialog. */}
           <SearchPanel
             open={searchOpen}
-            onClose={() => setSearchOpen(false)}
-            triggerRef={searchTriggerRef}
+            onClose={() => {
+              setSearchOpen(false);
+              setInitialQuery("");
+            }}
+            triggerRef={searchInputRef.current ? searchInputRef : searchIconRef}
+            initialQuery={initialQuery}
           />
         </div>
       </motion.header>
@@ -257,109 +197,14 @@ export function Header() {
       <MobileDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onJoinWaitlist={() => setWaitlistOpen(true)}
-        onOpenSearch={() => setSearchOpen(true)}
+        onJoinWaitlist={() => {
+          /* Waitlist entry removed from the top bar — the drawer's
+             own footer CTA still opens it via the modal mounted by
+             the sections that need it. */
+        }}
+        onOpenSearch={openSearch}
         isActive={isActive}
       />
-
-      {/* Navbar entry — general waitlist. No `preselect`: the modal
-          opens with device + variant selects because the shopper has
-          not named a product from this surface. */}
-      <WaitlistModal
-        open={waitlistOpen}
-        onClose={() => setWaitlistOpen(false)}
-      />
     </>
-  );
-}
-
-/* ============================================================
-   One item in the bar — a link, or a trigger for a mega menu
-   ============================================================ */
-
-/** Ties a trigger to its panel for `aria-labelledby`. */
-export function navLabelId(menu: MegaMenuId) {
-  return `nav-trigger-${menu}`;
-}
-
-function NavBarItem({
-  item,
-  active,
-  open,
-  onOpen,
-}: {
-  item: PrimaryNavItem;
-  active: boolean;
-  open: boolean;
-  onOpen: () => void;
-}) {
-  const label = (
-    <>
-      {item.label}
-      {item.badge === "live" && (
-        <span
-          aria-hidden
-          className="ml-2 inline-block size-1.5 animate-pulse-dot rounded-full bg-live align-middle"
-        />
-      )}
-      {/* One rule serves three states: solid when current, drawn in on
-          hover, and held open while this item's menu is showing. */}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-x-3.5 bottom-1.5 h-px origin-left bg-ink",
-          "transition-transform duration-(--duration-base) ease-(--ease-out-expo)",
-          active || open
-            ? "scale-x-100"
-            : "scale-x-0 group-hover/nav:scale-x-100 group-focus-visible/nav:scale-x-100",
-        )}
-      />
-    </>
-  );
-
-  const shared = cn(
-    "group/nav relative inline-flex items-center rounded-md px-3.5 py-2.5",
-    "text-[0.8125rem] font-medium tracking-tight transition-colors duration-(--duration-fast)",
-    active || open ? "text-ink" : "text-ink-secondary hover:text-ink",
-  );
-
-  if (!item.menu) {
-    return (
-      <li>
-        <Link
-          href={item.href}
-          aria-current={active ? "page" : undefined}
-          className={shared}
-        >
-          {label}
-        </Link>
-      </li>
-    );
-  }
-
-  // No `onMouseLeave` here — the whole bar owns closing, so the pointer can
-  // travel from a trigger down into the panel without the menu vanishing.
-  //
-  // The trigger is a `Link`, not a `button`: clicking About should go to the
-  // About page, clicking Shop should open the shop index. The mega panel is
-  // supplementary — it opens on hover (pointer-enter) and on keyboard focus,
-  // but never blocks navigation. On touch, users get the same behaviour
-  // (tap navigates); the mobile drawer covers small-screen category browsing
-  // separately, so no one loses access to the sub-links.
-  return (
-    <li onPointerEnter={onOpen}>
-      <Link
-        href={item.href}
-        id={navLabelId(item.menu)}
-        onFocus={onOpen}
-        aria-current={active ? "page" : undefined}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={megaMenuId(item.menu)}
-        className={shared}
-      >
-        {label}
-      </Link>
-    </li>
   );
 }

@@ -13,8 +13,17 @@ import { cn } from "@/lib/utils";
 interface SearchPanelProps {
   open: boolean;
   onClose: () => void;
-  /** The icon in the bar — outside-click ignores it, focus returns to it. */
-  triggerRef: RefObject<HTMLButtonElement | null>;
+  /** The bar control the panel is anchored to — can be a button icon
+   *  or the inline search input. Focus returns here on close; outside
+   *  clicks over it are ignored. */
+  triggerRef: RefObject<HTMLElement | null>;
+  /**
+   * Seed value from the inline search field. When the shopper starts
+   * typing in the header input, the first keystroke lands in the
+   * inline field and this prop lifts it into the overlay so nothing
+   * is dropped in the handoff.
+   */
+  initialQuery?: string;
 }
 
 export const SEARCH_PANEL_ID = "site-search-panel";
@@ -32,7 +41,12 @@ const PANEL_DURATION = 0.25;
  * (`aria-expanded` on the trigger) and not `role="dialog"` — focus is not
  * trapped and the page behind stays operable.
  */
-export function SearchPanel({ open, onClose, triggerRef }: SearchPanelProps) {
+export function SearchPanel({
+  open,
+  onClose,
+  triggerRef,
+  initialQuery = "",
+}: SearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -41,19 +55,25 @@ export function SearchPanel({ open, onClose, triggerRef }: SearchPanelProps) {
 
   const results = useMemo(() => searchCatalogue(query), [query]);
 
-  /* Focus the field on open; hand focus back to the icon on close. */
+  /* Focus the field on open; hand focus back to the icon on close.
+     `initialQuery` seeds the overlay's field so the header's inline
+     input can hand off the first keystroke without dropping it. */
   useEffect(() => {
     if (!open) return;
-    // Captured now: the cleanup runs after the panel has unmounted, and
-    // the trigger is the element we always want focus to land back on.
     const trigger = triggerRef.current;
-    const id = window.setTimeout(() => inputRef.current?.focus(), 80);
+    setQuery(initialQuery);
+    const id = window.setTimeout(() => {
+      inputRef.current?.focus();
+      // Position the caret at the end of the seeded value.
+      const el = inputRef.current;
+      if (el) el.setSelectionRange(el.value.length, el.value.length);
+    }, 80);
     return () => {
       window.clearTimeout(id);
       setQuery("");
       trigger?.focus();
     };
-  }, [open, triggerRef]);
+  }, [open, triggerRef, initialQuery]);
 
   /* Escape anywhere, and any pointer landing outside panel or trigger. */
   useEffect(() => {
@@ -116,6 +136,7 @@ export function SearchPanel({ open, onClose, triggerRef }: SearchPanelProps) {
             animate={shown}
             exit={hidden}
             transition={{ duration: PANEL_DURATION, ease: EASE_OUT_EXPO }}
+            data-lenis-prevent
             className={cn(
               "absolute inset-x-0 top-full",
               "border-b border-line bg-void shadow-[0_8px_24px_rgb(0_0_0/0.06)]",

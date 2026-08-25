@@ -21,15 +21,15 @@ import {
  * wonders what "Refurbished" means here versus what a marketplace
  * listing meant by the same word.
  *
- * Five items, split by status. New / Refurbished / Used are explicitly
- * defined in the current PRD and get the blue accent dot. Pre-Owned and
- * Just Opened are on the roadmap but not yet formally defined; they
- * carry a neutral dot and honest copy ("Not specified in the PRD") so
- * the section reads as a scoped commitment rather than as a broken
- * feature.
+ * Three items, split by status. Refurbished and Used are explicitly
+ * defined in the current PRD and get the accent dot. Pre-Owned is on
+ * the roadmap but not yet formally defined; it carries a neutral dot
+ * and honest copy ("Not specified in the PRD") so the section reads as
+ * a scoped commitment rather than as a broken feature. (New and Just
+ * Opened were removed from the legend at the client's request.)
  *
- * Layout: 3 across on top, 2 across on the bottom at `lg`, 2 across at
- * `sm` with the last item spanning the row, single column on phones.
+ * Layout: one equal 3-across row at `lg`, 2 across at `sm` with the
+ * last item spanning the row, single column on phones.
  * Nothing here is a card of a card — each tile is a light-touch panel
  * with a hairline border, a status dot, a symbol, the term, one line
  * of copy, and a hairline arrow that shifts on hover.
@@ -48,14 +48,6 @@ interface ConditionItem {
 }
 
 const CONDITIONS: ConditionItem[] = [
-  {
-    id: "new",
-    name: "New",
-    status: "defined",
-    label: "Explicitly defined as a product condition",
-    href: "/shop?condition=new",
-    icon: <IconSparkle />,
-  },
   {
     id: "refurbished",
     name: "Refurbished",
@@ -79,14 +71,6 @@ const CONDITIONS: ConditionItem[] = [
     label: "Not specified in the PRD",
     href: "/shop?condition=pre-owned",
     icon: <IconPerson />,
-  },
-  {
-    id: "just-opened",
-    name: "Just Opened",
-    status: "unspecified",
-    label: "Not specified in the PRD",
-    href: "/shop?condition=just-opened",
-    icon: <IconBoxOpen />,
   },
 ];
 
@@ -162,10 +146,12 @@ export function WhatYouHave() {
           variants={staggerChildren(0.06, 0.1)}
           className={cn(
             "mt-14 grid gap-3 lg:mt-20 lg:gap-4",
-            // Tablet: 2-across; last card spans the row so no lonely tile.
+            // Tablet: 2-across; the third card spans the row so no
+            // lonely tile. Desktop: the three conditions run as one
+            // equal row — the earlier 3+2 rhythm existed for five
+            // entries and is gone with them.
             "sm:grid-cols-2",
-            // Desktop: 6-col rail with a 3+2 rhythm.
-            "lg:grid-cols-6",
+            "lg:grid-cols-3",
           )}
         >
           {CONDITIONS.map((condition, i) => (
@@ -173,12 +159,7 @@ export function WhatYouHave() {
               key={condition.id}
               variants={tileRise}
               className={cn(
-                // Last tile spans the second column on tablet so 5 items
-                // never leave a stranded card on its own row.
-                i === CONDITIONS.length - 1 && "sm:col-span-2 lg:col-span-3",
-                // First three tiles run 2-of-6; fourth runs 3-of-6.
-                i < 3 && "lg:col-span-2",
-                i === 3 && "lg:col-span-3",
+                i === CONDITIONS.length - 1 && "sm:col-span-2 lg:col-span-1",
               )}
             >
               <ConditionTile condition={condition} index={i + 1} />
@@ -315,23 +296,6 @@ function ConditionTile({
    Icons — thin-line, monochromatic, currentColor
    ============================================================ */
 
-function IconSparkle() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-    >
-      <path d="M10 2v4M10 14v4M2 10h4M14 10h4" />
-      <path d="M10 6a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
-    </svg>
-  );
-}
-
 function IconCycle() {
   return (
     <svg
@@ -380,24 +344,6 @@ function IconPerson() {
     >
       <circle cx="10" cy="7" r="3" />
       <path d="M3.5 17c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" />
-    </svg>
-  );
-}
-
-function IconBoxOpen() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-    >
-      <path d="M3.5 8.5v7.5A1.5 1.5 0 0 0 5 17.5h10a1.5 1.5 0 0 0 1.5-1.5V8.5" />
-      <path d="M2 5.5 10 3l8 2.5-8 3-8-3Z" />
-      <path d="M10 8.5v9" />
     </svg>
   );
 }

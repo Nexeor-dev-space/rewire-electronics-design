@@ -9,6 +9,7 @@
 
 import { getUpcomingDrops } from "./drops";
 import { getCategories } from "./categories";
+import { getAllProducts, getProductsByCategory } from "./catalog";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -109,6 +110,142 @@ export const supportLinks: MenuLink[] = [
 
 export { supportContact };
 
+/* ---------- Category nav — the secondary rail's data model ----------
+   Ordered category list with per-category "browse by brand" submenus,
+   derived at read time from the catalogue itself so a new device (or a
+   discontinued brand) shows up in the nav without a second data source
+   to keep in step. */
+
+export interface CategoryNavItem {
+  /** Display label — matches the catalogue's own name. */
+  label: string;
+  /** Route slug — used with `productHrefForCategory`. */
+  slug: string;
+  href: string;
+  /**
+   * Submenu of brand-filtered links. Present only when the category has
+   * more than one distinct brand *and* more than one product per brand —
+   * a category with two Apple items alone earns no dropdown. Empty when
+   * the category link should be a straight-through anchor.
+   */
+  brands: { label: string; href: string; count: number }[];
+}
+
+/** The fixed rail order — the shopper's mental model, not the catalogue's. */
+const CATEGORY_ORDER = [
+  "phones",
+  "laptops",
+  "tablets",
+  "audio",
+  "wearables",
+  "accessories",
+] as const;
+
+export function getCategoryNav(): CategoryNavItem[] {
+  const catalogueOrder = new Map(
+    getCategories().map((c) => [c.slug, c.name]),
+  );
+
+  return CATEGORY_ORDER.map((slug): CategoryNavItem => {
+    const label = catalogueOrder.get(slug) ?? slug;
+    const products = getProductsByCategory(slug);
+    // A brand only earns a submenu entry when the category actually has
+    // stock under it. Sold-out lines still count (they are still in the
+    // catalogue), but count is exposed for the UI to weight the row.
+    const grouped = new Map<string, number>();
+    for (const product of products) {
+      grouped.set(product.brand, (grouped.get(product.brand) ?? 0) + 1);
+    }
+    const brands = Array.from(grouped.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([brand, count]) => ({
+        label: brand,
+        count,
+        href: `${productHrefForCategory(slug)}?brand=${encodeURIComponent(brand)}`,
+      }));
+
+    return {
+      label,
+      slug,
+      href: productHrefForCategory(slug),
+      // Suppress the dropdown when there is only one brand — a menu that
+      // opens to one item is a menu that does not need to open.
+      brands: brands.length > 1 ? brands : [],
+    };
+  });
+}
+
+/** True when the shopper's route is under this category's listing. */
+export function categoryNavIsActive(pathname: string, slug: string): boolean {
+  return (
+    pathname === productHrefForCategory(slug) ||
+    pathname.startsWith(`${productHrefForCategory(slug)}/`)
+  );
+}
+
+/**
+ * Head-of-rail links that sit before the category items:
+ *   - `shopIndexLink` — the unfiltered catalogue index. Reused as the
+ *     "See all X" row inside every category dropdown.
+ *   - `upcomingDropsLink` — the calendar of releases. Carries a live
+ *     status dot the way the old primary nav did; the destination is
+ *     the same as the previous mega-menu entry.
+ */
+export const shopIndexLink = { label: "Shop", href: SHOP_INDEX_HREF };
+export const upcomingDropsLink = {
+  label: "Upcoming Drops",
+  href: SHOP_INDEX_HREF,
+  live: true,
+};
+
+/**
+ * Editorial links pinned to the right end of the rail. Kept separate
+ * from `getCategoryNav()` so the commerce items and the company items
+ * are never confused for peers — the layout groups them with
+ * `justify-between`.
+ */
+export const editorialNavLinks = [
+  { label: "About", href: "/about" },
+  { label: "Support", href: "/support" },
+] as const;
+
+/* ---------- Rail dropdowns — compact link lists ----------
+   The old primary nav opened full mega panels for Upcoming Drops,
+   About and Support; the new rail keeps the disclosure affordance but
+   renders each as a compact link list (same shape as the category
+   brand dropdowns), so the chrome is one language rather than two. */
+
+/**
+ * Upcoming Drops dropdown — one line per release, newest first, plus
+ * a "View all" row that lands on the shop index (the same destination
+ * the trigger itself points at, so clicking either always works).
+ */
+export function getUpcomingDropsMenu(): MenuLink[] {
+  const drops = getUpcomingDrops()
+    .slice(0, 4)
+    .map((drop) => ({
+      label: drop.name,
+      href: productHrefForDrop(drop.slug),
+      note: drop.edition,
+    }));
+  return [...drops, { label: "View all releases", href: SHOP_INDEX_HREF }];
+}
+
+/**
+ * About dropdown — the two "The Company" and "Our Commitments" columns
+ * flattened into one list. Kept compact by design; the full editorial
+ * layout lives on `/about` itself.
+ */
+export const aboutMenuLinks: MenuLink[] = aboutColumns.flatMap(
+  (column) => column.items,
+);
+
+/** Support dropdown — every editorial section of `/support`, plus Track Order. */
+export const supportMenuLinks: MenuLink[] = supportLinks;
+
+// The full catalogue accessor is re-used by the mobile drawer accordion.
+export { getAllProducts };
+
 /* ---------- Category glyphs ----------
    Raw `d` strings on a 24×24 grid, single weight, no fills — the house
    icon convention. Keyed by catalogue slug so a new category simply
@@ -157,6 +294,19 @@ export interface DrawerSection {
   items: MenuLink[];
 }
 
+/**
+ * The drawer mirrors the desktop `CategoryBar`, row for row: Upcoming
+ * Drops, then one row per catalogue category (in the same rail order),
+ * then About and Support. The previous generic "Shop" and "Categories"
+ * accordions are gone — the desktop bar has no such items, and a
+ * shopper moving between a phone and a laptop should meet the same
+ * navigation vocabulary on both.
+ *
+ * A category with brand submenus becomes an accordion whose children
+ * are the same brand-filtered links the desktop dropdown carries, plus
+ * the "All …" row. A category without brands (`items: []`) renders in
+ * the drawer as a plain link row — one tap, no empty accordion.
+ */
 export function getDrawerSections(): DrawerSection[] {
   const drops = getUpcomingDrops()
     .slice(0, 4)
@@ -166,10 +316,20 @@ export function getDrawerSections(): DrawerSection[] {
       note: drop.edition,
     }));
 
-  const categories = getCategories().map((category) => ({
-    label: category.name,
-    href: productHrefForCategory(category.slug),
-    note: `${category.count} devices`,
+  const categories: DrawerSection[] = getCategoryNav().map((item) => ({
+    label: item.label,
+    href: item.href,
+    items:
+      item.brands.length > 0
+        ? [
+            ...item.brands.map((brand) => ({
+              label: brand.label,
+              href: brand.href,
+              note: String(brand.count),
+            })),
+            { label: `All ${item.label.toLowerCase()}`, href: item.href },
+          ]
+        : [],
   }));
 
   return [
@@ -182,8 +342,7 @@ export function getDrawerSections(): DrawerSection[] {
         { label: "View all upcoming drops", href: SHOP_INDEX_HREF },
       ],
     },
-    { label: "Shop", href: SHOP_INDEX_HREF, items: shopBrowse },
-    { label: "Categories", href: SHOP_INDEX_HREF, items: categories },
+    ...categories,
     {
       label: "About",
       href: "/about",
