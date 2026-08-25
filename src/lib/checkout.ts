@@ -1,6 +1,7 @@
 import type { ConditionGrade, Product } from "@/types";
 import type { CartItem } from "@/components/providers/account-provider";
 import { getProductBySlug } from "./catalog";
+import { addOnsFor } from "./add-ons";
 
 /**
  * Checkout adapter — resolves cart lines to display-ready shape.
@@ -25,6 +26,14 @@ export interface CheckoutLine {
   quantity: number;
   unitPrice: number;
   originalUnitPrice?: number;
+  /**
+   * Sum of the line's ticked add-ons, priced once per line (see
+   * `CartItem.addOnIds`). Zero when nothing is ticked, so the arithmetic
+   * below can add it unconditionally.
+   */
+  extrasPrice: number;
+  /** Labels of the ticked add-ons, for the order summary's line detail. */
+  extrasLabels: string[];
 }
 
 const GRADE_LABELS: Record<ConditionGrade, string> = {
@@ -40,6 +49,9 @@ export function resolveCheckoutLines(items: CartItem[]): CheckoutLine[] {
     .map((entry): CheckoutLine | null => {
       const product = getProductBySlug(entry.productSlug);
       if (!product) return null;
+      const addOns = addOnsFor(product.categorySlug ?? product.category);
+      const selected = entry.addOnIds ?? [];
+      const ticked = addOns.filter((addOn) => selected.includes(addOn.id));
       return {
         key: entry.id,
         product,
@@ -49,6 +61,8 @@ export function resolveCheckoutLines(items: CartItem[]): CheckoutLine[] {
         quantity: entry.quantity,
         unitPrice: product.price,
         originalUnitPrice: product.originalPrice,
+        extrasPrice: ticked.reduce((sum, addOn) => sum + addOn.price, 0),
+        extrasLabels: ticked.map((addOn) => addOn.label),
       };
     })
     .filter((line): line is CheckoutLine => Boolean(line));
@@ -69,12 +83,16 @@ export interface CheckoutTotals {
  */
 export function totalsFor(lines: CheckoutLine[]): CheckoutTotals {
   const subtotal = lines.reduce(
-    (sum, line) => sum + line.unitPrice * line.quantity,
+    (sum, line) => sum + line.unitPrice * line.quantity + line.extrasPrice,
     0,
   );
+  // Extras join both sides of the comparison — accessories are never
+  // discounted, so they must not manufacture phantom "savings".
   const originalSubtotal = lines.reduce(
     (sum, line) =>
-      sum + (line.originalUnitPrice ?? line.unitPrice) * line.quantity,
+      sum +
+      (line.originalUnitPrice ?? line.unitPrice) * line.quantity +
+      line.extrasPrice,
     0,
   );
   const first = lines[0]?.product;

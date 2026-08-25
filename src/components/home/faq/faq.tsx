@@ -40,7 +40,7 @@ export function Faq() {
       // Carries its own bottom padding, unlike the top-only sections: the
       // next section is the dark band, so its padding sits inside a
       // different colour and leaves the last row flush against the edge.
-      className="relative bg-void pb-(--spacing-section) pt-(--spacing-section)"
+      className="relative bg-void py-(--spacing-section-sm)"
     >
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
         <div className="grid gap-y-12 lg:grid-cols-12 lg:items-start lg:gap-x-16 xl:gap-x-24">

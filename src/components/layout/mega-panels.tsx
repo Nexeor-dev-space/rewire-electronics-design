@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { getUpcomingDrops } from "@/lib/drops";
 import { getCategories } from "@/lib/categories";
@@ -33,8 +34,15 @@ export interface MegaPanelProps {
 
 export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
   const drops = getUpcomingDrops();
-  const featured = drops[0];
   const rest = drops.slice(0, 4);
+
+  // The showcase card mirrors whichever calendar row the pointer (or
+  // keyboard focus) is on, defaulting to the first drop. Hover sets it
+  // and *leaves it set* — clearing on mouse-leave would snap the card
+  // back to drop 1 while the pointer travels toward the card the reader
+  // just chose to look at.
+  const [activeId, setActiveId] = useState(drops[0]?.id);
+  const featured = drops.find((drop) => drop.id === activeId) ?? drops[0];
 
   return (
     <div className="grid grid-cols-12 gap-10 xl:gap-14">
@@ -57,39 +65,61 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
       <div className="col-span-5">
         <MenuLabel>Upcoming devices</MenuLabel>
         <ul className="mt-5">
-          {rest.map((drop) => (
-            <li key={drop.id}>
-              <Link
-                href={productHrefForDrop(drop.slug)}
-                className={cn(
-                  "group/card -mx-3 flex items-center gap-5 rounded-xl px-3 py-3",
-                  "transition-colors duration-(--duration-fast) hover:bg-surface-2",
-                )}
-              >
-                <MenuImage
-                  src={drop.image.url}
-                  alt=""
-                  sizes="64px"
-                  className="size-16 shrink-0 rounded-lg border border-line"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.9375rem] font-medium text-ink">
-                    {drop.name}
+          {rest.map((drop) => {
+            const isActive = drop.id === featured?.id;
+            return (
+              <li key={drop.id}>
+                <Link
+                  href={productHrefForDrop(drop.slug)}
+                  onMouseEnter={() => setActiveId(drop.id)}
+                  onFocus={() => setActiveId(drop.id)}
+                  className={cn(
+                    "group/card -mx-3 flex items-center gap-5 rounded-xl px-3 py-3",
+                    "transition-colors duration-(--duration-fast)",
+                    // The row driving the showcase stays lit, so the
+                    // list and the card read as one connected control
+                    // rather than a hover style that happens to match.
+                    isActive ? "bg-surface-2" : "hover:bg-surface-2",
+                  )}
+                >
+                  <MenuImage
+                    src={drop.image.url}
+                    alt=""
+                    sizes="64px"
+                    className="size-16 shrink-0 rounded-lg border border-line"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.9375rem] font-medium text-ink">
+                      {drop.name}
+                    </span>
+                    <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
+                      {formatDropDate(drop.startsAt)} · {drop.units} units
+                    </span>
                   </span>
-                  <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
-                    {formatDropDate(drop.startsAt)} · {drop.units} units
-                  </span>
-                </span>
-                <Arrow className="shrink-0 text-ink-faint opacity-0 transition-all duration-(--duration-fast) group-hover/card:translate-x-0.5 group-hover/card:opacity-100" />
-              </Link>
-            </li>
-          ))}
+                  <Arrow
+                    className={cn(
+                      "shrink-0 text-ink-faint transition-all duration-(--duration-fast)",
+                      isActive
+                        ? "translate-x-0.5 opacity-100"
+                        : "opacity-0 group-hover/card:translate-x-0.5 group-hover/card:opacity-100",
+                    )}
+                  />
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
-      {/* ---------- The next one out ---------- */}
+      {/* ---------- The showcase ----------
+          Mirrors the hovered calendar row. `key={featured.id}` remounts
+          the card content on switch so the image swaps clean instead of
+          showing the previous drop's photo while the next one loads. */}
       <div className="col-span-4">
-        <div className="group/card overflow-hidden rounded-2xl border border-line bg-void">
+        <div
+          key={featured.id}
+          className="group/card overflow-hidden rounded-2xl border border-line bg-void"
+        >
           <MenuImage
             src={featured.image.url}
             alt={featured.image.alt}

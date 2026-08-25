@@ -47,7 +47,7 @@ export function Invitation() {
         //
         // Carries the full rhythm on both sides: the section above closes on
         // a flush-edge photograph with no bottom padding of its own.
-        className="theme-dark relative bg-void py-(--spacing-section)"
+        className="theme-dark relative bg-void py-(--spacing-section-sm)"
       >
         <motion.div
           initial="hidden"

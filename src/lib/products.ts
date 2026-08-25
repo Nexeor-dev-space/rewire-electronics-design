@@ -247,6 +247,7 @@ export function getFeaturedProducts(): Product[] {
     "macbook-air-13-m2",
     "airpods-max",
     "apple-watch-ultra",
+    "ipad-pro-11-m2",
   ];
   return wanted
     .map((slug) => getCatalogProductBySlug(slug))

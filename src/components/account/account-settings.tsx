@@ -273,7 +273,7 @@ function SettingsCard({
           className={cn(
             "inline-flex h-11 items-center rounded-full px-5 text-[0.875rem] font-medium",
             !saveDisabled
-              ? "bg-[#94b2f3] text-[#0f1419] hover:bg-[#a8c1f6]"
+              ? "bg-accent text-white hover:bg-accent-hover"
               : "cursor-not-allowed bg-white/[0.04] text-ink-muted",
           )}
         >
@@ -314,7 +314,7 @@ function NotifyRow({
             className={cn(
               "absolute inset-0 rounded-full border transition-colors duration-(--duration-fast)",
               checked
-                ? "border-[#94b2f3] bg-[#94b2f3]"
+                ? "border-accent bg-accent"
                 : "border-line-strong bg-surface-2",
             )}
           />
@@ -358,7 +358,7 @@ function Field({
         value={value}
         required={required}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-[#94b2f3] focus:outline-none"
+        className="h-11 rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
       />
     </label>
   );

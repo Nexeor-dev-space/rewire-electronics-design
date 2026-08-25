@@ -119,18 +119,12 @@ export function ConditionExplainer({ active, grade }: Props) {
                   : "border-line-strong bg-surface",
               )}
             >
-              {/* Inset accent bar — one pixel tall, spans the full top
-                  edge of the active card, sits just inside the border so
-                  it reads as a mark on the card rather than as part of
-                  the frame. Suppressed on the inactive cards; combined
-                  with the bg lift and the accent border it makes the
-                  active state unambiguous at a glance. */}
-              {isActive && (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-accent"
-                />
-              )}
+              {/* The inset accent top-bar was removed: the card's own
+                  accent border already outlines the whole edge, so an
+                  extra 1px stripe on top read as a doubled hairline —
+                  a graphical stutter, not a status cue. The active
+                  card is now marked by the accent border + `surface-3`
+                  ground + the accent dot and label alone. */}
 
               <div className="flex items-center gap-2">
                 <span

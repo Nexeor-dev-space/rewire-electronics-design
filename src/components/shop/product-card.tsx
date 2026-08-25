@@ -54,15 +54,20 @@ export function ShopProductCard({
           backgrounds on the product photography read as intent, and
           `mix-blend-mode: multiply` so the image's white dissolves into
           the plate and the product itself picks up only a faint warm cast. */}
-      <div className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
+      {/* 4:3 rather than square — with the grid a column denser, a
+          square plate made each card taller than a viewport row could
+          comfortably hold. The shorter plate keeps the device legible
+          (contain padding trimmed to match) and takes ~25% off every
+          card's height, so the catalogue shows more rows per screen. */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
         <Image
           src={product.image.url}
           alt={product.image.alt}
           fill
           priority={priority}
-          sizes="(max-width: 640px) 46vw, (max-width: 1024px) 45vw, (max-width: 1280px) 30vw, 22vw"
+          sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 18vw"
           className={cn(
-            contain ? "object-contain p-8 sm:p-10" : "object-cover",
+            contain ? "object-contain p-5 sm:p-6" : "object-cover",
             "[mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
             "group-hover/card:scale-[1.04]",
             soldOut && "opacity-45 grayscale",

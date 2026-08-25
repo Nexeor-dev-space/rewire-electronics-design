@@ -117,7 +117,7 @@ export function WhatYouHave() {
   return (
     <section
       aria-labelledby="what-you-have-heading"
-      className="relative overflow-hidden bg-surface-2 pt-(--spacing-section) pb-(--spacing-section-sm)"
+      className="relative overflow-hidden bg-surface-2 py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

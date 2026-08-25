@@ -168,6 +168,14 @@ export interface OrderItem {
   quantity: number;
   /** False once a return window closes — drives the Return Item action. */
   returnable: boolean;
+  /**
+   * Add-ons purchased on this line (extended warranty, sleeve, hub, etc.),
+   * captured at checkout so the order detail can print exactly what the
+   * shopper committed to — independent of later catalogue changes.
+   * Priced once per line, not per device quantity, matching the
+   * `CartItem.addOnIds` semantics in the account provider.
+   */
+  addOns?: { id: string; label: string; price: number }[];
 }
 
 /** One node of the tracking rail. `at` is absent for steps not yet reached. */

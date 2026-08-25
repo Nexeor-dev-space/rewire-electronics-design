@@ -35,7 +35,7 @@ export function AccountAuthGate({
           <button
             type="button"
             onClick={signIn}
-            className="mt-6 inline-flex h-12 items-center rounded-full bg-[#94b2f3] px-6 text-[0.9375rem] font-medium text-[#0f1419] hover:bg-[#a8c1f6]"
+            className="mt-6 inline-flex h-12 items-center rounded-full bg-accent px-6 text-[0.9375rem] font-medium text-white hover:bg-accent-hover"
           >
             Sign in
           </button>

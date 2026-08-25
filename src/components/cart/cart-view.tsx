@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getProductBySlug } from "@/lib/catalog";
+import { addOnsFor, addOnsTotal } from "@/lib/add-ons";
 import { useAccount, type CartItem } from "@/components/providers/account-provider";
 import { Container } from "@/components/layout/container";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
@@ -27,7 +28,8 @@ import { CartSkeleton } from "./cart-skeleton";
  * next cart mutation will let the user reconcile.
  */
 export function CartView() {
-  const { ready, items, updateQuantity, removeItem, cartCount } = useAccount();
+  const { ready, items, updateQuantity, removeItem, toggleLineAddOn, cartCount } =
+    useAccount();
 
   const resolved = items
     .map((line) => ({ line, product: getProductBySlug(line.productSlug) }))
@@ -35,8 +37,17 @@ export function CartView() {
       Boolean(entry.product),
     );
 
+  // Device price scales with quantity; the line's ticked add-ons are
+  // priced once per line (see `CartItem.addOnIds`). Same arithmetic the
+  // row itself prints, so the summary and the lines cannot disagree.
   const subtotal = resolved.reduce(
-    (sum, { line, product }) => sum + product.price * line.quantity,
+    (sum, { line, product }) =>
+      sum +
+      product.price * line.quantity +
+      addOnsTotal(
+        addOnsFor(product.categorySlug ?? product.category),
+        line.addOnIds ?? [],
+      ),
     0,
   );
 
@@ -94,6 +105,9 @@ export function CartView() {
                     product={product}
                     onQuantityChange={(qty) => updateQuantity(line.id, qty)}
                     onRemove={() => removeItem(line.id)}
+                    onToggleAddOn={(addOnId) =>
+                      toggleLineAddOn(line.id, addOnId)
+                    }
                   />
                 </li>
               ))}

@@ -48,7 +48,7 @@ export function Featured() {
   return (
     <section
       aria-labelledby="featured-heading"
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 
@@ -119,7 +119,7 @@ export function Featured() {
             // Card widths follow the drop grid exactly — same 4-across
             // step at `xl` and the same 24px gutter — so cards on this
             // section never render narrower than the drop cards above.
-            "xl:grid-cols-4 xl:gap-x-6",
+            "xl:grid-cols-5 xl:gap-x-6",
           )}
         >
           {products.map((product, i) => (

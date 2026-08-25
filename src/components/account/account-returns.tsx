@@ -310,12 +310,12 @@ function RequestReturnPanel({
                           className={cn(
                             "flex size-5 shrink-0 items-center justify-center rounded-full border",
                             active
-                              ? "border-[#94b2f3] bg-[#94b2f3]"
+                              ? "border-accent bg-accent"
                               : "border-line-strong bg-surface",
                           )}
                         >
                           {active && (
-                            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-[#0f1419]">
+                            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-white">
                               <path d="M2.5 6.5l2.5 2.5 4.5-5" />
                             </svg>
                           )}
@@ -371,7 +371,7 @@ function RequestReturnPanel({
                       ? "Tell us what happened — as much detail as you can."
                       : "Anything else we should know? Optional."
                   }
-                  className="mt-2 w-full resize-y rounded-xl border border-line-strong bg-surface-2 p-3 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-[#94b2f3] focus:outline-none"
+                  className="mt-2 w-full resize-y rounded-xl border border-line-strong bg-surface-2 p-3 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
                 />
               </label>
 
@@ -383,7 +383,7 @@ function RequestReturnPanel({
                   className={cn(
                     "inline-flex h-11 items-center gap-2 rounded-full px-5 text-[0.875rem] font-medium",
                     canReview
-                      ? "bg-[#94b2f3] text-[#0f1419] hover:bg-[#a8c1f6]"
+                      ? "bg-accent text-white hover:bg-accent-hover"
                       : "cursor-not-allowed bg-white/[0.04] text-ink-muted",
                   )}
                 >
@@ -415,7 +415,7 @@ function RequestReturnPanel({
                 <button
                   type="button"
                   onClick={() => setStep("confirmed")}
-                  className="inline-flex h-11 items-center gap-2 rounded-full bg-[#94b2f3] px-5 text-[0.875rem] font-medium text-[#0f1419] hover:bg-[#a8c1f6]"
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[0.875rem] font-medium text-white hover:bg-accent-hover"
                 >
                   Submit return request
                 </button>

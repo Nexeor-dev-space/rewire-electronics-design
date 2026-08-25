@@ -301,7 +301,7 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
             aria-label={`${product.name} in cart`}
             className={cn(
               "flex h-14 flex-1 items-center justify-between rounded-full px-2",
-              "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft)",
+              "bg-accent text-white",
             )}
           >
             <button
@@ -340,7 +340,7 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
             className={cn(
               "flex-1",
               purchasable &&
-                "bg-[#94b2f3] text-[#0f1419] shadow-(--shadow-soft) hover:bg-[#a8c1f6]",
+                "bg-accent text-white hover:bg-accent-hover",
             )}
             disabled={soldOut}
           >

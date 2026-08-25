@@ -8,6 +8,7 @@ import { AboutQuality } from "@/components/about/quality";
 import { AboutWhy } from "@/components/about/why";
 import { AboutSustainability } from "@/components/about/sustainability";
 import { AboutCta } from "@/components/about/cta";
+import { Process } from "@/components/home/process/process";
 
 export const metadata: Metadata = {
   title: `About — ${siteConfig.name}`,
@@ -35,6 +36,11 @@ export default function AboutPage() {
       <AboutQuality />
       <AboutWhy />
       <AboutSustainability />
+      {/* "How Every Drop Works" — the four-step drop flow (waitlist →
+          reminder → purchase → delivery). Moved here from the homepage
+          so the About page ends with the customer journey immediately
+          before the closing CTA. */}
+      <Process />
       <AboutCta />
     </>
   );
