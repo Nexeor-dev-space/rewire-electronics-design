@@ -1,11 +1,14 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 
 /**
- * Site chrome — header, footer, skip-link, `<main>` container.
+ * Site chrome — header, footer, skip-link, `<main>` container, and the
+ * phone's bottom tab bar.
  * Wraps every route inside `(site)` (home, product, cart, wishlist, …).
  * Reduced-chrome flows such as `/checkout` sit outside this group and
- * skip the chrome entirely.
+ * skip the chrome entirely — deliberately including the tab bar, since
+ * mid-checkout navigation is exactly what that flow removes.
  */
 export default function SiteLayout({
   children,
@@ -23,7 +26,14 @@ export default function SiteLayout({
       <main id="main" className="flex-1">
         {children}
       </main>
-      <Footer />
+      {/* Bottom pad below `md` keeps the document's last content — the
+          footer's legal line — clear of the fixed tab bar. On the
+          wrapper rather than on `<main>`, because the footer is the
+          element the bar actually overlaps. */}
+      <div className="pb-16 md:pb-0">
+        <Footer />
+      </div>
+      <MobileTabBar />
     </>
   );
 }

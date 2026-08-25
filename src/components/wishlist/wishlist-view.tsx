@@ -64,7 +64,7 @@ export function WishlistView() {
           aria-label="Saved products"
           // Same grid rhythm as the Featured rail so this page reads as
           // the shop it came from rather than a separate module.
-          className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-x-6"
+          className="mt-14 grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2 sm:gap-x-6 sm:gap-y-14 lg:grid-cols-3 xl:grid-cols-5 xl:gap-x-6"
         >
           {resolved.map((product, index) => (
             <motion.li key={product.slug} variants={fadeUp}>

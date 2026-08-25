@@ -167,7 +167,15 @@ export function MobileDrawer({
 
             <nav
               aria-label="Primary"
-              className="flex-1 overflow-y-auto px-(--spacing-gutter) pb-8"
+              // `data-lenis-prevent` hands wheel + touch events inside
+              // this pane back to the browser. Without it Lenis' virtual
+              // scroll swallows every gesture and tries to scroll the
+              // page — which the open drawer has locked — so the nav
+              // list reads as unscrollable. Same fix as the shop
+              // sidebar. `overscroll-contain` stops a fast flick at the
+              // list's end from chaining into the locked page behind.
+              data-lenis-prevent
+              className="flex-1 overflow-y-auto overscroll-contain px-(--spacing-gutter) pb-8"
             >
               <ul>
                 {sections.map((item, i) => (
@@ -182,6 +190,25 @@ export function MobileDrawer({
                     }}
                     className="border-b border-line"
                   >
+                    {/* A section without children is a destination, not
+                        a disclosure — rendered as a plain link so a
+                        single-brand category costs one tap, never an
+                        accordion that opens onto nothing. */}
+                    {item.items.length === 0 ? (
+                      <Link
+                        href={item.href}
+                        onClick={onClose}
+                        className="flex w-full items-center gap-3 py-4 text-lg tracking-tight text-ink"
+                      >
+                        {item.label}
+                        {isActive(item.href) && (
+                          <span
+                            aria-hidden
+                            className="size-1 rounded-full bg-accent"
+                          />
+                        )}
+                      </Link>
+                    ) : (
                     <>
                         <button
                           type="button"
@@ -262,6 +289,7 @@ export function MobileDrawer({
                           )}
                         </AnimatePresence>
                     </>
+                    )}
                   </motion.li>
                 ))}
               </ul>
@@ -374,32 +402,11 @@ export function MobileDrawer({
                 </Link>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onJoinWaitlist();
-                }}
-                className={cn(
-                  "mt-3 flex h-12 w-full items-center justify-center gap-2.5 rounded-full",
-                  "bg-ink text-sm font-medium tracking-tight text-surface",
-                  "transition-colors duration-(--duration-fast) hover:bg-ink-hover",
-                )}
-              >
-                Join Waitlist
-                <svg
-                  aria-hidden
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-3.5"
-                >
-                  <path d="M3 8h10M9 4l4 4-4 4" />
-                </svg>
-              </button>
+              {/* The Join Waitlist footer CTA was removed with the new
+                  e-commerce top nav — a browse-first drawer should
+                  close on Sign in / Cart, not on marketing. Waitlist
+                  entries survive on the drop-specific surfaces (hero,
+                  upcoming drops, About) that own them. */}
             </div>
           </motion.div>
         </motion.div>

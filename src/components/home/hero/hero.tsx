@@ -165,15 +165,14 @@ export function Hero() {
       // ~700px tall. In portrait the banner sizes to its content instead
       // and hands the rest of the screen to the calendar below.
       //
-      // The height subtracts the masthead offset it sits below. `mt-16`
-      // (`md:mt-20`) pushes this section down by the fixed header, so a
-      // flat `min-h-svh` made the banner a full header taller than the
-      // screen — and because the composition is bottom-anchored, every
-      // one of those 64–80px came off the *bottom*, running the product
-      // past the fold and leaving the band under the masthead empty.
-      // Subtracting the same offset the margin adds puts the whole
-      // composition back inside one screen, which lifts the product.
-      className="relative mt-16 flex min-h-[calc(100svh-4rem)] flex-col overflow-hidden bg-void md:mt-20 md:min-h-[calc(100svh-5rem)] md:portrait:min-h-0"
+      // The section now starts at y=0 and flows *behind* the fixed
+      // header (which is semi-transparent with backdrop-blur, so its
+      // material shows through). No `mt-*` gap between header and
+      // hero means no flat body-bg strip under the nav's bottom
+      // divider — the ground, grain and ambient light all extend up
+      // to the top of the viewport. REIMAGINED's own offset (bumped
+      // in the masthead wrapper below) keeps it clear of the nav.
+      className="relative flex min-h-svh flex-col overflow-hidden bg-void md:portrait:min-h-0"
     >
       {/* Paper grain, nothing else */}
       <div aria-hidden className="grain absolute inset-0" />
@@ -201,7 +200,12 @@ export function Hero() {
           running underneath the panel's numbers. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[6%] z-0 select-none md:top-[4%]"
+        // Fixed rem offsets rather than percentages so the masthead
+        // sits a predictable distance below the fixed header regardless
+        // of viewport height. Header is ~4.5rem (row 1) + ~2.75rem
+        // (nav row 2) = ~7.25rem; `top-[8rem]` md:`top-[9rem]` clears
+        // it with a hairline of breathing room.
+        className="pointer-events-none absolute inset-x-0 top-[8rem] z-0 select-none md:top-[9rem]"
       >
         {/* Full viewport width at every size, centred, cropped by the
             section's `overflow-hidden`.

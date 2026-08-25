@@ -53,8 +53,8 @@
      Filled surfaces take white text: white on #c2410c measures ~4.5:1,
      AA for the button sizes in use. As small text on `void` the accent
      itself reads ~4.9:1. */
-  --color-accent: #c2410c;
-  --color-accent-hover: #d45118;
+  --color-accent: #3b404b;
+  --color-accent-hover: #4a5060;
 
   /* ---------- Color · Signals ----------
      Tuned brighter on dark so status labels retain contrast without
@@ -63,10 +63,12 @@
   --color-warn: #e0a45c; /* low stock, limited drop, countdown urgency */
   --color-danger: #d1706a; /* errors, sold out */
 
-  /* The scarcity accent — the same #c2410c as the brand accent, exposed
+  /* The scarcity accent — the same #3b404b as the brand accent, exposed
      under the `urgent` name so the semantic call-sites (stock bar,
-     remaining count, live dot) read as scarcity rather than as branding. */
-  --color-urgent: #c2410c;
+     remaining count, live dot) read as scarcity rather than as branding.
+     If scarcity ever needs to stand apart from the brand again, split
+     this off to a warmer hue here without touching the call-sites. */
+  --color-urgent: #3b404b;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
      Two families, no display face. Söhne carries everything structural
@@ -282,8 +284,8 @@
        down, not the brand. A hair brighter would be needed only if the
        accent ever printed as small text on this ground; as fills and
        15px+ labels it holds. */
-    --color-accent: #c2410c;
-    --color-accent-hover: #d45118;
+    --color-accent: #3b404b;
+    --color-accent-hover: #4a5060;
 
     --color-live: #8fae9b;
 

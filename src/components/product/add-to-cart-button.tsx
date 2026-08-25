@@ -66,17 +66,20 @@ export function AddToCartButton({
     >
       <svg
         aria-hidden
-        viewBox="0 0 20 20"
+        viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.4"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="size-[0.9375rem]"
+        className="size-[1.05rem]"
       >
-        {/* A shopping bag — softer than a trolley, matches the header cart glyph */}
-        <path d="M4.75 6.75h10.5l-.9 10a1.5 1.5 0 0 1-1.5 1.35H7.15a1.5 1.5 0 0 1-1.5-1.35Z" />
-        <path d="M7.5 6.75V5.5a2.5 2.5 0 0 1 5 0v1.25" />
+        {/* A trolley cart — the bag outline read as a trash bin at button
+            scale because the flat top-handle looks like a lid. The trolley
+            with two wheels and a hooked handle is unambiguous. */}
+        <path d="M2.5 3.5h2.6l2.6 11.4a1.5 1.5 0 0 0 1.47 1.2h8.6a1.5 1.5 0 0 0 1.47-1.2L20.9 7.5H6.5" />
+        <circle cx="9.5" cy="19.5" r="1.35" />
+        <circle cx="17" cy="19.5" r="1.35" />
       </svg>
       {soldOut ? "Sold out" : "Add to cart"}
     </button>

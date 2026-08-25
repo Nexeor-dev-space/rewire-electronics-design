@@ -135,12 +135,13 @@ export function UpcomingDrops() {
           variants={staggerChildren(0.14, 0.1)}
           className={cn(
             "mt-16 lg:mt-20",
-            // Phones read the calendar one release at a time: a full-width
-            // plate per drop, stacked. Nothing is cropped at the edge and
-            // no horizontal gesture is required to reach the fourth.
-            "grid grid-cols-1 gap-y-12",
-            // Tablet: two up. Desktop: the full calendar.
-            "sm:grid-cols-2 sm:gap-x-6 sm:gap-y-14",
+            // Two up from 360px, matching the shop grid — a full-width
+            // plate per drop made phones scroll five screens to read
+            // the calendar. Below 360 the card copy starts colliding,
+            // so it drops to one.
+            "grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2",
+            // Tablet keeps two up with more air. Desktop: the full calendar.
+            "sm:gap-x-6 sm:gap-y-14",
             "xl:grid-cols-5",
           )}
         >
