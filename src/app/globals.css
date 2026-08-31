@@ -292,6 +292,65 @@
     color: var(--color-ink);
   }
 
+  /**
+   * `.admin-theme` — the admin console's ground.
+   *
+   * The storefront is dark because it is a showroom; the console is a
+   * workspace, where dense tables, forms and long navigation lists read
+   * better on white. Rather than a second component library, it flips the
+   * same tokens every component already consumes, the way `.theme-dark`
+   * and `.commerce-dark` do — so a `Card`, `Button` or `Badge` dropped
+   * into an admin page inherits the light palette without a variant of
+   * its own.
+   *
+   * Signals are re-tuned rather than reused: the dark palette's live /
+   * warn / danger are lifted for contrast on graphite and read washed out
+   * on white.
+   */
+  .admin-theme {
+    color-scheme: light;
+
+    --color-void: #ffffff; /* page canvas */
+    --color-surface: #f6f7f8; /* card / raised panel */
+    --color-surface-2: #fafafa; /* alternate section ground */
+    --color-surface-3: #ffffff; /* elevated: menus, popovers */
+    --color-plate: #f1f2f3;
+
+    --color-ink: #17191c;
+    --color-ink-hover: #000000;
+    --color-ink-secondary: #55595f;
+    --color-ink-muted: #82878d;
+    --color-ink-faint: rgb(0 0 0 / 0.14);
+
+    /* Hairlines invert with the ground: black at low alpha holds the same
+       optical weight over every light surface tone. */
+    --color-line: rgb(0 0 0 / 0.09);
+    --color-line-strong: rgb(0 0 0 / 0.16);
+
+    /* The brand accent is already a deep slate, so it carries white text
+       and reads as ink-adjacent on white without a second value. */
+    --color-accent: #3b404b;
+    --color-accent-hover: #2b3039;
+    --color-urgent: #3b404b;
+
+    --color-live: #2e7d51;
+    --color-warn: #9a6410;
+    --color-danger: #b23c37;
+
+    --glass-bg: rgb(255 255 255 / 0.72);
+    --glass-bg-strong: rgb(255 255 255 / 0.92);
+    --glass-border: rgb(0 0 0 / 0.08);
+    /* No film grain on a workspace surface. */
+    --grain-opacity: 0;
+
+    --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.06);
+    --shadow-float: 0 16px 40px rgb(0 0 0 / 0.1);
+    --shadow-edge: inset 0 1px 0 rgb(255 255 255 / 0.9);
+
+    background-color: var(--color-void);
+    color: var(--color-ink);
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
