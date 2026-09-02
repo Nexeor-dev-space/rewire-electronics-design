@@ -24,10 +24,12 @@ import { AdminUserMenu } from "./admin-user-menu";
  * variant of its own.
  */
 
-const RAIL = "w-72";
+const RAIL_EXPANDED = "w-72";
+const RAIL_COLLAPSED = "w-20";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
 
   // Close the drawer on navigation. `onNavigate` covers a click on a nav
@@ -59,11 +61,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </a>
 
       {/* ---------- Desktop rail ---------- */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-void lg:flex ${RAIL}`}
+      <motion.aside
+        className="fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-void lg:flex"
+        animate={{ width: sidebarCollapsed ? 80 : 288 }}
+        transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
       >
-        <RailContents />
-      </aside>
+        <RailContents
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </motion.aside>
 
       {/* ---------- Mobile / tablet drawer ---------- */}
       <AnimatePresence>
@@ -80,20 +87,24 @@ export function AdminShell({ children }: { children: ReactNode }) {
               transition={{ duration: DURATION.menu }}
             />
             <motion.aside
-              className={`absolute inset-y-0 left-0 flex flex-col border-r border-line bg-void ${RAIL}`}
+              className={`absolute inset-y-0 left-0 flex flex-col border-r border-line bg-void ${RAIL_EXPANDED}`}
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
             >
-              <RailContents onNavigate={() => setDrawerOpen(false)} />
+              <RailContents onNavigate={() => setDrawerOpen(false)} collapsed={false} />
             </motion.aside>
           </div>
         )}
       </AnimatePresence>
 
       {/* ---------- Content column ---------- */}
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-72">
+      <motion.div
+        className="flex min-w-0 flex-1 flex-col"
+        animate={{ paddingLeft: sidebarCollapsed ? 80 : 288 }}
+        transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+      >
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-void/85 px-4 backdrop-blur-md md:px-8">
           <button
             type="button"
@@ -137,7 +148,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <main id="admin-main" className="flex-1 px-4 py-8 md:px-8 md:py-10">
           {children}
         </main>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -146,20 +157,52 @@ export function AdminShell({ children }: { children: ReactNode }) {
  * Rail contents — brand head, then the scrolling navigation list. Shared
  * by the fixed desktop rail and the drawer so both render the same tree.
  */
-function RailContents({ onNavigate }: { onNavigate?: () => void }) {
+function RailContents({
+  onNavigate,
+  collapsed,
+  onToggleCollapsed,
+}: {
+  onNavigate?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) {
   return (
     <>
-      <div className="flex h-16 shrink-0 items-center border-b border-line px-6">
-        <Link
-          href={ADMIN_ROOT}
-          onClick={onNavigate}
-          className="text-[1.0625rem] font-medium tracking-tight text-ink"
-        >
-          {adminConsole.name}
-          <span className="ml-1.5 font-normal text-ink-muted">
-            {adminConsole.label}
-          </span>
-        </Link>
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-3 lg:px-6">
+        {!collapsed && (
+          <Link
+            href={ADMIN_ROOT}
+            onClick={onNavigate}
+            className="text-[1.0625rem] font-medium tracking-tight text-ink"
+          >
+            {adminConsole.name}
+            <span className="ml-1.5 font-normal text-ink-muted">
+              {adminConsole.label}
+            </span>
+          </Link>
+        )}
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden rounded-lg p-2 text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-surface hover:text-ink lg:block"
+          >
+            <motion.svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4"
+              aria-hidden
+              animate={{ scaleX: collapsed ? -1 : 1 }}
+            >
+              <path d="M15 18l-6-6 6-6M9 12h12" />
+            </motion.svg>
+          </button>
+        )}
       </div>
 
       {/* `data-lenis-prevent` keeps the site's smooth-scroll driver off this
@@ -167,9 +210,9 @@ function RailContents({ onNavigate }: { onNavigate?: () => void }) {
           not move with it. */}
       <div
         data-lenis-prevent
-        className="flex-1 overflow-y-auto px-3 pt-5 [scrollbar-width:thin]"
+        className="flex-1 overflow-y-auto px-3 pt-5 scrollbar-thin"
       >
-        <AdminNavList onNavigate={onNavigate} />
+        <AdminNavList onNavigate={onNavigate} collapsed={collapsed} />
       </div>
     </>
   );
