@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ADMIN_ROOT } from "@/lib/admin-nav";
 import { adminConsole } from "@/lib/admin-console";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import { AdminNavList } from "./admin-nav";
 import { AdminUserMenu } from "./admin-user-menu";
 
@@ -24,8 +25,21 @@ import { AdminUserMenu } from "./admin-user-menu";
  * variant of its own.
  */
 
+/**
+ * Rail widths. The retracted rail keeps the section glyphs visible as an
+ * index; clicking one expands the rail again.
+ *
+ * These are Tailwind classes rather than animated inline styles on
+ * purpose: the padding they pair with on the content column has to stay
+ * behind the `lg:` breakpoint, and an inline style cannot.
+ */
 const RAIL_EXPANDED = "w-72";
 const RAIL_COLLAPSED = "w-20";
+const CONTENT_PAD_EXPANDED = "lg:pl-72";
+const CONTENT_PAD_COLLAPSED = "lg:pl-20";
+
+/** Shared retract transition, from the house motion vocabulary. */
+const RETRACT = "duration-(--duration-base) ease-(--ease-out-expo)";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -61,16 +75,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </a>
 
       {/* ---------- Desktop rail ---------- */}
-      <motion.aside
-        className="fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-void lg:flex"
-        animate={{ width: sidebarCollapsed ? 80 : 288 }}
-        transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-void lg:flex",
+          "transition-[width]",
+          RETRACT,
+          sidebarCollapsed ? RAIL_COLLAPSED : RAIL_EXPANDED,
+        )}
       >
         <RailContents
           collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleCollapsed={() => setSidebarCollapsed((open) => !open)}
         />
-      </motion.aside>
+      </aside>
 
       {/* ---------- Mobile / tablet drawer ---------- */}
       <AnimatePresence>
@@ -100,10 +117,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       {/* ---------- Content column ---------- */}
-      <motion.div
-        className="flex min-w-0 flex-1 flex-col"
-        animate={{ paddingLeft: sidebarCollapsed ? 80 : 288 }}
-        transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+      {/* The rail only exists from `lg` up, so its padding must stay behind
+          that breakpoint too — below it the drawer floats over the page. */}
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          "transition-[padding]",
+          RETRACT,
+          sidebarCollapsed ? CONTENT_PAD_COLLAPSED : CONTENT_PAD_EXPANDED,
+        )}
       >
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-void/85 px-4 backdrop-blur-md md:px-8">
           <button
@@ -148,7 +170,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <main id="admin-main" className="flex-1 px-4 py-8 md:px-8 md:py-10">
           {children}
         </main>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -185,22 +207,31 @@ function RailContents({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="hidden rounded-lg p-2 text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-surface hover:text-ink lg:block"
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Expand navigation" : "Collapse navigation"}
+            className={cn(
+              "hidden shrink-0 rounded-lg p-2 text-ink-secondary lg:block",
+              "transition-colors duration-(--duration-fast) hover:bg-surface hover:text-ink",
+              collapsed && "mx-auto",
+            )}
           >
-            <motion.svg
+            <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="size-4"
+              className={cn(
+                "size-4 transition-transform",
+                RETRACT,
+                collapsed && "-scale-x-100",
+              )}
               aria-hidden
-              animate={{ scaleX: collapsed ? -1 : 1 }}
             >
               <path d="M15 18l-6-6 6-6M9 12h12" />
-            </motion.svg>
+            </svg>
           </button>
         )}
       </div>
@@ -210,9 +241,13 @@ function RailContents({
           not move with it. */}
       <div
         data-lenis-prevent
-        className="flex-1 overflow-y-auto px-3 pt-5 scrollbar-thin"
+        className="flex-1 overflow-y-auto px-3 pt-5 [scrollbar-width:thin]"
       >
-        <AdminNavList onNavigate={onNavigate} collapsed={collapsed} />
+        <AdminNavList
+          onNavigate={onNavigate}
+          collapsed={collapsed}
+          onExpand={collapsed ? onToggleCollapsed : undefined}
+        />
       </div>
     </>
   );

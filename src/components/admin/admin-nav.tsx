@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +10,7 @@ import {
   matchAdminRoute,
   type AdminNavItem,
 } from "@/lib/admin-nav";
+import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,24 +28,40 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   onNavigate?: () => void;
+  /** Retracted rail: section glyphs only, no labels and no rows. */
   collapsed?: boolean;
+  /**
+   * Set only while retracted. Clicking a section glyph then reopens the
+   * rail rather than toggling an accordion nobody can see.
+   */
+  onExpand?: () => void;
 }
 
-export function AdminNavList({ onNavigate, collapsed }: Props) {
+export function AdminNavList({ onNavigate, collapsed, onExpand }: Props) {
   const pathname = usePathname();
   const match = matchAdminRoute(pathname);
   const [openSections, setOpenSections] = useState<Set<string>>(
-    new Set(adminNav.map((s) => s.area)),
+    () => new Set(adminNav.map((section) => section.area)),
   );
 
+  // The admin layout persists across `/admin/*`, so this state outlives a
+  // route change. Reopen whichever section owns the new route, otherwise
+  // navigating into a section the user had collapsed would hide the page
+  // they are actually on.
+  const activeArea = match?.section.area;
+  useEffect(() => {
+    if (!activeArea) return;
+    setOpenSections((open) =>
+      open.has(activeArea) ? open : new Set(open).add(activeArea),
+    );
+  }, [activeArea]);
+
   const toggleSection = (area: string) => {
-    const newOpen = new Set(openSections);
-    if (newOpen.has(area)) {
-      newOpen.delete(area);
-    } else {
-      newOpen.add(area);
-    }
-    setOpenSections(newOpen);
+    setOpenSections((open) => {
+      const next = new Set(open);
+      if (!next.delete(area)) next.add(area);
+      return next;
+    });
   };
 
   return (
@@ -60,17 +77,27 @@ export function AdminNavList({ onNavigate, collapsed }: Props) {
         return (
           <div key={section.area}>
             <button
-              onClick={() => toggleSection(section.area)}
+              type="button"
+              onClick={() => {
+                // Retracted, the rows are not rendered — so reveal them by
+                // reopening the rail with this section already unfolded.
+                if (collapsed) {
+                  setOpenSections((open) => new Set(open).add(section.area));
+                  onExpand?.();
+                  return;
+                }
+                toggleSection(section.area);
+              }}
               className={cn(
                 "mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.18em] transition-colors duration-(--duration-fast)",
-                collapsed
-                  ? "justify-center"
-                  : hasActiveItem
-                    ? "bg-surface text-ink"
-                    : "text-ink-muted hover:bg-surface/50 hover:text-ink",
+                collapsed && "justify-center",
+                hasActiveItem
+                  ? "bg-surface text-ink"
+                  : "text-ink-muted hover:bg-surface/50 hover:text-ink",
               )}
-              aria-expanded={isOpen}
-              aria-label={`Toggle ${section.label}`}
+              aria-expanded={collapsed ? undefined : isOpen}
+              aria-label={collapsed ? section.label : `Toggle ${section.label}`}
+              title={collapsed ? section.label : undefined}
             >
               <SectionGlyph paths={section.glyph} />
               {!collapsed && (
@@ -79,7 +106,7 @@ export function AdminNavList({ onNavigate, collapsed }: Props) {
                   <motion.div
                     className="ml-auto flex items-center"
                     animate={{ rotate: isOpen ? 0 : -90 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: DURATION.fast }}
                   >
                     <ChevronDown />
                   </motion.div>
@@ -95,7 +122,7 @@ export function AdminNavList({ onNavigate, collapsed }: Props) {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: DURATION.menu, ease: EASE_OUT_EXPO }}
                   >
                     {section.items.map((item) => (
                       <li key={item.key}>

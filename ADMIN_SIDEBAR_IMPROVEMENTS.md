@@ -1,89 +1,83 @@
-# Admin Sidebar Improvements
+# Admin Sidebar: Accordion Sections and Retractable Rail
 
-## Overview
-Enhanced the admin dashboard navigation with two new features to improve usability and content visibility.
+## What changed
 
-## Features Implemented
+Two additions to the admin navigation rail.
 
-### 1. Accordion-Style Dropdown Structure
-Each navigation section (OVERVIEW, CATALOGUE, STOREFRONT, SALES, SERVICE, MARKETING, INTEGRATIONS, GOVERNANCE) now supports collapsible/expandable functionality.
+1. Section sub titles (OVERVIEW, CATALOGUE, STOREFRONT and the rest) are now
+   accordion headers. Clicking one folds or unfolds the rows beneath it.
+2. The desktop rail retracts to a narrow glyph only strip, giving the content
+   column back roughly 13rem of width.
 
-**Features:**
-- Click the section header to expand/collapse its items
-- Smooth height animation when opening/closing
-- Chevron icon rotates to indicate state (0° when open, -90° when closed)
-- Sections are open by default
-- Active sections (with currently selected items) are visually highlighted
-- When sidebar is collapsed to icon-only view, accordion sections are also hidden
+## Why
 
-**Files Modified:**
-- `src/components/admin/admin-nav.tsx`
+The rail lists eight sections and around thirty rows. Everything was expanded
+at all times, so the sub titles carried no visual weight and the list ran well
+past the fold. Folding sections gives the sub titles a job, and retracting the
+whole rail helps on the wide data tables in Products and Orders.
 
-### 2. Retractable Desktop Sidebar
-The desktop navigation sidebar can now collapse to an icon-only view, freeing up horizontal space for content.
+## Files modified
 
-**Features:**
-- Toggle button in the sidebar header (only visible on desktop/lg+)
-- Smooth width animation: expanded (288px/18rem) ↔ collapsed (80px/5rem)
-- Content area padding animates synchronously
-- Mobile/tablet drawer navigation remains unaffected (always full-width)
-- Brand logo hides when sidebar is collapsed
-- Only shows section icons when collapsed
-- Collapse state persists within the session
+* `src/components/admin/admin-nav.tsx`
+* `src/components/admin/admin-shell.tsx`
 
-**Files Modified:**
-- `src/components/admin/admin-shell.tsx`
-- `src/components/admin/admin-nav.tsx`
+No new files, no new dependencies, no config or database changes.
 
-## Technical Details
+## Behaviour
 
-### Admin Navigation (`admin-nav.tsx`)
-- Added `useState` hook to track open sections by area
-- Added `collapsed` prop to conditionally render text/icons
-- Section headers become clickable buttons with aria-expanded attributes
-- Used Framer Motion for smooth accordion animations
-  - Initial: `{ opacity: 0, height: 0 }`
-  - Animate: `{ opacity: 1, height: "auto" }`
-  - Exit: `{ opacity: 0, height: 0 }`
-  - Duration: 0.2s
-- Chevron icon rotates -90° when section is collapsed
+### Accordion sections
 
-### Admin Shell (`admin-shell.tsx`)
-- Added `sidebarCollapsed` state to track collapse state
-- Desktop rail (fixed aside) animates width between 288px and 80px
-- Content column animates padding-left between 288px and 80px
-- Both use Framer Motion with 0.3s duration and EASE_OUT_EXPO easing
-- Toggle button in rail header controls the collapse state
-- Button is hidden on mobile (lg:block class)
-- Drawer navigation (mobile) passes `collapsed={false}` to always show full text
+* Every section starts unfolded.
+* A section header shows a chevron that rotates to face down when open and
+  left when closed.
+* A section containing the current page is tinted with `bg-surface` so the
+  active area is legible even when scrolled.
+* Fold state lives in `AdminNavList`. The admin layout persists across
+  `/admin/*`, so that state survives route changes rather than resetting.
+* When the route moves into a section the user had folded, that section is
+  reopened automatically. Otherwise navigating by breadcrumb or by URL would
+  hide the very page the user is on.
 
-## User Interactions
+### Retractable rail
 
-### Expanding/Collapsing Sections
-1. Click on any section header (CATALOGUE, STOREFRONT, etc.)
-2. Section expands/collapses with smooth animation
-3. Chevron rotates to indicate current state
+* A toggle sits at the top right of the rail head, desktop only.
+* Retracted, the rail is `w-20` and shows the eight section glyphs. Each
+  carries a `title` tooltip naming its section.
+* Clicking a glyph while retracted reopens the rail with that section
+  unfolded, so the retracted rail stays navigable instead of becoming a strip
+  of dead icons.
+* Below the `lg` breakpoint nothing changes. The rail is still a drawer behind
+  the header menu button and always renders full width with labels.
 
-### Toggling Sidebar
-**Desktop only:**
-1. Click the collapse/expand button in the sidebar header (top right of sidebar)
-2. Sidebar animates to compact icon-only view
-3. Content area expands to use the freed space
-4. Click again to restore full sidebar with labels
+## Implementation notes
 
-## Browser Support
-- Uses Framer Motion for animations (excellent browser compatibility)
-- All animations are smooth on modern browsers
-- Gracefully degrades if animations are disabled (prefers-reduced-motion)
+### Rail width is a class, not an animated inline style
 
-## Performance Considerations
-- Accordion state is local to the component (resets on navigation)
-- Sidebar collapse state is local to the session (resets on page reload)
-- No external dependencies added
-- Animations use GPU-accelerated properties (transform, opacity)
+The content column pads itself to clear the rail with `lg:pl-72` or
+`lg:pl-20`. That padding has to stay behind the `lg:` breakpoint, because
+below it the drawer floats over the page and there is no rail to clear.
 
-## Future Enhancements
-- Persist sidebar collapse state to localStorage or server preferences
-- Persist accordion section state across navigation
-- Add keyboard shortcuts (e.g., Cmd+B to toggle sidebar)
-- Add animation preference detection (prefers-reduced-motion)
+An animated inline style cannot express a breakpoint and would beat the
+Tailwind class, pushing mobile content 18rem to the right with nothing
+beside it. So both the rail width and the content padding are plain
+conditional classes with a CSS `transition`, not Framer Motion values.
+
+The shared `RETRACT` constant in `admin-shell.tsx` holds that transition
+(`--duration-base`, `--ease-out-expo`) so the rail, the padding and the toggle
+chevron all move together.
+
+### Motion values come from the vocabulary
+
+The accordion still uses Framer Motion, since animating `height: auto` is
+awkward in plain CSS. Its timings are taken from `src/lib/motion.ts`
+(`DURATION.menu` for the fold, `DURATION.fast` for the chevron) rather than
+written inline, per the note at the top of that file.
+
+## Follow up work
+
+* Fold state and rail state are per session. Persisting them to
+  `localStorage` would make the console remember a user's layout.
+* The retracted rail indexes by section, not by row, because
+  `src/lib/admin-nav.ts` declares glyphs per section only. Per row icons
+  would allow a true icon rail with flyout menus.
+* A keyboard shortcut for the rail toggle.
