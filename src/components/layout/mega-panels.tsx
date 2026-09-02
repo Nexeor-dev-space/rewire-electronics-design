@@ -5,14 +5,7 @@ import Link from "next/link";
 import { getUpcomingDrops } from "@/lib/drops";
 import { getCategories } from "@/lib/categories";
 import Image from "next/image";
-import {
-  aboutColumns,
-  aboutFeature,
-  shopBrowse,
-  shopPopular,
-  supportContact,
-  supportLinks,
-} from "@/lib/navigation";
+import { aboutColumns, shopBrowse, shopPopular } from "@/lib/navigation";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -22,7 +15,14 @@ import { shopHrefForTerm } from "@/lib/shop";
 import { Countdown } from "@/components/ui/countdown";
 import { formatDropDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Arrow, MenuCta, MenuImage, MenuItem, MenuLabel } from "./mega-primitives";
+import {
+  Arrow,
+  MenuCta,
+  MenuImage,
+  MenuItem,
+  MenuLabel,
+  MenuSupportBox,
+} from "./mega-primitives";
 
 export interface MegaPanelProps {
   onJoinWaitlist: () => void;
@@ -312,128 +312,41 @@ export function CategoriesMenu() {
 }
 
 /* ============================================================
-   About — the company
+   About — the company, and how to reach it
    ============================================================ */
 
+/**
+ * One panel where there were two. About and Support were separate
+ * triggers opening separate panels, and each linked to the other —
+ * About's last item was "Support", Support's quick links included
+ * Warranty, which About also carried. A shopper looking for the returns
+ * window had to guess which heading owned it.
+ *
+ * Left: the company, then the policies, both from `aboutColumns` —
+ * whose `/support#…` hrefs are generated from the support page's own
+ * anchors, so a renamed section cannot become a dead menu link.
+ *
+ * Right: the support box, lifted verbatim from the old Support panel
+ * (`MenuSupportBox`, now a shared primitive). It replaces the "Built to
+ * be kept." plate, which was a photograph linking to `/about` — the
+ * page the trigger beside it already opens.
+ */
 export function AboutMenu() {
   return (
     <div className="grid grid-cols-12 gap-10 xl:gap-14">
       {aboutColumns.map((column) => (
-        <div key={column.title} className="col-span-3">
+        <div key={column.title} className="col-span-4">
           <MenuLabel>{column.title}</MenuLabel>
           <ul className="mt-5">
             {column.items.map((item) => (
-              <MenuItem key={item.label} item={item} />
+              <MenuItem key={item.href + item.label} item={item} />
             ))}
           </ul>
         </div>
       ))}
 
-      <div className="col-span-6">
-        <Link
-          href={aboutFeature.cta.href}
-          className={cn(
-            "group/card flex h-full overflow-hidden rounded-2xl border border-line bg-void",
-            "transition-[border-color] duration-(--duration-base) ease-(--ease-out-expo)",
-            "hover:border-line-strong",
-          )}
-        >
-          <MenuImage
-            src={aboutFeature.image.url}
-            alt={aboutFeature.image.alt}
-            sizes="(max-width: 1280px) 40vw, 32vw"
-            className="w-1/2 shrink-0"
-          />
-          <span className="flex flex-1 flex-col justify-center p-8">
-            <span className="text-[1.5rem] font-light leading-[1.15] tracking-[-0.025em] text-ink">
-              {aboutFeature.title}
-            </span>
-            <span className="mt-3 text-[0.9375rem] leading-relaxed text-ink-secondary">
-              {aboutFeature.body}
-            </span>
-            <span className="mt-6 inline-flex items-center gap-2.5 text-[0.9375rem] font-medium text-ink">
-              {aboutFeature.cta.label}
-              <Arrow className="transition-transform duration-(--duration-fast) ease-(--ease-out-quart) group-hover/card:translate-x-1" />
-            </span>
-          </span>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Support — the safety net
-   ============================================================ */
-
-export function SupportMenu() {
-  return (
-    <div className="grid grid-cols-12 gap-10 xl:gap-14">
-      <div className="col-span-7">
-        <MenuLabel>Quick links</MenuLabel>
-        <ul className="mt-5 grid grid-cols-2 gap-x-10">
-          {supportLinks.map((item) => (
-            <MenuItem key={item.href} item={item} />
-          ))}
-        </ul>
-      </div>
-
-      <div className="col-span-5">
-        <div className="rounded-2xl border border-line bg-void p-8">
-          <p className="text-[1.25rem] font-light tracking-[-0.02em] text-ink">
-            {supportContact.heading}
-          </p>
-
-          <dl className="mt-6 space-y-4">
-            <div>
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-                Email
-              </dt>
-              <dd className="mt-1.5">
-                <a
-                  href={`mailto:${supportContact.email}`}
-                  className="text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
-                >
-                  {supportContact.email}
-                </a>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-                Chat
-              </dt>
-              <dd className="mt-1.5">
-                <Link
-                  href={supportContact.chat.href}
-                  className="inline-flex items-center gap-2 text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
-                >
-                  <span
-                    aria-hidden
-                    className="size-1.5 animate-pulse-dot rounded-full bg-live"
-                  />
-                  {supportContact.chat.label}
-                </Link>
-              </dd>
-            </div>
-
-            <div>
-              <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-                Hours
-              </dt>
-              <dd className="mt-1.5 space-y-1">
-                {supportContact.hours.map((line) => (
-                  <span
-                    key={line}
-                    className="block text-[0.875rem] text-ink-secondary"
-                  >
-                    {line}
-                  </span>
-                ))}
-              </dd>
-            </div>
-          </dl>
-        </div>
+      <div className="col-span-4">
+        <MenuSupportBox className="h-full" />
       </div>
     </div>
   );

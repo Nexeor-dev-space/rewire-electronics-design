@@ -47,6 +47,7 @@ const PAGE_SIZE = 12;
 export function ShopCatalogue({
   initialCategory,
   initialBrands = [],
+  initialConditions = [],
 }: {
   initialCategory: CategorySlug | null;
   /**
@@ -56,11 +57,19 @@ export function ShopCatalogue({
    * does not exist.
    */
   initialBrands?: string[];
+  /**
+   * Seeds the condition axis the same way. The homepage's "What you
+   * have" legend links each of Refurbished / Pre-Owned / Open Box
+   * straight to its own shelf, which is what makes the legend a way in
+   * rather than three tiles that all land on the same unfiltered grid.
+   */
+  initialConditions?: Condition[];
 }) {
   const [filters, setFilters] = useState<ShopFilters>(() => ({
     ...emptyFilters,
     categories: initialCategory ? [initialCategory] : [],
     brands: initialBrands,
+    conditions: initialConditions,
   }));
   const [sort, setSort] = useState<SortId>("recommended");
   const [visible, setVisible] = useState(PAGE_SIZE);

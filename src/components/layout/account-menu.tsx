@@ -19,7 +19,22 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
  * Unlike the primary nav panels this one opens on click only, never hover:
  * it is a destination menu, not a browsing aid, and opening it by accident
  * while reaching for the cart would be worse than one extra click.
+ *
+ * **Both states occupy the same box.** The signed-out control is a
+ * "Sign in" pill; the signed-in one is an avatar chip plus the word
+ * "Account", and it is the wider of the two. The swap happens after
+ * mount, when the provider has read persisted state — so a signed-in
+ * reader used to watch the utility row grow by ~40px on every page
+ * load, which pushed the centred search field left and re-flowed the
+ * bar. `SLOT_WIDTH` reserves the wider of the two from first paint, so
+ * nothing moves when the real state arrives.
  */
+
+/**
+ * Wide enough for the signed-in control (28px avatar + gap + "Account"
+ * + padding). The signed-out pill centres inside the same box.
+ */
+const SLOT_WIDTH = "w-[7.5rem]";
 export function AccountMenu() {
   const { user, ready, signIn, signOut } = useAccount();
   const pathname = usePathname();
@@ -49,20 +64,22 @@ export function AccountMenu() {
   // same size as the signed-in one, so nothing shifts when the swap happens.
   if (!ready || !user) {
     return (
-      <button
-        type="button"
-        // ⚠ Stand-in for the real flow: point this at the auth route (or the
-        // provider's sign-in call) once authentication exists.
-        onClick={signIn}
-        className={cn(
-          "hidden h-10 items-center rounded-full px-4 lg:inline-flex",
-          "text-[0.8125rem] font-medium tracking-tight text-ink-secondary",
-          "transition-colors duration-(--duration-fast)",
-          "hover:bg-ink/5 hover:text-ink",
-        )}
-      >
-        Sign in
-      </button>
+      <div className={cn("hidden lg:block", SLOT_WIDTH)}>
+        <button
+          type="button"
+          // ⚠ Stand-in for the real flow: point this at the auth route (or the
+          // provider's sign-in call) once authentication exists.
+          onClick={signIn}
+          className={cn(
+            "flex h-10 w-full items-center justify-center rounded-full px-4",
+            "text-[0.8125rem] font-medium tracking-tight text-ink-secondary",
+            "transition-colors duration-(--duration-fast)",
+            "hover:bg-ink/5 hover:text-ink",
+          )}
+        >
+          Sign in
+        </button>
+      </div>
     );
   }
 
@@ -73,7 +90,7 @@ export function AccountMenu() {
     .join("");
 
   return (
-    <div ref={rootRef} className="relative hidden lg:block">
+    <div ref={rootRef} className={cn("relative hidden lg:block", SLOT_WIDTH)}>
       <button
         type="button"
         onClick={() => setOpen((cur) => !cur)}
@@ -81,18 +98,18 @@ export function AccountMenu() {
         aria-haspopup="menu"
         aria-controls="account-menu"
         className={cn(
-          "flex h-10 items-center gap-2.5 rounded-full pl-1.5 pr-3.5",
+          "flex h-10 w-full items-center gap-2.5 rounded-full pl-1.5 pr-3.5",
           "transition-colors duration-(--duration-fast)",
           open ? "bg-ink/5" : "hover:bg-ink/5",
         )}
       >
         <span
           aria-hidden
-          className="flex size-7 items-center justify-center rounded-full bg-ink font-mono text-[0.625rem] tracking-[0.06em] text-surface"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[0.625rem] tracking-[0.06em] text-surface"
         >
           {initials}
         </span>
-        <span className="text-[0.8125rem] font-medium tracking-tight text-ink">
+        <span className="truncate text-[0.8125rem] font-medium tracking-tight text-ink">
           Account
         </span>
       </button>

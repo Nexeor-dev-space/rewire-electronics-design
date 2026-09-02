@@ -4,6 +4,7 @@ import { ShopCatalogue } from "@/components/shop/shop-catalogue";
 import {
   brandsFromParam,
   CATEGORY_LABELS,
+  conditionsFromParam,
   resolveCategory,
   shopCategories,
 } from "@/lib/shop";
@@ -23,7 +24,10 @@ import {
 
 interface PageProps {
   params: Promise<{ category: string }>;
-  searchParams: Promise<{ brand?: string | string[] }>;
+  searchParams: Promise<{
+    brand?: string | string[];
+    condition?: string | string[];
+  }>;
 }
 
 export function generateStaticParams() {
@@ -48,14 +52,20 @@ export default async function CollectionCategoryPage({
   const category = resolveCategory((await params).category);
   if (!category) notFound();
 
-  const brands = brandsFromParam((await searchParams).brand);
+  const query = await searchParams;
+  const brands = brandsFromParam(query.brand);
+  const conditions = conditionsFromParam(query.condition);
 
   return (
     // Same header-clearance padding as `/collection` — see the note on
     // that page for why `pt-10 lg:pt-14` was tucking the first row under
     // the fixed masthead.
     <div className="pb-(--spacing-section) pt-24 lg:pt-32">
-      <ShopCatalogue initialCategory={category} initialBrands={brands} />
+      <ShopCatalogue
+        initialCategory={category}
+        initialBrands={brands}
+        initialConditions={conditions}
+      />
     </div>
   );
 }

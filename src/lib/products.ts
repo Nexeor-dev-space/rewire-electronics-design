@@ -231,10 +231,20 @@ export function projectFromCatalog(item: CatalogProduct): Product {
 }
 
 /**
- * The storefront rail — one product per category so the row reads as the
- * range rather than as four phones. Sold-out stock is excluded: a
- * "best sellers" shelf whose first card cannot be bought teaches the
- * wrong thing about the store.
+ * The storefront rail — **one product per primary family**, so the row
+ * reads as the range rather than as four phones. Smartphones, Laptops,
+ * Tablets, Accessories: the same four the navbar rail and the hero's
+ * category strip carry, in the same order, because a shelf that
+ * showcases a family the navigation does not offer sends a shopper
+ * looking for a way in that is not there.
+ *
+ * The AirPods Max and Apple Watch Ultra cards were dropped with Audio
+ * and Wearables. Both products are still in the catalogue, still on
+ * `/collection`, and still reachable from search — they are simply no
+ * longer the homepage's argument for what Rewire sells.
+ *
+ * Sold-out stock is excluded: a "best sellers" shelf whose first card
+ * cannot be bought teaches the wrong thing about the store.
  *
  * Sourced from the catalogue so the slug on each card resolves to a
  * live `/product/[slug]` page. Falls back to the local mock if a wanted
@@ -245,9 +255,8 @@ export function getFeaturedProducts(): Product[] {
   const wanted = [
     "iphone-15-pro-max",
     "macbook-air-13-m2",
-    "airpods-max",
-    "apple-watch-ultra",
     "ipad-pro-11-m2",
+    "magic-keyboard-ipad-pro",
   ];
   return wanted
     .map((slug) => getCatalogProductBySlug(slug))
