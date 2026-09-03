@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { MenuLink } from "@/lib/navigation";
+import { supportContact, type MenuLink } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 /* ============================================================
@@ -83,6 +83,83 @@ export function MenuCta({
       {children}
       <Arrow className="transition-transform duration-(--duration-fast) ease-(--ease-out-quart) group-hover/cta:translate-x-1" />
     </Link>
+  );
+}
+
+/**
+ * MenuSupportBox — "Need help?" as a panel-sized card: email, live chat
+ * with its pulsing status dot, and the hours behind both.
+ *
+ * This is the box the Support mega-panel used to carry on its
+ * right-hand side. Support merged into About, so it moved here — into
+ * the shared primitives — rather than being rewritten inside
+ * `AboutMenu`. It replaces the "Built to be kept." editorial plate that
+ * sat in that slot, which was a photograph and a link to the page the
+ * trigger already pointed at; a reader who has opened the company menu
+ * is far more often looking for a way to reach a person.
+ *
+ * Every value is read from `supportContact` in `lib/support.ts`, so
+ * this box, the support page's own contact section and the footer all
+ * quote the same address and the same hours.
+ */
+export function MenuSupportBox({ className }: { className?: string }) {
+  return (
+    <div className={cn("rounded-2xl border border-line bg-void p-8", className)}>
+      <p className="text-[1.25rem] font-light tracking-[-0.02em] text-ink">
+        {supportContact.heading}
+      </p>
+
+      <dl className="mt-6 space-y-4">
+        <div>
+          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+            Email
+          </dt>
+          <dd className="mt-1.5">
+            {/* `mailto:` must not be routed through next/link. */}
+            <a
+              href={`mailto:${supportContact.email}`}
+              className="text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
+            >
+              {supportContact.email}
+            </a>
+          </dd>
+        </div>
+
+        <div>
+          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+            Chat
+          </dt>
+          <dd className="mt-1.5">
+            <Link
+              href={supportContact.chat.href}
+              className="inline-flex items-center gap-2 text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
+            >
+              <span
+                aria-hidden
+                className="size-1.5 animate-pulse-dot rounded-full bg-live"
+              />
+              {supportContact.chat.label}
+            </Link>
+          </dd>
+        </div>
+
+        <div>
+          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+            Hours
+          </dt>
+          <dd className="mt-1.5 space-y-1">
+            {supportContact.hours.map((line) => (
+              <span
+                key={line}
+                className="block text-[0.875rem] text-ink-secondary"
+              >
+                {line}
+              </span>
+            ))}
+          </dd>
+        </div>
+      </dl>
+    </div>
   );
 }
 

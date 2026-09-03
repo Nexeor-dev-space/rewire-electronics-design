@@ -355,6 +355,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+
+    /* Reserve the scrollbar's width whether or not there is one to
+       show. The header is `fixed inset-x-0`, so its width is the
+       viewport's minus the scrollbar — and every event that takes the
+       scrollbar away moved the whole bar sideways by ~15px: opening the
+       mobile drawer or the search panel (both set `overflow: hidden` on
+       this element), and any route short enough not to scroll. That
+       lateral snap is the "shivering" the navbar was reported for, and
+       reserving the gutter is the one-line fix for all of it. */
+    scrollbar-gutter: stable;
   }
 
   body {

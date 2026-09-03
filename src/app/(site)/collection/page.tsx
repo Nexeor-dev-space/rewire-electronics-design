@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
-import { brandsFromParam } from "@/lib/shop";
+import { brandsFromParam, conditionsFromParam } from "@/lib/shop";
 
 export const metadata: Metadata = {
   title: "Shop",
@@ -22,9 +22,16 @@ export const metadata: Metadata = {
 export default async function CollectionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string | string[] }>;
+  searchParams: Promise<{
+    brand?: string | string[];
+    condition?: string | string[];
+  }>;
 }) {
-  const brands = brandsFromParam((await searchParams).brand);
+  const query = await searchParams;
+  const brands = brandsFromParam(query.brand);
+  // `?condition=refurbished` is how the homepage's "What you have"
+  // legend hands a shopper straight to the shelf for one condition.
+  const conditions = conditionsFromParam(query.condition);
 
   return (
     // Header is `fixed top-0` at 64px / 80px, so `pt-10 lg:pt-14`
@@ -34,7 +41,11 @@ export default async function CollectionPage({
     // 32px/48px breathing gap on top so the first row does not read as
     // flush against the nav.
     <div className="pb-(--spacing-section) pt-24 lg:pt-32">
-      <ShopCatalogue initialCategory={null} initialBrands={brands} />
+      <ShopCatalogue
+        initialCategory={null}
+        initialBrands={brands}
+        initialConditions={conditions}
+      />
     </div>
   );
 }

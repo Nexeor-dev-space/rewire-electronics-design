@@ -37,10 +37,11 @@ const lineClip = {
  * countdown, an allocation — and a visitor who arrives between drops
  * finds nothing they can simply buy.
  *
- * One product per category rather than the four best of anything, so the
- * row doubles as a map of the range. Deliberately plainer than the drop
- * plates above: no editions, no clocks, no scarcity. Stock, price, saving,
- * done.
+ * One product per primary family rather than the four best of anything,
+ * so the row doubles as a map of the range — Smartphones, Laptops,
+ * Tablets, Accessories, the same four the navigation offers.
+ * Deliberately plainer than the drop plates above: no editions, no
+ * clocks, no scarcity. Stock, price, saving, done.
  */
 export function Featured() {
   const products = getFeaturedProducts();
@@ -116,7 +117,7 @@ export function Featured() {
             // above so cards on this section never render narrower than
             // the drop cards.
             "sm:gap-x-6 sm:gap-y-14",
-            "xl:grid-cols-5 xl:gap-x-6",
+            "xl:grid-cols-4 xl:gap-x-6",
           )}
         >
           {products.map((product, i) => (
