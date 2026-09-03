@@ -1,39 +1,23 @@
+import { conditions as CONDITIONS, type Condition } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 
 /**
- * ConditionExplainer — the four states the storefront trades in, defined
- * once, in the same place. The active one is highlighted; the others stay
- * visible so a shopper can compare without leaving the page.
+ * ConditionExplainer — the four states the storefront trades in. The
+ * active one is highlighted; the others stay visible so a shopper can
+ * compare without leaving the page.
  *
- * Grade sits beside the active condition when it applies (Refurbished only
- * carries A/B/C today). No prose beyond the one line each state deserves.
+ * The definitions are **not** written here. They come from
+ * `lib/shop.ts`, which is the one place a condition is defined and the
+ * same list the filter panel and the card badges read. This component
+ * used to keep its own copy, and that copy had drifted: it named a
+ * fifth state, "Just Opened", that the catalogue calls Open Box, so the
+ * product page and the filter beside it disagreed about what a shopper
+ * was buying.
+ *
+ * Grade sits beside the active condition when it applies (Refurbished
+ * and Pre-Owned only — see `gradeApplies`). No prose beyond the one
+ * line each state deserves.
  */
-
-const CONDITIONS = [
-  {
-    key: "refurbished",
-    label: "Refurbished",
-    detail: "Professionally inspected and tested to ensure reliable performance.",
-  },
-  {
-    key: "pre-owned",
-    label: "Pre-Owned",
-    detail: "Previously owned and tested for functionality.",
-  },
-  {
-    key: "just-opened",
-    label: "Just Opened",
-    detail:
-      "Packaging has been opened, with little or no previous use depending on the product.",
-  },
-  {
-    key: "new",
-    label: "New",
-    detail: "Brand-new and unused.",
-  },
-] as const;
-
-type ConditionKey = (typeof CONDITIONS)[number]["key"];
 
 interface Props {
   /**
@@ -42,13 +26,13 @@ interface Props {
    * listing — the "On this listing" header disappears and no card is
    * marked active, so the four states read as equal peers.
    */
-  active?: ConditionKey;
+  active?: Condition;
   grade?: string;
 }
 
 export function ConditionExplainer({ active, grade }: Props) {
   const activeCondition = active
-    ? CONDITIONS.find((c) => c.key === active)
+    ? CONDITIONS.find((c) => c.value === active)
     : undefined;
 
   return (
@@ -81,7 +65,7 @@ export function ConditionExplainer({ active, grade }: Props) {
               )}
             </p>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
-              {activeCondition.detail}
+              {activeCondition.note}
             </p>
           </div>
           <p className="max-w-xs text-[0.9375rem] leading-relaxed text-ink-muted lg:col-span-4 lg:col-start-9 lg:justify-self-end lg:pt-8">
@@ -108,10 +92,10 @@ export function ConditionExplainer({ active, grade }: Props) {
         )}
       >
         {CONDITIONS.map((condition) => {
-          const isActive = condition.key === active;
+          const isActive = condition.value === active;
           return (
             <div
-              key={condition.key}
+              key={condition.value}
               className={cn(
                 "relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border p-6 transition-colors duration-(--duration-fast)",
                 isActive
@@ -149,7 +133,7 @@ export function ConditionExplainer({ active, grade }: Props) {
                   isActive ? "text-ink-secondary" : "text-ink-muted",
                 )}
               >
-                {condition.detail}
+                {condition.note}
               </dd>
             </div>
           );

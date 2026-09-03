@@ -5,6 +5,14 @@
  * catalogue adapters, so the navigation can never drift from what the
  * site actually sells. Swap the getters for CMS queries later without
  * touching a single menu component.
+ *
+ * Two shapes the whole navigation now holds to:
+ *
+ *  - **Four product families.** Smartphones, Laptops, Tablets and
+ *    Accessories, declared once in `categories.ts` and ordered once in
+ *    `CATEGORY_ORDER` below. Audio and Wearables are stocked and
+ *    browsable but are no longer navigation destinations.
+ *  - **One editorial heading.** About, which absorbed Support.
  */
 
 import { getUpcomingDrops } from "./drops";
@@ -17,7 +25,7 @@ import {
 } from "./route-map";
 import { supportContact, supportSections } from "./support";
 
-export type MegaMenuId = "drops" | "shop" | "categories" | "about" | "support";
+export type MegaMenuId = "drops" | "shop" | "categories" | "about";
 
 export interface MenuLink {
   label: string;
@@ -26,87 +34,72 @@ export interface MenuLink {
   note?: string;
 }
 
-export interface PrimaryNavItem {
-  label: string;
-  href: string;
-  /** Present ⇒ the bar renders a disclosure button and opens this menu. */
-  menu?: MegaMenuId;
-  badge?: "live";
-}
-
-export const primaryNav: PrimaryNavItem[] = [
-  { label: "Upcoming Drops", href: SHOP_INDEX_HREF, menu: "drops", badge: "live" },
-  { label: "Shop", href: SHOP_INDEX_HREF, menu: "shop" },
-  { label: "Categories", href: SHOP_INDEX_HREF, menu: "categories" },
-  { label: "About", href: "/about", menu: "about" },
-  { label: "Support", href: "/support", menu: "support" },
-];
-
 /* ---------- Shop ---------- */
 
 export const shopBrowse: MenuLink[] = [
   { label: "All Devices", href: SHOP_INDEX_HREF },
-  { label: "Phones", href: productHrefForCategory("phones") },
+  { label: "Smartphones", href: productHrefForCategory("phones") },
   { label: "Laptops", href: productHrefForCategory("laptops") },
   { label: "Tablets", href: productHrefForCategory("tablets") },
   { label: "Accessories", href: productHrefForCategory("accessories") },
 ];
 
-/** Straight to search — these are queries, not catalogue routes. */
+/** Straight to the pre-filtered shelf — these are queries, not routes. */
 export const shopPopular: string[] = [
   "iPhone",
   "MacBook",
-  "AirPods",
-  "Apple Watch",
+  "iPad",
   "Samsung",
   "Google Pixel",
+  "Dell",
 ];
 
-/* ---------- About ---------- */
+/* ---------- About — the one editorial heading ----------
+   About and Support used to be two triggers on the bar opening two
+   panels. They are one now. A shopper looking for the returns window
+   and a reader looking for the company's story were being asked to
+   guess which of two headings owned "Warranty" — and Support's own
+   panel already linked back to About while About's linked forward to
+   Support, which is the shape of a split that should never have been
+   made.
+
+   Every `/support#…` href is generated from the support page's own
+   anchor list (`supportSections`), so a section cannot be renamed into
+   a dead nav link. Only the wording differs in one place: the page
+   heads that section "Returns" and the menu says it in full.
+
+   Track Order is deliberately *not* here. It is account navigation,
+   not editorial, and it now lives under the profile icon with the rest
+   of the customer's own surfaces. */
+
+/** Where the menu says a support section longer than the page does. */
+const ABOUT_LABEL_OVERRIDES: Record<string, string> = {
+  Returns: "Returns, Refunds & Cancellation",
+};
+
+const supportSectionLinks: MenuLink[] = supportSections.map(
+  ({ label, href }) => ({ label: ABOUT_LABEL_OVERRIDES[label] ?? label, href }),
+);
 
 export const aboutColumns: { title: string; items: MenuLink[] }[] = [
   {
     title: "The Company",
     items: [
-      { label: "The Rewire Standard", href: "/process" },
       { label: "Our Story", href: "/about" },
-      { label: "Inspection Process", href: "/process" },
-      { label: "Warranty", href: "/support#warranty" },
+      { label: "Terms & Conditions", href: "/terms" },
+      { label: "Privacy Policy", href: "/privacy" },
     ],
   },
   {
-    title: "Our Commitments",
-    items: [
-      { label: "Sustainability", href: "/about/sustainability" },
-      { label: "Repairs", href: "/about/repairs" },
-      { label: "Certification", href: "/about/certification" },
-      { label: "Support", href: "/support" },
-    ],
+    title: "Help & Policies",
+    items: supportSectionLinks,
   },
 ];
 
-export const aboutFeature = {
-  image: {
-    url: "/images/craft/craft-01.jpg",
-    alt: "Macro of the embossed Rewire logotype on a restored chassis",
-  },
-  title: "Built to be kept.",
-  body: "Every device we release has been through the same hands and the same standard.",
-  cta: { label: "Learn More", href: "/about" },
-};
-
-/* ---------- Support ----------
-   Every editorial destination is a section of `/support`, so the hrefs
-   are generated from the page's own anchor list rather than typed here.
-   The five routes this menu used to name — /support/faq, /shipping,
-   /returns, /warranty and /contact — were never built, so each of them
-   was a nav item that 404'd. Track Order is the one entry that is not
-   editorial: it belongs to the account area and still points there. */
-
-export const supportLinks: MenuLink[] = [
-  ...supportSections.map(({ label, href }) => ({ label, href })),
-  { label: "Track Order", href: "/account/orders" },
-];
+/** Flattened — the mobile drawer renders About as one list, not two. */
+export const aboutMenuLinks: MenuLink[] = aboutColumns.flatMap(
+  (column) => column.items,
+);
 
 export { supportContact };
 
@@ -131,13 +124,21 @@ export interface CategoryNavItem {
   brands: { label: string; href: string; count: number }[];
 }
 
-/** The fixed rail order — the shopper's mental model, not the catalogue's. */
+/**
+ * The fixed rail order — the shopper's mental model, not the
+ * catalogue's, and the storefront's four primary families in the order
+ * `categories.ts` declares them.
+ *
+ * Audio and Wearables were dropped from the rail. Their stock is still
+ * in the catalogue and still browsable and filterable on `/collection`;
+ * they are simply no longer top-level navigation. Reinstate a family by
+ * adding it back to `categories.ts` and to this list — both, so the
+ * label and the rail can never disagree.
+ */
 const CATEGORY_ORDER = [
   "phones",
   "laptops",
   "tablets",
-  "audio",
-  "wearables",
   "accessories",
 ] as const;
 
@@ -184,14 +185,9 @@ export function categoryNavIsActive(pathname: string, slug: string): boolean {
 }
 
 /**
- * Head-of-rail links that sit before the category items:
- *   - `shopIndexLink` — the unfiltered catalogue index. Reused as the
- *     "See all X" row inside every category dropdown.
- *   - `upcomingDropsLink` — the calendar of releases. Carries a live
- *     status dot the way the old primary nav did; the destination is
- *     the same as the previous mega-menu entry.
+ * The calendar of releases, pinned to the head of the rail. Carries a
+ * live status dot; the destination is the shop index.
  */
-export const shopIndexLink = { label: "Shop", href: SHOP_INDEX_HREF };
 export const upcomingDropsLink = {
   label: "Upcoming Drops",
   href: SHOP_INDEX_HREF,
@@ -199,49 +195,12 @@ export const upcomingDropsLink = {
 };
 
 /**
- * Editorial links pinned to the right end of the rail. Kept separate
- * from `getCategoryNav()` so the commerce items and the company items
- * are never confused for peers — the layout groups them with
- * `justify-between`.
+ * The editorial link at the right end of the rail. One heading, not
+ * two — Support was merged into About (see `aboutColumns`), so the bar
+ * carries a single company destination rather than asking the shopper
+ * which of two owns the warranty policy.
  */
-export const editorialNavLinks = [
-  { label: "About", href: "/about" },
-  { label: "Support", href: "/support" },
-] as const;
-
-/* ---------- Rail dropdowns — compact link lists ----------
-   The old primary nav opened full mega panels for Upcoming Drops,
-   About and Support; the new rail keeps the disclosure affordance but
-   renders each as a compact link list (same shape as the category
-   brand dropdowns), so the chrome is one language rather than two. */
-
-/**
- * Upcoming Drops dropdown — one line per release, newest first, plus
- * a "View all" row that lands on the shop index (the same destination
- * the trigger itself points at, so clicking either always works).
- */
-export function getUpcomingDropsMenu(): MenuLink[] {
-  const drops = getUpcomingDrops()
-    .slice(0, 4)
-    .map((drop) => ({
-      label: drop.name,
-      href: productHrefForDrop(drop.slug),
-      note: drop.edition,
-    }));
-  return [...drops, { label: "View all releases", href: SHOP_INDEX_HREF }];
-}
-
-/**
- * About dropdown — the two "The Company" and "Our Commitments" columns
- * flattened into one list. Kept compact by design; the full editorial
- * layout lives on `/about` itself.
- */
-export const aboutMenuLinks: MenuLink[] = aboutColumns.flatMap(
-  (column) => column.items,
-);
-
-/** Support dropdown — every editorial section of `/support`, plus Track Order. */
-export const supportMenuLinks: MenuLink[] = supportLinks;
+export const editorialNavLink = { label: "About", href: "/about" } as const;
 
 // The full catalogue accessor is re-used by the mobile drawer accordion.
 export { getAllProducts };
@@ -263,16 +222,6 @@ export const categoryGlyphs: Record<string, string[]> = {
   tablets: [
     "M6.5 3.75h11a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.75V5.25a1.5 1.5 0 0 1 1.5-1.5Z",
     "M10.75 17.25h2.5",
-  ],
-  wearables: [
-    "M9.25 8.25h5.5a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-.75.75h-5.5a.75.75 0 0 1-.75-.75V9a.75.75 0 0 1 .75-.75Z",
-    "M9.9 8.25 10.15 4.25h3.7l.25 4",
-    "M9.9 15.75l.25 4h3.7l.25-4",
-  ],
-  audio: [
-    "M4.75 13.25v-1.5a7.25 7.25 0 0 1 14.5 0v1.5",
-    "M4.75 13.25h1.6a1.1 1.1 0 0 1 1.1 1.1v3.3a1.1 1.1 0 0 1-1.1 1.1h-1.6Z",
-    "M19.25 13.25h-1.6a1.1 1.1 0 0 0-1.1 1.1v3.3a1.1 1.1 0 0 0 1.1 1.1h1.6Z",
   ],
   accessories: [
     "M9 3.75v4.5",
@@ -297,10 +246,16 @@ export interface DrawerSection {
 /**
  * The drawer mirrors the desktop `CategoryBar`, row for row: Upcoming
  * Drops, then one row per catalogue category (in the same rail order),
- * then About and Support. The previous generic "Shop" and "Categories"
- * accordions are gone — the desktop bar has no such items, and a
- * shopper moving between a phone and a laptop should meet the same
- * navigation vocabulary on both.
+ * then About. The previous generic "Shop" and "Categories" accordions
+ * are gone — the desktop bar has no such items, and a shopper moving
+ * between a phone and a laptop should meet the same navigation
+ * vocabulary on both. Support is gone for the same reason: it is one
+ * heading with About on desktop now, so it is one row here.
+ *
+ * Nothing account-shaped appears in this list. The customer's own
+ * surfaces — orders, wishlist, waitlists, returns, tracking — sit
+ * behind the profile icon in `MobileTabBar`, which is the one place a
+ * tap is required to reveal them.
  *
  * A category with brand submenus becomes an accordion whose children
  * are the same brand-filtered links the desktop dropdown carries, plus
@@ -344,10 +299,9 @@ export function getDrawerSections(): DrawerSection[] {
     },
     ...categories,
     {
-      label: "About",
-      href: "/about",
-      items: aboutColumns.flatMap((column) => column.items),
+      label: editorialNavLink.label,
+      href: editorialNavLink.href,
+      items: aboutMenuLinks,
     },
-    { label: "Support", href: "/support", items: supportLinks },
   ];
 }

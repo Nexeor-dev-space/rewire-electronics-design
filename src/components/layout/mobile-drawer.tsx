@@ -12,6 +12,8 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
+const ACCOUNT_PANEL_ID = "drawer-account";
+
 interface MobileDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -39,12 +41,15 @@ export function MobileDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  /** Profile disclosure. Closed on every open — never on page load. */
+  const [accountExpanded, setAccountExpanded] = useState(false);
   const sections = getDrawerSections();
   const { user, ready, signIn, signOut } = useAccount();
 
   useEffect(() => {
     if (!open) {
       setExpanded(null);
+      setAccountExpanded(false);
       return;
     }
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
@@ -305,11 +310,27 @@ export function MobileDrawer({
                 className="mt-8"
               >
                 {/* ---------- Account ----------
-                    The drawer carries what the bar hides below lg: the whole
-                    signed-in surface, or the one control that creates it. */}
+                    A disclosure under the reader's own name, closed
+                    until it is asked for — the same rule the profile
+                    icon in `MobileTabBar` follows, and the reason this
+                    block no longer unrolls six account links every time
+                    the drawer opens. The drawer is where a shopper goes
+                    to browse; the account surfaces are a detour from
+                    that, and a detour should be offered rather than
+                    taken on the reader's behalf.
+
+                    Signed out there is nothing to disclose, so the
+                    block is absent entirely — the fixed foot below
+                    already carries Sign in. */}
                 {ready && user && (
-                  <div className="mb-8">
-                    <div className="flex items-center gap-3 border-b border-line pb-4">
+                  <div className="mb-8 border-b border-line pb-2">
+                    <button
+                      type="button"
+                      aria-expanded={accountExpanded}
+                      aria-controls={ACCOUNT_PANEL_ID}
+                      onClick={() => setAccountExpanded((cur) => !cur)}
+                      className="flex w-full items-center gap-3 pb-4 text-left"
+                    >
                       <span
                         aria-hidden
                         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[0.6875rem] text-surface"
@@ -320,7 +341,7 @@ export function MobileDrawer({
                           .slice(0, 2)
                           .join("")}
                       </span>
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-ink">
                           {user.name}
                         </span>
@@ -328,33 +349,63 @@ export function MobileDrawer({
                           {user.email}
                         </span>
                       </span>
-                    </div>
+                      <motion.svg
+                        aria-hidden
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        animate={{ rotate: accountExpanded ? 180 : 0 }}
+                        transition={{ duration: DURATION.fast }}
+                        className="size-3.5 shrink-0 text-ink-muted"
+                      >
+                        <path d="M4 6l4 4 4-4" />
+                      </motion.svg>
+                    </button>
 
-                    <ul className="pt-2">
-                      {accountNav.map((item) => (
-                        <li key={item.label}>
-                          <Link
-                            href={item.href}
-                            onClick={onClose}
-                            className="block py-2.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
-                          >
-                            {item.label}
-                          </Link>
-                        </li>
-                      ))}
-                      <li className="mt-2 border-t border-line pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            signOut();
+                    <AnimatePresence initial={false}>
+                      {accountExpanded && (
+                        <motion.div
+                          id={ACCOUNT_PANEL_ID}
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{
+                            duration: DURATION.base,
+                            ease: EASE_OUT_EXPO,
                           }}
-                          className="block w-full py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                          className="overflow-hidden"
                         >
-                          Logout
-                        </button>
-                      </li>
-                    </ul>
+                          <ul className="pb-2 pl-1">
+                            {accountNav.map((item) => (
+                              <li key={item.href + item.label}>
+                                <Link
+                                  href={item.href}
+                                  onClick={onClose}
+                                  className="block py-2.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                                >
+                                  {item.label}
+                                </Link>
+                              </li>
+                            ))}
+                            <li className="mt-2 border-t border-line pt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onClose();
+                                  signOut();
+                                }}
+                                className="block w-full py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                              >
+                                Logout
+                              </button>
+                            </li>
+                          </ul>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 

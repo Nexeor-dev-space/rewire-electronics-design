@@ -9,18 +9,21 @@ import {
   ShopMenu,
   CategoriesMenu,
   AboutMenu,
-  SupportMenu,
   type MegaPanelProps,
 } from "./mega-panels";
 
 export const megaMenuId = (id: MegaMenuId) => `mega-menu-${id}`;
 
+/**
+ * `support` is gone from this registry along with its panel: Support
+ * merged into About, which now carries the policy links on the left and
+ * the support box on the right.
+ */
 const PANELS: Record<MegaMenuId, (props: MegaPanelProps) => React.ReactElement> = {
   drops: DropsMenu,
   shop: ShopMenu,
   categories: CategoriesMenu,
   about: AboutMenu,
-  support: SupportMenu,
 };
 
 /**

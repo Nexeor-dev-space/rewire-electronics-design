@@ -2,6 +2,24 @@
  * Category adapter — mock for now, Payload CMS later.
  * Swap the body of getCategories() for a CMS query without touching
  * the UI, exactly as `drops.ts` does.
+ *
+ * **This list is the storefront's primary product taxonomy.** Four
+ * families are sold and navigated: Smartphones, Laptops, Tablets and
+ * Accessories. The navbar rail, the mobile drawer, the homepage
+ * category strip and the category mega-panels all read from here, so
+ * adding an entry adds it to every one of them at once.
+ *
+ * Audio and Wearables were removed from this list. They are *not*
+ * removed from the catalogue: `lib/shop.ts` still stocks headphones and
+ * smartwatches, still filters on them, and `/collection` still browses
+ * them. What changed is that they no longer appear as primary
+ * navigation destinations — this file is presentation, not inventory.
+ *
+ * `slug` stays `phones` for Smartphones on purpose. `lib/shop.ts`
+ * resolves `phones → smartphones` (see `categoryAliases` there), so
+ * `/collection/phones` lands on the Smartphones listing and every link
+ * already in the wild keeps working. Only the label the shopper reads
+ * changed.
  */
 
 export interface Category {
@@ -36,7 +54,7 @@ export interface Category {
 const categories: Category[] = [
   {
     id: "c1",
-    name: "Phones",
+    name: "Smartphones",
     slug: "phones",
     count: 24,
     note: "Flagships, one generation back",
@@ -76,26 +94,6 @@ const categories: Category[] = [
   },
   {
     id: "c3",
-    name: "Audio",
-    slug: "audio",
-    count: 31,
-    note: "Headphones and speakers",
-    featured: true,
-    image: {
-      url: "/images/drops/drop-03.jpg",
-      alt: "Midnight over-ear headphones, studio lit",
-      width: 1000,
-      height: 1250,
-    },
-    menuImage: {
-      url: "/images/dropdown/3.jpg",
-      alt: "Tan leather over-ear headphones resting on a grey studio sweep",
-      width: 1500,
-      height: 857,
-    },
-  },
-  {
-    id: "c4",
     name: "Tablets",
     slug: "tablets",
     count: 12,
@@ -117,33 +115,16 @@ const categories: Category[] = [
     },
   },
   {
-    id: "c5",
-    name: "Wearables",
-    slug: "wearables",
-    count: 19,
-    note: "Watches and trackers",
-    featured: true,
-    image: {
-      url: "/images/drops/drop-04.jpg",
-      alt: "Obsidian smartwatch on a lit studio surface",
-      width: 1000,
-      height: 1250,
-    },
-    menuImage: {
-      url: "/images/dropdown/5.jpg",
-      alt: "Smartwatch standing on a wooden plinth against dark foliage",
-      width: 2000,
-      height: 1333,
-    },
-  },
-  {
-    id: "c6",
+    id: "c4",
     name: "Accessories",
     slug: "accessories",
     count: 28,
     note: "Cases, cables and chargers",
-    // Navigation only until there is a studio shot worth showing.
-    featured: false,
+    // One of the four primary families, so it appears in the homepage
+    // strip alongside the devices rather than in navigation only. The
+    // plate below is still a stand-in — swap it for real accessory
+    // photography when it lands.
+    featured: true,
     image: {
       // Stand-in: a craft macro reads as premium material rather than a
       // literal charger. Swap for real accessory photography when it lands.

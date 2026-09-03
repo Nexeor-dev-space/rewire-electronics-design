@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
+import { CONDITION_META, type Condition } from "@/lib/shop";
+import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
 import {
   DURATION,
@@ -21,57 +23,66 @@ import {
  * wonders what "Refurbished" means here versus what a marketplace
  * listing meant by the same word.
  *
- * Three items, split by status. Refurbished and Used are explicitly
- * defined in the current PRD and get the accent dot. Pre-Owned is on
- * the roadmap but not yet formally defined; it carries a neutral dot
- * and honest copy ("Not specified in the PRD") so the section reads as
- * a scoped commitment rather than as a broken feature. (New and Just
- * Opened were removed from the legend at the client's request.)
+ * **The three secondhand states, and the two lines that separate them.**
+ * Repair separates Refurbished from Pre-Owned; use separates both from
+ * Open Box. That is the whole taxonomy, and it is the reason this
+ * section names three terms rather than listing four synonyms for
+ * "not new":
+ *
+ *   Refurbished  restored — a repaired product
+ *   Pre-Owned    previously owned, sold in the same condition, not repaired
+ *   Open Box     unused, with packaging that has been opened
+ *
+ * New is deliberately absent. This section answers "what does the word
+ * on the listing mean", and sealed stock needs no explaining.
+ *
+ * Every definition is read from `CONDITION_META` in `lib/shop.ts` — the
+ * one place a condition is defined — so this legend, the filter panel,
+ * the card badge and the product page's `ConditionExplainer` cannot
+ * teach a shopper three different things. The earlier version of this
+ * section wrote its own copy and had already drifted: it listed "Used",
+ * a term the catalogue does not sell, and marked Pre-Owned as "Not
+ * specified in the PRD" long after it had been.
  *
  * Layout: one equal 3-across row at `lg`, 2 across at `sm` with the
  * last item spanning the row, single column on phones.
  * Nothing here is a card of a card — each tile is a light-touch panel
- * with a hairline border, a status dot, a symbol, the term, one line
- * of copy, and a hairline arrow that shifts on hover.
+ * with a hairline border, an index, a symbol, the term, its definition,
+ * and a hairline arrow that shifts on hover.
  */
 
-type Status = "defined" | "unspecified";
-
 interface ConditionItem {
-  id: string;
+  value: Condition;
   name: string;
-  status: Status;
-  /** One-line status label — verbatim wording the brief hands us. */
-  label: string;
+  /** The distinction in four words — the tile's own headline claim. */
+  summary: string;
+  /** The full definition, one sentence. */
+  detail: string;
   href: string;
   icon: ReactNode;
 }
 
+/** Lands on the shelf, pre-filtered to this condition. */
+function shelfHref(condition: Condition): string {
+  return `${SHOP_INDEX_HREF}?condition=${condition}`;
+}
+
+function conditionItem(value: Condition, icon: ReactNode): ConditionItem {
+  const meta = CONDITION_META[value];
+  return {
+    value,
+    name: meta.label,
+    summary: meta.summary,
+    detail: meta.note,
+    href: shelfHref(value),
+    icon,
+  };
+}
+
 const CONDITIONS: ConditionItem[] = [
-  {
-    id: "refurbished",
-    name: "Refurbished",
-    status: "defined",
-    label: "Explicitly defined as a product condition",
-    href: "/shop?condition=refurbished",
-    icon: <IconCycle />,
-  },
-  {
-    id: "used",
-    name: "Used",
-    status: "defined",
-    label: "Explicitly defined as a product condition",
-    href: "/shop?condition=used",
-    icon: <IconClock />,
-  },
-  {
-    id: "pre-owned",
-    name: "Pre-Owned",
-    status: "unspecified",
-    label: "Not specified in the PRD",
-    href: "/shop?condition=pre-owned",
-    icon: <IconPerson />,
-  },
+  conditionItem("refurbished", <IconCycle />),
+  conditionItem("pre-owned", <IconPerson />),
+  conditionItem("open-box", <IconBox />),
 ];
 
 const rise: Variants = {
@@ -132,9 +143,10 @@ export function WhatYouHave() {
             variants={rise}
             className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-4 lg:col-start-9 lg:justify-self-end lg:text-right"
           >
-            Every device is classified by its condition — so the word on the
-            listing means the same thing every time. Pick a category and
-            browse only what matches.
+            Three words, three different promises. Repair is what
+            separates Refurbished from Pre-Owned; use is what separates
+            both from Open Box. Every listing carries one of them, and it
+            means this and only this.
           </motion.p>
         </motion.div>
 
@@ -156,7 +168,7 @@ export function WhatYouHave() {
         >
           {CONDITIONS.map((condition, i) => (
             <motion.li
-              key={condition.id}
+              key={condition.value}
               variants={tileRise}
               className={cn(
                 i === CONDITIONS.length - 1 && "sm:col-span-2 lg:col-span-1",
@@ -182,40 +194,37 @@ function ConditionTile({
   condition: ConditionItem;
   index: number;
 }) {
-  const defined = condition.status === "defined";
-
   return (
     <Link
       href={condition.href}
       className={cn(
         "group/tile relative flex h-full flex-col justify-between gap-10 overflow-hidden rounded-2xl p-6 sm:p-7 lg:min-h-[18rem] lg:p-8",
-        "border bg-surface shadow-(--shadow-edge)",
+        "border border-line bg-surface shadow-(--shadow-edge)",
         "transition-[background-color,border-color] duration-(--duration-fast) ease-(--ease-out-quart)",
-        defined
-          ? "border-line hover:border-line-strong hover:bg-surface-3"
-          : "border-line/70 hover:border-line hover:bg-surface-3",
+        "hover:border-line-strong hover:bg-surface-3",
       )}
     >
-      {/* ---------- Top row: numeric index + icon + status dot ---------- */}
+      {/* ---------- Top row: numeric index + icon + the distinction ----------
+          The status chip on the right used to report whether the term
+          was defined in the PRD, which was project metadata leaking on
+          to the shop front. It now carries the distinction itself —
+          "Repaired and restored", "Used, not repaired", "Unused,
+          packaging opened" — so the three tiles can be told apart at a
+          glance without reading the sentence underneath. */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <span
             aria-hidden
-            className={cn(
-              "font-mono text-[0.6875rem] uppercase tabular-nums tracking-[0.2em] leading-none",
-              defined ? "text-ink-muted" : "text-ink-faint",
-            )}
+            className="font-mono text-[0.6875rem] uppercase tabular-nums tracking-[0.2em] leading-none text-ink-muted"
           >
             {String(index).padStart(2, "0")}
           </span>
           <span
             aria-hidden
             className={cn(
-              "flex size-12 items-center justify-center rounded-full border",
+              "flex size-12 items-center justify-center rounded-full border border-line-strong text-ink",
               "transition-[color,border-color,background-color] duration-(--duration-fast)",
-              defined
-                ? "border-line-strong text-ink group-hover/tile:border-accent group-hover/tile:bg-accent/10 group-hover/tile:text-accent"
-                : "border-line text-ink-muted group-hover/tile:text-ink-secondary",
+              "group-hover/tile:border-accent group-hover/tile:bg-accent/10 group-hover/tile:text-accent",
             )}
           >
             {condition.icon}
@@ -224,18 +233,10 @@ function ConditionTile({
 
         <span
           aria-hidden
-          className={cn(
-            "mt-4 inline-flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.18em]",
-            defined ? "text-accent" : "text-ink-muted",
-          )}
+          className="mt-4 inline-flex items-center gap-1.5 text-right font-mono text-[0.625rem] uppercase tracking-[0.18em] text-accent"
         >
-          <span
-            className={cn(
-              "size-1.5 rounded-full",
-              defined ? "bg-accent" : "bg-ink-muted/70",
-            )}
-          />
-          {defined ? "In catalogue" : "Not in PRD"}
+          <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+          {condition.summary}
         </span>
       </div>
 
@@ -245,31 +246,23 @@ function ConditionTile({
           className={cn(
             "font-sans font-light leading-[1.05] tracking-[-0.025em] text-ink",
             "text-[clamp(1.75rem,2.4vw,2.25rem)]",
-            !defined && "text-ink-secondary",
           )}
         >
           {condition.name}
         </h3>
-        <p
-          className={cn(
-            "text-[0.9375rem] leading-snug",
-            defined ? "text-ink-secondary" : "text-ink-muted",
-          )}
-        >
-          {condition.label}
+        <p className="text-[0.9375rem] leading-snug text-ink-secondary">
+          {condition.detail}
         </p>
 
-        {/* Category CTA — visible affordance to browse this condition. */}
+        {/* Condition CTA — the shelf, pre-filtered to this condition. */}
         <p
           className={cn(
             "mt-4 inline-flex items-center gap-2 text-[0.8125rem] font-medium",
-            defined
-              ? "text-ink group-hover/tile:text-accent"
-              : "text-ink-muted",
+            "text-ink group-hover/tile:text-accent",
             "transition-colors duration-(--duration-fast)",
           )}
         >
-          {defined ? `Shop ${condition.name}` : "Details coming soon"}
+          Shop {condition.name}
           <svg
             aria-hidden
             viewBox="0 0 16 16"
@@ -314,7 +307,8 @@ function IconCycle() {
   );
 }
 
-function IconClock() {
+/** Open Box — a carton with its flaps folded back, nothing removed. */
+function IconBox() {
   return (
     <svg
       viewBox="0 0 20 20"
@@ -325,8 +319,9 @@ function IconClock() {
       strokeLinejoin="round"
       className="size-4"
     >
-      <circle cx="10" cy="10" r="7.25" />
-      <path d="M10 6v4l2.5 2" />
+      <path d="M3.5 8.5v7.25a.75.75 0 0 0 .75.75h11.5a.75.75 0 0 0 .75-.75V8.5" />
+      <path d="M3.5 8.5 6 5.75h8l2.5 2.75" />
+      <path d="M6 5.75 4 3.25M14 5.75l2-2.5" />
     </svg>
   );
 }

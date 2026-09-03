@@ -147,6 +147,24 @@ export function brandsFromParam(value: string | string[] | undefined): string[] 
    Condition — how it is being sold
    ============================================================ */
 
+/**
+ * **The condition vocabulary, defined once for the whole storefront.**
+ *
+ * Every surface that names a condition reads this list: the filter
+ * panel, the card badge, the product page's `ConditionExplainer`, the
+ * About page's conditions section, and the homepage's "What you have"
+ * legend. The three used conditions are distinct claims and are never
+ * interchangeable:
+ *
+ *   Refurbished  a product that has been restored — repaired
+ *   Pre-Owned    previously owned, sold in the same condition — not repaired
+ *   Open Box     unused, with packaging that has been opened
+ *
+ * The line that separates Refurbished from Pre-Owned is repair, and the
+ * line that separates both from Open Box is use. "Just Opened" was an
+ * older name for Open Box and is gone: two names for one state is how a
+ * condition stops meaning anything.
+ */
 export type Condition = "refurbished" | "pre-owned" | "open-box" | "new";
 
 export interface ConditionMeta {
@@ -157,6 +175,12 @@ export interface ConditionMeta {
   short: string;
   /** One line of plain explanation. Filters and legends only. */
   note: string;
+  /**
+   * The condition in four or five words — the distinction itself, with
+   * nothing else in it. Used where the layout wants the definition
+   * beside the term rather than under it.
+   */
+  summary: string;
 }
 
 export const conditions: ConditionMeta[] = [
@@ -164,24 +188,28 @@ export const conditions: ConditionMeta[] = [
     value: "refurbished",
     label: "Refurbished",
     short: "Refurbished",
-    note: "Fully restored and certified through the 68-point inspection.",
+    summary: "Repaired and restored",
+    note: "A product that has been restored — repaired, then certified through the 68-point inspection.",
   },
   {
     value: "pre-owned",
     label: "Pre-Owned",
     short: "Pre-Owned",
-    note: "Previously used, tested and cleared, sold as it stands.",
+    summary: "Used, not repaired",
+    note: "A previously owned product, sold in the same condition. Tested and cleared, but not repaired.",
   },
   {
     value: "open-box",
-    label: "Just Opened / Open Box",
+    label: "Open Box",
     short: "Open Box",
-    note: "Unused. The seal was broken, and nothing else was.",
+    summary: "Unused, packaging opened",
+    note: "An unused product with opened packaging. The seal was broken, and nothing else was.",
   },
   {
     value: "new",
     label: "New",
     short: "New",
+    summary: "Sealed and unused",
     note: "Sealed, unused, and covered by the full manufacturer warranty.",
   },
 ];
@@ -189,6 +217,25 @@ export const conditions: ConditionMeta[] = [
 export const CONDITION_META = Object.fromEntries(
   conditions.map((condition) => [condition.value, condition]),
 ) as Record<Condition, ConditionMeta>;
+
+/**
+ * Reads a `?condition=` value into the filter axis, ignoring anything
+ * unknown — the same contract as `brandsFromParam`. This is what makes
+ * the homepage's "What you have" legend a working entry point rather
+ * than three tiles that all land on the unfiltered shelf.
+ */
+export function conditionsFromParam(
+  value: string | string[] | undefined,
+): Condition[] {
+  if (!value) return [];
+  const requested = (Array.isArray(value) ? value : [value]).flatMap((entry) =>
+    entry.split(","),
+  );
+  const known = new Set<string>(conditions.map((condition) => condition.value));
+  return requested
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry): entry is Condition => known.has(entry));
+}
 
 /* ============================================================
    Grade — what state it is in
