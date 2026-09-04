@@ -4,13 +4,9 @@ import { useId } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import type { Faq } from "@/lib/faqs";
+import { RichText } from "@/components/policy/rich-text";
+import type { FaqEntry } from "@/lib/faq-entry";
 
-/**
- * The panel opens on its own height and closes faster than it opens —
- * the asymmetry is what makes an accordion feel considered rather than
- * mechanical. Opacity leads slightly so text never appears mid-clip.
- */
 const panel: Variants = {
   hidden: {
     height: 0,
@@ -30,7 +26,6 @@ const panel: Variants = {
   },
 };
 
-/** The answer itself rises a few pixels behind the clip. */
 const panelBody: Variants = {
   hidden: { y: -10, opacity: 0, transition: { duration: 0.18 } },
   visible: {
@@ -40,7 +35,6 @@ const panelBody: Variants = {
   },
 };
 
-/** Row entrance, staggered by the parent list. */
 const rowRise: Variants = {
   hidden: { opacity: 0, y: 18 },
   visible: {
@@ -51,17 +45,12 @@ const rowRise: Variants = {
 };
 
 interface FaqItemProps {
-  faq: Faq;
-  /** Display index, already padded: "01". */
+  faq: FaqEntry;
   index: string;
   open: boolean;
   onToggle: () => void;
 }
 
-/**
- * One question. A hairline, a number, the question in display type, and a
- * drawn cross that unwinds into a dash — no chevrons, no card, no box.
- */
 export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
   const uid = useId();
   const triggerId = `faq-trigger-${uid}`;
@@ -69,7 +58,6 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
 
   return (
     <motion.li variants={rowRise} className="relative border-t border-line last:border-b">
-      {/* Accent hairline that draws across the divider while the row is open */}
       <span
         aria-hidden
         className={cn(
@@ -85,18 +73,12 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={panelId}
-          // Tighter rhythm than the original six questions wanted: the
-          // list has since grown to eleven, and a row height set for a
-          // short list turns a long one into a scroll rather than a scan.
           className="group flex w-full cursor-pointer items-start gap-5 py-5 text-left sm:gap-8 sm:py-6"
         >
           <span
             aria-hidden
             className={cn(
-              // Fixed width so every answer can indent to the question's exact edge.
               "mt-[0.5em] w-6 shrink-0 font-mono text-[0.75rem] tabular-nums tracking-[0.2em] transition-colors duration-(--duration-base)",
-              // Monochrome: the index is part of the heading, and headings
-              // carry no accent. Weight of ink does the signalling.
               open ? "text-ink" : "text-ink-faint group-hover:text-ink-muted",
             )}
           >
@@ -112,7 +94,6 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
             {faq.question}
           </span>
 
-          {/* Cross → dash. Two hairlines, one rotation. */}
           <span
             aria-hidden
             className={cn(
@@ -144,15 +125,16 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
             variants={panel}
             className="overflow-hidden"
           >
-            {/* Indented to the question's measure, not the number's */}
-            <motion.p
+            <motion.div
               variants={panelBody}
-              // pl = index width (1.5rem) + button gap, so the answer sits flush
-              // under the first letter of the question.
-              className="max-w-[46ch] pb-7 pl-11 pr-10 text-[0.9375rem] leading-[1.7] text-ink-secondary sm:pb-8 sm:pl-14"
+              className={cn(
+                "max-w-[46ch] pb-7 pl-11 pr-10 sm:pb-8 sm:pl-14",
+                "[&_p]:text-[0.9375rem] [&_p]:leading-[1.7]",
+                "[&_li]:text-[0.9375rem] [&_li]:leading-[1.7]",
+              )}
             >
-              {faq.answer}
-            </motion.p>
+              <RichText doc={faq.answer} className="space-y-4" />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

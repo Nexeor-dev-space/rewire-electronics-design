@@ -12,35 +12,12 @@ import {
   type CategoryNavItem,
   type MegaMenuId,
 } from "@/lib/navigation";
+import { POLICY_ROUTES } from "@/lib/policy-types";
 import { cn } from "@/lib/utils";
 import { MegaMenu, megaMenuId } from "./mega-menu";
 import { CategoryMegaPanel } from "./category-mega-panel";
 
-/**
- * CategoryBar — the secondary product rail below the utility bar.
- *
- * Six items, and only six: Upcoming Drops, the four product families
- * (Smartphones, Laptops, Tablets, Accessories) and About. Every one of
- * them opens a full-width panel anchored to the bar's bottom edge, so
- * the row reads as one system rather than a mix of link lists and mega
- * panels.
- *
- * Reads its data from `getCategoryNav()` (backed by the catalogue), so
- * every submenu here corresponds to real stock. A category link is a
- * direct anchor when it has no dropdown, or a hover/focus disclosure
- * when the catalogue carries more than one brand for it.
- *
- * **Two things were removed, and both were sources of movement.**
- * The separate Support trigger merged into About — see `aboutColumns`
- * in `lib/navigation.ts`. And the `More` overflow bucket went with it:
- * it existed to fold the last two of six categories away below `xl`, so
- * the rail rendered a different number of items on either side of that
- * breakpoint and reshuffled as the window crossed it. Four families and
- * one editorial heading fit inline from `md` at every width, which is
- * the simplest way to guarantee the bar never re-lays itself out.
- *
- * Below `md` the whole bar hides — mobile uses the drawer.
- */
+const POLICY_PATHS = new Set(Object.values(POLICY_ROUTES));
 
 const CLOSE_DELAY = 130;
 
@@ -75,27 +52,10 @@ export function CategoryBar() {
   return (
     <nav
       aria-label="Product categories"
-      // `relative` so the Upcoming Drops MegaMenu below can anchor to
-      // the full bar width via `absolute inset-x-0 top-full`.
-      // Hairline on both edges — the top border separates the category
-      // rail from the utility bar above; the bottom border closes the
-      // whole header off from the page content beneath, so the chrome
-      // reads as one bracketed system rather than trailing into the
-      // hero.
       className="relative hidden border-y border-line md:block"
     >
-      {/* One centred row. All items — Upcoming Drops, the four families
-          and About — share the same measure and centre together rather
-          than splitting into a left commerce cluster and a right
-          editorial cluster. The row reads as one navigation, not two. */}
       <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center gap-1 px-(--spacing-gutter)">
-        {/* Shop was removed from the second bar — the "browse the
-            catalogue" affordance now lives inside every mega-panel via
-            each panel's own CTA (e.g. "View Upcoming Drops", "Browse
-            everything") and inside the category triggers themselves. */}
 
-        {/* ---------- Upcoming Drops — full mega-panel with the release
-            calendar, showcase card and Join Waitlist CTA. */}
         <MegaMenuItem
           menuId="drops"
           label={upcomingDropsLink.label}
@@ -111,7 +71,6 @@ export function CategoryBar() {
           onToggle={() => setOpen(open === "__drops" ? null : "__drops")}
         />
 
-        {/* ---------- The four families — all inline, at every width ---------- */}
         {items.map((item) => (
           <CategoryItem
             key={item.slug}
@@ -127,8 +86,6 @@ export function CategoryBar() {
           />
         ))}
 
-        {/* ---------- About — the one editorial heading, carrying the
-            support box on the panel's right-hand side. */}
         <MegaMenuItem
           menuId="about"
           label={editorialNavLink.label}
@@ -136,13 +93,8 @@ export function CategoryBar() {
           active={
             pathname === editorialNavLink.href ||
             pathname.startsWith(`${editorialNavLink.href}/`) ||
-            // Every policy the About panel links to is a section of
-            // `/support`, so the heading stays lit while the reader is
-            // on any of them. Without this, clicking Warranty from the
-            // About menu un-highlights the menu it was clicked from.
             pathname.startsWith("/support") ||
-            pathname === "/terms" ||
-            pathname === "/privacy"
+            POLICY_PATHS.has(pathname)
           }
           open={open === "__about"}
           onHover={() => {
@@ -156,10 +108,6 @@ export function CategoryBar() {
     </nav>
   );
 }
-
-/* ============================================================
-   Category item — anchor if no dropdown, disclosure if there are brands
-   ============================================================ */
 
 function CategoryItem({
   item,
@@ -181,11 +129,6 @@ function CategoryItem({
   const hasDropdown = item.brands.length > 0;
   const triggerId = `${megaMenuId("categories")}-trigger-${item.slug}`;
 
-  // Categories used to open a compact per-category brand list; now they
-  // open the same full-width `CategoriesMenu` mega-panel that Upcoming
-  // Drops and the editorial triggers use, so the whole second nav
-  // reads as one offcanvas system. Per-category brand narrowing lives
-  // one click deeper, on the collection page.
   return (
     <li
       className={cn("shrink-0", className)}
@@ -266,10 +209,6 @@ function CategoryItem({
   );
 }
 
-/* ============================================================
-   Chevron — one small SVG shared by every disclosure
-   ============================================================ */
-
 function Chevron({ open }: { open: boolean }) {
   return (
     <svg
@@ -289,16 +228,6 @@ function Chevron({ open }: { open: boolean }) {
     </svg>
   );
 }
-
-/* ============================================================
-   MegaMenuItem — the shared offcanvas-style bar item.
-   ============================================================
-
-   One nav trigger that opens a full-width `MegaMenu` panel matching
-   the Upcoming Drops shape (rich, image-led, anchored to the bar's
-   bottom edge). Used for Drops, categories, About and Support so the
-   second nav reads as one system of dropdowns rather than a mix of
-   compact link lists and mega panels. */
 
 function MegaMenuItem({
   menuId,

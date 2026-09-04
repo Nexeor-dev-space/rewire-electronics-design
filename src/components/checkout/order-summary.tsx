@@ -5,20 +5,8 @@ import { useState, type ReactNode } from "react";
 import { cn, formatPrice } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import type { CheckoutLine, CheckoutTotals, PromoCode } from "@/lib/checkout";
+import { POLICY_ROUTES } from "@/lib/policy-types";
 
-/**
- * OrderSummary — the fact ledger and the point of no return.
- *
- * On desktop it's a sticky right-hand column; on mobile it slots into
- * the flow above the terms and the sticky CTA bar. Every number in it
- * is derived: subtotal from the lines, delivery + discount + VAT from
- * props, total from the sum. No number lives here in two places.
- *
- * The `PLACE ORDER · AED X` button carries the total in its label so a
- * shopper never has to look up to check what they are about to pay.
- * Compact variants skip the CTA entirely — used above the mobile form
- * and, elsewhere, when a separate sticky bar owns the action.
- */
 interface Props {
   lines: CheckoutLine[];
   totals: CheckoutTotals;
@@ -74,14 +62,12 @@ export function OrderSummary({
         </span>
       </div>
 
-      {/* ---------- Lines ---------- */}
       <ul className="divide-y divide-line border-y border-line">
         {lines.map((line) => (
           <LineRow key={line.key} line={line} money={money} />
         ))}
       </ul>
 
-      {/* ---------- Promo code ---------- */}
       {!compact && (
         <PromoCodeField
           promo={promo}
@@ -91,7 +77,6 @@ export function OrderSummary({
         />
       )}
 
-      {/* ---------- Totals ---------- */}
       <dl className="grid gap-2.5 text-[0.9375rem]">
         <Row label="Subtotal" value={money(totals.subtotal)} />
         {discount > 0 && (
@@ -168,14 +153,14 @@ export function OrderSummary({
           <p className="text-[0.75rem] leading-relaxed text-ink-muted">
             By placing this order you agree to the{" "}
             <a
-              href="/legal/terms"
+              href={POLICY_ROUTES["terms-and-conditions"]}
               className="text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
             >
               Terms &amp; Conditions
             </a>{" "}
             and{" "}
             <a
-              href="/legal/privacy"
+              href={POLICY_ROUTES["privacy-policy"]}
               className="text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
             >
               Privacy Policy
@@ -187,10 +172,6 @@ export function OrderSummary({
     </aside>
   );
 }
-
-/* ============================================================
-   Bits
-   ============================================================ */
 
 function LineRow({
   line,
