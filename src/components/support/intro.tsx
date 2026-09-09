@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getSupportPolicies } from "@/lib/support";
+import { policyLink } from "@/lib/policy-types";
 import { cn } from "@/lib/utils";
 import {
   DURATION,
@@ -25,31 +26,17 @@ const lineClip = {
   visible: { y: "0%", transition: { duration: 1, ease: EASE_OUT_EXPO } },
 };
 
-/**
- * Section 01 — the way in.
- *
- * Same clip-reveal opening as the About page, so the two secondary
- * pages read as one authorship, with one addition the About page does
- * not need: a contents row. Support is the only page on the site people
- * arrive at already knowing what they want — they are checking a
- * window, not reading an argument — so the sections are listed as
- * targets before a word of prose, and the numbers are on the chips
- * because half the visits end there.
- *
- * The row is built from the policy adapter rather than typed out, which
- * is what stops it from listing a section the page no longer has.
- */
 export function SupportIntro() {
   const policies = getSupportPolicies();
 
   const jumps = [
     ...policies.map((policy) => ({
-      label: policy.eyebrow,
+      ...policyLink(policy.slug),
       meta: `${policy.figure} ${policy.unit}`,
-      href: `#${policy.id}`,
+      away: true,
     })),
-    { label: "FAQ", meta: "Answered", href: "#faq" },
-    { label: "Contact", meta: "A person replies", href: "#contact" },
+    { ...policyLink("faq"), meta: "Answered", away: true },
+    { label: "Contact", meta: "A person replies", href: "#contact", away: false },
   ];
 
   return (
@@ -74,9 +61,6 @@ export function SupportIntro() {
             Support
           </motion.span>
 
-          {/* The two-column head: title left, lede set against it on the
-              right at `lg`. A single centred column made a page of
-              lookups open like a manifesto. */}
           <div className="mt-9 grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
             <h1
               id="support-intro-heading"
@@ -98,19 +82,13 @@ export function SupportIntro() {
               variants={rise}
               className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:justify-self-end"
             >
-              Warranty, shipping and returns, written out in full, and the
-              twelve questions a drop actually raises. If the answer is not
-              on this page, a person replies to every message.
+              Warranty, shipping and returns, each written out in full, and
+              the questions a drop actually raises. If the answer is not on
+              one of those pages, a person replies to every message.
             </motion.p>
           </div>
         </motion.div>
 
-        {/* ---------- Contents ----------
-            Anchors, not navigation: every target is on this page, so the
-            row never takes a reader off it. Five across on `lg`, two up
-            on a phone — a single scrolling rail was tried first and read
-            as a product carousel, which is the wrong promise for a list
-            of policies. */}
         <motion.ul
           initial="hidden"
           whileInView="visible"
@@ -139,9 +117,6 @@ export function SupportIntro() {
                   <span className="font-sans text-[1.0625rem] font-light tracking-[-0.02em] text-ink lg:text-[1.25rem]">
                     {jump.label}
                   </span>
-                  {/* Down, not right: the destination is further along
-                      this page, and a right arrow on an in-page anchor
-                      promises a navigation that never happens. */}
                   <svg
                     aria-hidden
                     viewBox="0 0 16 16"
@@ -153,11 +128,17 @@ export function SupportIntro() {
                     className={cn(
                       "size-3.5 shrink-0 text-ink-faint",
                       "transition-[transform,color] duration-(--duration-base) ease-(--ease-out-expo)",
-                      "group-hover:translate-y-0.5 group-hover:text-ink",
-                      "group-focus-visible:translate-y-0.5 group-focus-visible:text-ink",
+                      "group-focus-visible:text-ink group-hover:text-ink",
+                      jump.away
+                        ? "group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5"
+                        : "group-hover:translate-y-0.5 group-focus-visible:translate-y-0.5",
                     )}
                   >
-                    <path d="M8 3v10M4 9l4 4 4-4" />
+                    {jump.away ? (
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    ) : (
+                      <path d="M8 3v10M4 9l4 4 4-4" />
+                    )}
                   </svg>
                 </span>
               </Link>
