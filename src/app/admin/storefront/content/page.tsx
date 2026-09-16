@@ -58,14 +58,37 @@ export default async function ContentPoliciesPage() {
                     })}
                   </time>
 
-                  <Link
-                    href={POLICY_ROUTES[policy.slug]}
-                    target="_blank"
-                    rel="noopener"
-                    className="text-sm text-ink-secondary underline-offset-4 hover:text-ink hover:underline"
-                  >
-                    View page
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={POLICY_ROUTES[policy.slug]}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-sm text-ink-secondary underline-offset-4 hover:text-ink hover:underline"
+                    >
+                      View page
+                    </Link>
+
+                    <Link
+                      href={`/admin/storefront/content/${policy.slug}`}
+                      aria-label={`Edit ${policy.title}`}
+                      title="Edit"
+                      className="rounded-md border border-line p-1.5 text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-surface-2 hover:text-ink"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-4"
+                        aria-hidden
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </li>
