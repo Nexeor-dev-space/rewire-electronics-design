@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { MotionConfig } from "framer-motion";
 import { SmoothScrollProvider } from "./smooth-scroll-provider";
 import { AccountProvider } from "./account-provider";
+import { QueryProvider } from "./query-provider";
 import { CartFeedbackProvider } from "@/components/cart/cart-feedback-provider";
 import { AddToCartModal } from "@/components/cart/add-to-cart-modal";
 
@@ -12,6 +13,7 @@ import { AddToCartModal } from "@/components/cart/add-to-cart-modal";
  *
  * - MotionConfig `reducedMotion="user"` makes every Framer Motion animation
  *   respect the OS-level reduced-motion preference automatically.
+ * - QueryProvider is the TanStack Query cache for client-side data fetching.
  * - AccountProvider carries session and cart state (the state layer).
  * - CartFeedbackProvider owns the Add-to-Cart modal's open/close state
  *   (the UI layer). Keeping them separate means a real cart adapter can
@@ -22,12 +24,14 @@ import { AddToCartModal } from "@/components/cart/add-to-cart-modal";
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
-      <AccountProvider>
-        <CartFeedbackProvider>
-          <SmoothScrollProvider>{children}</SmoothScrollProvider>
-          <AddToCartModal />
-        </CartFeedbackProvider>
-      </AccountProvider>
+      <QueryProvider>
+        <AccountProvider>
+          <CartFeedbackProvider>
+            <SmoothScrollProvider>{children}</SmoothScrollProvider>
+            <AddToCartModal />
+          </CartFeedbackProvider>
+        </AccountProvider>
+      </QueryProvider>
     </MotionConfig>
   );
 }
