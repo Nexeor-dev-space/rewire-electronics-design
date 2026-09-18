@@ -9,8 +9,8 @@ The admin panel's information architecture, shell and placeholder pages. It
 establishes every navigation section, every module route and the reusable frame
 they all sit in. It deliberately implements no module functionality: no CRUD, no
 data, no reporting. Each module is a separate issue; sign-in, roles and the
-Customers module are described under [Access control](#access-control) and
-[Customers](#customers).
+Users module are described under [Access control](#access-control) and
+[Users](#users).
 
 ## What was added
 
@@ -129,21 +129,33 @@ SEED_ADMIN_EMAIL=you@example.com
 SEED_ADMIN_PASSWORD=<10+ characters>
 ```
 
-## Customers
+## Users
 
-`/admin/customers` — list with search and pagination, add/edit modal, delete.
+Service → **Users**, with two screens beneath it:
+
+* `/admin/users/staff` — Admin and Staff accounts, the people who reach the console
+* `/admin/users/customers` — Customer accounts
+
+Both render the same module with a different `group`, and each fetches only its
+own accounts (`?group=staff` / `?group=customers`). `/admin/users` redirects to
+the customers screen. Staff accounts used to sit under Governance → Staff &
+Roles; that row is now just **Roles**, for the roles themselves.
 
 | File | Purpose |
 | --- | --- |
-| `src/app/admin/customers/page.tsx` | Permission check, renders the module |
-| `src/components/admin/customers/` | List, modal, address editor |
-| `src/hooks/use-customer.ts` | Queries and mutations |
-| `src/app/api/v1/admin/customers/` | `GET`/`POST` list, `GET`/`PATCH`/`DELETE` one |
-| `src/services/customer.service.ts` | Queries and rules |
-| `src/validators/customer.validator.ts` | One schema for create and update |
+| `src/app/admin/users/{staff,customers}/page.tsx` | Permission check, renders the module with its group |
+| `src/components/admin/users/` | List, modal, address editor |
+| `src/hooks/use-user.ts` | Queries and mutations |
+| `src/app/api/v1/admin/users/` | `GET`/`POST` list, `GET`/`PATCH`/`DELETE` one |
+| `src/services/user.service.ts` | Queries and rules |
+| `src/validators/user.validator.ts` | One schema for create and update |
 
+* Each screen has its own search and pagination, an add/edit modal and delete.
+* **Roles on offer follow the screen:** Staff offers Admin and Staff (Admin
+  only gives out Admin); Customers offers Customer alone. So an account can't
+  be moved between the two screens from the modal.
 * **Addresses** (emirate, street, nearest landmark) are edited inside the modal
-  and saved with the customer in one transaction. Exactly one is primary: the
+  and saved with the account in one transaction. Exactly one is primary: the
   one marked, or the first when none is.
 * **Emails** are stored lowercased and must be unique (409 on the email field).
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
