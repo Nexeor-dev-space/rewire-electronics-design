@@ -25,14 +25,14 @@ and its rich-text content, rendered title-left / content-right.
 
 | File | Purpose |
 | --- | --- |
-| `prisma/schema.prisma` | `Policy` and `PolicyBlock` models |
+| `prisma/schema/policy.prisma` | `Policy` and `PolicyBlock` models |
 | `prisma/seed.ts` | The six policies, seeded from the old hardcoded copy |
 | `src/lib/policy-types.ts` | Slugs, routes, labels, rich-text types, anchors |
 | `src/lib/policies.ts` | Cached server reads |
 | `src/lib/rich-text.ts` | Validation on write, plain-text flattening |
 | `src/lib/faq-entry.ts` | Policy → FAQ accordion adapter |
 | `src/lib/db.ts`, `src/lib/db-url.ts` | Prisma client and the connection string |
-| `src/app/admin/storefront/content/` | Console list, editor route, `savePolicy` |
+| `src/app/admin/storefront/content/` | Console list, editor route, `savePolicy` (checks the session and `storefront.content` permission) |
 | `src/components/admin/policy/` | The editor and its block rows |
 | `src/components/policy/` | The storefront document, page shell and renderer |
 | `src/components/ui/rich-text-editor.tsx` | The TipTap surface |

@@ -440,8 +440,10 @@ Every screen that loads data handles:
 A signed-in shopper can save products, see their saved list, and remove
 items. Every file below follows the steps above, in order.
 
-> `getSession()` stands in for the session helper from whichever auth
-> library the project adopts. Swap the import when it lands.
+> `getSession()` is real: `src/lib/auth/session.ts`. Admin routes use
+> `authorizeApi(permission)` from the same file, which returns the 401 / 403
+> for you. Services throw `ServiceError` for expected failures, and a route's
+> `catch` returns `apiErrorFrom(error, "<route>")` — both in `api-response.ts`.
 
 ### Step 1 — Model
 

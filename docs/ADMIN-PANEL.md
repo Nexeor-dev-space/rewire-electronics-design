@@ -8,7 +8,9 @@ shaped this way, and how to add to it.
 The admin panel's information architecture, shell and placeholder pages. It
 establishes every navigation section, every module route and the reusable frame
 they all sit in. It deliberately implements no module functionality: no CRUD, no
-data, no reporting, no RBAC. Each module is a separate issue.
+data, no reporting. Each module is a separate issue; sign-in, roles and the
+Customers module are described under [Access control](#access-control) and
+[Customers](#customers).
 
 ## What was added
 
@@ -83,21 +85,69 @@ Three helpers cover everything:
   active. A child page keeps its parent active through this.
 * `getAdminBreadcrumbs(pathname)` builds the trail from the same match.
 
-## Permission readiness
+## Access control
 
-No RBAC is implemented, as the issue specifies. The structure for it is in
-place:
+Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
+`STAFF` or `CUSTOMER`.
 
-* Every section carries an `area`, one of the eight operational areas. Staff
-  access is specified as configurable by area, so this is the coarse half of the
-  key.
-* `adminPermission(area, key)` produces the key for any row, for example
-  `catalogue.products`.
+| File | Purpose |
+| --- | --- |
+| `src/lib/auth/permissions.ts` | Roles, `ROLE_PERMISSIONS`, and the rules for managing accounts |
+| `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
+| `src/lib/auth/password.ts` | scrypt hashing |
+| `src/app/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out |
 
-When the staff permission system arrives it filters `adminNav` before render to
-control which rows appear, checks the same key in the route to control access,
-and checks it again to decide whether a screen is editable or read only. The
-navigation model does not need to change shape for any of that.
+**Permissions.** `ROLE_PERMISSIONS` lists the `adminPermission(area, key)` keys
+each role may use, or `"*"` for all. Admin and Staff currently have `"*"`,
+Customer has none. When the staff permission system is specified, narrow Staff
+there; the checks below already read it.
+
+**Checks.**
+
+* `src/app/admin/layout.tsx` — signed out → `/sign-in`; a role with no
+  permissions → the access-denied screen instead of the console.
+* A built module's page checks its own key with `hasPermission`.
+* Every `/api/v1/admin` route starts with `authorizeApi(PERMISSIONS.<module>)`:
+  401 when signed out, 403 without the permission.
+* Server Actions check for themselves (`savePolicy`), because they can be
+  called directly.
+
+**Sessions** are a signed cookie (`AUTH_SECRET`), seven days. The cookie only
+identifies the user; role and state are read from the database on each
+request, so a role change or a deletion applies immediately.
+
+**Account rules** (`permissions.ts`, enforced in `customer.service.ts`): only
+Admins give the Admin role, edit or delete Admin accounts, or set passwords;
+nobody changes their own role or deletes themselves; the last Admin can't be
+removed.
+
+**Setup.** Add to `.env`, then run `npm run db:seed` to create the first Admin:
+
+```
+AUTH_SECRET=<32+ random characters>
+SEED_ADMIN_EMAIL=you@example.com
+SEED_ADMIN_PASSWORD=<10+ characters>
+```
+
+## Customers
+
+`/admin/customers` — list with search and pagination, add/edit modal, delete.
+
+| File | Purpose |
+| --- | --- |
+| `src/app/admin/customers/page.tsx` | Permission check, renders the module |
+| `src/components/admin/customers/` | List, modal, address editor |
+| `src/hooks/use-customer.ts` | Queries and mutations |
+| `src/app/api/v1/admin/customers/` | `GET`/`POST` list, `GET`/`PATCH`/`DELETE` one |
+| `src/services/customer.service.ts` | Queries and rules |
+| `src/validators/customer.validator.ts` | One schema for create and update |
+
+* **Addresses** (emirate, street, nearest landmark) are edited inside the modal
+  and saved with the customer in one transaction. Exactly one is primary: the
+  one marked, or the first when none is.
+* **Emails** are stored lowercased and must be unique (409 on the email field).
+* **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
+  the list and can't sign in; its email stays taken.
 
 ## The shell
 
@@ -149,10 +199,9 @@ module stays purely additive: create `src/app/admin/products/page.tsx` and the
 static segment takes precedence over the catch-all automatically, with nothing
 to unpick.
 
-All 41 module routes are prerendered through `generateStaticParams`, so they are
-static rather than server rendered per request, and the build output lists them.
-That listing is the route verification: a route that stops resolving shows up in
-CI.
+`generateStaticParams` lists every module route. Because the admin layout reads
+the session cookie, they render per request rather than being served static.
+A built module adds its route to `BUILT_ROUTES` so the catch-all stops listing it.
 
 ## Dashboard
 
@@ -169,12 +218,10 @@ reporting or analytics is present, as the issue specifies.
    renders the admin not-found screen correctly but answers HTTP 200. Verified
    against a normal segment under the same layout, which does answer 404. This
    resolves itself as modules land and claim their own static segments.
-2. **The staff identity is a placeholder.** `adminConsole.staff` is static. It is
-   deliberately not wired to the shopper session in `AccountProvider`, which is
-   a different account entirely. Admin authentication is its own issue, and the
-   header menu's "Leave console" simply returns to the storefront.
-3. **No route guard.** `/admin` is publicly reachable. Access control arrives
-   with admin authentication.
+2. **The storefront still uses the stand-in session.** `/sign-in` issues a real
+   session, but `AccountProvider` and the `/account` pages still use the
+   localStorage demo user.
+3. **Sign-in has no rate limiting**, and there is no sign-up or password reset.
 4. **Lenis smooth scroll still runs.** The site wide scroll driver from the root
    layout applies to the console too. The navigation rail opts out with
    `data-lenis-prevent`. If the console ever feels wrong under it, the provider

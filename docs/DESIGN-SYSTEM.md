@@ -125,7 +125,8 @@ before launch.
 - **Button** — `primary` (ink fill, `ink-hover` on hover), `accent` (same ink fill, kept separate so "this is a drop CTA" stays readable in markup), `inverse` (light chip for dark plates), `outline` (hairline ink border that fills with ink on hover), `ghost`, `link`; sizes `sm/md/lg`; `loading` swaps label for spinner without width shift. All lift 1px on hover over 250ms — no glow.
 - **Badge** — mono voice; `default/outline/accent/live/warn/soldOut`; `live` carries a pulsing dot.
 - **Card** — `surface/sheen/glass/plain` + `floating` + `interactive` (lift −4px on hover).
-- **Input / Textarea / Label / FieldError** — hairline fields; accent focus border; error state driven by `aria-invalid`.
+- **Input / Textarea / Select / Label / FieldError** — hairline fields; accent focus border; error state driven by `aria-invalid`. `Select` is the native element in the same field style, so touch devices keep the platform picker.
+- **Dialog** — modal panel for forms (`ConfirmDialog` stays for yes/no). Same contract as the other dialogs: focus in on open and back on close, Escape and backdrop close, Tab trapped, scroll locked. Compose with `DialogBody` (scrolls) and `DialogFooter` (pinned), so a long form never hides its Save button; `data-autofocus` marks the field that takes focus. A bottom sheet on phones, centred from `sm`.
 - **Countdown** — full stat row (drop pages) or `compact` chip (cards); mono `tabular-nums` so digits never jitter.
 - **Skeleton** — shimmer on surface tones; compose layout-accurate ghosts (see `ProductCardSkeleton`) so hydration causes zero CLS.
 - **ProductCard** — 4:5 stage with radial sheen; status chrome (live/edition badges) inside the stage; meta and mono price outside it; hover = card lifts −6px, product scales 1.04 and eases forward, ambient shadow deepens.
