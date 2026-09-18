@@ -1,9 +1,9 @@
 import type { z } from "zod";
 import type { Role } from "@/lib/auth/permissions";
 import type { Emirate } from "@/lib/emirates";
-import type { customerSchema } from "@/validators/customer.validator";
+import type { UserGroup, userSchema } from "@/validators/user.validator";
 
-export interface CustomerAddress {
+export interface UserAddress {
   id: string;
   emirate: Emirate;
   street: string;
@@ -11,7 +11,7 @@ export interface CustomerAddress {
   isPrimary: boolean;
 }
 
-export interface CustomerListItem {
+export interface UserListItem {
   id: string;
   fullName: string;
   email: string;
@@ -21,17 +21,18 @@ export interface CustomerListItem {
   updatedAt: string;
 }
 
-export interface CustomerDetail extends CustomerListItem {
+export interface UserDetail extends UserListItem {
   /** Whether the account can sign in. */
   hasPassword: boolean;
-  addresses: CustomerAddress[];
+  addresses: UserAddress[];
 }
 
 /** A `type`, not `z.input` of the query schema — `z.coerce` inputs are `unknown`. */
-export type CustomerFilters = {
+export type UserFilters = {
+  group: UserGroup;
   page?: number;
   pageSize?: number;
   search?: string;
 };
 
-export type CustomerInput = z.input<typeof customerSchema>;
+export type UserInput = z.input<typeof userSchema>;

@@ -6,37 +6,72 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCreateCustomer, useGetCustomer, useUpdateCustomer } from "@/hooks/use-customer";
+import { useCreateUser, useGetUser, useUpdateUser } from "@/hooks/use-user";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { ROLE_LABELS, assignableRoles, canSetPassword, type Role } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/types/auth";
-import type { CustomerDetail } from "@/types/customer";
-import { customerSchema } from "@/validators/customer.validator";
+import type { UserDetail } from "@/types/user";
+import type { UserGroup } from "@/validators/user.validator";
+import { userSchema } from "@/validators/user.validator";
 import { AddressListEditor, Field, newKey, type DraftAddress } from "./address-list-editor";
 
 interface Props {
-  /** Absent to add a customer. */
-  customerId?: string;
+  /** Absent to add an account. */
+  userId?: string;
   viewer: SessionUser;
+  /** Which screen opened this — decides the roles on offer. */
+  group: UserGroup;
   onClose: () => void;
 }
 
-export function CustomerFormModal({ customerId, viewer, onClose }: Props) {
+/** Staff screen offers console roles; the customers screen offers Customer. */
+function rolesFor(group: UserGroup, viewer: SessionUser, current?: Role): Role[] {
+  const offered =
+    group === "staff"
+      ? assignableRoles(viewer.role).filter((role) => role !== "CUSTOMER")
+      : (["CUSTOMER"] as Role[]);
+  return current && !offered.includes(current) ? [current, ...offered] : offered;
+}
+
+export function UserFormModal({ userId, viewer, group, onClose }: Props) {
+  const isStaff = group === "staff";
   return (
-    <Dialog open onClose={onClose} title={customerId ? "Edit customer" : "Add customer"}>
-      {customerId ? (
-        <EditCustomer id={customerId} viewer={viewer} onClose={onClose} />
+    <Dialog
+      open
+      onClose={onClose}
+      title={
+        userId
+          ? isStaff
+            ? "Edit staff member"
+            : "Edit customer"
+          : isStaff
+            ? "Add staff member"
+            : "Add customer"
+      }
+    >
+      {userId ? (
+        <EditUser id={userId} viewer={viewer} group={group} onClose={onClose} />
       ) : (
-        <CustomerForm viewer={viewer} onClose={onClose} />
+        <UserForm viewer={viewer} group={group} onClose={onClose} />
       )}
     </Dialog>
   );
 }
 
-function EditCustomer({ id, viewer, onClose }: { id: string; viewer: SessionUser; onClose: () => void }) {
-  const customer = useGetCustomer(id);
+function EditUser({
+  id,
+  viewer,
+  group,
+  onClose,
+}: {
+  id: string;
+  viewer: SessionUser;
+  group: UserGroup;
+  onClose: () => void;
+}) {
+  const user = useGetUser(id);
 
-  if (customer.isPending) {
+  if (user.isPending) {
     return (
       <DialogBody>
         <div aria-busy className="grid gap-5 sm:grid-cols-2">
@@ -48,19 +83,19 @@ function EditCustomer({ id, viewer, onClose }: { id: string; viewer: SessionUser
     );
   }
 
-  if (customer.isError) {
+  if (user.isError) {
     return (
       <>
         <DialogBody>
           <p role="alert" className="text-sm text-danger">
-            {customer.error.message}
+            {user.error.message}
           </p>
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
-          <Button type="button" size="sm" loading={customer.isFetching} onClick={() => customer.refetch()}>
+          <Button type="button" size="sm" loading={user.isFetching} onClick={() => user.refetch()}>
             Try again
           </Button>
         </DialogFooter>
@@ -68,23 +103,26 @@ function EditCustomer({ id, viewer, onClose }: { id: string; viewer: SessionUser
     );
   }
 
-  return <CustomerForm viewer={viewer} initial={customer.data} onClose={onClose} />;
+  return <UserForm viewer={viewer} group={group} initial={user.data} onClose={onClose} />;
 }
 
-function CustomerForm({
+function UserForm({
   viewer,
+  group,
   initial,
   onClose,
 }: {
   viewer: SessionUser;
-  initial?: CustomerDetail;
+  group: UserGroup;
+  initial?: UserDetail;
   onClose: () => void;
 }) {
   const id = useId();
+  const roles = rolesFor(group, viewer, initial?.role);
   const [fullName, setFullName] = useState(initial?.fullName ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [role, setRole] = useState<Role>(initial?.role ?? "CUSTOMER");
+  const [role, setRole] = useState<Role>(initial?.role ?? roles[0]);
   const [password, setPassword] = useState("");
   const [addresses, setAddresses] = useState<DraftAddress[]>(
     () => initial?.addresses.map((address) => ({ ...address, key: newKey() })) ?? [],
@@ -92,13 +130,13 @@ function CustomerForm({
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
 
-  const createCustomer = useCreateCustomer();
-  const updateCustomer = useUpdateCustomer();
-  const mutation = initial ? updateCustomer : createCustomer;
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const mutation = initial ? updateUser : createUser;
 
   const isSelf = initial?.id === viewer.id;
-  const roles = assignableRoles(viewer.role);
-  if (initial && !roles.includes(initial.role)) roles.unshift(initial.role);
+  // One option means no choice to make — Customers, or Staff for a Staff viewer.
+  const roleLocked = isSelf || roles.length === 1;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,7 +146,7 @@ function CustomerForm({
       return;
     }
 
-    const parsed = customerSchema.safeParse({
+    const parsed = userSchema.safeParse({
       fullName,
       email,
       phone,
@@ -129,8 +167,8 @@ function CustomerForm({
 
     setErrors({});
     const options = { onSuccess: onClose, onError: (error: Error) => setErrors(apiFieldErrors(error)) };
-    if (initial) updateCustomer.mutate({ id: initial.id, ...parsed.data }, options);
-    else createCustomer.mutate(parsed.data, options);
+    if (initial) updateUser.mutate({ id: initial.id, ...parsed.data }, options);
+    else createUser.mutate(parsed.data, options);
   }
 
   const error = (field: string) => errors[field]?.[0];
@@ -183,7 +221,7 @@ function CustomerForm({
               id={`${id}-role`}
               value={role}
               onChange={(event) => setRole(event.target.value as Role)}
-              disabled={isSelf}
+              disabled={roleLocked}
               className="h-11"
             >
               {roles.map((option) => (
@@ -240,7 +278,7 @@ function CustomerForm({
           Cancel
         </Button>
         <Button type="submit" size="sm" loading={mutation.isPending}>
-          {initial ? "Save changes" : "Add customer"}
+          {initial ? "Save changes" : "Add account"}
         </Button>
       </DialogFooter>
     </form>

@@ -6,17 +6,17 @@ import { ServiceError } from "@/lib/api/api-response";
 import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
-import type { customerListQuerySchema, customerSchema } from "@/validators/customer.validator";
+import type { userListQuerySchema, userSchema } from "@/validators/user.validator";
 
 /**
- * Customer management for the console. Deleting is soft: `state` becomes
- * INACTIVE, and every read here only sees ACTIVE users.
+ * Accounts for the console's Users screens. Deleting is soft: `state`
+ * becomes INACTIVE, and every read here only sees ACTIVE users.
  */
 
 type Tx = Prisma.TransactionClient;
-type CustomerData = z.output<typeof customerSchema>;
+type UserData = z.output<typeof userSchema>;
 
-const customerSelect = {
+const userSelect = {
   id: true,
   fullName: true,
   email: true,
@@ -26,15 +26,18 @@ const customerSelect = {
 } satisfies Prisma.UserSelect;
 
 const notFound = () =>
-  new ServiceError("NOT_FOUND", "We couldn't find that customer. They may have been deleted.", 404);
+  new ServiceError("NOT_FOUND", "We couldn't find that account. It may have been deleted.", 404);
 
-export async function listCustomers({
+export async function listUsers({
   page,
   pageSize,
   search,
-}: z.output<typeof customerListQuerySchema>) {
+  group,
+}: z.output<typeof userListQuerySchema>) {
   const where: Prisma.UserWhereInput = {
     state: "ACTIVE",
+    // Staff screen: the people who can reach the console. Customers: the rest.
+    role: group === "staff" ? { in: ["ADMIN", "STAFF"] } : "CUSTOMER",
     ...(search
       ? {
           OR: [
@@ -49,7 +52,7 @@ export async function listCustomers({
   const [items, total] = await prisma.$transaction([
     prisma.user.findMany({
       where,
-      select: customerSelect,
+      select: userSelect,
       orderBy: { updatedAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -60,11 +63,11 @@ export async function listCustomers({
   return { items, page, pageSize, total };
 }
 
-export async function getCustomer(id: string) {
+export async function getUser(id: string) {
   const user = await prisma.user.findFirst({
     where: { id, state: "ACTIVE" },
     select: {
-      ...customerSelect,
+      ...userSelect,
       passwordHash: true,
       addresses: {
         select: { id: true, emirate: true, street: true, landmark: true, isPrimary: true },
@@ -74,11 +77,11 @@ export async function getCustomer(id: string) {
   });
   if (!user) throw notFound();
 
-  const { passwordHash, ...customer } = user;
-  return { ...customer, hasPassword: passwordHash !== null };
+  const { passwordHash, ...account } = user;
+  return { ...account, hasPassword: passwordHash !== null };
 }
 
-export async function createCustomer(viewer: Actor, data: CustomerData) {
+export async function createUser(viewer: Actor, data: UserData) {
   checkRoleAndPassword(viewer, data);
   const passwordHash = data.password ? await hashPassword(data.password) : null;
 
@@ -98,10 +101,10 @@ export async function createCustomer(viewer: Actor, data: CustomerData) {
     return user.id;
   });
 
-  return getCustomer(id);
+  return getUser(id);
 }
 
-export async function updateCustomer(viewer: Actor, id: string, data: CustomerData) {
+export async function updateUser(viewer: Actor, id: string, data: UserData) {
   checkRoleAndPassword(viewer, data);
   const passwordHash = data.password ? await hashPassword(data.password) : undefined;
 
@@ -127,16 +130,16 @@ export async function updateCustomer(viewer: Actor, id: string, data: CustomerDa
         phone: data.phone,
         role: data.role,
         passwordHash,
-        // Address-only edits still count as editing the customer.
+        // Address-only edits still count as editing the account.
         updatedAt: new Date(),
       },
     });
   });
 
-  return getCustomer(id);
+  return getUser(id);
 }
 
-export async function deleteCustomer(viewer: Actor, id: string) {
+export async function deleteUser(viewer: Actor, id: string) {
   if (viewer.id === id) {
     throw new ServiceError("FORBIDDEN", "You can't delete your own account.", 403);
   }
@@ -152,7 +155,7 @@ export async function deleteCustomer(viewer: Actor, id: string) {
 
 /* ---------- rules ---------- */
 
-function checkRoleAndPassword(viewer: Actor, data: CustomerData) {
+function checkRoleAndPassword(viewer: Actor, data: UserData) {
   if (!assignableRoles(viewer.role).includes(data.role)) {
     throw new ServiceError("FORBIDDEN", "Only an admin can give someone the Admin role.", 403, {
       role: ["Only an admin can give someone the Admin role."],
@@ -192,7 +195,7 @@ async function assertAnotherAdmin(tx: Tx, id: string) {
  * Replaces the user's addresses with `list`. The primary is the one marked,
  * or the first when none is, so there is always exactly one.
  */
-async function saveAddresses(tx: Tx, userId: string, list: CustomerData["addresses"]) {
+async function saveAddresses(tx: Tx, userId: string, list: UserData["addresses"]) {
   const primaryIndex = Math.max(0, list.findIndex((address) => address.isPrimary));
 
   await tx.address.deleteMany({
@@ -205,7 +208,7 @@ async function saveAddresses(tx: Tx, userId: string, list: CustomerData["address
       // Filtering by userId is the ownership check.
       const { count } = await tx.address.updateMany({ where: { id, userId }, data });
       if (count === 0) {
-        throw new ServiceError("CONFLICT", "An address changed elsewhere. Reopen the customer and try again.", 409);
+        throw new ServiceError("CONFLICT", "An address changed elsewhere. Reopen the account and try again.", 409);
       }
     } else {
       await tx.address.create({ data: { ...data, userId } });

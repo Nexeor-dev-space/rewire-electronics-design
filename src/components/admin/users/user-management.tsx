@@ -7,27 +7,52 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteCustomer, useGetCustomers } from "@/hooks/use-customer";
+import { useDeleteUser, useGetUsers } from "@/hooks/use-user";
 import { ROLE_LABELS, canManageUser } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
-import type { CustomerListItem } from "@/types/customer";
-import { CustomerFormModal } from "./customer-form-modal";
+import type { UserListItem } from "@/types/user";
+import type { UserGroup } from "@/validators/user.validator";
+import { UserFormModal } from "./user-form-modal";
+
+/**
+ * The Users list, used by both screens under Service → Users. `group`
+ * decides which accounts are fetched and how the page reads: Staff covers
+ * the people who can reach the console, Customers the people who buy.
+ */
 
 const PAGE_SIZE = 20;
 const COLUMNS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_6rem_minmax(0,1fr)_7rem_5rem]";
 
+const COPY = {
+  staff: {
+    title: "Staff",
+    description: "Admin and staff accounts — the people who can reach this console.",
+    add: "Add staff member",
+    empty: "No staff accounts yet",
+    emptyHint: "Add an account for a colleague who needs the console.",
+  },
+  customers: {
+    title: "Customers",
+    description: "Customer accounts with their contact details and saved addresses.",
+    add: "Add customer",
+    empty: "No customers yet",
+    emptyHint: "Accounts appear here as shoppers sign up, or add one yourself.",
+  },
+} satisfies Record<UserGroup, Record<string, string>>;
+
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
 
-export function CustomerManagement({ viewer }: { viewer: SessionUser }) {
+export function UserManagement({ viewer, group }: { viewer: SessionUser; group: UserGroup }) {
+  const copy = COPY[group];
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<Modal>(null);
-  const [toDelete, setToDelete] = useState<CustomerListItem | null>(null);
+  const [toDelete, setToDelete] = useState<UserListItem | null>(null);
 
-  const customers = useGetCustomers({ page, pageSize: PAGE_SIZE, search: search || undefined });
-  const deleteCustomer = useDeleteCustomer();
+  const users = useGetUsers({ group, page, pageSize: PAGE_SIZE, search: search || undefined });
+  const deleteUser = useDeleteUser();
 
   // Search once typing pauses.
   useEffect(() => {
@@ -40,32 +65,32 @@ export function CustomerManagement({ viewer }: { viewer: SessionUser }) {
 
   function confirmDelete() {
     if (!toDelete) return;
-    const lastOnPage = customers.data?.items.length === 1 && page > 1;
-    deleteCustomer.mutate(toDelete.id, { onSuccess: () => lastOnPage && setPage(page - 1) });
+    const lastOnPage = users.data?.items.length === 1 && page > 1;
+    deleteUser.mutate(toDelete.id, { onSuccess: () => lastOnPage && setPage(page - 1) });
     setToDelete(null);
   }
 
   let content: ReactNode;
-  if (customers.isPending) {
+  if (users.isPending) {
     content = <TableSkeleton />;
-  } else if (customers.isError) {
+  } else if (users.isError) {
     content = (
       <div role="alert" className="rounded-xl border border-line bg-surface-2 px-6 py-12 text-center">
-        <p className="text-sm text-ink-secondary">{customers.error.message}</p>
-        <Button variant="outline" size="sm" className="mt-5" onClick={() => customers.refetch()}>
+        <p className="text-sm text-ink-secondary">{users.error.message}</p>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => users.refetch()}>
           Try again
         </Button>
       </div>
     );
-  } else if (customers.data.items.length === 0) {
+  } else if (users.data.items.length === 0) {
     content = (
       <AdminEmptyState
-        title={search ? "No customers match" : "No customers yet"}
-        description={search ? `Nothing matches “${search}”.` : "Add the first customer to get started."}
+        title={search ? "No accounts match" : copy.empty}
+        description={search ? `Nothing matches “${search}”.` : copy.emptyHint}
       />
     );
   } else {
-    const { items, total } = customers.data;
+    const { items, total } = users.data;
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     content = (
@@ -73,14 +98,14 @@ export function CustomerManagement({ viewer }: { viewer: SessionUser }) {
         <div className="overflow-hidden rounded-xl border border-line">
           <TableHeader />
           <ul>
-            {items.map((customer) => (
-              <CustomerRow
-                key={customer.id}
-                customer={customer}
+            {items.map((user) => (
+              <UserRow
+                key={user.id}
+                user={user}
                 viewer={viewer}
-                deleting={deleteCustomer.isPending && deleteCustomer.variables === customer.id}
-                onEdit={() => setModal({ kind: "edit", id: customer.id })}
-                onDelete={() => setToDelete(customer)}
+                deleting={deleteUser.isPending && deleteUser.variables === user.id}
+                onEdit={() => setModal({ kind: "edit", id: user.id })}
+                onDelete={() => setToDelete(user)}
               />
             ))}
           </ul>
@@ -105,11 +130,11 @@ export function CustomerManagement({ viewer }: { viewer: SessionUser }) {
 
   return (
     <AdminPage
-      title="Customers"
-      description="Customer accounts with their contact details and saved addresses."
+      title={copy.title}
+      description={copy.description}
       actions={
         <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add customer
+          {copy.add}
         </Button>
       }
     >
@@ -118,31 +143,32 @@ export function CustomerManagement({ viewer }: { viewer: SessionUser }) {
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
         placeholder="Search name, email or phone"
-        aria-label="Search customers"
+        aria-label={`Search ${copy.title.toLowerCase()}`}
         className="mb-5 h-10 sm:w-80"
       />
 
-      {deleteCustomer.isError && (
+      {deleteUser.isError && (
         <p role="alert" className="mb-4 text-sm text-danger">
-          {deleteCustomer.error.message}
+          {deleteUser.error.message}
         </p>
       )}
 
       {content}
 
       {modal && (
-        <CustomerFormModal
-          customerId={modal.kind === "edit" ? modal.id : undefined}
+        <UserFormModal
+          userId={modal.kind === "edit" ? modal.id : undefined}
           viewer={viewer}
+          group={group}
           onClose={() => setModal(null)}
         />
       )}
 
       <ConfirmDialog
         open={toDelete !== null}
-        title={`Delete ${toDelete?.fullName ?? "customer"}?`}
+        title={`Delete ${toDelete?.fullName ?? "account"}?`}
         description="They'll be removed from this list and won't be able to sign in."
-        confirmLabel="Delete customer"
+        confirmLabel="Delete account"
         onCancel={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />
@@ -163,35 +189,38 @@ function TableHeader() {
   );
 }
 
-function CustomerRow({
-  customer,
+function UserRow({
+  user,
   viewer,
   deleting,
   onEdit,
   onDelete,
 }: {
-  customer: CustomerListItem;
+  user: UserListItem;
   viewer: SessionUser;
   deleting: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const canEdit = canManageUser(viewer, customer);
-  const canDelete = canEdit && customer.id !== viewer.id;
+  const canEdit = canManageUser(viewer, user);
+  const canDelete = canEdit && user.id !== viewer.id;
 
   return (
     <li className={cn("border-b border-line last:border-b-0", deleting && "opacity-50")}>
       <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS)}>
-        <p className="truncate text-sm font-medium text-ink">{customer.fullName}</p>
-        <p className="truncate text-sm text-ink-secondary">{customer.email}</p>
+        <p className="truncate text-sm font-medium text-ink">
+          {user.fullName}
+          {user.id === viewer.id && <span className="ml-2 text-xs text-ink-muted">(you)</span>}
+        </p>
+        <p className="truncate text-sm text-ink-secondary">{user.email}</p>
         <div>
-          <Badge variant={customer.role === "CUSTOMER" ? "outline" : "accent"} className="px-2 py-1 text-[0.625rem]">
-            {ROLE_LABELS[customer.role]}
+          <Badge variant={user.role === "CUSTOMER" ? "outline" : "accent"} className="px-2 py-1 text-[0.625rem]">
+            {ROLE_LABELS[user.role]}
           </Badge>
         </div>
-        <p className="text-sm tabular-nums text-ink-secondary">{customer.phone}</p>
-        <time dateTime={customer.updatedAt} className="text-sm text-ink-secondary">
-          {new Date(customer.updatedAt).toLocaleDateString("en-GB", {
+        <p className="text-sm tabular-nums text-ink-secondary">{user.phone}</p>
+        <time dateTime={user.updatedAt} className="text-sm text-ink-secondary">
+          {new Date(user.updatedAt).toLocaleDateString("en-GB", {
             day: "numeric",
             month: "short",
             year: "numeric",
@@ -199,13 +228,13 @@ function CustomerRow({
         </time>
         <div className="mt-2 flex gap-1.5 lg:mt-0 lg:justify-end">
           {canEdit && (
-            <IconButton label={`Edit ${customer.fullName}`} onClick={onEdit} disabled={deleting}>
+            <IconButton label={`Edit ${user.fullName}`} onClick={onEdit} disabled={deleting}>
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
             </IconButton>
           )}
           {canDelete && (
-            <IconButton label={`Delete ${customer.fullName}`} onClick={onDelete} disabled={deleting}>
+            <IconButton label={`Delete ${user.fullName}`} onClick={onDelete} disabled={deleting}>
               <path d="M4 7h16" />
               <path d="M9 7V4.5h6V7" />
               <path d="M6.5 7l1 12.5h9l1-12.5" />

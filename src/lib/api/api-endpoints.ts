@@ -11,9 +11,9 @@ export const API_ENDPOINTS = {
     signOut: `${V1}/auth/sign-out`,
   },
   admin: {
-    customers: {
-      list: `${V1}/admin/customers`,
-      detail: (id: string) => `${V1}/admin/customers/${id}`,
+    users: {
+      list: `${V1}/admin/users`,
+      detail: (id: string) => `${V1}/admin/users/${id}`,
     },
   },
 } as const;

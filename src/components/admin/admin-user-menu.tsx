@@ -15,7 +15,7 @@ import type { SessionUser } from "@/types/auth";
  */
 
 const LINKS = [
-  { label: "Staff & Roles", href: "/admin/users" },
+  { label: "Staff accounts", href: "/admin/users/staff" },
   { label: "Configuration", href: "/admin/settings/general" },
 ] as const;
 

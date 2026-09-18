@@ -3,8 +3,16 @@ import { ROLES } from "@/lib/auth/permissions";
 import { EMIRATE_VALUES } from "@/lib/emirates";
 import { emailValidator, paginationQueryValidator } from "./common/primitives.validator";
 
-export const customerListQuerySchema = paginationQueryValidator.extend({
+/**
+ * The console's two Users screens read the same endpoint and differ only by
+ * `group`: Staff lists Admin and Staff accounts, Customers lists the rest.
+ */
+export const USER_GROUPS = ["staff", "customers"] as const;
+export type UserGroup = (typeof USER_GROUPS)[number];
+
+export const userListQuerySchema = paginationQueryValidator.extend({
   search: z.string().trim().max(100).optional(),
+  group: z.enum(USER_GROUPS),
 });
 
 export const addressSchema = z.object({
@@ -20,7 +28,7 @@ export const addressSchema = z.object({
  * Create and update take the same body. `addresses` is the full list:
  * addresses missing from it are removed.
  */
-export const customerSchema = z.object({
+export const userSchema = z.object({
   fullName: z.string().trim().min(1, "Enter the full name.").max(120),
   email: emailValidator,
   phone: z

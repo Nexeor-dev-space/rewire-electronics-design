@@ -7,11 +7,11 @@ import { Input, Select } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { cn } from "@/lib/utils";
-import { addressSchema } from "@/validators/customer.validator";
+import { addressSchema } from "@/validators/user.validator";
 
 /**
- * Addresses inside the customer modal. Edits a local list that is saved
- * with the customer. Keeps exactly one primary: marking one unmarks the
+ * Addresses inside the account modal. Edits a local list that is saved
+ * with the account. Keeps exactly one primary: marking one unmarks the
  * rest, and when none is marked the first address takes it.
  */
 
@@ -150,7 +150,7 @@ export function AddressListEditor({
   );
 }
 
-/** Label, control, hint and error — shared with the customer form. */
+/** Label, control, hint and error — shared with the account form. */
 export function Field({
   id,
   label,
