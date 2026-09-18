@@ -14,15 +14,6 @@ export const adminConsole = {
   /** Wordmark in the sidebar head. Follows the storefront's brand name. */
   name: siteConfig.shortName,
   label: "Admin",
-  /**
-   * Placeholder staff identity for the header menu. Admin authentication
-   * is a separate issue; this is deliberately static rather than wired to
-   * the shopper session, which is a different account entirely.
-   */
-  staff: {
-    name: "Staff Account",
-    role: "Administrator",
-  },
 } as const;
 
 export interface AdminMetric {

@@ -8,6 +8,7 @@ import { ADMIN_ROOT } from "@/lib/admin-nav";
 import { adminConsole } from "@/lib/admin-console";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import type { SessionUser } from "@/types/auth";
 import { AdminNavList } from "./admin-nav";
 import { AdminUserMenu } from "./admin-user-menu";
 
@@ -41,7 +42,14 @@ const CONTENT_PAD_COLLAPSED = "lg:pl-20";
 /** Shared retract transition, from the house motion vocabulary. */
 const RETRACT = "duration-(--duration-base) ease-(--ease-out-expo)";
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({
+  viewer,
+  children,
+}: {
+  /** The signed-in staff member, shown in the user menu. */
+  viewer: SessionUser;
+  children: ReactNode;
+}) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
@@ -163,7 +171,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             >
               View storefront
             </Link>
-            <AdminUserMenu />
+            <AdminUserMenu viewer={viewer} />
           </div>
         </header>
 
