@@ -267,11 +267,27 @@ export const adminNav: AdminNavSection[] = [
         description: "Customer conversations and their resolution state.",
       },
       {
-        key: "customers",
-        label: "Customers",
-        href: "/admin/customers",
+        key: "users",
+        label: "Users",
+        href: "/admin/users",
         description:
-          "Customer records with their orders, devices and service history.",
+          "Every account: staff who work in the console, and customers who buy.",
+        children: [
+          {
+            key: "staff",
+            label: "Staff",
+            href: "/admin/users/staff",
+            description:
+              "Admin and staff accounts — the people who can reach this console.",
+          },
+          {
+            key: "customers",
+            label: "Customers",
+            href: "/admin/users/customers",
+            description:
+              "Customer records with their contact details and saved addresses.",
+          },
+        ],
       },
     ],
   },
@@ -378,12 +394,11 @@ export const adminNav: AdminNavSection[] = [
         routes: ["/admin/settings/general"],
       },
       {
-        key: "staff",
-        label: "Staff & Roles",
-        href: "/admin/users",
+        key: "roles",
+        label: "Roles",
+        href: "/admin/roles",
         description:
-          "Staff accounts and the roles that decide which areas each of them can reach.",
-        routes: ["/admin/roles"],
+          "The roles that decide which areas each staff account can reach. The accounts themselves live under Service → Users → Staff.",
       },
       {
         key: "trash",

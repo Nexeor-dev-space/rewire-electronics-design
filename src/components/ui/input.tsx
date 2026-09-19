@@ -1,4 +1,9 @@
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,3 +42,33 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ),
 );
 Textarea.displayName = "Textarea";
+
+export type SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
+
+/** Native select in the field style — the platform picker on touch, keyboard for free. */
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, children, ...props }, ref) => (
+    <div className="relative">
+      <select
+        ref={ref}
+        className={cn(fieldStyles, "h-12 appearance-none pr-10", className)}
+        {...props}
+      >
+        {children}
+      </select>
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute right-4 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
+        aria-hidden
+      >
+        <path d="M4 6l4 4 4-4" />
+      </svg>
+    </div>
+  ),
+);
+Select.displayName = "Select";

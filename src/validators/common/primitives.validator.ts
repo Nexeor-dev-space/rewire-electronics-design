@@ -33,3 +33,12 @@ export function paginatedValidator<Item extends z.ZodType>(item: Item) {
     total: z.number().int(),
   });
 }
+
+/** Trimmed and lowercased before it is checked, so uniqueness ignores case. */
+export const emailValidator = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "Enter an email address.")
+  .max(254, "That email address is too long.")
+  .pipe(z.email("Enter a valid email address."));

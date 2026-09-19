@@ -2,6 +2,8 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { POLICIES_TAG, policyTag, readPolicy } from "@/lib/policies";
 import { validateRichText } from "@/lib/rich-text";
@@ -38,6 +40,13 @@ export async function savePolicy(
   slug: string,
   input: PolicyInput,
 ): Promise<ActionResult> {
+  // A Server Action is a public POST endpoint whatever page renders it, so
+  // it checks access itself rather than trusting the admin layout.
+  const session = await getSession();
+  if (!session || !hasPermission(session.user.role, PERMISSIONS.content)) {
+    return { ok: false, error: "Your account doesn't have access to edit policies." };
+  }
+
   if (!isPolicySlug(slug)) {
     return { ok: false, error: "Unknown policy." };
   }

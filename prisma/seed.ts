@@ -7,6 +7,7 @@ import {
 } from "../src/lib/rich-text";
 import type { PolicySlug, RichTextDoc } from "../src/lib/policy-types";
 import { databaseUrl } from "../src/lib/db-url";
+import { hashPassword } from "../src/lib/auth/password";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: databaseUrl() }),
@@ -438,9 +439,41 @@ async function seedPolicies() {
   }
 }
 
+/**
+ * The first Admin — without one nobody can sign in to create anyone else.
+ * Credentials come from the environment so no password is committed. Re-running
+ * the seed resets that account to an active Admin with the given password.
+ */
+async function seedAdmin() {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    console.log("  skipped — set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD to create one");
+    return;
+  }
+  if (password.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 8 characters.");
+  }
+
+  const passwordHash = await hashPassword(password);
+  const fullName = process.env.SEED_ADMIN_NAME?.trim() || "Administrator";
+  const phone = process.env.SEED_ADMIN_PHONE?.trim() || "+971 00 000 0000";
+
+  await prisma.user.upsert({
+    where: { email },
+    create: { email, fullName, phone, role: "ADMIN", passwordHash },
+    update: { role: "ADMIN", state: "ACTIVE", passwordHash },
+  });
+
+  console.log(`  ${email}`);
+}
+
 async function main() {
   console.log("Policies:");
   await seedPolicies();
+  console.log("Admin:");
+  await seedAdmin();
 }
 
 main()
