@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateUser, useGetUser, useUpdateUser } from "@/hooks/use-user";
@@ -13,7 +14,7 @@ import type { SessionUser } from "@/types/auth";
 import type { UserDetail } from "@/types/user";
 import type { UserGroup } from "@/validators/user.validator";
 import { userSchema } from "@/validators/user.validator";
-import { AddressListEditor, Field, newKey, type DraftAddress } from "./address-list-editor";
+import { AddressListEditor, newKey, type DraftAddress } from "./address-list-editor";
 
 interface Props {
   /** Absent to add an account. */

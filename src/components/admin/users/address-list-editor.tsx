@@ -1,12 +1,11 @@
 "use client";
 
-import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useState, type KeyboardEvent } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
-import { FieldError, Label } from "@/components/ui/label";
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
-import { cn } from "@/lib/utils";
 import { addressSchema } from "@/validators/user.validator";
 
 /**
@@ -147,32 +146,6 @@ export function AddressListEditor({
         </Button>
       )}
     </fieldset>
-  );
-}
-
-/** Label, control, hint and error — shared with the account form. */
-export function Field({
-  id,
-  label,
-  error,
-  hint,
-  className,
-  children,
-}: {
-  id: string;
-  label: string;
-  error?: string;
-  hint?: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {hint && <p className="text-xs text-ink-muted">{hint}</p>}
-      <FieldError>{error}</FieldError>
-    </div>
   );
 }
 
