@@ -15,5 +15,20 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/users`,
       detail: (id: string) => `${V1}/admin/users/${id}`,
     },
+    categories: {
+      list: `${V1}/admin/categories`,
+      detail: (id: string) => `${V1}/admin/categories/${id}`,
+    },
+    brands: {
+      list: `${V1}/admin/brands`,
+      detail: (id: string) => `${V1}/admin/brands/${id}`,
+    },
+  },
+  uploads: {
+    images: `${V1}/uploads/images`,
+  },
+  media: {
+    /** Serves raw bytes, not the JSON envelope — see docs/DATA-LAYER.md §4. */
+    detail: (id: string) => `${V1}/media/${id}`,
   },
 } as const;
