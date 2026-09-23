@@ -3,7 +3,7 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { fromShopCondition, fromShopGrade, toShopCondition, toShopGrade } from "@/lib/catalogue";
-import { MAX_PRODUCT_ADD_ONS } from "@/lib/constants";
+import { MAX_PRODUCT_ADD_ONS, RELATED_PRODUCTS_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
@@ -15,6 +15,7 @@ import type {
   ShopFacets,
   ShopListing,
   ShopProductDetail,
+  ShopProductPage,
 } from "@/types/catalogue";
 import type { shopQuerySchema } from "@/validators/catalogue.validator";
 
@@ -295,7 +296,7 @@ export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
   return { items: rows.map(toCard), page, pageSize, total, facets };
 }
 
-export async function findShopProduct(slug: string): Promise<ShopProductDetail | null> {
+async function findShopProduct(slug: string): Promise<ShopProductDetail | null> {
   const row = await prisma.product.findFirst({
     where: { slug, ...PUBLISHED },
     select: detailSelect,
@@ -303,7 +304,7 @@ export async function findShopProduct(slug: string): Promise<ShopProductDetail |
   return row ? toDetail(row) : null;
 }
 
-export async function listRelatedShopProducts(product: ShopProductDetail, limit: number) {
+async function listRelatedShopProducts(product: ShopProductDetail, limit: number) {
   const rows = await prisma.product.findMany({
     where: { ...PUBLISHED, categoryId: product.category.id, id: { not: product.id } },
     select: cardSelect,
@@ -323,7 +324,7 @@ export async function listNewestShopProducts(limit: number) {
   return rows.map(toCard);
 }
 
-export async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
+async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
   const categoryIds = [category.id, ...(category.parent ? [category.parent.id] : [])];
   const rows = await prisma.addOn.findMany({
     where: {
@@ -343,6 +344,17 @@ export async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAdd
     kind: row.kind.toLowerCase() as ShopAddOn["kind"],
     popular: row.popular,
   }));
+}
+
+export async function findShopProductPage(slug: string): Promise<ShopProductPage | null> {
+  const product = await findShopProduct(slug);
+  if (!product) return null;
+
+  const [addOns, related] = await Promise.all([
+    listShopAddOns(product.category),
+    listRelatedShopProducts(product, RELATED_PRODUCTS_LIMIT),
+  ]);
+  return { ...product, addOns, related };
 }
 
 export async function findShopCategory(slug: string) {

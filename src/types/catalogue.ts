@@ -100,6 +100,11 @@ export interface ShopProductDetail {
   listedAt: string | null;
 }
 
+export interface ShopProductPage extends ShopProductDetail {
+  addOns: ShopAddOn[];
+  related: ShopCard[];
+}
+
 export type ShopQuery = z.input<typeof shopQuerySchema>;
 
 export type ShopFilterState = {

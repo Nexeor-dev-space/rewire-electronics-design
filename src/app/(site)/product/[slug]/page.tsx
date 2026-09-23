@@ -17,13 +17,8 @@ import { SpecTable } from "@/components/product/detail/spec-table";
 import { IncludedList } from "@/components/product/detail/included-list";
 import { TrustBlocks } from "@/components/product/detail/trust-blocks";
 import { RelatedProducts } from "@/components/product/detail/related-products";
-import { RELATED_PRODUCTS_LIMIT } from "@/lib/constants";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
-import {
-  findShopProduct,
-  listRelatedShopProducts,
-  listShopAddOns,
-} from "@/services/catalogue.service";
+import { findShopProductPage } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +26,7 @@ interface Params {
   params: Promise<{ slug: string }>;
 }
 
-const getProduct = cache(findShopProduct);
+const getProduct = cache(findShopProductPage);
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const product = await getProduct((await params).slug);
@@ -46,10 +41,7 @@ export default async function ProductPage({ params }: Params) {
   const product = await getProduct((await params).slug);
   if (!product) notFound();
 
-  const [related, addOns] = await Promise.all([
-    listRelatedShopProducts(product, RELATED_PRODUCTS_LIMIT),
-    listShopAddOns(product.category),
-  ]);
+  const { addOns, related } = product;
   const condition = CONDITION_META[product.condition].label;
   const grade = product.grade ? GRADE_META[product.grade].label : undefined;
 
