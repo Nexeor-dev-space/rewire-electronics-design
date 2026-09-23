@@ -11,6 +11,7 @@ import type {
   categorySchema,
 } from "@/validators/category.validator";
 import { releaseImage } from "./media.service";
+import { productCountPhrase } from "./product.service";
 
 /**
  * The category tree for the console. Two levels: a category with `parentId`
@@ -226,7 +227,11 @@ export async function deleteCategory(id: string) {
   await prisma.$transaction(async (tx) => {
     const current = await tx.category.findUnique({
       where: { id },
-      select: { name: true, imageId: true, _count: { select: { children: true } } },
+      select: {
+        name: true,
+        imageId: true,
+        _count: { select: { children: true, products: true } },
+      },
     });
     if (!current) throw notFound();
 
@@ -235,6 +240,14 @@ export async function deleteCategory(id: string) {
       throw new ServiceError(
         "CONFLICT",
         `${current.name} has ${childCountPhrase(count)}. Move or delete ${count === 1 ? "it" : "them"} first.`,
+        409,
+      );
+    }
+
+    if (current._count.products > 0) {
+      throw new ServiceError(
+        "CONFLICT",
+        `${current.name} has ${productCountPhrase(current._count.products)}. Move or delete them first.`,
         409,
       );
     }

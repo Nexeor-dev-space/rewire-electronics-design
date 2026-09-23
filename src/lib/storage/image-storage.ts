@@ -59,6 +59,7 @@ const prismaImageStorage: ImageStorage = {
         createdAt: { lt: new Date(Date.now() - ORPHAN_GRACE_MS) },
         categories: { none: {} },
         brands: { none: {} },
+        productImages: { none: {} },
       },
     });
     return count;
