@@ -1,7 +1,6 @@
-
 model Category {
-  id   String @id @default(cuid())
-  name String
+  id      String @id @default(cuid())
+  name    String
   nameKey String @unique
 
   parentId String?
@@ -10,6 +9,9 @@ model Category {
 
   imageId String?
   image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  products Product[]
+  addOns   AddOnCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -21,17 +23,170 @@ model Category {
 
 /// A manufacturer. Flat — brands have no hierarchy.
 model Brand {
-  id   String @id @default(cuid())
-  name String
+  id      String @id @default(cuid())
+  name    String
   /// See `Category.nameKey`.
   nameKey String @unique
 
   imageId String?
   image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
 
+  products Product[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([updatedAt])
   @@map("brands")
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ProductCondition {
+  NEW
+  OPEN_BOX
+  PRE_OWNED
+  REFURBISHED
+}
+
+enum ProductGrade {
+  PREMIUM
+  EXCELLENT
+  VERY_GOOD
+  GOOD
+}
+
+model Product {
+  id          String @id @default(cuid())
+  slug        String @unique
+  name        String
+  description String @default("")
+
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  condition      ProductCondition
+  grade          ProductGrade?
+  batteryHealth  Int?
+  warrantyMonths Int              @default(12)
+  highlights     String[]
+  included       String[]
+
+  status      ProductStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  variants ProductVariant[]
+  images   ProductImage[]
+  specs    ProductSpec[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([categoryId, status])
+  @@index([brandId, status])
+  @@index([updatedAt])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku       String  @unique
+  storage   String?
+  colour    String?
+  colourHex String?
+
+  price          Int
+  compareAtPrice Int?
+  stock          Int  @default(0)
+  sortOrder      Int  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@index([stock])
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String     @id @default(cuid())
+  productId String
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  alt       String     @default("")
+  sortOrder Int        @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}
+
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group     String
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@map("product_specs")
+}
+
+enum AddOnKind {
+  PROTECTION
+  ACCESSORY
+  SERVICE
+}
+
+model AddOn {
+  id    String    @id @default(cuid())
+  name  String
+  note  String    @default("")
+  kind  AddOnKind
+  price Int
+
+  popular      Boolean @default(false)
+  active       Boolean @default(true)
+  appliesToAll Boolean @default(false)
+
+  categories AddOnCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, appliesToAll])
+  @@index([updatedAt])
+  @@map("add_ons")
+}
+
+model AddOnCategory {
+  addOnId    String
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([addOnId, categoryId])
+  @@index([categoryId])
+  @@map("add_on_categories")
 }
