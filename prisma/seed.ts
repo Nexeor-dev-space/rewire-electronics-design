@@ -8,6 +8,7 @@ import {
 import type { PolicySlug, RichTextDoc } from "../src/lib/policy-types";
 import { databaseUrl } from "../src/lib/db-url";
 import { hashPassword } from "../src/lib/auth/password";
+import { seedCatalogue } from "./seed-catalogue";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: databaseUrl() }),
@@ -474,6 +475,8 @@ async function main() {
   await seedPolicies();
   console.log("Admin:");
   await seedAdmin();
+  console.log("Catalogue:");
+  await seedCatalogue(prisma);
 }
 
 main()

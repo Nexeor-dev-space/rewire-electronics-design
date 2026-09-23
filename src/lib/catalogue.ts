@@ -12,6 +12,11 @@ export const toShopCondition = (condition: ProductCondition) =>
 export const toShopGrade = (grade: ProductGrade) =>
   grade.toLowerCase().replace("_", "-") as Grade;
 
+export const fromShopCondition = (condition: Condition) =>
+  condition.toUpperCase().replace("-", "_") as ProductCondition;
+
+export const fromShopGrade = (grade: Grade) => grade.toUpperCase().replace("-", "_") as ProductGrade;
+
 export const conditionLabel = (condition: ProductCondition) =>
   CONDITION_META[toShopCondition(condition)].label;
 

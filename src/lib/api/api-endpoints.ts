@@ -37,6 +37,10 @@ export const API_ENDPOINTS = {
       detail: (variantId: string) => `${V1}/admin/inventory/${variantId}`,
     },
   },
+  products: {
+    list: `${V1}/products`,
+    detail: (slug: string) => `${V1}/products/${slug}`,
+  },
   uploads: {
     images: `${V1}/uploads/images`,
   },
