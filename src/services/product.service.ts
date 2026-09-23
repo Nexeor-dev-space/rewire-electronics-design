@@ -283,6 +283,7 @@ function productFields(data: ProductData) {
     warrantyMonths: data.warrantyMonths,
     highlights: data.highlights,
     included: data.included,
+    minPrice: Math.min(...data.variants.map((variant) => variant.price)),
   };
 }
 

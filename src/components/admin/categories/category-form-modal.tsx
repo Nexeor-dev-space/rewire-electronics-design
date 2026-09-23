@@ -15,6 +15,7 @@ import {
   useUpdateCategory,
 } from "@/hooks/use-category";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { slugify } from "@/lib/utils";
 import type { CategoryDetail } from "@/types/category";
 import { categorySchema, type CategoryType } from "@/validators/category.validator";
 
@@ -82,6 +83,8 @@ function EditCategory({ id, onClose }: { id: string; onClose: () => void }) {
 function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose: () => void }) {
   const id = useId();
   const [name, setName] = useState(initial?.name ?? "");
+  const [slug, setSlug] = useState(initial?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(Boolean(initial));
   const [type, setType] = useState<CategoryType>(initial?.type ?? "parent");
   const [parentId, setParentId] = useState<string | null>(initial?.parentId ?? null);
   const [imageId, setImageId] = useState<string | null>(initial?.imageId ?? null);
@@ -105,6 +108,7 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
 
     const parsed = categorySchema.safeParse({
       name,
+      slug,
       type,
       parentId: type === "child" ? parentId : null,
       imageId,
@@ -135,8 +139,29 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
               id={`${id}-name`}
               data-autofocus
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (!slugTouched) setSlug(slugify(event.target.value));
+              }}
               aria-invalid={error("name") ? true : undefined}
+              className="h-11"
+            />
+          </Field>
+
+          <Field
+            id={`${id}-slug`}
+            label="URL slug"
+            error={error("slug")}
+            hint={`/collection/${slug || "…"}`}
+          >
+            <Input
+              id={`${id}-slug`}
+              value={slug}
+              onChange={(event) => {
+                setSlugTouched(true);
+                setSlug(event.target.value);
+              }}
+              aria-invalid={error("slug") ? true : undefined}
               className="h-11"
             />
           </Field>

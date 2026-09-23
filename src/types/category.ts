@@ -9,6 +9,7 @@ import type { CategoryType, categorySchema } from "@/validators/category.validat
 export interface CategorySummary {
   id: string;
   name: string;
+  slug: string;
   /** Derived from `parentId`, never stored. */
   type: CategoryType;
   parentId: string | null;

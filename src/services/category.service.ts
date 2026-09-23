@@ -26,6 +26,7 @@ type CategoryQuery = z.output<typeof categoryListQuerySchema>;
 const categorySelect = {
   id: true,
   name: true,
+  slug: true,
   parentId: true,
   imageId: true,
   updatedAt: true,
@@ -44,6 +45,7 @@ function toSummary(row: CategoryRow) {
   return {
     id: row.id,
     name: row.name,
+    slug: row.slug,
     type,
     parentId: row.parentId,
     imageUrl: imageUrlOrNull(row.imageId),
@@ -163,12 +165,14 @@ export async function getCategory(id: string) {
 export async function createCategory(data: CategoryData) {
   const id = await prisma.$transaction(async (tx) => {
     await assertNameFree(tx, nameKeyOf(data.name));
+    await assertSlugFree(tx, data.slug);
     if (data.parentId !== null) await assertUsableParent(tx, data.parentId);
 
     const created = await tx.category.create({
       data: {
         name: data.name,
         nameKey: nameKeyOf(data.name),
+        slug: data.slug,
         parentId: data.parentId,
         imageId: data.imageId,
       },
@@ -189,6 +193,7 @@ export async function updateCategory(id: string, data: CategoryData) {
     if (!current) throw notFound();
 
     await assertNameFree(tx, nameKeyOf(data.name), id);
+    await assertSlugFree(tx, data.slug, id);
 
     if (data.parentId !== null) {
       if (data.parentId === id) {
@@ -210,6 +215,7 @@ export async function updateCategory(id: string, data: CategoryData) {
       data: {
         name: data.name,
         nameKey: nameKeyOf(data.name),
+        slug: data.slug,
         parentId: data.parentId,
         imageId: data.imageId,
       },
@@ -269,6 +275,14 @@ async function assertNameFree(tx: Tx, nameKey: string, exceptId?: string) {
   if (owner && owner.id !== exceptId) {
     const message = "A category with this name already exists.";
     throw new ServiceError("CONFLICT", message, 409, { name: [message] });
+  }
+}
+
+async function assertSlugFree(tx: Tx, slug: string, exceptId?: string) {
+  const owner = await tx.category.findUnique({ where: { slug }, select: { id: true } });
+  if (owner && owner.id !== exceptId) {
+    const message = "Another category already uses this URL slug.";
+    throw new ServiceError("CONFLICT", message, 409, { slug: [message] });
   }
 }
 

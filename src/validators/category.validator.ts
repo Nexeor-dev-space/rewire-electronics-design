@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paginationQueryValidator } from "./common/primitives.validator";
+import { paginationQueryValidator, slugValidator } from "./common/primitives.validator";
 
 /**
  * Categories are two levels deep. `type` is not stored — it is derived from
@@ -25,6 +25,7 @@ export const categoryListQuerySchema = paginationQueryValidator.extend({
 export const categorySchema = z
   .object({
     name: z.string().trim().min(1, "Enter a category name.").max(80, "Use 80 characters or fewer."),
+    slug: slugValidator.max(80, "Use 80 characters or fewer."),
     type: z.enum(CATEGORY_TYPES, { error: "Choose a category type." }),
     parentId: z.string().min(1).nullable().default(null),
     imageId: z.string().min(1).nullable().default(null),
