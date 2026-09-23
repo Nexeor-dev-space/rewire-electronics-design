@@ -13,10 +13,10 @@ general conventions; this document covers what is specific to the catalogue.
 
 | Area | What exists |
 | --- | --- |
-| Database | Products, variants, images, specs, add-ons |
-| Admin | Products, Add-ons and Inventory screens under Catalogue |
+| Database | Categories, products, variants, images, specs, add-ons |
+| Admin | Categories, Products, Add-ons and Inventory screens under Catalogue |
 | Product API | `GET /api/v1/products` and `GET /api/v1/products/[slug]` |
-| Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]` |
+| Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]`, and the header, mega menus, mobile drawer, home category strip and search panel |
 | SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, canonical URLs |
 
 The Product API is the one product source for the whole storefront. Issue #30
@@ -32,8 +32,9 @@ units (fils), like every other price in the project.
 
 | Model | Holds |
 | --- | --- |
-| `Product` | Slug, name, description, brand, category, condition, grade, battery health, warranty months, highlights, what is included, status, `publishedAt`, `minPrice` |
-| `ProductVariant` | SKU, storage, colour, colour hex, price, compare at price, stock, sort order |
+| `Category` | Name, slug, description, image, parent, status, `showInNav`, `sortOrder` |
+| `Product` | Slug, name, description, brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice` |
+| `ProductVariant` | SKU, condition, grade, battery health, storage, colour, colour hex, price, compare at price, stock, sort order |
 | `ProductImage` | A `MediaAsset`, alt text, an optional `colour`, sort order |
 | `ProductSpec` | Group, label, value, sort order |
 | `AddOn` | Name, note, kind (protection, accessory, service), price, popular, active, applies to all |
@@ -41,10 +42,11 @@ units (fils), like every other price in the project.
 
 Rules the model encodes:
 
-1. **Condition and grade belong to the product, not the variant.** A listing is
-   one device in one condition. The same phone in a different condition is a
-   separate product. Grade only applies to pre-owned and refurbished products;
-   the validator refuses it on anything else.
+1. **Condition, grade and battery health belong to the variant.** One product
+   can offer the same phone as Refurbished Excellent and Pre-Owned Good, each
+   with its own price, stock and battery reading. Grade only applies to
+   pre-owned and refurbished variants; the validator refuses it on anything
+   else.
 2. **Status** is `DRAFT`, `PUBLISHED` or `ARCHIVED`. Only `PUBLISHED` products
    reach the storefront. `publishedAt` is set the first time a product is
    published and never cleared, so "Newest" stays stable across unpublish and
@@ -59,6 +61,15 @@ Rules the model encodes:
    out. Low stock is below `LOW_STOCK_THRESHOLD` (4).
 6. **Image colour** is optional. An image with a colour belongs to every variant
    of that colour; an image without one belongs to all variants. See section 6.
+7. **Category status** is `DRAFT`, `PUBLISHED` or `ARCHIVED`, and new and
+   existing categories default to `PUBLISHED`. A category is visible when it is
+   published and, for a child, its parent is published too. Products in a
+   hidden category disappear from every storefront list, search and product
+   page, and the category page answers 404.
+8. **`showInNav`** decides whether a published top level category appears in
+   the header, menus, mobile drawer and home strip. A hidden one stays
+   browsable at `/collection/[slug]` and in the shop filters.
+9. **`sortOrder`** orders categories everywhere: lower first, then by name.
 
 ### Migrations
 
@@ -67,22 +78,28 @@ Rules the model encodes:
 | `add_products` | Products, variants, images, specs, add-ons |
 | `add_category_slug_and_min_price` | `Category.slug`, `Product.minPrice` |
 | `add_product_image_colour` | Nullable `colour` on `product_images` |
+| `add_category_cms_fields` | `CategoryStatus` enum; `description`, `status` (default `PUBLISHED`), `showInNav` (default true) and `sortOrder` (default 0) on `categories` |
+| `move_condition_to_variants` | Adds `condition`, `grade` and `batteryHealth` to `product_variants`, copies each product's values onto its variants, then drops the three columns from `products` |
 
 ---
 
 ## 3. Admin
 
-Three screens under Catalogue in the admin sidebar. Each page checks its own
+Four screens under Catalogue in the admin sidebar. Each page checks its own
 permission, and every route starts with `authorizeApi`.
 
 | Screen | Route | Permission |
 | --- | --- | --- |
+| Categories | `/admin/categories` | `catalogue.categories` |
 | Products | `/admin/products` | `catalogue.products` |
 | Inventory | `/admin/products/inventory` | `catalogue.inventory` |
 | Add-ons | `/admin/add-ons` | `catalogue.add-ons` |
 
 | Endpoint | Methods |
 | --- | --- |
+| `/api/v1/admin/categories` | `GET` list, `POST` create |
+| `/api/v1/admin/categories/[id]` | `GET`, `PUT`, `DELETE` |
+| `/api/v1/admin/categories/[id]/status` | `PATCH` publish, unpublish or archive |
 | `/api/v1/admin/products` | `GET` list, `POST` create |
 | `/api/v1/admin/products/[id]` | `GET`, `PUT`, `DELETE` |
 | `/api/v1/admin/products/[id]/status` | `PATCH` publish, unpublish or archive |
@@ -96,12 +113,24 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 `src/services/{product,add-on,inventory}.service.ts` and
 `src/validators/{product,add-on,inventory}.validator.ts`.
 
+### Category rules
+
+1. The form sets name, slug, type and parent, image, description (up to 300
+   characters), status, position (`sortOrder`, 0 to 999) and, for a parent,
+   "Show in the storefront menus and home page" (`showInNav`).
+2. The list shows categories in storefront order, with a status select on
+   every row, like the product list.
+3. A category with children or products can't be deleted. Archive it to hide it
+   and keep the record.
+
 ### Product rules
 
 1. **Slug and SKU are unique.** A clash answers 409 on the `slug` or
    `variants` field.
-2. **At least one variant.** Two variants may not share the same storage and
-   colour.
+2. **At least one variant.** Two variants may not share the same condition,
+   grade, storage and colour. Condition, grade and battery health are set on
+   each variant row; "Add variant" copies the previous row's condition and
+   grade.
 3. **Variants keep their id on save.** Variants sent with an `id` are updated,
    variants without one are created, and variants left out are deleted. This
    keeps a variant's identity stable for the cart and orders later.
@@ -147,6 +176,10 @@ Query parameters, validated by `shopQuerySchema` in
 | `price` | Price band ids from `priceBands` in `src/lib/shop.ts` |
 | `sort` | `newest` (default), `price-asc`, `price-desc` |
 
+Condition, grade and storage are variant level filters, and all of them must
+match on the same variant: "Excellent" and "256GB" together only match a
+product that has an Excellent 256GB variant.
+
 Every list parameter keeps at most `SHOP_MAX_FILTER_VALUES` (50) values.
 Unknown condition, grade, price and sort values are dropped rather than
 refused, so an old link falls back to a broader result.
@@ -175,16 +208,18 @@ axis is counted with every other filter applied but its own, which is what lets
 the filter panel disable a zero option instead of hiding it. `total` counts
 products, not variants.
 
-A `ShopCard` carries the cheapest variant's storage, colour and compare at
-price, `price` (the product's `minPrice`), total stock across variants, the
-first image and `optionCount` (the number of variants). Types are in
-`src/types/catalogue.ts`.
+A `ShopCard` shows one variant: the cheapest one that matches the condition,
+grade and storage filters, or the cheapest overall when none are set. The card
+carries that variant's condition, grade, storage, colour, price and compare at
+price, plus total stock across variants, the first image and `optionCount`
+(the number of variants). Types are in `src/types/catalogue.ts`.
 
 ### `GET /api/v1/products/[slug]`
 
-Returns a `ShopProductPage`: the product with its variants, images (each with
-its `colour`), grouped specs, highlights, what is included, battery health and
-warranty months, plus:
+Returns a `ShopProductPage`: the product with its variants (each with `sku`,
+condition, grade, battery health, storage, colour, price, compare at price and
+stock), images (each with its `colour`), grouped specs, highlights, what is
+included and warranty months, plus:
 
 1. `addOns`: the add-ons offered on this product, as described in section 3.
 2. `related`: up to `RELATED_PRODUCTS_LIMIT` (5) other published products in the
@@ -222,6 +257,25 @@ so older links keep working: `phones` becomes `smartphones`, `wearables`
 becomes `smartwatches`, and so on. A segment that matches no category in the
 database answers 404.
 
+**Categories in the chrome.** The `(site)` layout loads
+`listStorefrontCategories()` once and hands it to `StorefrontCategoriesProvider`
+(`src/components/providers/storefront-categories-provider.tsx`). The category
+bar, mega menus, Shop menu, mobile drawer, home category strip, search panel
+and the About page read it with `useStorefrontCategories()`. It returns the
+published, `showInNav` top level categories in order, up to
+`NAV_CATEGORY_LIMIT` (8), each with its description, image, in stock product
+count and brand counts (children included). The home strip shows the first
+`HOME_CATEGORY_LIMIT` (4); a category without an image shows as a plain card.
+
+The list is cached with `unstable_cache` under the tag `catalogue`
+(`CATALOGUE_CACHE_TAG`). Every admin write to categories, products, product
+status, brands and stock calls `refreshStorefrontCatalogue()`, so the menus
+change on the next request. The cache also expires after
+`STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` (300) as a safety net.
+
+**The category page** shows the category name, its parent as the eyebrow and
+its description, and uses the description as the meta description when set.
+
 **The product card** is `ShopProductCard` in `src/components/shop/product-card.tsx`,
 used by the shop and the homepage shelf. It links to `/product/[slug]` through
 `productHref`.
@@ -234,8 +288,19 @@ Images are tagged by colour, not by variant id. Storage never changes how a
 device looks, and variant ids change when an admin recreates a variant, so a
 colour is the stable and meaningful link.
 
-On the product page `ProductStage` holds the selected variant for both the
-gallery and the buy panel. The gallery shows the images tagged with the
+On the product page `SelectedVariantProvider`
+(`src/components/product/detail/selected-variant.tsx`) holds the selected
+variant. The gallery, the buy panel and the condition explainer lower down all
+read it, so changing an option updates price, saving, stock, availability,
+condition, grade, battery health and the gallery together.
+
+The buy panel offers three option rows: Condition (condition and grade, shown
+only when the product has more than one), Storage and Colour. An option is
+struck through when no in stock variant has it together with the options
+chosen above it. Picking an option selects the exact match if one exists,
+otherwise the closest in stock variant.
+
+The gallery follows the selected colour. The gallery shows the images tagged with the
 selected colour plus every untagged image. If that leaves nothing, it shows all
 images, so a product is never shown without a picture.
 
@@ -257,8 +322,9 @@ the admin picks the new colour on them.
 Absolute URLs come from `siteConfig.url` in `src/lib/site.ts`.
 
 The JSON-LD is a `Product` with an `AggregateOffer`: lowest and highest variant
-price, variant count, and in stock when any variant has stock. Condition maps
-to schema.org the way Google Merchant defines it:
+price and variant count, plus one `Offer` per variant with its SKU, price,
+condition and availability. Condition maps to schema.org the way Google
+Merchant defines it:
 
 | Condition | schema.org |
 | --- | --- |
@@ -285,6 +351,9 @@ All in `src/lib/constants.ts`.
 | `MAX_PRODUCT_ADD_ONS` | 4 | Add-ons on the product page |
 | `FEATURED_PRODUCTS_LIMIT` | 4 | Homepage shelf |
 | `SITEMAP_PRODUCT_LIMIT` | 1000 | Products in the sitemap |
+| `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
+| `HOME_CATEGORY_LIMIT` | 4 | Categories in the home strip |
+| `STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` | 300 | Longest the cached menu categories live |
 
 ---
 
@@ -306,4 +375,8 @@ All in `src/lib/constants.ts`.
    sample seed creates. If those products are deleted, the links fall back to a
    404 until the drops have their own pages.
 7. **The sample catalogue** comes from `prisma/seed-catalogue.ts`, run through
-   `npm run db:seed`. Staging has no products until it is run.
+   `npm run db:seed`. Staging has no products until it is run. Each sample
+   product has one variant carrying its condition.
+8. **`src/lib/categories.ts` is no longer read.** It held the old hardcoded
+   menu categories and their studio photos; category images now come from the
+   admin.

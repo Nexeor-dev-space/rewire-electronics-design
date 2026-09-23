@@ -19,7 +19,7 @@ Six changes, each covered in its own section below.
 
 | # | Change | Primary file |
 |---|---|---|
-| 1 | Four primary product families | `src/lib/categories.ts` |
+| 1 | Primary product families | Admin Categories, via `listStorefrontCategories()` |
 | 2 | One condition vocabulary | `src/lib/shop.ts` |
 | 3 | Navbar stability | `src/hooks/use-scroll-state.ts`, `src/app/globals.css` |
 | 4 | About absorbed Support | `src/lib/navigation.ts` |
@@ -30,56 +30,49 @@ Six changes, each covered in its own section below.
 
 ## 2. Primary product families
 
-**Source of truth: `src/lib/categories.ts`.**
+**Source of truth: the Categories screen in the admin**
+(`/admin/categories`), read through `listStorefrontCategories()` in
+`src/services/catalogue.service.ts`.
 
-The storefront navigates four families, in this order:
-
-1. Smartphones
-2. Laptops
-3. Tablets
-4. Accessories
-
-Every navigation surface derives from that one list, so adding a family
-adds it everywhere at once:
+The storefront navigates the published top level categories that have
+"Show in the storefront menus and home page" ticked, ordered by their
+position and then by name, up to `NAV_CATEGORY_LIMIT` (8). The `(site)`
+layout loads that list once per request (from a cache) and hands it to
+`StorefrontCategoriesProvider`, so every surface reads the same list and
+an admin change reaches all of them at once, with no code change:
 
 | Surface | Component | How it reads the list |
 |---|---|---|
-| Navbar rail | `components/layout/category-bar.tsx` | `getCategoryNav()` in `lib/navigation.ts`, ordered by `CATEGORY_ORDER` |
-| Category panel | `components/layout/category-mega-panel.tsx` | `getCategories()` by slug |
-| Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections()` |
-| Homepage strip | `components/home/hero/category-strip.tsx` | `getFeaturedCategories()` |
+| Navbar rail | `components/layout/category-bar.tsx` | `categoryNav(useStorefrontCategories())` in `lib/navigation.ts` |
+| Category panel | `components/layout/category-mega-panel.tsx` | The same list, by slug: description, image, brand counts |
+| Shop and Categories menus | `components/layout/mega-panels.tsx` | `shopBrowseLinks()` and the list itself |
+| Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories)` |
+| Homepage strip | `components/home/hero/category-strip.tsx` | The first `HOME_CATEGORY_LIMIT` (4) |
+| Search panel | `components/layout/search-panel.tsx` | `searchCatalogue(query, categories)` |
+| About page | `components/about/what.tsx` | The list, with descriptions |
 | Just listed | `components/home/featured/featured.tsx` | Not the family list: the newest in stock products from the database, see [CATALOGUE.md](CATALOGUE.md) |
 
-### Audio and Wearables
+A category's brand dropdown lists the brands of its in stock published
+products, its children included, and only appears when there is more than
+one brand. The cache and how admin writes refresh it are described in
+[CATALOGUE.md](CATALOGUE.md) §5.
 
-Both were removed from `categories.ts` and from `CATEGORY_ORDER`. They
-are **not** removed from the catalogue:
+### Hiding a family
 
-1. The database still holds Audio and Smartwatches as categories, and the
-   sample seed stocks them.
-2. The `/collection` filter panel lists every database category, so it
-   still browses them.
-3. Their `/product/[slug]` pages read the database like every other
-   product.
+To take a family out of the menus but keep it browsable, untick "Show in
+the storefront menus and home page". It stays at `/collection/[slug]`
+and in the shop filters. To hide it from the storefront completely, set
+it to Draft or Archived; its products disappear with it.
 
-What changed is presentation only. Those families are no longer
-top-level navigation destinations, and no longer appear on the
-homepage. Nothing in the database was deleted.
+### Old slugs
 
-To reinstate a family, add it back to `categories.ts` **and** to
-`CATEGORY_ORDER`. Both, so the label and the rail cannot disagree.
+`resolveCategory()` in `lib/shop.ts` maps older slugs to the database ones
+through `categoryAliases` before the lookup, so `/collection/phones`
+renders Smartphones and links already in the wild keep working. The menus
+themselves link with the database slug.
 
-### The Smartphones slug
-
-The label is `Smartphones`; the route slug stays `phones`.
-
-`resolveCategory()` in `lib/shop.ts` maps `phones` to `smartphones`
-through `categoryAliases` before the database lookup, so
-`/collection/phones` renders the Smartphones listing and every link
-already in the wild keeps working. Only the word the shopper reads
-changed. The navbar's brand dropdowns still count brands from the mock
-`catalog.ts`, which seeds products with `categorySlug: "phones"`; that is
-what `getProductsByCategory()` in `getCategoryNav()` queries.
+`src/lib/categories.ts`, the previous hardcoded list of four families and
+their studio photos, is no longer read by anything.
 
 ---
 
@@ -406,7 +399,8 @@ Those were dead before this change and remain so.
 
 ## 9. Checklist for future changes
 
-1. Adding a product family? `categories.ts` **and** `CATEGORY_ORDER`.
+1. Adding or reordering a product family? Do it in the admin Categories
+   screen. No code change.
 2. Renaming a condition? `conditions` in `shop.ts`, once. Never in a
    component.
 3. Adding an About menu entry? `aboutColumns` in `navigation.ts`. If it

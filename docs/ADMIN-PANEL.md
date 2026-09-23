@@ -173,7 +173,7 @@ Catalogue → **Categories** (`/admin/categories`) and **Brands**
 | `src/components/admin/{categories,brands}/` | List and add/edit modal |
 | `src/components/admin/shared/` | `ImageField`, and the row bits both tables share |
 | `src/hooks/use-category.ts`, `use-brand.ts`, `use-upload.ts` | Queries and mutations |
-| `src/app/api/v1/admin/{categories,brands}/` | `GET`/`POST` list, `GET`/`PUT`/`DELETE` one |
+| `src/app/api/v1/admin/{categories,brands}/` | `GET`/`POST` list, `GET`/`PUT`/`DELETE` one; `PATCH categories/[id]/status` |
 | `src/app/api/v1/uploads/images/`, `src/app/api/v1/media/[id]/` | Upload and serve images |
 | `src/services/{category,brand,media}.service.ts` | Queries and rules |
 | `prisma/schema/catalogue.prisma`, `media.prisma` | `Category`, `Brand`, `MediaAsset` |
@@ -196,6 +196,17 @@ holding the trimmed, lowercased name. The obvious constraint,
 `@@unique([parentId, name])`, does not work — Postgres treats every NULL
 `parentId` as distinct, so two top-level categories with the same name would
 both insert. A duplicate answers 409 on the `name` field.
+
+**Status, position and menus.** A category is Draft, Published or Archived
+(new ones default to Published), set in the modal or from the select on its
+row. Only published categories reach the storefront, and a child is hidden when
+its parent is. Position (`sortOrder`, lower first, then name) orders the admin
+list, the shop filters and the storefront menus. On a parent, "Show in the
+storefront menus and home page" (`showInNav`) decides whether it appears in the
+header, mega menus, mobile drawer and home strip; unticked, it stays browsable.
+The description (up to 300 characters) shows in the menus and on the category
+page. Every write refreshes the cached storefront menus, see
+[CATALOGUE.md](CATALOGUE.md) §5.
 
 **Deleting** a parent that still has children is refused (409) and the message
 names the count; the confirm dialog stays open and shows it. A category or
