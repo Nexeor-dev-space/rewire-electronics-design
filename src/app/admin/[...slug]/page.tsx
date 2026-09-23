@@ -19,6 +19,8 @@ const BUILT_ROUTES = new Set([
   "/admin/categories",
   "/admin/brands",
   "/admin/products",
+  "/admin/products/inventory",
+  "/admin/add-ons",
 ]);
 
 export function generateStaticParams() {
