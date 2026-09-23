@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { getFeaturedProducts } from "@/lib/products";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
-import { StorefrontCard } from "@/components/product/storefront-card";
+import { ShopProductCard } from "@/components/shop/product-card";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DURATION,
@@ -13,6 +12,7 @@ import {
   viewportOnce,
 } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import type { ShopCard } from "@/types/catalogue";
 
 const rise = {
   hidden: { opacity: 0, y: 28 },
@@ -28,24 +28,7 @@ const lineClip = {
   visible: { y: "0%", transition: { duration: 1, ease: EASE_OUT_EXPO } },
 };
 
-/**
- * Best sellers — the ordinary shelf.
- *
- * The most important section on the page for one narrow reason: without
- * it Rewire reads as a brand that opens occasionally, not a shop that is
- * open now. Everything above it is tied to a drop — an edition, a
- * countdown, an allocation — and a visitor who arrives between drops
- * finds nothing they can simply buy.
- *
- * One product per primary family rather than the four best of anything,
- * so the row doubles as a map of the range — Smartphones, Laptops,
- * Tablets, Accessories, the same four the navigation offers.
- * Deliberately plainer than the drop plates above: no editions, no
- * clocks, no scarcity. Stock, price, saving, done.
- */
-export function Featured() {
-  const products = getFeaturedProducts();
-
+export function Featured({ products }: { products: ShopCard[] }) {
   return (
     <section
       aria-labelledby="featured-heading"
@@ -80,7 +63,7 @@ export function Featured() {
             >
               <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
                 <motion.span variants={lineClip} className="block">
-                  Best sellers.
+                  Just listed.
                 </motion.span>
               </span>
             </h2>
@@ -93,9 +76,9 @@ export function Featured() {
               variants={rise}
               className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:col-start-8 lg:justify-self-end lg:pt-3"
             >
-              No countdown, no allocation. The devices that move fastest,
-              available to buy today and covered by the same standard as
-              everything we release.
+              No countdown, no allocation. The newest listings, available to
+              buy today and covered by the same standard as everything we
+              release.
             </motion.p>
           </div>
         </motion.div>
@@ -122,7 +105,7 @@ export function Featured() {
         >
           {products.map((product, i) => (
             <motion.li key={product.id} variants={rise} className="flex">
-              <StorefrontCard product={product} priority={i < 2} />
+              <ShopProductCard product={product} priority={i < 2} />
             </motion.li>
           ))}
         </motion.ul>

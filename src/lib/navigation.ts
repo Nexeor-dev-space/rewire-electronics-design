@@ -1,6 +1,6 @@
 import { getUpcomingDrops } from "./drops";
 import { getCategories } from "./categories";
-import { getAllProducts, getProductsByCategory } from "./catalog";
+import { getProductsByCategory } from "./catalog";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -112,8 +112,6 @@ export const upcomingDropsLink = {
 };
 
 export const editorialNavLink = { label: "About", href: "/about" } as const;
-
-export { getAllProducts };
 
 export const categoryGlyphs: Record<string, string[]> = {
   phones: [

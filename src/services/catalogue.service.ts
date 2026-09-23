@@ -315,7 +315,7 @@ export async function listRelatedShopProducts(product: ShopProductDetail, limit:
 
 export async function listNewestShopProducts(limit: number) {
   const rows = await prisma.product.findMany({
-    where: PUBLISHED,
+    where: { ...PUBLISHED, variants: { some: { stock: { gt: 0 } } } },
     select: cardSelect,
     orderBy: ORDER_BY.newest,
     take: limit,

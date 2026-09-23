@@ -721,37 +721,12 @@ const products: Product[] = seeds.map(build);
    Getters
    ============================================================ */
 
-export function getAllProducts(): Product[] {
-  return products;
-}
-
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((product) => product.slug === slug);
 }
 
 export function getProductsByCategory(categorySlug: string): Product[] {
   return products.filter((product) => product.categorySlug === categorySlug);
-}
-
-/** Listings per category, so the nav's counts can never outrun the shelf. */
-export function countByCategory(categorySlug: string): number {
-  return getProductsByCategory(categorySlug).length;
-}
-
-/**
- * Related products — same category first, then the same brand elsewhere.
- * Sold-out listings are excluded: a related rail exists to offer an
- * alternative, and an alternative you cannot buy is not one.
- */
-export function getRelatedProducts(product: Product, limit = 4): Product[] {
-  const pool = products.filter(
-    (candidate) => candidate.slug !== product.slug && candidate.availability !== "sold-out",
-  );
-  const sameCategory = pool.filter((c) => c.categorySlug === product.categorySlug);
-  const sameBrand = pool.filter(
-    (c) => c.brand === product.brand && c.categorySlug !== product.categorySlug,
-  );
-  return [...sameCategory, ...sameBrand, ...pool].slice(0, limit);
 }
 
 /** Seeds the wishlist so the page is reviewable before anything is saved. */
