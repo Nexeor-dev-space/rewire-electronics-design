@@ -63,6 +63,7 @@ export interface ShopImage {
   id: string;
   url: string;
   alt: string;
+  colour: string | null;
 }
 
 export interface ShopCategoryRef {

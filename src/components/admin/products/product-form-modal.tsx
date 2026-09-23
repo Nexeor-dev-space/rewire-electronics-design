@@ -152,7 +152,9 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   );
   const [highlights, setHighlights] = useState(initial?.highlights.join("\n") ?? "");
   const [included, setIncluded] = useState(initial?.included.join("\n") ?? "");
-  const [images, setImages] = useState<DraftImage[]>(initial?.images ?? []);
+  const [images, setImages] = useState<DraftImage[]>(
+    () => initial?.images.map((image) => ({ ...image, colour: image.colour ?? "" })) ?? [],
+  );
   const [specs, setSpecs] = useState<DraftSpec[]>(
     initial?.specs.map((spec) => ({ ...spec, key: newSpecKey() })) ?? [],
   );
@@ -183,7 +185,7 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
       warrantyMonths: optionalNumber(warrantyMonths) ?? undefined,
       highlights: lines(highlights),
       included: lines(included),
-      images: images.map(({ mediaId, alt }) => ({ mediaId, alt })),
+      images: images.map(({ mediaId, alt, colour }) => ({ mediaId, alt, colour })),
       specs: specs.map(({ group, label, value }) => ({ group, label, value })),
       variants: variants.map((variant) => ({
         id: variant.id,
@@ -395,7 +397,12 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
             </Field>
           </section>
 
-          <ProductImagesField images={images} onChange={setImages} error={error("images")} />
+          <ProductImagesField
+            images={images}
+            colours={[...new Set(variants.map((variant) => variant.colour.trim()).filter(Boolean))]}
+            onChange={setImages}
+            error={error("images")}
+          />
 
           <ProductVariantsEditor
             variants={variants}

@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
 import { useUploadImage } from "@/hooks/use-upload";
 import { IMAGE_ACCEPT, MAX_IMAGE_BYTES, formatBytes, isImageMimeType } from "@/lib/media";
@@ -13,14 +13,17 @@ export interface DraftImage {
   mediaId: string;
   url: string;
   alt: string;
+  colour: string;
 }
 
 export function ProductImagesField({
   images,
+  colours,
   onChange,
   error,
 }: {
   images: DraftImage[];
+  colours: string[];
   onChange: (next: DraftImage[]) => void;
   error?: string;
 }) {
@@ -49,7 +52,7 @@ export function ProductImagesField({
     for (const file of accepted.slice(0, room)) {
       const uploaded = await upload.mutateAsync(file).catch(() => null);
       if (!uploaded) break;
-      next = [...next, { mediaId: uploaded.id, url: uploaded.url, alt: "" }];
+      next = [...next, { mediaId: uploaded.id, url: uploaded.url, alt: "", colour: "" }];
       onChange(next);
     }
   }
@@ -87,6 +90,21 @@ export function ProductImagesField({
                 aria-label={`Alt text for image ${index + 1}`}
                 className="mt-2 h-9 px-2 text-xs"
               />
+              {colours.length > 0 && (
+                <Select
+                  value={image.colour}
+                  onChange={(event) => update(index, { colour: event.target.value })}
+                  aria-label={`Colour for image ${index + 1}`}
+                  className="mt-2 h-9 px-2 text-xs"
+                >
+                  <option value="">All colours</option>
+                  {[...new Set([...colours, image.colour].filter(Boolean))].map((colour) => (
+                    <option key={colour} value={colour}>
+                      {colour}
+                    </option>
+                  ))}
+                </Select>
+              )}
               <div className="mt-2 flex gap-1">
                 {index > 0 && (
                   <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => makeCover(index)}>

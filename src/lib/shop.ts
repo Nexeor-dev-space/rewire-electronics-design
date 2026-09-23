@@ -246,10 +246,9 @@ export function productHref(product: { slug: string }) {
   return `/product/${product.slug}`;
 }
 
-export type SortId = "recommended" | "newest" | "price-asc" | "price-desc";
+export type SortId = "newest" | "price-asc" | "price-desc";
 
 export const sortOptions: { id: SortId; label: string }[] = [
-  { id: "recommended", label: "Recommended" },
   { id: "newest", label: "Newest" },
   { id: "price-asc", label: "Price: Low to High" },
   { id: "price-desc", label: "Price: High to Low" },

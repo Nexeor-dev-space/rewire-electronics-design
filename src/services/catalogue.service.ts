@@ -3,7 +3,11 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { fromShopCondition, fromShopGrade, toShopCondition, toShopGrade } from "@/lib/catalogue";
-import { MAX_PRODUCT_ADD_ONS, RELATED_PRODUCTS_LIMIT } from "@/lib/constants";
+import {
+  MAX_PRODUCT_ADD_ONS,
+  RELATED_PRODUCTS_LIMIT,
+  SITEMAP_PRODUCT_LIMIT,
+} from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
@@ -25,7 +29,6 @@ type Axis = "category" | "condition" | "grade" | "brand" | "storage" | "price";
 const PUBLISHED = { status: "PUBLISHED" } as const;
 
 const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
-  recommended: [{ publishedAt: "desc" }, { id: "asc" }],
   newest: [{ publishedAt: "desc" }, { id: "asc" }],
   "price-asc": [{ minPrice: "asc" }, { id: "asc" }],
   "price-desc": [{ minPrice: "desc" }, { id: "asc" }],
@@ -72,7 +75,7 @@ const detailSelect = {
       parent: { select: { id: true, name: true, slug: true } },
     },
   },
-  images: { select: { mediaId: true, alt: true }, orderBy: { sortOrder: "asc" } },
+  images: { select: { mediaId: true, alt: true, colour: true }, orderBy: { sortOrder: "asc" } },
   specs: { select: { group: true, label: true, value: true }, orderBy: { sortOrder: "asc" } },
   variants: {
     select: {
@@ -194,6 +197,7 @@ function toDetail(row: DetailRow): ShopProductDetail {
       id: image.mediaId,
       url: imageUrl(image.mediaId),
       alt: image.alt || `${row.brand.name} ${row.name}`,
+      colour: image.colour,
     })),
     specs: groupSpecs(row.specs),
     variants: row.variants,
@@ -332,7 +336,7 @@ async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
       OR: [{ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } }],
     },
     select: { id: true, name: true, note: true, kind: true, price: true, popular: true },
-    orderBy: [{ kind: "desc" }, { popular: "desc" }, { price: "asc" }],
+    orderBy: [{ kind: "asc" }, { popular: "desc" }, { price: "asc" }],
     take: MAX_PRODUCT_ADD_ONS,
   });
 
@@ -355,6 +359,22 @@ export async function findShopProductPage(slug: string): Promise<ShopProductPage
     listRelatedShopProducts(product, RELATED_PRODUCTS_LIMIT),
   ]);
   return { ...product, addOns, related };
+}
+
+export async function listSitemapEntries() {
+  const [products, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: PUBLISHED,
+      select: { slug: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: SITEMAP_PRODUCT_LIMIT,
+    }),
+    prisma.category.findMany({
+      where: { products: { some: PUBLISHED } },
+      select: { slug: true, updatedAt: true },
+    }),
+  ]);
+  return { products, categories };
 }
 
 export async function findShopCategory(slug: string) {

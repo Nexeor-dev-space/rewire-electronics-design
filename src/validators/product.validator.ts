@@ -81,6 +81,7 @@ export const productVariantSchema = z
 export const productImageSchema = z.object({
   mediaId: idValidator,
   alt: z.string().trim().max(160).default(""),
+  colour: optionalText(40),
 });
 
 export const productSpecSchema = z.object({
@@ -142,6 +143,17 @@ export const productSchema = z
     if (new Set(mediaIds).size !== mediaIds.length) {
       ctx.addIssue({ code: "custom", path: ["images"], message: "The same image is added twice." });
     }
+
+    const colours = new Set(data.variants.flatMap((variant) => (variant.colour ? [variant.colour] : [])));
+    data.images.forEach((image, index) => {
+      if (image.colour !== null && !colours.has(image.colour)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["images", index, "colour"],
+          message: "Pick a colour that one of the variants uses.",
+        });
+      }
+    });
   });
 
 export const productStatusSchema = z.object({

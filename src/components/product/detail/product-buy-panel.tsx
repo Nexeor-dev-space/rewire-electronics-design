@@ -28,6 +28,8 @@ interface Props {
   addOns: ShopAddOn[];
   condition: string;
   grade?: string;
+  variantId: string;
+  onVariantChange: (id: string) => void;
 }
 
 const OPTION_UNSELECTABLE =
@@ -61,11 +63,15 @@ function colourOptionsFor(variants: ShopVariant[], selected: ShopVariant): Produ
   }));
 }
 
-export function ProductBuyPanel({ product, addOns, condition, grade }: Props) {
+export function ProductBuyPanel({
+  product,
+  addOns,
+  condition,
+  grade,
+  variantId,
+  onVariantChange,
+}: Props) {
   const variants = product.variants;
-  const [variantId, setVariantId] = useState(
-    () => (variants.find(inStock) ?? variants[0]).id,
-  );
   const variant = variants.find((v) => v.id === variantId) ?? variants[0];
   const storageOptions = storageOptionsFor(variants);
   const colorOptions = colourOptionsFor(variants, variant);
@@ -76,7 +82,7 @@ export function ProductBuyPanel({ product, addOns, condition, grade }: Props) {
       variants.find((v) => v.storage === storage && v.colour === colour) ??
       variants.find((v) => v.storage === storage && inStock(v)) ??
       variants.find((v) => v.storage === storage);
-    if (next) setVariantId(next.id);
+    if (next) onVariantChange(next.id);
   }
 
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(

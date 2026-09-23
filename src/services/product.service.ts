@@ -69,7 +69,7 @@ const detailSelect = {
     },
     orderBy: { sortOrder: "asc" },
   },
-  images: { select: { mediaId: true, alt: true }, orderBy: { sortOrder: "asc" } },
+  images: { select: { mediaId: true, alt: true, colour: true }, orderBy: { sortOrder: "asc" } },
   specs: { select: { group: true, label: true, value: true }, orderBy: { sortOrder: "asc" } },
 } satisfies Prisma.ProductSelect;
 
@@ -301,7 +301,7 @@ function variantFields(variant: VariantData, index: number) {
 }
 
 function imageFields(image: ProductData["images"][number], index: number) {
-  return { mediaId: image.mediaId, alt: image.alt, sortOrder: index };
+  return { mediaId: image.mediaId, alt: image.alt, colour: image.colour, sortOrder: index };
 }
 
 function specFields(spec: ProductData["specs"][number], index: number) {

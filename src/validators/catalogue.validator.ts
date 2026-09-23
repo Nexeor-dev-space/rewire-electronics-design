@@ -44,6 +44,6 @@ export const shopQuerySchema = z.object({
     .string()
     .optional()
     .transform((value): SortId =>
-      SORT_IDS.includes(value as SortId) ? (value as SortId) : "recommended",
+      SORT_IDS.includes(value as SortId) ? (value as SortId) : "newest",
     ),
 });

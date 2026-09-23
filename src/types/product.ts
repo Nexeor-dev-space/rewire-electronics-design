@@ -42,6 +42,7 @@ export interface ProductImageDetail {
   mediaId: string;
   url: string;
   alt: string;
+  colour: string | null;
 }
 
 export interface ProductSpecDetail {
