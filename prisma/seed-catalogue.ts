@@ -182,8 +182,6 @@ async function seedProducts(
         name: product.name,
         brandId: brandIds.get(product.brand)!,
         categoryId: categoryIds.get(product.category)!,
-        condition: product.condition,
-        grade: product.grade ?? null,
         highlights: [product.keySpec],
         status: "PUBLISHED",
         publishedAt: listedAt,
@@ -191,6 +189,8 @@ async function seedProducts(
         variants: {
           create: {
             sku: [slug, product.storage].filter(Boolean).join("-").toUpperCase(),
+            condition: product.condition,
+            grade: product.grade ?? null,
             storage: product.storage ?? null,
             colour: product.colour,
             price: product.price,

@@ -1,8 +1,19 @@
+enum CategoryStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Category {
-  id      String @id @default(cuid())
-  name    String
-  nameKey String @unique
-  slug    String @unique
+  id          String @id @default(cuid())
+  name        String
+  nameKey     String @unique
+  slug        String @unique
+  description String @default("")
+
+  status    CategoryStatus @default(PUBLISHED)
+  showInNav Boolean        @default(true)
+  sortOrder Int            @default(0)
 
   parentId String?
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
@@ -18,6 +29,7 @@ model Category {
   updatedAt DateTime @updatedAt
 
   @@index([parentId])
+  @@index([status, sortOrder])
   @@index([updatedAt])
   @@map("categories")
 }
@@ -72,10 +84,7 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  condition      ProductCondition
-  grade          ProductGrade?
-  batteryHealth  Int?
-  warrantyMonths Int              @default(12)
+  warrantyMonths Int      @default(12)
   highlights     String[]
   included       String[]
 
@@ -107,6 +116,10 @@ model ProductVariant {
   storage   String?
   colour    String?
   colourHex String?
+
+  condition     ProductCondition
+  grade         ProductGrade?
+  batteryHealth Int?
 
   price          Int
   compareAtPrice Int?
