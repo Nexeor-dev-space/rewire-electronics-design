@@ -15,6 +15,14 @@ interface ConfirmDialogProps {
   description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
+  /**
+   * Why the action was refused. The dialog stays open and shows it, so a
+   * delete the server blocks — a category that still has children — explains
+   * itself where the decision was made rather than behind a closed modal.
+   */
+  error?: string;
+  /** The action is in flight: the buttons lock and confirm shows a spinner. */
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -25,6 +33,8 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
+  error,
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -50,7 +60,9 @@ export function ConfirmDialog({
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
       event.stopPropagation();
-      onCancel();
+      // Not while the action is in flight — the request would land anyway,
+      // and the result would have nowhere to be reported.
+      if (!loading) onCancel();
       return;
     }
     if (event.key !== "Tab") return;
@@ -80,6 +92,7 @@ export function ConfirmDialog({
           <motion.button
             type="button"
             aria-label={cancelLabel}
+            disabled={loading}
             onClick={onCancel}
             className="absolute inset-0 bg-void/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -120,14 +133,27 @@ export function ConfirmDialog({
               </div>
             )}
 
+            {error && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                {error}
+              </p>
+            )}
+
             <div className="mt-7 flex flex-wrap justify-end gap-3">
-              <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={onCancel}
+              >
                 {cancelLabel}
               </Button>
               <Button
                 ref={confirmRef}
                 type="button"
                 size="sm"
+                loading={loading}
                 onClick={onConfirm}
                 className="bg-danger text-white hover:bg-danger/85"
               >

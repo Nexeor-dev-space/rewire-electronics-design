@@ -161,6 +161,56 @@ Roles; that row is now just **Roles**, for the roles themselves.
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
   the list and can't sign in; its email stays taken.
 
+## Categories and Brands
+
+Catalogue → **Categories** (`/admin/categories`) and **Brands**
+(`/admin/brands`). Permission keys `catalogue.categories` and
+`catalogue.brands`.
+
+| File | Purpose |
+| --- | --- |
+| `src/app/admin/{categories,brands}/page.tsx` | Permission check, renders the module |
+| `src/components/admin/{categories,brands}/` | List and add/edit modal |
+| `src/components/admin/shared/` | `ImageField`, and the row bits both tables share |
+| `src/hooks/use-category.ts`, `use-brand.ts`, `use-upload.ts` | Queries and mutations |
+| `src/app/api/v1/admin/{categories,brands}/` | `GET`/`POST` list, `GET`/`PUT`/`DELETE` one |
+| `src/app/api/v1/uploads/images/`, `src/app/api/v1/media/[id]/` | Upload and serve images |
+| `src/services/{category,brand,media}.service.ts` | Queries and rules |
+| `prisma/schema/catalogue.prisma`, `media.prisma` | `Category`, `Brand`, `MediaAsset` |
+
+**Categories are two levels.** A category with `parentId` null is a parent,
+anything else is a child. The `type` the API returns is *derived* from
+`parentId` and never stored, so the two cannot disagree. The service refuses a
+third level: a category that already has children can't be given a parent, and
+a child can't be somebody's parent.
+
+**The list nests.** `GET /api/v1/admin/categories` returns a page of parents,
+each carrying its `children`, so the screen renders the mapping rather than
+implying it. Pagination therefore walks parents, not categories. `?type=parent`
+returns a flat page instead — that is what fills the modal's parent picker.
+Search matches both levels: a hit on a child brings back its parent carrying
+only the matching children.
+
+**Names are unique across the whole table**, through a `nameKey` column
+holding the trimmed, lowercased name. The obvious constraint,
+`@@unique([parentId, name])`, does not work — Postgres treats every NULL
+`parentId` as distinct, so two top-level categories with the same name would
+both insert. A duplicate answers 409 on the `name` field.
+
+**Deleting** a parent that still has children is refused (409) and the message
+names the count; the confirm dialog stays open and shows it. There is no
+product-linkage check yet, and no `productCount` on either response: there is
+no `Product` model to count, and a field hardcoded to zero would be read as
+real. Both arrive with the Products module.
+
+**Images** go to `MediaAsset` (bytes in Postgres) behind
+`src/lib/storage/image-storage.ts`, so a move to object storage is one driver
+and no caller changes. One upload endpoint serves both modals. Uploading
+happens as soon as a file is chosen, which is what makes a real progress figure
+possible; an image uploaded into a modal that is then cancelled is collected by
+a sweep of unreferenced assets older than 24 hours, run on each upload. Changing
+or removing an image deletes the old asset once nothing else points at it.
+
 ## The shell
 
 `AdminShell` wraps every admin page through `src/app/admin/layout.tsx`. It

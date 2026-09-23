@@ -5,7 +5,7 @@ import { z } from "zod";
  * modules (an id, a slug, a price, a timestamp, a paged list) is declared
  * once here and composed into module validators — never redeclared.
  *
- * "Schema" in this repo means the Prisma schema (`prisma/schema.prisma`).
+ * "Schema" in this repo means the Prisma schema (`prisma/schema/`).
  */
 
 export const idValidator = z.string().min(1);

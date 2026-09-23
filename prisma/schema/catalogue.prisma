@@ -1,0 +1,37 @@
+
+model Category {
+  id   String @id @default(cuid())
+  name String
+  nameKey String @unique
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([updatedAt])
+  @@map("categories")
+}
+
+/// A manufacturer. Flat — brands have no hierarchy.
+model Brand {
+  id   String @id @default(cuid())
+  name String
+  /// See `Category.nameKey`.
+  nameKey String @unique
+
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+  @@map("brands")
+}

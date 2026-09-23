@@ -29,6 +29,8 @@ export const PERMISSIONS = {
   content: adminPermission("storefront", "content"),
   /** Covers both Users screens — staff accounts and customer accounts. */
   users: adminPermission("service", "users"),
+  categories: adminPermission("catalogue", "categories"),
+  brands: adminPermission("catalogue", "brands"),
 } as const;
 
 export function canAccessAdmin(role: Role): boolean {

@@ -155,7 +155,8 @@ Rules:
 
 ## 4. Response structure
 
-Every endpoint returns this shape. No exceptions.
+Every endpoint returns this shape, with one exception — binary responses,
+described at the end of this section.
 
 ```ts
 // Success
@@ -226,6 +227,36 @@ itself fails.
 
 Dates arrive on the client as ISO strings, so type them as `string` in
 `src/types/<module>.ts`.
+
+### Nested lists
+
+A list whose rows own a small, bounded set of children may carry them inline
+rather than making the screen fetch each one. `items` stays the paginated
+collection and `total` counts *it*, not the children:
+
+```ts
+// GET /api/v1/admin/categories — a page of parents, children nested
+{ "items": [{ "id": "…", "name": "Laptops", "children": [ … ] }], "page": 1, "pageSize": 20, "total": 7 }
+```
+
+This is for a parent/child pair where the children are bounded by the shape of
+the data — a category's subcategories, not a customer's orders. If the nested
+set can grow without limit it needs its own paginated endpoint. Say in the
+module's doc what `total` counts, because "7" on a screen showing thirty rows
+is otherwise a bug report.
+
+### Binary responses
+
+`GET /api/v1/media/[id]` returns raw image bytes with a `Content-Type` header
+instead of the envelope, because an image cannot be wrapped in JSON. It is the
+only endpoint that does, and it still fails through `apiErrorFrom`, so a
+missing id answers in the standard error shape. Add to this list rather than
+inventing a second convention.
+
+The matching client exception is `src/lib/api/upload-client.ts`: uploads go
+through `XMLHttpRequest` rather than `apiRequest`, because `fetch` cannot
+report upload progress. It unwraps the same envelope and throws the same
+`ApiError`, so callers cannot tell the difference.
 
 ---
 

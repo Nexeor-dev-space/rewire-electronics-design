@@ -1,0 +1,13 @@
+model MediaAsset {
+  id       String @id @default(cuid())
+  mimeType String
+  data     Bytes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories Category[]
+  brands     Brand[]
+
+  @@map("media_assets")
+}
