@@ -18,6 +18,7 @@ const BUILT_ROUTES = new Set([
   "/admin/users/customers",
   "/admin/categories",
   "/admin/brands",
+  "/admin/products",
 ]);
 
 export function generateStaticParams() {
