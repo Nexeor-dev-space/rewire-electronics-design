@@ -64,11 +64,27 @@ export const productVariantSchema = z
       (value) => value === null || HEX_COLOUR.test(value),
       "Use a hex colour like #1A1A1A.",
     ),
+    condition: z.enum(PRODUCT_CONDITIONS, { error: "Choose a condition." }),
+    grade: z.enum(PRODUCT_GRADES).nullable().default(null),
+    batteryHealth: z
+      .number()
+      .int()
+      .min(0)
+      .max(100, "Battery health is a percentage.")
+      .nullable()
+      .default(null),
     price: minorUnitsValidator.min(1, "Enter a price above zero."),
     compareAtPrice: minorUnitsValidator.nullable().default(null),
     stock: stockValidator,
   })
   .superRefine((variant, ctx) => {
+    if (variant.grade !== null && !GRADED_CONDITIONS.includes(variant.condition)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["grade"],
+        message: "Only pre-owned and refurbished variants carry a grade.",
+      });
+    }
     if (variant.compareAtPrice !== null && variant.compareAtPrice <= variant.price) {
       ctx.addIssue({
         code: "custom",
@@ -97,9 +113,6 @@ export const productSchema = z
     description: z.string().trim().max(5000, "Use 5000 characters or fewer.").default(""),
     brandId: z.string().min(1, "Choose a brand."),
     categoryId: z.string().min(1, "Choose a category."),
-    condition: z.enum(PRODUCT_CONDITIONS, { error: "Choose a condition." }),
-    grade: z.enum(PRODUCT_GRADES).nullable().default(null),
-    batteryHealth: z.number().int().min(0).max(100, "Battery health is a percentage.").nullable().default(null),
     warrantyMonths: z.number().int().min(0).max(60, "Use 60 months or fewer.").default(12),
     highlights: z.array(z.string().trim().min(1).max(160)).max(MAX_HIGHLIGHTS).default([]),
     included: z.array(z.string().trim().min(1).max(120)).max(MAX_INCLUDED).default([]),
@@ -111,14 +124,6 @@ export const productSchema = z
       .max(MAX_VARIANTS, `Add up to ${MAX_VARIANTS} variants.`),
   })
   .superRefine((data, ctx) => {
-    if (data.grade !== null && !GRADED_CONDITIONS.includes(data.condition)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["grade"],
-        message: "Only pre-owned and refurbished products carry a grade.",
-      });
-    }
-
     const skus = new Set<string>();
     const options = new Set<string>();
     data.variants.forEach((variant, index) => {
@@ -128,12 +133,15 @@ export const productSchema = z
       }
       skus.add(sku);
 
-      const option = `${variant.storage ?? ""}|${variant.colour ?? ""}`.toLowerCase();
+      const option = [variant.condition, variant.grade, variant.storage, variant.colour]
+        .map((value) => value ?? "")
+        .join("|")
+        .toLowerCase();
       if (options.has(option)) {
         ctx.addIssue({
           code: "custom",
           path: ["variants", index],
-          message: "Two variants have the same storage and colour.",
+          message: "Two variants have the same condition, grade, storage and colour.",
         });
       }
       options.add(option);

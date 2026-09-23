@@ -16,8 +16,6 @@ export interface ProductListItem {
   name: string;
   slug: string;
   status: ProductStatus;
-  condition: ProductCondition;
-  grade: ProductGrade | null;
   brand: NamedRef;
   category: NamedRef;
   imageUrl: string | null;
@@ -30,6 +28,9 @@ export interface ProductListItem {
 export interface ProductVariantDetail {
   id: string;
   sku: string;
+  condition: ProductCondition;
+  grade: ProductGrade | null;
+  batteryHealth: number | null;
   storage: string | null;
   colour: string | null;
   colourHex: string | null;
@@ -57,9 +58,6 @@ export interface ProductDetail {
   slug: string;
   description: string;
   status: ProductStatus;
-  condition: ProductCondition;
-  grade: ProductGrade | null;
-  batteryHealth: number | null;
   warrantyMonths: number;
   highlights: string[];
   included: string[];

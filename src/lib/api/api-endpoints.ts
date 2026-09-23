@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     categories: {
       list: `${V1}/admin/categories`,
       detail: (id: string) => `${V1}/admin/categories/${id}`,
+      status: (id: string) => `${V1}/admin/categories/${id}/status`,
     },
     brands: {
       list: `${V1}/admin/brands`,

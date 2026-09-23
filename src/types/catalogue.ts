@@ -51,6 +51,10 @@ export interface ShopListing extends Paginated<ShopCard> {
 
 export interface ShopVariant {
   id: string;
+  sku: string;
+  condition: Condition;
+  grade: Grade | null;
+  batteryHealth: number | null;
   storage: string | null;
   colour: string | null;
   colourHex: string | null;
@@ -89,9 +93,6 @@ export interface ShopProductDetail {
   description: string;
   brand: string;
   category: ShopCategoryRef;
-  condition: Condition;
-  grade: Grade | null;
-  batteryHealth: number | null;
   warrantyMonths: number;
   highlights: string[];
   included: string[];
@@ -99,6 +100,16 @@ export interface ShopProductDetail {
   specs: SpecGroup[];
   variants: ShopVariant[];
   listedAt: string | null;
+}
+
+export interface StorefrontCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  imageUrl: string | null;
+  productCount: number;
+  brands: NamedCount[];
 }
 
 export interface ShopProductPage extends ShopProductDetail {

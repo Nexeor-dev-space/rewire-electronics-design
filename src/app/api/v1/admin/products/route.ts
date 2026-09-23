@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { createProduct, listProducts } from "@/services/product.service";
 import { productListQuerySchema, productSchema } from "@/validators/product.validator";
 
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createProduct(input.data), 201);
+    const result = await createProduct(input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/products");
   }

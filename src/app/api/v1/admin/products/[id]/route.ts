@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { deleteProduct, getProduct, updateProduct } from "@/services/product.service";
 import { productSchema } from "@/validators/product.validator";
 
@@ -36,7 +37,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await updateProduct(id, input.data));
+    const result = await updateProduct(id, input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/products/[id]");
   }
@@ -48,7 +51,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await deleteProduct(id));
+    const result = await deleteProduct(id);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "DELETE /admin/products/[id]");
   }

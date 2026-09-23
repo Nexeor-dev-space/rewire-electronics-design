@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { setStock } from "@/services/inventory.service";
 import { stockUpdateSchema } from "@/validators/inventory.validator";
 
@@ -24,7 +25,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { variantId } = await params;
   try {
-    return apiSuccess(await setStock(variantId, input.data));
+    const result = await setStock(variantId, input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PATCH /admin/inventory/[variantId]");
   }

@@ -13,6 +13,8 @@ type StockData = z.output<typeof stockUpdateSchema>;
 const variantSelect = {
   id: true,
   sku: true,
+  condition: true,
+  grade: true,
   storage: true,
   colour: true,
   price: true,

@@ -10,6 +10,11 @@ import { paginationQueryValidator, slugValidator } from "./common/primitives.val
 export const CATEGORY_TYPES = ["parent", "child"] as const;
 export type CategoryType = (typeof CATEGORY_TYPES)[number];
 
+export const CATEGORY_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export type CategoryStatus = (typeof CATEGORY_STATUSES)[number];
+
+export const MAX_CATEGORY_POSITION = 999;
+
 /**
  * `parentId` narrows to one parent's children and wins over `type`; the
  * combination is meaningless rather than invalid, and rejecting it buys
@@ -29,6 +34,15 @@ export const categorySchema = z
     type: z.enum(CATEGORY_TYPES, { error: "Choose a category type." }),
     parentId: z.string().min(1).nullable().default(null),
     imageId: z.string().min(1).nullable().default(null),
+    description: z.string().trim().max(300, "Use 300 characters or fewer.").default(""),
+    status: z.enum(CATEGORY_STATUSES, { error: "Choose a status." }).default("PUBLISHED"),
+    showInNav: z.boolean().default(true),
+    sortOrder: z
+      .number({ error: "Enter a position." })
+      .int("Use a whole number.")
+      .min(0, "Use 0 or more.")
+      .max(MAX_CATEGORY_POSITION, `Use ${MAX_CATEGORY_POSITION} or less.`)
+      .default(0),
   })
   // superRefine, not refine: the two failures need different messages on the
   // same path, and a single refine would print one of them for both.
@@ -48,3 +62,7 @@ export const categorySchema = z
       });
     }
   });
+
+export const categoryStatusSchema = z.object({
+  status: z.enum(CATEGORY_STATUSES, { error: "Choose a status." }),
+});

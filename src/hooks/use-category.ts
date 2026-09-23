@@ -12,6 +12,7 @@ import type {
   CategoryNode,
   CategorySummary,
 } from "@/types/category";
+import type { CategoryStatus } from "@/validators/category.validator";
 
 const categoryKeys = {
   all: ["categories"] as const,
@@ -69,6 +70,15 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, ...input }: CategoryInput & { id: string }) =>
       apiRequest<CategoryDetail>(endpoints.detail(id), { method: "PUT", body: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
+  });
+}
+
+export function useSetCategoryStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: CategoryStatus }) =>
+      apiRequest<CategoryDetail>(endpoints.status(id), { method: "PATCH", body: { status } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
   });
 }

@@ -1,9 +1,15 @@
 import type { StockFilter } from "@/validators/inventory.validator";
-import type { ProductStatus } from "@/validators/product.validator";
+import type {
+  ProductCondition,
+  ProductGrade,
+  ProductStatus,
+} from "@/validators/product.validator";
 
 export interface InventoryItem {
   id: string;
   sku: string;
+  condition: ProductCondition;
+  grade: ProductGrade | null;
   storage: string | null;
   colour: string | null;
   price: number;

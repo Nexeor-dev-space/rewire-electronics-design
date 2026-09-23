@@ -9,6 +9,7 @@ import type {
   CategoryType,
   categoryListQuerySchema,
   categorySchema,
+  categoryStatusSchema,
 } from "@/validators/category.validator";
 import { releaseImage } from "./media.service";
 import { productCountPhrase } from "./product.service";
@@ -22,6 +23,7 @@ import { productCountPhrase } from "./product.service";
 type Tx = Prisma.TransactionClient;
 type CategoryData = z.output<typeof categorySchema>;
 type CategoryQuery = z.output<typeof categoryListQuerySchema>;
+type CategoryStatusData = z.output<typeof categoryStatusSchema>;
 
 const categorySelect = {
   id: true,
@@ -29,8 +31,17 @@ const categorySelect = {
   slug: true,
   parentId: true,
   imageId: true,
+  description: true,
+  status: true,
+  showInNav: true,
+  sortOrder: true,
   updatedAt: true,
 } satisfies Prisma.CategorySelect;
+
+const CATEGORY_ORDER: Prisma.CategoryOrderByWithRelationInput[] = [
+  { sortOrder: "asc" },
+  { name: "asc" },
+];
 
 type CategoryRow = Prisma.CategoryGetPayload<{ select: typeof categorySelect }>;
 
@@ -49,7 +60,25 @@ function toSummary(row: CategoryRow) {
     type,
     parentId: row.parentId,
     imageUrl: imageUrlOrNull(row.imageId),
+    description: row.description,
+    status: row.status,
+    showInNav: row.showInNav,
+    sortOrder: row.sortOrder,
     updatedAt: row.updatedAt,
+  };
+}
+
+function categoryFields(data: CategoryData) {
+  return {
+    name: data.name,
+    nameKey: nameKeyOf(data.name),
+    slug: data.slug,
+    parentId: data.parentId,
+    imageId: data.imageId,
+    description: data.description,
+    status: data.status,
+    showInNav: data.showInNav,
+    sortOrder: data.sortOrder,
   };
 }
 
@@ -79,7 +108,7 @@ async function listFlat({ page, pageSize, search, type, parentId }: CategoryQuer
     prisma.category.findMany({
       where,
       select: categorySelect,
-      orderBy: { name: "asc" },
+      orderBy: CATEGORY_ORDER,
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -115,9 +144,9 @@ async function listTree({ page, pageSize, search }: CategoryQuery) {
       select: {
         ...categorySelect,
         _count: { select: { children: true } },
-        children: { select: categorySelect, orderBy: { name: "asc" } },
+        children: { select: categorySelect, orderBy: CATEGORY_ORDER },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: CATEGORY_ORDER,
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -169,13 +198,7 @@ export async function createCategory(data: CategoryData) {
     if (data.parentId !== null) await assertUsableParent(tx, data.parentId);
 
     const created = await tx.category.create({
-      data: {
-        name: data.name,
-        nameKey: nameKeyOf(data.name),
-        slug: data.slug,
-        parentId: data.parentId,
-        imageId: data.imageId,
-      },
+      data: categoryFields(data),
       select: { id: true },
     });
     return created.id;
@@ -212,13 +235,7 @@ export async function updateCategory(id: string, data: CategoryData) {
 
     await tx.category.update({
       where: { id },
-      data: {
-        name: data.name,
-        nameKey: nameKeyOf(data.name),
-        slug: data.slug,
-        parentId: data.parentId,
-        imageId: data.imageId,
-      },
+      data: categoryFields(data),
     });
 
     if (current.imageId !== null && current.imageId !== data.imageId) {
@@ -226,6 +243,12 @@ export async function updateCategory(id: string, data: CategoryData) {
     }
   });
 
+  return getCategory(id);
+}
+
+export async function setCategoryStatus(id: string, { status }: CategoryStatusData) {
+  const { count } = await prisma.category.updateMany({ where: { id }, data: { status } });
+  if (count === 0) throw notFound();
   return getCategory(id);
 }
 
