@@ -28,10 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const image = await readImage(id);
 
-    // Copied into a fresh Uint8Array: Prisma types `Bytes` as
-    // `Uint8Array<ArrayBufferLike>`, which BlobPart won't take because the
-    // buffer could in principle be a SharedArrayBuffer.
-    return new Response(new Blob([new Uint8Array(image.data)], { type: image.mimeType }), {
+    return new Response(new Blob([image.data], { type: image.mimeType }), {
       headers: {
         "Content-Type": image.mimeType,
         "Cache-Control": "public, max-age=31536000, immutable",

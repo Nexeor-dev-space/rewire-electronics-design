@@ -14,7 +14,13 @@ import { prisma } from "@/lib/db";
  */
 
 export interface StoredImage {
-  data: Uint8Array;
+  /**
+   * Explicitly backed by an `ArrayBuffer`, which is how Prisma types `Bytes`
+   * and what `BlobPart` accepts. Bare `Uint8Array` widens to
+   * `ArrayBufferLike`, which allows `SharedArrayBuffer` and satisfies
+   * neither.
+   */
+  data: Uint8Array<ArrayBuffer>;
   mimeType: string;
 }
 
