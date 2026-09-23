@@ -17,6 +17,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Admin console, sidebar, admin routes | [docs/ADMIN-PANEL.md](docs/ADMIN-PANEL.md) |
 | Policy pages, rich text, the policy editor | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
+| Products, the Product API, shop and product pages, catalogue admin | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
 
 If a task spans several areas, read each matching doc.
 

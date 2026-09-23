@@ -198,10 +198,9 @@ holding the trimmed, lowercased name. The obvious constraint,
 both insert. A duplicate answers 409 on the `name` field.
 
 **Deleting** a parent that still has children is refused (409) and the message
-names the count; the confirm dialog stays open and shows it. There is no
-product-linkage check yet, and no `productCount` on either response: there is
-no `Product` model to count, and a field hardcoded to zero would be read as
-real. Both arrive with the Products module.
+names the count; the confirm dialog stays open and shows it. A category or
+brand that still has products is refused the same way, naming the product
+count.
 
 **Images** go to `MediaAsset` (bytes in Postgres) behind
 `src/lib/storage/image-storage.ts`, so a move to object storage is one driver
@@ -210,6 +209,24 @@ happens as soon as a file is chosen, which is what makes a real progress figure
 possible; an image uploaded into a modal that is then cancelled is collected by
 a sweep of unreferenced assets older than 24 hours, run on each upload. Changing
 or removing an image deletes the old asset once nothing else points at it.
+
+## Products, Add-ons and Inventory
+
+Catalogue → **Products** (`/admin/products`), **Inventory**
+(`/admin/products/inventory`) and **Add-ons** (`/admin/add-ons`). Permission
+keys `catalogue.products`, `catalogue.inventory` and `catalogue.add-ons`. The
+upload route also accepts the products permission, so the product form can
+upload images.
+
+1. **Products** lists, creates, edits, publishes, unpublishes, archives and
+   deletes products. The form holds details, images (each with an optional
+   colour), specs and a variants editor.
+2. **Inventory** is a paged list of variants, filterable to low or out of
+   stock, with the stock count edited in place.
+3. **Add-ons** lists and edits the extras offered on the product page, and the
+   categories each one applies to.
+
+The rules, endpoints and data model are in [CATALOGUE.md](CATALOGUE.md).
 
 ## The shell
 

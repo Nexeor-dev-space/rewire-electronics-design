@@ -48,18 +48,19 @@ adds it everywhere at once:
 | Category panel | `components/layout/category-mega-panel.tsx` | `getCategories()` by slug |
 | Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections()` |
 | Homepage strip | `components/home/hero/category-strip.tsx` | `getFeaturedCategories()` |
-| Best sellers | `components/home/featured/featured.tsx` | `getFeaturedProducts()` in `lib/products.ts`, one product per family |
+| Just listed | `components/home/featured/featured.tsx` | Not the family list: the newest in stock products from the database, see [CATALOGUE.md](CATALOGUE.md) |
 
 ### Audio and Wearables
 
 Both were removed from `categories.ts` and from `CATEGORY_ORDER`. They
 are **not** removed from the catalogue:
 
-1. `lib/shop.ts` still stocks eleven headphone and smartwatch listings.
-2. `shopCategories` still offers Audio and Smartwatches, so the
-   `/collection` filter panel still browses them.
-3. `lib/catalog.ts` still owns their product pages, and every
-   `/product/[slug]` route for them still resolves.
+1. The database still holds Audio and Smartwatches as categories, and the
+   sample seed stocks them.
+2. The `/collection` filter panel lists every database category, so it
+   still browses them.
+3. Their `/product/[slug]` pages read the database like every other
+   product.
 
 What changed is presentation only. Those families are no longer
 top-level navigation destinations, and no longer appear on the
@@ -72,12 +73,13 @@ To reinstate a family, add it back to `categories.ts` **and** to
 
 The label is `Smartphones`; the route slug stays `phones`.
 
-`lib/shop.ts` resolves `phones` to `smartphones` through
-`categoryAliases`, so `/collection/phones` renders the Smartphones
-listing and every link already in the wild keeps working. Only the word
-the shopper reads changed. `catalog.ts` still seeds products with
-`categorySlug: "phones"`, which is what `getProductsByCategory()` in
-`getCategoryNav()` queries.
+`resolveCategory()` in `lib/shop.ts` maps `phones` to `smartphones`
+through `categoryAliases` before the database lookup, so
+`/collection/phones` renders the Smartphones listing and every link
+already in the wild keeps working. Only the word the shopper reads
+changed. The navbar's brand dropdowns still count brands from the mock
+`catalog.ts`, which seeds products with `categorySlug: "phones"`; that is
+what `getProductsByCategory()` in `getCategoryNav()` queries.
 
 ---
 
@@ -133,9 +135,10 @@ anything.
 
 ### New: condition deep links
 
-`conditionsFromParam()` in `lib/shop.ts` reads `?condition=` the same
-way `brandsFromParam()` reads `?brand=`. Both collection routes pass
-the result to `ShopCatalogue` as `initialConditions`.
+`shopFiltersFromParams()` in `lib/catalogue.ts` reads `?condition=`,
+`?brand=` and every other shop parameter through the Product API's own
+query schema. The collection and search routes pass the result to
+`ShopCatalogue` as its starting filters.
 
 ```
 /collection?condition=refurbished
@@ -144,9 +147,10 @@ the result to `ShopCatalogue` as `initialConditions`.
 ```
 
 This is what makes the homepage legend a way into the shop rather than
-three tiles that all land on the same unfiltered grid. Unknown values
-are ignored, so a bad link degrades to the full shelf rather than an
-error.
+three tiles that all land on the same unfiltered grid. Unknown
+conditions are ignored, so a bad link degrades to the full shelf rather
+than an error. An unknown brand is kept and simply matches nothing, and
+the empty state offers to clear it.
 
 ---
 
