@@ -12,6 +12,7 @@ import { useGetCategories } from "@/hooks/use-category";
 import { useCreateProduct, useGetProduct, useUpdateProduct } from "@/hooks/use-product";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { conditionLabel, gradeLabel } from "@/lib/catalogue";
+import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import { fromMinorUnits, toMinorUnits } from "@/lib/money";
 import { slugify } from "@/lib/utils";
 import type { ProductDetail } from "@/types/product";
@@ -32,7 +33,7 @@ import {
   type DraftVariant,
 } from "./product-variants-editor";
 
-const PICKER_FILTERS = { pageSize: 100 } as const;
+const PICKER_FILTERS = { pageSize: PICKER_PAGE_SIZE } as const;
 const DEFAULT_WARRANTY_MONTHS = "12";
 
 type Errors = Record<string, string | undefined>;

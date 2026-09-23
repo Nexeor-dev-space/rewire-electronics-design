@@ -9,14 +9,13 @@ import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteProduct, useGetProducts, useSetProductStatus } from "@/hooks/use-product";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ProductListItem } from "@/types/product";
 import { PRODUCT_STATUSES, type ProductStatus } from "@/validators/product.validator";
 import { ProductFormModal } from "./product-form-modal";
 
-const PAGE_SIZE = 20;
-const SEARCH_DEBOUNCE_MS = 300;
 const COLUMNS =
   "lg:grid-cols-[minmax(0,2.4fr)_9rem_7rem_5rem_minmax(0,1fr)_6rem]";
 
@@ -32,7 +31,7 @@ export function ProductManagement() {
 
   const products = useGetProducts({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ADMIN_PAGE_SIZE,
     search: search || undefined,
     status: status || undefined,
   });
@@ -93,7 +92,7 @@ export function ProductManagement() {
     );
   } else {
     const { items, total } = products.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>

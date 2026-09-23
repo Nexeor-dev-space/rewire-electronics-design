@@ -9,6 +9,7 @@ import { FieldError } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInventory, useSetStock } from "@/hooks/use-inventory";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { LOW_STOCK_THRESHOLD } from "@/types/commerce";
@@ -16,8 +17,6 @@ import type { InventoryItem } from "@/types/inventory";
 import { STOCK_FILTERS, type StockFilter } from "@/validators/inventory.validator";
 import { stockValidator } from "@/validators/product.validator";
 
-const PAGE_SIZE = 20;
-const SEARCH_DEBOUNCE_MS = 300;
 const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_7rem_7rem_12rem]";
 
 const STOCK_FILTER_LABELS: Record<StockFilter, string> = {
@@ -34,7 +33,7 @@ export function InventoryManagement() {
 
   const inventory = useGetInventory({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ADMIN_PAGE_SIZE,
     search: search || undefined,
     stock,
   });
@@ -72,7 +71,7 @@ export function InventoryManagement() {
     );
   } else {
     const { items, total } = inventory.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>

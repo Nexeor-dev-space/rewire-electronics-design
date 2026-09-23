@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteCategory, useGetCategories } from "@/hooks/use-category";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { CategoryNode, CategorySummary } from "@/types/category";
 import { CategoryFormModal } from "./category-form-modal";
@@ -21,7 +22,6 @@ import { CategoryFormModal } from "./category-form-modal";
  * Pagination walks parents, not categories, which is why the counter says so.
  */
 
-const PAGE_SIZE = 20;
 const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_minmax(0,1fr)_6rem]";
 
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
@@ -35,7 +35,7 @@ export function CategoryManagement() {
 
   const categories = useGetCategories({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ADMIN_PAGE_SIZE,
     search: search || undefined,
   });
   const deleteCategory = useDeleteCategory();
@@ -45,7 +45,7 @@ export function CategoryManagement() {
     const id = window.setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [searchInput]);
 
@@ -97,7 +97,7 @@ export function CategoryManagement() {
     );
   } else {
     const { items, total } = categories.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>

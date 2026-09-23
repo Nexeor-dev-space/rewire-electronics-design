@@ -10,14 +10,13 @@ import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteAddOn, useGetAddOns } from "@/hooks/use-add-on";
 import { ADD_ON_KIND_LABELS } from "@/lib/catalogue";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { AddOnItem } from "@/types/add-on";
 import { ADD_ON_KINDS, type AddOnKind } from "@/validators/add-on.validator";
 import { AddOnFormModal } from "./add-on-form-modal";
 
-const PAGE_SIZE = 20;
-const SEARCH_DEBOUNCE_MS = 300;
 const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_7rem_minmax(0,1.5fr)_6rem_6rem]";
 
 type Modal = { kind: "create" } | { kind: "edit"; addOn: AddOnItem } | null;
@@ -32,7 +31,7 @@ export function AddOnManagement() {
 
   const addOns = useGetAddOns({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ADMIN_PAGE_SIZE,
     search: search || undefined,
     kind: kind || undefined,
   });
@@ -89,7 +88,7 @@ export function AddOnManagement() {
     );
   } else {
     const { items, total } = addOns.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
     const deletingId = deleteAddOn.isPending ? deleteAddOn.variables : undefined;
 
     content = (

@@ -11,11 +11,12 @@ import { useCreateAddOn, useUpdateAddOn } from "@/hooks/use-add-on";
 import { useGetCategories } from "@/hooks/use-category";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { ADD_ON_KIND_LABELS } from "@/lib/catalogue";
+import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import { CURRENCY, fromMinorUnits, toMinorUnits } from "@/lib/money";
 import type { AddOnItem } from "@/types/add-on";
 import { ADD_ON_KINDS, addOnSchema, type AddOnKind } from "@/validators/add-on.validator";
 
-const PICKER_FILTERS = { pageSize: 100 } as const;
+const PICKER_FILTERS = { pageSize: PICKER_PAGE_SIZE } as const;
 
 export function AddOnFormModal({ addOn, onClose }: { addOn?: AddOnItem; onClose: () => void }) {
   return (

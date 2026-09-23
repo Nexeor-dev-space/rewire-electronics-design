@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteUser, useGetUsers } from "@/hooks/use-user";
 import { ROLE_LABELS, canManageUser } from "@/lib/auth/permissions";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
 import type { UserListItem } from "@/types/user";
@@ -21,7 +22,6 @@ import { UserFormModal } from "./user-form-modal";
  * the people who can reach the console, Customers the people who buy.
  */
 
-const PAGE_SIZE = 20;
 const COLUMNS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_6rem_minmax(0,1fr)_7rem_5rem]";
 
 const COPY = {
@@ -51,7 +51,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
   const [modal, setModal] = useState<Modal>(null);
   const [toDelete, setToDelete] = useState<UserListItem | null>(null);
 
-  const users = useGetUsers({ group, page, pageSize: PAGE_SIZE, search: search || undefined });
+  const users = useGetUsers({ group, page, pageSize: ADMIN_PAGE_SIZE, search: search || undefined });
   const deleteUser = useDeleteUser();
 
   // Search once typing pauses.
@@ -59,7 +59,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
     const id = window.setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [searchInput]);
 
@@ -91,7 +91,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
     );
   } else {
     const { items, total } = users.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>

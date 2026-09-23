@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import type { Paginated } from "@/lib/api/api-response";
+import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import type {
   CategoryDetail,
   CategoryFilters,
@@ -21,7 +22,7 @@ const categoryKeys = {
 const endpoints = API_ENDPOINTS.admin.categories;
 
 /** Parents for the picker. One page is enough — see the spec's known limits. */
-const PARENT_FILTERS = { type: "parent", pageSize: 100 } as const;
+const PARENT_FILTERS = { type: "parent", pageSize: PICKER_PAGE_SIZE } as const;
 
 /* ---------- queries ---------- */
 
