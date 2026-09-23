@@ -3,11 +3,19 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { fromShopCondition, fromShopGrade, toShopCondition, toShopGrade } from "@/lib/catalogue";
+import { MAX_PRODUCT_ADD_ONS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import type { SpecGroup } from "@/types/commerce";
-import type { ShopCard, ShopFacets, ShopListing, ShopProductDetail } from "@/types/catalogue";
+import type {
+  ShopAddOn,
+  ShopCard,
+  ShopCategoryRef,
+  ShopFacets,
+  ShopListing,
+  ShopProductDetail,
+} from "@/types/catalogue";
 import type { shopQuerySchema } from "@/validators/catalogue.validator";
 
 type ShopQuery = z.output<typeof shopQuerySchema>;
@@ -60,7 +68,7 @@ const detailSelect = {
       id: true,
       name: true,
       slug: true,
-      parent: { select: { name: true, slug: true } },
+      parent: { select: { id: true, name: true, slug: true } },
     },
   },
   images: { select: { mediaId: true, alt: true }, orderBy: { sortOrder: "asc" } },
@@ -313,6 +321,28 @@ export async function listNewestShopProducts(limit: number) {
     take: limit,
   });
   return rows.map(toCard);
+}
+
+export async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
+  const categoryIds = [category.id, ...(category.parent ? [category.parent.id] : [])];
+  const rows = await prisma.addOn.findMany({
+    where: {
+      active: true,
+      OR: [{ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } }],
+    },
+    select: { id: true, name: true, note: true, kind: true, price: true, popular: true },
+    orderBy: [{ kind: "desc" }, { popular: "desc" }, { price: "asc" }],
+    take: MAX_PRODUCT_ADD_ONS,
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.name,
+    note: row.note,
+    price: row.price,
+    kind: row.kind.toLowerCase() as ShopAddOn["kind"],
+    popular: row.popular,
+  }));
 }
 
 export async function findShopCategory(slug: string) {

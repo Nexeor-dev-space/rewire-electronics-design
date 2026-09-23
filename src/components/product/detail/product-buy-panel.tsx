@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Product, ProductOption } from "@/types";
-import { AVAILABILITY_LABELS } from "@/types";
+import { useState } from "react";
+import type { ProductOption } from "@/types";
+import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn, formatPrice, savingsPercent } from "@/lib/utils";
+import { cn, savingsPercent } from "@/lib/utils";
+import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { useAccount } from "@/components/providers/account-provider";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
-import { addOnsFor, defaultSelection } from "@/lib/add-ons";
+import { defaultSelection } from "@/lib/add-ons";
+import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
 import { ProductAddOns } from "./product-add-ons";
 
 /**
@@ -22,7 +24,8 @@ import { ProductAddOns } from "./product-add-ons";
  * hides the distinction shoppers came here to check.
  */
 interface Props {
-  product: Product;
+  product: ShopProductDetail;
+  addOns: ShopAddOn[];
   condition: string;
   grade?: string;
 }
@@ -30,21 +33,52 @@ interface Props {
 const OPTION_UNSELECTABLE =
   "cursor-not-allowed border-line text-ink-muted line-through decoration-1";
 
-export function ProductBuyPanel({ product, condition, grade }: Props) {
-  const [storage, setStorage] = useState<ProductOption | undefined>(
-    product.storageOptions?.find((o) => o.available),
+const inStock = (variant: ShopVariant) => variant.stock > 0;
+
+function storageOptionsFor(variants: ShopVariant[]): ProductOption[] {
+  const storages = [...new Set(variants.flatMap((v) => (v.storage ? [v.storage] : [])))];
+  return storages.map((storage) => ({
+    label: storage,
+    value: storage,
+    available: variants.some((v) => v.storage === storage && inStock(v)),
+  }));
+}
+
+function colourOptionsFor(variants: ShopVariant[], selected: ShopVariant): ProductOption[] {
+  const seen = new Map<string, string | undefined>();
+  for (const variant of variants) {
+    if (variant.colour && !seen.has(variant.colour)) {
+      seen.set(variant.colour, variant.colourHex ?? undefined);
+    }
+  }
+  return [...seen].map(([colour, swatch]) => ({
+    label: colour,
+    value: colour,
+    swatch,
+    available: variants.some(
+      (v) => v.colour === colour && v.storage === selected.storage && inStock(v),
+    ),
+  }));
+}
+
+export function ProductBuyPanel({ product, addOns, condition, grade }: Props) {
+  const variants = product.variants;
+  const [variantId, setVariantId] = useState(
+    () => (variants.find(inStock) ?? variants[0]).id,
   );
-  const [color, setColor] = useState<ProductOption | undefined>(
-    product.colorOptions?.find((o) => o.available),
-  );
+  const variant = variants.find((v) => v.id === variantId) ?? variants[0];
+  const storageOptions = storageOptionsFor(variants);
+  const colorOptions = colourOptionsFor(variants, variant);
   const [saved, setSaved] = useState(false);
 
-  // Add-ons: category-scoped list (accessories drop through with an
-  // empty list), and a local set of ticked IDs.
-  const addOns = useMemo(
-    () => addOnsFor(product.categorySlug ?? product.category),
-    [product.categorySlug, product.category],
-  );
+  function choose(storage: string | null, colour: string | null) {
+    const next =
+      variants.find((v) => v.storage === storage && v.colour === colour) ??
+      variants.find((v) => v.storage === storage && inStock(v)) ??
+      variants.find((v) => v.storage === storage);
+    if (next) setVariantId(next.id);
+  }
+
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
     defaultSelection,
   );
@@ -63,18 +97,11 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
   const line = items.find((l) => l.productSlug === product.slug);
   const inCartQty = line?.quantity ?? 0;
 
-  const price = useMemo(() => {
-    const delta = (storage?.priceDelta ?? 0) + (color?.priceDelta ?? 0);
-    return product.price + delta;
-  }, [product.price, storage, color]);
-
-  const originalPrice = product.originalPrice
-    ? product.originalPrice + ((storage?.priceDelta ?? 0) + (color?.priceDelta ?? 0))
-    : undefined;
-
+  const price = variant.price;
+  const originalPrice = variant.compareAtPrice ?? undefined;
   const saving = originalPrice ? savingsPercent(price, originalPrice) : 0;
 
-  const availability = product.availability ?? "in-stock";
+  const availability = availabilityFromStock(variant.stock);
   const soldOut = availability === "sold-out";
   const comingSoon = availability === "coming-soon";
   const low = availability === "low-stock";
@@ -86,9 +113,7 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       ? "Join waitlist"
       : "Add to Cart";
 
-  const currentVariantLabel = [color?.label, storage?.label]
-    .filter(Boolean)
-    .join(" · ") || product.variant;
+  const currentVariantLabel = [variant.colour, variant.storage].filter(Boolean).join(" · ");
 
   function handleAddToCart() {
     if (!purchasable) return;
@@ -98,12 +123,16 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       variantLabel: currentVariantLabel,
       quantity: 1,
       unitPrice: price,
-      currency: product.currency,
-      locale: product.locale ?? "en-AE",
+      currency: CURRENCY,
+      locale: LOCALE,
     });
   }
 
-  const maxStock = Math.max(1, Math.min(product.stock || 1, 5));
+  const maxStock = Math.max(1, Math.min(variant.stock || 1, 5));
+
+  const trustItems = TRUST_ITEMS.map((item) =>
+    item.icon === ShieldIcon ? { ...item, title: `${product.warrantyMonths}-mo warranty` } : item,
+  );
 
   function handleIncrement() {
     if (!line || inCartQty >= maxStock) return;
@@ -129,12 +158,12 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       {/* ---------- Price (sits directly under the name) ---------- */}
       <div className="mt-5 flex flex-wrap items-end gap-x-4 gap-y-2">
         <span className="text-4xl font-medium tabular-nums text-ink">
-          {formatPrice(price, product.currency, product.locale)}
+          {formatMoney(price)}
         </span>
         {originalPrice && originalPrice > price && (
           <>
             <s className="font-mono text-sm tabular-nums text-ink-muted">
-              {formatPrice(originalPrice, product.currency, product.locale)}
+              {formatMoney(originalPrice)}
             </s>
             {saving > 0 && (
               <Badge variant="accent" className="text-[0.6875rem]">
@@ -213,18 +242,18 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         >
           {AVAILABILITY_LABELS[availability]}
         </span>
-        {low && product.stock > 0 && (
-          <span className="text-ink-muted">· {product.stock} left</span>
+        {low && variant.stock > 0 && (
+          <span className="text-ink-muted">· {variant.stock} left</span>
         )}
       </div>
 
       {/* ---------- Storage ---------- */}
-      {product.storageOptions && product.storageOptions.length > 0 && (
+      {storageOptions.length > 0 && (
         <OptionGroup
           label="Storage"
-          value={storage?.label}
-          options={product.storageOptions}
-          onSelect={setStorage}
+          value={variant.storage ?? undefined}
+          options={storageOptions}
+          onSelect={(option) => choose(option.value, variant.colour)}
           renderOption={(option, selected) => (
             <span
               className={cn(
@@ -243,12 +272,12 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       )}
 
       {/* ---------- Colour ---------- */}
-      {product.colorOptions && product.colorOptions.length > 0 && (
+      {colorOptions.length > 0 && (
         <OptionGroup
           label="Colour"
-          value={color?.label}
-          options={product.colorOptions}
-          onSelect={setColor}
+          value={variant.colour ?? undefined}
+          options={colorOptions}
+          onSelect={(option) => choose(variant.storage, option.value)}
           renderOption={(option, selected) => (
             <span
               className={cn(
@@ -286,8 +315,8 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         selected={selectedAddOns}
         onToggle={toggleAddOn}
         basePrice={price}
-        currency={product.currency}
-        locale={product.locale}
+        currency={CURRENCY}
+        locale={LOCALE}
       />
 
       {/* ---------- CTA ----------
@@ -387,7 +416,7 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
           icon in an accent-tinted tile, a bold label, and a one-line
           reassurance — the promise is scannable, not a whisper. */}
       <ul className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {TRUST_ITEMS.map(({ title, sub, icon: Icon }) => (
+        {trustItems.map(({ title, sub, icon: Icon }) => (
           <li
             key={title}
             className={cn(
@@ -493,12 +522,12 @@ function LockIcon() {
   );
 }
 
-const TRUST_ITEMS = [
+const TRUST_ITEMS: { title: string; sub: string; icon: () => React.JSX.Element }[] = [
   { title: "Free delivery", sub: "On every order", icon: TruckIcon },
-  { title: "12-mo warranty", sub: "Rewire-backed", icon: ShieldIcon },
+  { title: "Warranty", sub: "Rewire-backed", icon: ShieldIcon },
   { title: "14-day returns", sub: "No questions asked", icon: ReturnIcon },
   { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
-] as const;
+];
 
 function PlusIcon() {
   return (

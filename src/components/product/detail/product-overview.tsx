@@ -1,5 +1,3 @@
-import type { Product } from "@/types";
-
 /**
  * ProductOverview — the editorial read of a listing.
  *
@@ -23,15 +21,16 @@ import type { Product } from "@/types";
  * paragraph and the split becomes a no-op.
  */
 interface Props {
-  product: Product;
+  description?: string;
+  highlights?: string[];
 }
 
-export function ProductOverview({ product }: Props) {
-  const hasBody = !!product.description || !!product.highlights?.length;
+export function ProductOverview({ description, highlights }: Props) {
+  const hasBody = !!description || !!highlights?.length;
   if (!hasBody) return null;
 
-  const paragraphs = product.description
-    ? product.description
+  const paragraphs = description
+    ? description
         .split(/\n\s*\n/)
         .map((p) => p.trim())
         .filter(Boolean)
@@ -71,11 +70,11 @@ export function ProductOverview({ product }: Props) {
           list carries the site's one accent quietly — the same colour
           the price uses one section up, tying the section to the buy
           box without borrowing its weight. */}
-      {product.highlights && product.highlights.length > 0 && (
+      {highlights && highlights.length > 0 && (
         <div className="mt-12 md:mt-14">
           <p className="eyebrow text-ink-muted">Highlights</p>
           <ul className="mt-5 max-w-3xl space-y-3.5">
-            {product.highlights.map((line) => (
+            {highlights.map((line) => (
               <li key={line} className="flex items-start gap-3.5">
                 <span
                   aria-hidden

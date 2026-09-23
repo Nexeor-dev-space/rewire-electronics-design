@@ -69,7 +69,16 @@ export interface ShopCategoryRef {
   id: string;
   name: string;
   slug: string;
-  parent: { name: string; slug: string } | null;
+  parent: { id: string; name: string; slug: string } | null;
+}
+
+export interface ShopAddOn {
+  id: string;
+  label: string;
+  note: string;
+  price: number;
+  kind: "protection" | "accessory" | "service";
+  popular: boolean;
 }
 
 export interface ShopProductDetail {
