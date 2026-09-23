@@ -1,6 +1,5 @@
+import type { StorefrontCategory } from "@/types/catalogue";
 import { getUpcomingDrops } from "./drops";
-import { getCategories } from "./categories";
-import { getProductsByCategory } from "./catalog";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -17,13 +16,15 @@ export interface MenuLink {
   note?: string;
 }
 
-export const shopBrowse: MenuLink[] = [
-  { label: "All Devices", href: SHOP_INDEX_HREF },
-  { label: "Smartphones", href: productHrefForCategory("phones") },
-  { label: "Laptops", href: productHrefForCategory("laptops") },
-  { label: "Tablets", href: productHrefForCategory("tablets") },
-  { label: "Accessories", href: productHrefForCategory("accessories") },
-];
+export function shopBrowseLinks(categories: StorefrontCategory[]): MenuLink[] {
+  return [
+    { label: "All Devices", href: SHOP_INDEX_HREF },
+    ...categories.map((category) => ({
+      label: category.name,
+      href: productHrefForCategory(category.slug),
+    })),
+  ];
+}
 
 export const shopPopular: string[] = [
   "iPhone",
@@ -62,38 +63,21 @@ export interface CategoryNavItem {
   brands: { label: string; href: string; count: number }[];
 }
 
-const CATEGORY_ORDER = [
-  "phones",
-  "laptops",
-  "tablets",
-  "accessories",
-] as const;
-
-export function getCategoryNav(): CategoryNavItem[] {
-  const catalogueOrder = new Map(
-    getCategories().map((c) => [c.slug, c.name]),
-  );
-
-  return CATEGORY_ORDER.map((slug): CategoryNavItem => {
-    const label = catalogueOrder.get(slug) ?? slug;
-    const products = getProductsByCategory(slug);
-    const grouped = new Map<string, number>();
-    for (const product of products) {
-      grouped.set(product.brand, (grouped.get(product.brand) ?? 0) + 1);
-    }
-    const brands = Array.from(grouped.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([brand, count]) => ({
-        label: brand,
-        count,
-        href: `${productHrefForCategory(slug)}?brand=${encodeURIComponent(brand)}`,
-      }));
-
+export function categoryNav(categories: StorefrontCategory[]): CategoryNavItem[] {
+  return categories.map((category): CategoryNavItem => {
+    const href = productHrefForCategory(category.slug);
     return {
-      label,
-      slug,
-      href: productHrefForCategory(slug),
-      brands: brands.length > 1 ? brands : [],
+      label: category.name,
+      slug: category.slug,
+      href,
+      brands:
+        category.brands.length > 1
+          ? category.brands.map((brand) => ({
+              label: brand.value,
+              count: brand.count,
+              href: `${href}?brand=${encodeURIComponent(brand.value)}`,
+            }))
+          : [],
     };
   });
 }
@@ -141,7 +125,7 @@ export interface DrawerSection {
   items: MenuLink[];
 }
 
-export function getDrawerSections(): DrawerSection[] {
+export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSection[] {
   const drops = getUpcomingDrops()
     .slice(0, 4)
     .map((drop) => ({
@@ -150,7 +134,7 @@ export function getDrawerSections(): DrawerSection[] {
       note: drop.edition,
     }));
 
-  const categories: DrawerSection[] = getCategoryNav().map((item) => ({
+  const categories: DrawerSection[] = categoryNav(categoryList).map((item) => ({
     label: item.label,
     href: item.href,
     items:

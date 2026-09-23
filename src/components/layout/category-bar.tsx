@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import {
+  categoryNav,
   categoryNavIsActive,
   editorialNavLink,
-  getCategoryNav,
   upcomingDropsLink,
   type CategoryNavItem,
   type MegaMenuId,
@@ -23,7 +24,7 @@ const CLOSE_DELAY = 130;
 
 export function CategoryBar() {
   const pathname = usePathname();
-  const items = getCategoryNav();
+  const items = categoryNav(useStorefrontCategories());
   const [open, setOpen] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
 

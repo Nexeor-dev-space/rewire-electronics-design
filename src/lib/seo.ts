@@ -32,8 +32,14 @@ export function productJsonLd(product: ShopProductDetail): string {
       lowPrice: fromMinorUnits(Math.min(...prices)),
       highPrice: fromMinorUnits(Math.max(...prices)),
       offerCount: product.variants.length,
-      itemCondition: `https://schema.org/${SCHEMA_ITEM_CONDITION[product.condition]}`,
-      availability: `https://schema.org/${product.variants.some((variant) => variant.stock > 0) ? "InStock" : "OutOfStock"}`,
+      offers: product.variants.map((variant) => ({
+        "@type": "Offer",
+        sku: variant.sku,
+        price: fromMinorUnits(variant.price),
+        priceCurrency: CURRENCY,
+        itemCondition: `https://schema.org/${SCHEMA_ITEM_CONDITION[variant.condition]}`,
+        availability: `https://schema.org/${variant.stock > 0 ? "InStock" : "OutOfStock"}`,
+      })),
     },
   });
 }

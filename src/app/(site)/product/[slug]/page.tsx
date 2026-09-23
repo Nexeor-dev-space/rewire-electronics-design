@@ -9,7 +9,10 @@ import {
 import { Breadcrumb } from "@/components/product/detail/breadcrumb";
 import { productHrefForCategory, SHOP_INDEX_HREF } from "@/lib/route-map";
 import { ProductStage } from "@/components/product/detail/product-stage";
-import { ConditionExplainer } from "@/components/product/detail/condition-explainer";
+import {
+  SelectedConditionExplainer,
+  SelectedVariantProvider,
+} from "@/components/product/detail/selected-variant";
 import { ProductOverview } from "@/components/product/detail/product-overview";
 import { PdpSectionNav } from "@/components/product/detail/pdp-section-nav";
 import { SpecTable } from "@/components/product/detail/spec-table";
@@ -17,7 +20,7 @@ import { IncludedList } from "@/components/product/detail/included-list";
 import { TrustBlocks } from "@/components/product/detail/trust-blocks";
 import { RelatedProducts } from "@/components/product/detail/related-products";
 import { productJsonLd } from "@/lib/seo";
-import { CONDITION_META, GRADE_META, productHref } from "@/lib/shop";
+import { productHref } from "@/lib/shop";
 import { findShopProductPage } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +47,6 @@ export default async function ProductPage({ params }: Params) {
   if (!product) notFound();
 
   const { addOns, related, ...detail } = product;
-  const condition = CONDITION_META[product.condition].label;
-  const grade = product.grade ? GRADE_META[product.grade].label : undefined;
 
   const sectionTabs = [
     { id: "overview", label: "Product Overview" },
@@ -55,7 +56,7 @@ export default async function ProductPage({ params }: Params) {
   ];
 
   return (
-    <>
+    <SelectedVariantProvider variants={product.variants}>
       {/* ---------- Breadcrumb ---------- */}
       <Container width="wide" className="pt-10 md:pt-14">
         <Breadcrumb
@@ -69,7 +70,7 @@ export default async function ProductPage({ params }: Params) {
       </Container>
 
       <Container width="wide" className="pt-8 md:pt-12">
-        <ProductStage product={detail} addOns={addOns} condition={condition} grade={grade} />
+        <ProductStage product={detail} addOns={addOns} />
       </Container>
 
       {/* ---------- Section tab strip ---------- */}
@@ -94,7 +95,7 @@ export default async function ProductPage({ params }: Params) {
       <Section spacing="sm">
         <Container width="wide">
           <SectionEyebrow>The Condition</SectionEyebrow>
-          <ConditionExplainer active={product.condition} grade={grade} />
+          <SelectedConditionExplainer />
         </Container>
       </Section>
 
@@ -140,6 +141,6 @@ export default async function ProductPage({ params }: Params) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: productJsonLd(product) }}
       />
-    </>
+    </SelectedVariantProvider>
   );
 }

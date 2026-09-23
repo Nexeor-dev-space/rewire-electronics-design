@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { Category } from "@/lib/categories";
+import type { StorefrontCategory } from "@/types/catalogue";
 import { productHrefForCategory } from "@/lib/route-map";
 
 interface CategoryCardProps {
-  category: Category;
+  category: StorefrontCategory;
   /** First two are above the fold on wide screens. */
   priority?: boolean;
   /**
@@ -61,22 +61,24 @@ export function CategoryCard({
       {/* Photograph behind — the same asset the mega-menu uses, so the
           two rows read as one object. Prefers the wide cut where it
           exists; the portrait shot is only a fallback. */}
-      <Image
-        src={(category.menuImage ?? category.image).url}
-        alt=""
-        fill
-        priority={priority}
-        sizes={
-          compact
-            ? "(max-width: 640px) 62vw, (max-width: 768px) 40vw, (max-width: 1024px) 30vw, 20vw"
-            : "(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 20vw"
-        }
-        className={cn(
-          "object-cover",
-          "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-          "group-hover:scale-[1.04] group-focus-visible:scale-[1.04]",
-        )}
-      />
+      {category.imageUrl && (
+        <Image
+          src={category.imageUrl}
+          alt=""
+          fill
+          priority={priority}
+          sizes={
+            compact
+              ? "(max-width: 640px) 62vw, (max-width: 768px) 40vw, (max-width: 1024px) 30vw, 20vw"
+              : "(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 20vw"
+          }
+          className={cn(
+            "object-cover",
+            "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+            "group-hover:scale-[1.04] group-focus-visible:scale-[1.04]",
+          )}
+        />
+      )}
 
       {/* Uniform ink wash — bumped to 55% (from 40%) so the photography
           reads as a *ground* for the type rather than competing with it.
@@ -161,7 +163,7 @@ export function CategoryCard({
               : "mt-2.5 text-sm leading-relaxed",
           )}
         >
-          {category.note}
+          {category.description}
         </p>
       </div>
     </Link>

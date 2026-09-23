@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { getCategories } from "@/lib/categories";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import type { CategoryNavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -36,7 +36,7 @@ export function CategoryMegaPanel({
   onPointerEnter: () => void;
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const category = getCategories().find((c) => c.slug === item.slug);
+  const category = useStorefrontCategories().find((c) => c.slug === item.slug);
 
   const brands = item.brands.slice(0, MAX_BRANDS);
   const totalDevices = item.brands.reduce((sum, b) => sum + b.count, 0);
@@ -67,7 +67,7 @@ export function CategoryMegaPanel({
             <div className="col-span-3 flex flex-col">
               <MenuLabel>{item.label}</MenuLabel>
               <p className="mt-6 text-[1.75rem] font-light leading-[1.15] tracking-[-0.025em] text-ink">
-                {category?.note ?? item.label}.
+                {category?.description || item.label}.
               </p>
               <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-secondary">
                 {totalDevices > 0
@@ -119,10 +119,10 @@ export function CategoryMegaPanel({
             {/* ---------- Showcase ---------- */}
             <div className="col-span-4">
               <div className="group/card overflow-hidden rounded-2xl border border-line bg-void">
-                {category && (
+                {category?.imageUrl && (
                   <MenuImage
-                    src={(category.menuImage ?? category.image).url}
-                    alt={(category.menuImage ?? category.image).alt}
+                    src={category.imageUrl}
+                    alt={category.name}
                     sizes="(max-width: 1280px) 30vw, 22vw"
                     className="aspect-16/10 w-full"
                   />

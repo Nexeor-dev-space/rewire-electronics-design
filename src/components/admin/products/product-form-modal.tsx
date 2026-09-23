@@ -11,19 +11,11 @@ import { useGetBrands } from "@/hooks/use-brand";
 import { useGetCategories } from "@/hooks/use-category";
 import { useCreateProduct, useGetProduct, useUpdateProduct } from "@/hooks/use-product";
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import { fromMinorUnits, toMinorUnits } from "@/lib/money";
 import { slugify } from "@/lib/utils";
 import type { ProductDetail } from "@/types/product";
-import {
-  GRADED_CONDITIONS,
-  PRODUCT_CONDITIONS,
-  PRODUCT_GRADES,
-  productSchema,
-  type ProductCondition,
-  type ProductGrade,
-} from "@/validators/product.validator";
+import { GRADED_CONDITIONS, productSchema } from "@/validators/product.validator";
 import { ProductImagesField, type DraftImage } from "./product-images-field";
 import { ProductSpecsEditor, newSpecKey, type DraftSpec } from "./product-specs-editor";
 import {
@@ -124,6 +116,9 @@ function toDraftVariants(product?: ProductDetail): DraftVariant[] {
   return product.variants.map((variant) => ({
     key: newVariantKey(),
     id: variant.id,
+    condition: variant.condition,
+    grade: variant.grade ?? "",
+    batteryHealth: variant.batteryHealth === null ? "" : String(variant.batteryHealth),
     sku: variant.sku,
     storage: variant.storage ?? "",
     colour: variant.colour ?? "",
@@ -142,11 +137,6 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   const [description, setDescription] = useState(initial?.description ?? "");
   const [brandId, setBrandId] = useState(initial?.brandId ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
-  const [condition, setCondition] = useState<ProductCondition>(initial?.condition ?? "REFURBISHED");
-  const [grade, setGrade] = useState<ProductGrade | "">(initial?.grade ?? "");
-  const [batteryHealth, setBatteryHealth] = useState(
-    initial?.batteryHealth === null || initial?.batteryHealth === undefined ? "" : String(initial.batteryHealth),
-  );
   const [warrantyMonths, setWarrantyMonths] = useState(
     initial ? String(initial.warrantyMonths) : DEFAULT_WARRANTY_MONTHS,
   );
@@ -167,7 +157,6 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   const updateProduct = useUpdateProduct();
   const mutation = initial ? updateProduct : createProduct;
 
-  const graded = GRADED_CONDITIONS.includes(condition);
   const error = (path: string) => errors[path];
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -179,9 +168,6 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
       description,
       brandId,
       categoryId,
-      condition,
-      grade: graded && grade ? grade : null,
-      batteryHealth: optionalNumber(batteryHealth),
       warrantyMonths: optionalNumber(warrantyMonths) ?? undefined,
       highlights: lines(highlights),
       included: lines(included),
@@ -189,6 +175,9 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
       specs: specs.map(({ group, label, value }) => ({ group, label, value })),
       variants: variants.map((variant) => ({
         id: variant.id,
+        condition: variant.condition,
+        grade: GRADED_CONDITIONS.includes(variant.condition) && variant.grade ? variant.grade : null,
+        batteryHealth: optionalNumber(variant.batteryHealth),
         sku: variant.sku,
         storage: variant.storage,
         colour: variant.colour,
@@ -295,58 +284,6 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
                   </optgroup>
                 ))}
               </Select>
-            </Field>
-
-            <Field id={`${id}-condition`} label="Condition" error={error("condition")}>
-              <Select
-                id={`${id}-condition`}
-                value={condition}
-                onChange={(event) => {
-                  const next = event.target.value as ProductCondition;
-                  setCondition(next);
-                  if (!GRADED_CONDITIONS.includes(next)) setGrade("");
-                }}
-                className="h-11"
-              >
-                {PRODUCT_CONDITIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {conditionLabel(value)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field
-              id={`${id}-grade`}
-              label="Grade"
-              error={error("grade")}
-              hint={graded ? undefined : "Only pre-owned and refurbished products carry a grade."}
-            >
-              <Select
-                id={`${id}-grade`}
-                value={grade}
-                disabled={!graded}
-                onChange={(event) => setGrade(event.target.value as ProductGrade | "")}
-                className="h-11"
-              >
-                <option value="">No grade</option>
-                {PRODUCT_GRADES.map((value) => (
-                  <option key={value} value={value}>
-                    {gradeLabel(value)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field id={`${id}-battery`} label="Battery health (%)" error={error("batteryHealth")}>
-              <Input
-                id={`${id}-battery`}
-                inputMode="numeric"
-                value={batteryHealth}
-                onChange={(event) => setBatteryHealth(event.target.value)}
-                aria-invalid={error("batteryHealth") ? true : undefined}
-                className="h-11"
-              />
             </Field>
 
             <Field id={`${id}-warranty`} label="Warranty (months)" error={error("warrantyMonths")}>

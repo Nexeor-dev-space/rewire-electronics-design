@@ -8,7 +8,7 @@ import { Input, Select } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInventory, useSetStock } from "@/hooks/use-inventory";
-import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
+import { PRODUCT_STATUS_LABELS, conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -149,7 +149,14 @@ function InventoryRow({ item }: { item: InventoryItem }) {
   const [error, setError] = useState<string | undefined>();
   const setStock = useSetStock();
 
-  const options = [item.storage, item.colour].filter(Boolean).join(" · ");
+  const options = [
+    conditionLabel(item.condition),
+    item.grade && gradeLabel(item.grade),
+    item.storage,
+    item.colour,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const dirty = value !== String(item.stock);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

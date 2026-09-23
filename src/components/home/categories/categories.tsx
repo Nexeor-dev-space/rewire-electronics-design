@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { buttonVariants } from "@/components/ui/button";
-import { getFeaturedCategories } from "@/lib/categories";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { HOME_CATEGORY_LIMIT } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { DURATION, EASE_OUT_EXPO, staggerChildren, viewportOnce } from "@/lib/motion";
 import { CategoryCard } from "./category-card";
@@ -35,7 +36,7 @@ const rise = {
  * index, and the trailing link is the only chrome they need.
  */
 export function Categories() {
-  const categories = getFeaturedCategories();
+  const categories = useStorefrontCategories().slice(0, HOME_CATEGORY_LIMIT);
 
   return (
     <section

@@ -10,6 +10,7 @@ import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { useAccount } from "@/components/providers/account-provider";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { defaultSelection } from "@/lib/add-ons";
+import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
 import { ProductAddOns } from "./product-add-ons";
 
@@ -26,9 +27,7 @@ import { ProductAddOns } from "./product-add-ons";
 interface Props {
   product: ShopProductDetail;
   addOns: ShopAddOn[];
-  condition: string;
-  grade?: string;
-  variantId: string;
+  variant: ShopVariant;
   onVariantChange: (id: string) => void;
 }
 
@@ -37,51 +36,65 @@ const OPTION_UNSELECTABLE =
 
 const inStock = (variant: ShopVariant) => variant.stock > 0;
 
-function storageOptionsFor(variants: ShopVariant[]): ProductOption[] {
-  const storages = [...new Set(variants.flatMap((v) => (v.storage ? [v.storage] : [])))];
-  return storages.map((storage) => ({
-    label: storage,
-    value: storage,
-    available: variants.some((v) => v.storage === storage && inStock(v)),
-  }));
-}
+type Axis = "state" | "storage" | "colour";
+const AXES: Axis[] = ["state", "storage", "colour"];
 
-function colourOptionsFor(variants: ShopVariant[], selected: ShopVariant): ProductOption[] {
-  const seen = new Map<string, string | undefined>();
+const stateLabel = (variant: ShopVariant) =>
+  [CONDITION_META[variant.condition].label, variant.grade && GRADE_META[variant.grade].label]
+    .filter(Boolean)
+    .join(" · ");
+
+const axisValue = (variant: ShopVariant, axis: Axis) =>
+  axis === "state" ? `${variant.condition}|${variant.grade ?? ""}` : variant[axis];
+
+const axisLabel = (variant: ShopVariant, axis: Axis) =>
+  axis === "state" ? stateLabel(variant) : (variant[axis] ?? "");
+
+function optionsFor(variants: ShopVariant[], selected: ShopVariant, axis: Axis): ProductOption[] {
+  const earlier = AXES.slice(0, AXES.indexOf(axis));
+  const samples = new Map<string, ShopVariant>();
   for (const variant of variants) {
-    if (variant.colour && !seen.has(variant.colour)) {
-      seen.set(variant.colour, variant.colourHex ?? undefined);
-    }
+    const value = axisValue(variant, axis);
+    if (value !== null && !samples.has(value)) samples.set(value, variant);
   }
-  return [...seen].map(([colour, swatch]) => ({
-    label: colour,
-    value: colour,
-    swatch,
+  return [...samples].map(([value, sample]) => ({
+    label: axisLabel(sample, axis),
+    value,
+    swatch: axis === "colour" ? (sample.colourHex ?? undefined) : undefined,
     available: variants.some(
-      (v) => v.colour === colour && v.storage === selected.storage && inStock(v),
+      (variant) =>
+        axisValue(variant, axis) === value &&
+        inStock(variant) &&
+        earlier.every((other) => axisValue(variant, other) === axisValue(selected, other)),
     ),
   }));
 }
 
-export function ProductBuyPanel({
-  product,
-  addOns,
-  condition,
-  grade,
-  variantId,
-  onVariantChange,
-}: Props) {
+const compareRanks = (a: number[], b: number[]) =>
+  a.reduce((difference, rank, index) => difference || rank - b[index], 0);
+
+function closestVariant(variants: ShopVariant[], selected: ShopVariant, axis: Axis, value: string) {
+  const others = AXES.filter((other) => other !== axis);
+  const rank = (variant: ShopVariant) =>
+    [
+      others.every((other) => axisValue(variant, other) === axisValue(selected, other)),
+      inStock(variant),
+      ...others.map((other) => axisValue(variant, other) === axisValue(selected, other)),
+    ].map(Number);
+  return variants
+    .filter((variant) => axisValue(variant, axis) === value)
+    .sort((a, b) => compareRanks(rank(b), rank(a)))[0];
+}
+
+export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: Props) {
   const variants = product.variants;
-  const variant = variants.find((v) => v.id === variantId) ?? variants[0];
-  const storageOptions = storageOptionsFor(variants);
-  const colorOptions = colourOptionsFor(variants, variant);
+  const stateOptions = optionsFor(variants, variant, "state");
+  const storageOptions = optionsFor(variants, variant, "storage");
+  const colorOptions = optionsFor(variants, variant, "colour");
   const [saved, setSaved] = useState(false);
 
-  function choose(storage: string | null, colour: string | null) {
-    const next =
-      variants.find((v) => v.storage === storage && v.colour === colour) ??
-      variants.find((v) => v.storage === storage && inStock(v)) ??
-      variants.find((v) => v.storage === storage);
+  function choose(axis: Axis, value: string) {
+    const next = closestVariant(variants, variant, axis, value);
     if (next) onVariantChange(next.id);
   }
 
@@ -119,7 +132,9 @@ export function ProductBuyPanel({
       ? "Join waitlist"
       : "Add to Cart";
 
-  const currentVariantLabel = [variant.colour, variant.storage].filter(Boolean).join(" · ");
+  const currentVariantLabel = [stateLabel(variant), variant.colour, variant.storage]
+    .filter(Boolean)
+    .join(" · ");
 
   function handleAddToCart() {
     if (!purchasable) return;
@@ -187,15 +202,23 @@ export function ProductBuyPanel({
       )}
 
       {/* ---------- Condition + Grade ---------- */}
-      <dl className="mt-8 grid grid-cols-2 gap-6 border-y border-line py-6">
+      <dl className="mt-8 grid grid-cols-2 gap-6 border-y border-line py-6 sm:grid-cols-3">
         <div>
           <dt className="eyebrow">Condition</dt>
-          <dd className="mt-2 text-base font-medium text-ink">{condition}</dd>
+          <dd className="mt-2 text-base font-medium text-ink">
+            {CONDITION_META[variant.condition].label}
+          </dd>
         </div>
-        {grade && (
+        {variant.grade && (
           <div>
             <dt className="eyebrow">Grade</dt>
-            <dd className="mt-2 text-base font-medium text-ink">{grade}</dd>
+            <dd className="mt-2 text-base font-medium text-ink">{GRADE_META[variant.grade].label}</dd>
+          </div>
+        )}
+        {variant.batteryHealth !== null && (
+          <div>
+            <dt className="eyebrow">Battery health</dt>
+            <dd className="mt-2 text-base font-medium tabular-nums text-ink">{variant.batteryHealth}%</dd>
           </div>
         )}
       </dl>
@@ -253,13 +276,36 @@ export function ProductBuyPanel({
         )}
       </div>
 
+      {stateOptions.length > 1 && (
+        <OptionGroup
+          label="Condition"
+          value={stateLabel(variant)}
+          options={stateOptions}
+          onSelect={(option) => choose("state", option.value)}
+          renderOption={(option, selected) => (
+            <span
+              className={cn(
+                "flex h-11 items-center justify-center rounded-lg border px-4 text-sm font-medium transition-colors duration-(--duration-fast)",
+                selected
+                  ? "border-ink bg-ink text-surface"
+                  : option.available
+                    ? "border-line text-ink hover:border-ink"
+                    : OPTION_UNSELECTABLE,
+              )}
+            >
+              {option.label}
+            </span>
+          )}
+        />
+      )}
+
       {/* ---------- Storage ---------- */}
       {storageOptions.length > 0 && (
         <OptionGroup
           label="Storage"
           value={variant.storage ?? undefined}
           options={storageOptions}
-          onSelect={(option) => choose(option.value, variant.colour)}
+          onSelect={(option) => choose("storage", option.value)}
           renderOption={(option, selected) => (
             <span
               className={cn(
@@ -283,7 +329,7 @@ export function ProductBuyPanel({
           label="Colour"
           value={variant.colour ?? undefined}
           options={colorOptions}
-          onSelect={(option) => choose(variant.storage, option.value)}
+          onSelect={(option) => choose("colour", option.value)}
           renderOption={(option, selected) => (
             <span
               className={cn(

@@ -1,4 +1,4 @@
-import { getCategories, type Category } from "./categories";
+import type { StorefrontCategory } from "@/types/catalogue";
 import { getUpcomingDrops, type UpcomingDrop } from "./drops";
 
 /**
@@ -23,16 +23,18 @@ const RECENT_DROPS = 3;
 
 export interface SearchResults {
   terms: string[];
-  categories: Category[];
+  categories: StorefrontCategory[];
   drops: UpcomingDrop[];
   /** Query entered, nothing matched anywhere. */
   empty: boolean;
 }
 
-export function searchCatalogue(query: string): SearchResults {
+export function searchCatalogue(
+  query: string,
+  allCategories: StorefrontCategory[],
+): SearchResults {
   const q = query.trim().toLowerCase();
   const allDrops = getUpcomingDrops();
-  const allCategories = getCategories();
 
   if (!q) {
     return {
@@ -49,7 +51,7 @@ export function searchCatalogue(query: string): SearchResults {
   const categories = allCategories.filter(
     (category) =>
       category.name.toLowerCase().includes(q) ||
-      category.note.toLowerCase().includes(q),
+      category.description.toLowerCase().includes(q),
   );
   const drops = allDrops
     .filter((drop) =>

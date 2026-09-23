@@ -6,7 +6,7 @@ import { ImageField } from "@/components/admin/shared/image-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
-import { Input, Select } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCreateCategory,
@@ -15,9 +15,15 @@ import {
   useUpdateCategory,
 } from "@/hooks/use-category";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
 import { slugify } from "@/lib/utils";
 import type { CategoryDetail } from "@/types/category";
-import { categorySchema, type CategoryType } from "@/validators/category.validator";
+import {
+  CATEGORY_STATUSES,
+  categorySchema,
+  type CategoryStatus,
+  type CategoryType,
+} from "@/validators/category.validator";
 
 /** Absent to add a category. */
 interface CategoryFormModalProps {
@@ -89,6 +95,10 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
   const [parentId, setParentId] = useState<string | null>(initial?.parentId ?? null);
   const [imageId, setImageId] = useState<string | null>(initial?.imageId ?? null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(initial?.imageUrl ?? null);
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [status, setStatus] = useState<CategoryStatus>(initial?.status ?? "PUBLISHED");
+  const [showInNav, setShowInNav] = useState(initial?.showInNav ?? true);
+  const [sortOrder, setSortOrder] = useState(String(initial?.sortOrder ?? 0));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
 
   const parents = useGetParentCategories();
@@ -112,6 +122,10 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
       type,
       parentId: type === "child" ? parentId : null,
       imageId,
+      description,
+      status,
+      showInNav,
+      sortOrder: sortOrder.trim() === "" ? undefined : Number(sortOrder),
     });
     if (!parsed.success) {
       setErrors(z.flattenError(parsed.error).fieldErrors);
@@ -224,6 +238,63 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
               </Select>
             </Field>
           )}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field id={`${id}-status`} label="Status" error={error("status")}>
+              <Select
+                id={`${id}-status`}
+                value={status}
+                onChange={(event) => setStatus(event.target.value as CategoryStatus)}
+                className="h-11"
+              >
+                {CATEGORY_STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {PRODUCT_STATUS_LABELS[value]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field
+              id={`${id}-position`}
+              label="Position"
+              error={error("sortOrder")}
+              hint="Lower numbers come first."
+            >
+              <Input
+                id={`${id}-position`}
+                inputMode="numeric"
+                value={sortOrder}
+                onChange={(event) => setSortOrder(event.target.value)}
+                aria-invalid={error("sortOrder") ? true : undefined}
+                className="h-11"
+              />
+            </Field>
+          </div>
+
+          {type === "parent" && (
+            <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+              <input
+                type="checkbox"
+                checked={showInNav}
+                onChange={(event) => setShowInNav(event.target.checked)}
+              />
+              Show in the storefront menus and home page
+            </label>
+          )}
+
+          <Field
+            id={`${id}-description`}
+            label="Description"
+            error={error("description")}
+            hint="One short line, shown in the menus and on the category page."
+          >
+            <Textarea
+              id={`${id}-description`}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </Field>
 
           <ImageField
             label="Category image"
