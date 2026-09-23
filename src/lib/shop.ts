@@ -74,31 +74,15 @@ const categoryAliases: Record<string, CategorySlug> = {
   headphones: "audio",
 };
 
-export function resolveCategory(segment?: string): CategorySlug | null {
-  if (!segment) return null;
+export function resolveCategory(segment: string): string {
   const slug = segment.toLowerCase();
-  if (shopCategories.some((category) => category.slug === slug)) {
-    return slug as CategorySlug;
-  }
-  return categoryAliases[slug] ?? null;
+  return categoryAliases[slug] ?? slug;
 }
 
 /* ============================================================
    Popular search terms → the shop, pre-filtered
    ============================================================ */
 
-/**
- * The navigation's "Popular" column lists product families and makers —
- * iPhone, MacBook, Samsung — not routes. They used to point at
- * `/search?q=…`, which has never existed and returned a 404 on every
- * click.
- *
- * There is no text search on the catalogue, and inventing one to serve
- * six menu links would be the wrong trade. What these terms actually
- * *mean* is a category, a brand, or both — which the shop already
- * filters on. So each term resolves to the filtered listing that answers
- * it, and the menu stops being a dead end.
- */
 const popularTerms: Record<string, { category?: CategorySlug; brand?: string }> = {
   iphone: { category: "smartphones", brand: "Apple" },
   ipad: { category: "tablets", brand: "Apple" },
@@ -129,18 +113,6 @@ export function shopHrefForTerm(term: string): string {
   return match.brand
     ? `${path}?brand=${encodeURIComponent(match.brand)}`
     : path;
-}
-
-/** Reads a `?brand=` value into the filter axis, ignoring anything unknown. */
-export function brandsFromParam(value: string | string[] | undefined): string[] {
-  if (!value) return [];
-  const requested = (Array.isArray(value) ? value : [value]).flatMap((entry) =>
-    entry.split(","),
-  );
-  const known = new Set(getBrands());
-  return requested
-    .map((entry) => entry.trim())
-    .filter((entry) => known.has(entry));
 }
 
 /* ============================================================
@@ -217,25 +189,6 @@ export const conditions: ConditionMeta[] = [
 export const CONDITION_META = Object.fromEntries(
   conditions.map((condition) => [condition.value, condition]),
 ) as Record<Condition, ConditionMeta>;
-
-/**
- * Reads a `?condition=` value into the filter axis, ignoring anything
- * unknown — the same contract as `brandsFromParam`. This is what makes
- * the homepage's "What you have" legend a working entry point rather
- * than three tiles that all land on the unfiltered shelf.
- */
-export function conditionsFromParam(
-  value: string | string[] | undefined,
-): Condition[] {
-  if (!value) return [];
-  const requested = (Array.isArray(value) ? value : [value]).flatMap((entry) =>
-    entry.split(","),
-  );
-  const known = new Set<string>(conditions.map((condition) => condition.value));
-  return requested
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry): entry is Condition => known.has(entry));
-}
 
 /* ============================================================
    Grade — what state it is in
@@ -450,9 +403,8 @@ export function getShopProducts(): ShopProduct[] {
   return products;
 }
 
-/** Route for a listing. One place, so the product page can move without a sweep. */
-export function productHref(product: ShopProduct) {
-  return `/products/${product.slug}`;
+export function productHref(product: { slug: string }) {
+  return `/product/${product.slug}`;
 }
 
 /** Percentage saved. Returns 0 when there is nothing to claim. */

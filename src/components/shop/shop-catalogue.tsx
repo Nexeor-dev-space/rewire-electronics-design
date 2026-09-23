@@ -1,97 +1,44 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import {
-  CATEGORY_LABELS,
-  CONDITION_META,
-  GRADE_META,
-  activeFilterCount,
-  emptyFilters,
-  filterProducts,
-  priceBands,
-  sortProducts,
-  type CategorySlug,
-  type Condition,
-  type Grade,
-  type ShopFilters,
-  type SortId,
-} from "@/lib/shop";
+import { useGetShopProducts } from "@/hooks/use-catalogue";
+import { SHOP_PAGE_SIZE } from "@/lib/constants";
+import { CONDITION_META, GRADE_META, priceBands } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import type { ShopFacets, ShopFilterState, ShopListing } from "@/types/catalogue";
 import { FilterDrawer } from "./filter-drawer";
-import { FilterPanel } from "./filter-panel";
+import { FilterPanel, type FilterAxis } from "./filter-panel";
 import { ShopProductCard } from "./product-card";
 import { SortSelect } from "./sort-select";
 
-/** One screenful at a time. Twelve divides cleanly by 2, 3 and 4 columns. */
-const PAGE_SIZE = 12;
+const AXES: FilterAxis[] = ["category", "condition", "grade", "price", "brand", "storage"];
 
-/**
- * ShopCatalogue — the working half of the shop page.
- *
- * Owns one piece of state (`filters`) that two surfaces read and write:
- * the category rail above the grid and the filter panel beside it. They
- * are the same axis rendered twice, never two competing selections, which
- * is why selecting "Laptops" on the rail also ticks Laptops in the panel.
- *
- * Everything derives from that state at render — the grid, the counts,
- * the chips, the number in the "Show N results" button. Nothing is
- * mirrored into a second copy that could drift out of step.
- *
- * Load more rather than pagination: the site scrolls as one continuous
- * editorial surface everywhere else, and numbered pages would be the only
- * place a reader is asked to leave the page they are on.
- */
 export function ShopCatalogue({
-  initialCategory,
-  initialBrands = [],
-  initialConditions = [],
+  initialFilters,
+  initialListing,
 }: {
-  initialCategory: CategorySlug | null;
-  /**
-   * Seeds the brand axis from the URL, so a link can open the shop
-   * already narrowed — the navigation's "Popular" terms (iPhone, Samsung)
-   * resolve to a category and a brand rather than to a search page that
-   * does not exist.
-   */
-  initialBrands?: string[];
-  /**
-   * Seeds the condition axis the same way. The homepage's "What you
-   * have" legend links each of Refurbished / Pre-Owned / Open Box
-   * straight to its own shelf, which is what makes the legend a way in
-   * rather than three tiles that all land on the same unfiltered grid.
-   */
-  initialConditions?: Condition[];
+  initialFilters: ShopFilterState;
+  initialListing: ShopListing;
 }) {
-  const [filters, setFilters] = useState<ShopFilters>(() => ({
-    ...emptyFilters,
-    categories: initialCategory ? [initialCategory] : [],
-    brands: initialBrands,
-    conditions: initialConditions,
-  }));
-  const [sort, setSort] = useState<SortId>("recommended");
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [filters, setFilters] = useState(initialFilters);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const results = useMemo(
-    () => sortProducts(filterProducts(filters), sort),
-    [filters, sort],
+  const listing = useGetShopProducts(
+    filters,
+    filters === initialFilters ? initialListing : undefined,
   );
 
-  const shown = results.slice(0, visible);
-  const activeCount = activeFilterCount(filters);
+  const pages = listing.data?.pages ?? [];
+  const facets = pages[0]?.facets;
+  const total = pages[0]?.total ?? 0;
+  const shown = pages.flatMap((page) => page.items);
+  const activeCount = AXES.reduce((sum, axis) => sum + filters[axis].length, 0);
 
-  /** Any change to the result set starts the reader at the top of it. */
-  function updateFilters(next: ShopFilters) {
-    setFilters(next);
-    setVisible(PAGE_SIZE);
-  }
-
-  function toggle(axis: keyof ShopFilters, value: string) {
-    const current = filters[axis] as string[];
-    updateFilters({
+  function toggle(axis: FilterAxis, value: string) {
+    const current: string[] = filters[axis];
+    setFilters({
       ...filters,
       [axis]: current.includes(value)
         ? current.filter((entry) => entry !== value)
@@ -100,17 +47,19 @@ export function ShopCatalogue({
   }
 
   function clearAll() {
-    updateFilters(emptyFilters);
+    setFilters({
+      ...filters,
+      category: [],
+      condition: [],
+      grade: [],
+      price: [],
+      brand: [],
+      storage: [],
+    });
   }
 
   return (
     <>
-      {/* ---------- Filters + grid ----------
-          The top category-chip rail (All Products / Smartphones /
-          Laptops / …) was removed — the same list is available in the
-          sidebar's category filter and repeating it above the grid
-          made the shop page feel double-navigated. The sidebar is the
-          one place to change categories now. */}
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
         <div className="lg:flex lg:items-start lg:gap-10 xl:gap-14">
           {/* ---------- Sidebar (lg and up) ----------
@@ -157,19 +106,17 @@ export function ShopCatalogue({
             <FilterPanel
               idPrefix="sidebar"
               filters={filters}
+              facets={facets}
               onToggle={toggle}
             />
           </aside>
 
           {/* ---------- Results ---------- */}
           <div className="min-w-0 flex-1">
-            {/* Toolbar: what you are looking at, and the two controls that
-                change it. Sort sits on the right at every width; the
-                filter trigger replaces the sidebar below `lg`. */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
               <p className="text-sm text-ink-secondary" aria-live="polite">
-                <span className="font-mono tabular-nums text-ink">{results.length}</span>{" "}
-                {results.length === 1 ? "product" : "products"}
+                <span className="font-mono tabular-nums text-ink">{total}</span>{" "}
+                {total === 1 ? "product" : "products"}
               </p>
 
               <div className="flex items-center gap-2.5">
@@ -203,16 +150,17 @@ export function ShopCatalogue({
                   )}
                 </button>
 
-                <SortSelect value={sort} onChange={setSort} className="w-[13.5rem]" />
+                <SortSelect
+                  value={filters.sort}
+                  onChange={(sort) => setFilters({ ...filters, sort })}
+                  className="w-[13.5rem]"
+                />
               </div>
             </div>
 
-            {/* Active filters — every applied narrowing, removable in one
-                tap. The only place the three axes appear side by side, so
-                each chip names its axis rather than just its value. */}
             {activeCount > 0 && (
               <ul className="flex flex-wrap items-center gap-2 pt-5">
-                {chipsFor(filters).map((chip) => (
+                {chipsFor(filters, facets).map((chip) => (
                   <li key={`${chip.axis}-${chip.value}`}>
                     <button
                       type="button"
@@ -256,22 +204,25 @@ export function ShopCatalogue({
               </ul>
             )}
 
-            {/* ---------- The grid ---------- */}
-            {shown.length > 0 ? (
+            {listing.isError ? (
+              <div role="alert" className="flex flex-col items-start gap-5 py-24 lg:py-32">
+                <p className="eyebrow">Something went wrong</p>
+                <p className="max-w-md text-base leading-relaxed text-ink-secondary">
+                  {listing.error.message}
+                </p>
+                <Button variant="outline" size="md" onClick={() => listing.refetch()}>
+                  Try again
+                </Button>
+              </div>
+            ) : shown.length > 0 ? (
               <>
                 <ul
+                  aria-busy={listing.isPlaceholderData}
                   className={cn(
                     "grid gap-x-4 gap-y-10 pt-8 sm:gap-x-5 sm:gap-y-12 lg:pt-10",
-                    // Two up from 360px — a catalogue of thirty-two devices
-                    // read one-per-row is a very long scroll, and the card's
-                    // compact type holds at ~165px. Below 360 the price and
-                    // the spec line start colliding, so it drops to one.
-                    // Each desktop tier runs one column denser than the
-                    // previous pass (3/4/5 instead of 2/3/4): the catalogue
-                    // is a browsing surface, and the denser grid shows a
-                    // full extra column per screen without the cards
-                    // dropping below ~230px at any tier.
                     "grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+                    "transition-opacity duration-(--duration-fast)",
+                    listing.isPlaceholderData && "opacity-50",
                   )}
                 >
                   {shown.map((product, index) => (
@@ -282,9 +233,7 @@ export function ShopCatalogue({
                       transition={{
                         duration: DURATION.slow,
                         ease: EASE_OUT_EXPO,
-                        // Stagger only the first screenful; anything deeper
-                        // would leave later cards visibly waiting.
-                        delay: Math.min(index % PAGE_SIZE, 7) * 0.04,
+                        delay: Math.min(index % SHOP_PAGE_SIZE, 7) * 0.04,
                       }}
                     >
                       <ShopProductCard product={product} priority={index < 4} />
@@ -294,38 +243,31 @@ export function ShopCatalogue({
 
                 <div className="flex flex-col items-center gap-5 pt-16 lg:pt-20">
                   <p className="font-mono text-[0.75rem] uppercase tracking-[0.14em] tabular-nums text-ink-muted">
-                    Showing {shown.length} of {results.length}
+                    Showing {shown.length} of {total}
                   </p>
 
-                  {shown.length < results.length && (
+                  {listing.hasNextPage && (
                     <Button
                       variant="outline"
                       size="lg"
-                      onClick={() => setVisible((current) => current + PAGE_SIZE)}
+                      loading={listing.isFetchingNextPage}
+                      onClick={() => listing.fetchNextPage()}
                     >
                       Load more
                     </Button>
                   )}
 
-                  {/* The rule closes the list whether or not the button is
-                      there, so the grid never simply stops mid-page. */}
                   <span aria-hidden className="mt-2 h-px w-16 bg-line" />
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-start gap-5 py-24 lg:py-32">
-                <p className="eyebrow">Nothing matches</p>
-                <p className="max-w-md text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">
-                  No devices meet all of those conditions at once.
-                </p>
-                <p className="max-w-md text-base leading-relaxed text-ink-secondary">
-                  Try widening one axis — grade and storage narrow a catalogue
-                  faster than anything else.
-                </p>
-                <Button variant="outline" size="md" onClick={clearAll} className="mt-2">
-                  Clear all filters
-                </Button>
-              </div>
+              listing.data && (
+                <EmptyState
+                  filtered={activeCount > 0}
+                  query={filters.q}
+                  onClear={clearAll}
+                />
+              )
             )}
           </div>
         </div>
@@ -335,55 +277,88 @@ export function ShopCatalogue({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         filters={filters}
+        facets={facets}
         onToggle={toggle}
         onClear={clearAll}
-        resultCount={results.length}
+        resultCount={total}
         activeCount={activeCount}
       />
     </>
   );
 }
 
-/* ============================================================
-   Chips
-   ============================================================ */
+function EmptyState({
+  filtered,
+  query,
+  onClear,
+}: {
+  filtered: boolean;
+  query: string | undefined;
+  onClear: () => void;
+}) {
+  const [title, body] = filtered
+    ? [
+        "No devices meet all of those conditions at once.",
+        "Try widening one axis — grade and storage narrow a catalogue faster than anything else.",
+      ]
+    : query
+      ? [`Nothing matches “${query}”.`, "Check the spelling, or try a brand or model name."]
+      : ["Nothing is listed right now.", "Check back soon."];
+
+  return (
+    <div className="flex flex-col items-start gap-5 py-24 lg:py-32">
+      <p className="eyebrow">Nothing matches</p>
+      <p className="max-w-md text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">
+        {title}
+      </p>
+      <p className="max-w-md text-base leading-relaxed text-ink-secondary">{body}</p>
+      {filtered && (
+        <Button variant="outline" size="md" onClick={onClear} className="mt-2">
+          Clear all filters
+        </Button>
+      )}
+    </div>
+  );
+}
 
 interface Chip {
-  axis: keyof ShopFilters;
-  /** Names the axis, so "Premium" is never mistaken for a condition. */
+  axis: FilterAxis;
   axisLabel: string;
   value: string;
   label: string;
 }
 
-function chipsFor(filters: ShopFilters): Chip[] {
+function chipsFor(filters: ShopFilterState, facets: ShopFacets | undefined): Chip[] {
+  const categoryName = (slug: string) =>
+    facets?.categories.find((category) => category.slug === slug)?.name ?? slug;
+
   return [
-    ...filters.categories.map((value) => ({
-      axis: "categories" as const,
+    ...filters.category.map((value) => ({
+      axis: "category" as const,
       axisLabel: "Category",
       value,
-      label: CATEGORY_LABELS[value as CategorySlug],
+      label: categoryName(value),
     })),
-    ...filters.conditions.map((value) => ({
-      axis: "conditions" as const,
+    ...filters.condition.map((value) => ({
+      axis: "condition" as const,
       axisLabel: "Condition",
       value,
-      label: CONDITION_META[value as Condition].short,
+      label: CONDITION_META[value].short,
     })),
-    ...filters.grades.map((value) => ({
-      axis: "grades" as const,
+    ...filters.grade.map((value) => ({
+      axis: "grade" as const,
       axisLabel: "Grade",
       value,
-      label: GRADE_META[value as Grade].label,
+      label: GRADE_META[value].label,
     })),
-    ...filters.priceBands.map((value) => ({
-      axis: "priceBands" as const,
+    ...filters.price.map((value) => ({
+      axis: "price" as const,
       axisLabel: "Price",
       value,
       label: priceBands.find((band) => band.id === value)?.label ?? value,
     })),
-    ...filters.brands.map((value) => ({
-      axis: "brands" as const,
+    ...filters.brand.map((value) => ({
+      axis: "brand" as const,
       axisLabel: "Brand",
       value,
       label: value,

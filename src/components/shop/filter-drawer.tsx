@@ -3,10 +3,10 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import type { ShopFilters } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { FilterPanel } from "./filter-panel";
+import type { ShopFacets, ShopFilterState } from "@/types/catalogue";
+import { FilterPanel, type FilterAxis } from "./filter-panel";
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -14,8 +14,9 @@ const FOCUSABLE =
 interface FilterDrawerProps {
   open: boolean;
   onClose: () => void;
-  filters: ShopFilters;
-  onToggle: (axis: keyof ShopFilters, value: string) => void;
+  filters: ShopFilterState;
+  facets: ShopFacets | undefined;
+  onToggle: (axis: FilterAxis, value: string) => void;
   onClear: () => void;
   /** Live result count — the confirm button reports what it will show. */
   resultCount: number;
@@ -40,6 +41,7 @@ export function FilterDrawer({
   open,
   onClose,
   filters,
+  facets,
   onToggle,
   onClear,
   resultCount,
@@ -161,6 +163,7 @@ export function FilterDrawer({
               <FilterPanel
                 idPrefix="drawer"
                 filters={filters}
+                facets={facets}
                 onToggle={onToggle}
                 className="border-t-0"
               />

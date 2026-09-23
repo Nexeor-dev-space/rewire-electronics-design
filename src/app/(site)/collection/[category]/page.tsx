@@ -1,70 +1,44 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
-import {
-  brandsFromParam,
-  CATEGORY_LABELS,
-  conditionsFromParam,
-  resolveCategory,
-  shopCategories,
-} from "@/lib/shop";
+import { shopFiltersFromParams } from "@/lib/catalogue";
+import { SHOP_PAGE_SIZE } from "@/lib/constants";
+import { resolveCategory } from "@/lib/shop";
+import { findShopCategory, listShopProducts } from "@/services/catalogue.service";
 
-/**
- * The shop, entered at a category.
- *
- * This route exists because the header's mega menu and the footer already
- * link to `/collection/phones` and friends. Rather than rewrite the
- * navigation — not this page's job — `resolveCategory` accepts the older
- * segments and maps them onto the shop's own vocabulary, so
- * `/collection/phones` and `/collection/smartphones` both land on
- * Smartphones with the rail already set.
- *
- * The page itself is the same one. Only the starting filter differs.
- */
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ category: string }>;
-  searchParams: Promise<{
-    brand?: string | string[];
-    condition?: string | string[];
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export function generateStaticParams() {
-  return shopCategories.map((category) => ({ category: category.slug }));
-}
+const getCategory = cache((segment: string) => findShopCategory(resolveCategory(segment)));
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const category = resolveCategory((await params).category);
+  const category = await getCategory((await params).category);
   if (!category) return { title: "Shop" };
 
-  const label = CATEGORY_LABELS[category];
   return {
-    title: label,
-    description: `${label} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`,
+    title: category.name,
+    description: `${category.name} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`,
   };
 }
 
-export default async function CollectionCategoryPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const category = resolveCategory((await params).category);
+export default async function CollectionCategoryPage({ params, searchParams }: PageProps) {
+  const category = await getCategory((await params).category);
   if (!category) notFound();
 
-  const query = await searchParams;
-  const brands = brandsFromParam(query.brand);
-  const conditions = conditionsFromParam(query.condition);
+  const filters = { ...shopFiltersFromParams(await searchParams), category: [category.slug] };
+  const listing = await listShopProducts({ ...filters, page: 1, pageSize: SHOP_PAGE_SIZE });
 
   return (
-    // Same header-clearance padding as `/collection` — see the note on
-    // that page for why `pt-10 lg:pt-14` was tucking the first row under
-    // the fixed masthead.
     <div className="pb-(--spacing-section) pt-24 lg:pt-32">
       <ShopCatalogue
-        initialCategory={category}
-        initialBrands={brands}
-        initialConditions={conditions}
+        key={JSON.stringify(filters)}
+        initialFilters={filters}
+        initialListing={listing}
       />
     </div>
   );

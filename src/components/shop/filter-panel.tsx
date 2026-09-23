@@ -2,18 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import {
-  conditions,
-  facetCounts,
-  getBrands,
-  getStorageOptions,
-  grades,
-  priceBands,
-  shopCategories,
-  type ShopFilters,
-} from "@/lib/shop";
+import { conditions, grades, priceBands } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import type { NamedCount, ShopFacets, ShopFilterState } from "@/types/catalogue";
+
+export type FilterAxis = Exclude<keyof ShopFilterState, "q" | "sort">;
 
 /**
  * Opens on its own height and closes faster than it opens — the same
@@ -42,43 +36,54 @@ const panel: Variants = {
 interface Option {
   value: string;
   label: string;
-  /** One line of plain explanation, where the term needs one. */
   note?: string;
+  nested?: boolean;
 }
 
 interface Group {
-  axis: keyof ShopFilters;
+  axis: FilterAxis;
   title: string;
-  /** Says what the axis *means*. This is the whole point of the panel. */
   note?: string;
   options: Option[];
+  counts: Partial<Record<string, number>> | null;
   openByDefault: boolean;
 }
 
-/**
- * The six groups, in the order a shopper narrows: what it is, how it is
- * sold, what state it is in, who made it, how big, what it costs.
- *
- * Category, Condition and Grade are three groups rather than one because
- * they answer three different questions — the `note` under each title is
- * there to make that impossible to miss. Collapsing them into a single
- * "Condition" list is the usual shortcut, and it is exactly what makes a
- * refurbished catalogue impossible to shop.
- */
-function buildGroups(): Group[] {
+const countsOf = (list: NamedCount[]) =>
+  Object.fromEntries(list.map((entry) => [entry.value, entry.count]));
+
+function withSelected(values: string[], selected: string[]): Option[] {
+  return [...new Set([...values, ...selected])].map((value) => ({ value, label: value }));
+}
+
+function categoryOptions(facets: ShopFacets | undefined, selected: string[]): Option[] {
+  const categories = facets?.categories ?? [];
+  const options = categories
+    .filter((category) => category.parentSlug === null)
+    .flatMap((parent) => [
+      { value: parent.slug, label: parent.name },
+      ...categories
+        .filter((child) => child.parentSlug === parent.slug)
+        .map((child) => ({ value: child.slug, label: child.name, nested: true })),
+    ]);
+  const missing = selected.filter((slug) => !options.some((option) => option.value === slug));
+  return [...options, ...missing.map((slug) => ({ value: slug, label: slug }))];
+}
+
+function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): Group[] {
   return [
     {
-      axis: "categories",
+      axis: "category",
       title: "Category",
       note: "What the product is",
-      options: shopCategories.map((category) => ({
-        value: category.slug,
-        label: category.label,
-      })),
+      options: categoryOptions(facets, filters.category),
+      counts: facets
+        ? Object.fromEntries(facets.categories.map((category) => [category.slug, category.count]))
+        : null,
       openByDefault: true,
     },
     {
-      axis: "conditions",
+      axis: "condition",
       title: "Condition",
       note: "How it is being sold",
       options: conditions.map((condition) => ({
@@ -86,10 +91,11 @@ function buildGroups(): Group[] {
         label: condition.label,
         note: condition.note,
       })),
+      counts: facets?.conditions ?? null,
       openByDefault: true,
     },
     {
-      axis: "grades",
+      axis: "grade",
       title: "Grade",
       note: "What state it is in — refurbished and pre-owned only",
       options: grades.map((grade) => ({
@@ -97,44 +103,49 @@ function buildGroups(): Group[] {
         label: grade.label,
         note: grade.note,
       })),
+      counts: facets?.grades ?? null,
       openByDefault: true,
     },
     {
-      axis: "priceBands",
+      axis: "price",
       title: "Price",
       options: priceBands.map((band) => ({ value: band.id, label: band.label })),
+      counts: facets?.priceBands ?? null,
       openByDefault: true,
     },
     {
-      axis: "brands",
+      axis: "brand",
       title: "Brand",
-      options: getBrands().map((brand) => ({ value: brand, label: brand })),
+      options: withSelected(facets?.brands.map((brand) => brand.value) ?? [], filters.brand),
+      counts: facets ? countsOf(facets.brands) : null,
       openByDefault: false,
     },
     {
       axis: "storage",
       title: "Storage",
-      options: getStorageOptions().map((size) => ({ value: size, label: size })),
+      options: withSelected(facets?.storage.map((size) => size.value) ?? [], filters.storage),
+      counts: facets ? countsOf(facets.storage) : null,
       openByDefault: false,
     },
   ];
 }
 
 export interface FilterPanelProps {
-  filters: ShopFilters;
-  onToggle: (axis: keyof ShopFilters, value: string) => void;
-  /** Prefix for generated ids, so the sidebar and the drawer never collide. */
+  filters: ShopFilterState;
+  facets: ShopFacets | undefined;
+  onToggle: (axis: FilterAxis, value: string) => void;
   idPrefix: string;
   className?: string;
 }
 
 export function FilterPanel({
   filters,
+  facets,
   onToggle,
   idPrefix,
   className,
 }: FilterPanelProps) {
-  const groups = buildGroups();
+  const groups = buildGroups(facets, filters);
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(groups.map((group) => [group.axis, group.openByDefault])),
   );
@@ -142,12 +153,7 @@ export function FilterPanel({
   return (
     <div className={cn("divide-y divide-line border-y border-line", className)}>
       {groups.map((group) => {
-        const counts = facetCounts(
-          filters,
-          group.axis,
-          group.options.map((option) => option.value),
-        );
-        const selected = filters[group.axis] as string[];
+        const selected: string[] = filters[group.axis];
         const isOpen = open[group.axis];
         const panelId = `${idPrefix}-${group.axis}`;
 
@@ -222,7 +228,7 @@ export function FilterPanel({
                   <ul className="pb-4">
                     {group.options.map((option) => {
                       const checked = selected.includes(option.value);
-                      const count = counts[option.value] ?? 0;
+                      const count = group.counts ? (group.counts[option.value] ?? 0) : null;
                       // A zero-count option is disabled rather than removed:
                       // rows that appear and vanish as boxes are ticked make
                       // a panel feel broken even while it behaves correctly.
@@ -233,6 +239,7 @@ export function FilterPanel({
                           <label
                             className={cn(
                               "group/row flex cursor-pointer items-start gap-3 py-2",
+                              option.nested && "pl-7.5",
                               disabled && "cursor-not-allowed opacity-40",
                             )}
                           >

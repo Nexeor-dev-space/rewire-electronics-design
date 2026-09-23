@@ -1,5 +1,7 @@
 import { CONDITION_META, GRADE_META, type Condition, type Grade } from "@/lib/shop";
+import type { ShopFilterState } from "@/types/catalogue";
 import type { AddOnKind } from "@/validators/add-on.validator";
+import { shopQuerySchema } from "@/validators/catalogue.validator";
 import type {
   ProductCondition,
   ProductGrade,
@@ -33,3 +35,15 @@ export const ADD_ON_KIND_LABELS: Record<AddOnKind, string> = {
   ACCESSORY: "Accessory",
   SERVICE: "Service",
 };
+
+const shopFilterSchema = shopQuerySchema.omit({ page: true, pageSize: true });
+
+export function shopFiltersFromParams(
+  params: Record<string, string | string[] | undefined>,
+): ShopFilterState {
+  const flat = Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : value]),
+  );
+  const parsed = shopFilterSchema.safeParse(flat);
+  return parsed.success ? parsed.data : shopFilterSchema.parse({});
+}
