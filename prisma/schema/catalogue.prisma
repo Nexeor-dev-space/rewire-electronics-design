@@ -128,6 +128,7 @@ model ProductImage {
   mediaId   String
   media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   alt       String     @default("")
+  colour    String?
   sortOrder Int        @default(0)
 
   createdAt DateTime @default(now())
