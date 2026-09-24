@@ -47,6 +47,7 @@ export function useGetProduct(id: string) {
     queryKey: productKeys.detail(id),
     queryFn: ({ signal }) => apiRequest<ProductDetail>(endpoints.detail(id), { signal }),
     enabled: Boolean(id),
+    gcTime: 0,
   });
 }
 

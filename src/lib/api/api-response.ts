@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@/generated/prisma/client";
 
 /**
  * The one response shape every API route returns — see docs/DATA-LAYER.md §4.
@@ -62,11 +63,45 @@ export class ServiceError extends Error {
   }
 }
 
-/** For a route's `catch`: a ServiceError becomes its response, anything else a logged 500. */
+const PRISMA_UNIQUE_VIOLATION = "P2002";
+const PRISMA_RECORD_NOT_FOUND = "P2025";
+const PRISMA_TOO_MANY_CONNECTIONS = "P2037";
+
+const MESSAGE_NOT_FOUND = "That record no longer exists.";
+const MESSAGE_DATABASE_BUSY = "The database is busy. Please try again.";
+const MESSAGE_INTERNAL = "Something went wrong. Please try again.";
+
+function uniqueViolationMessage(error: Prisma.PrismaClientKnownRequestError) {
+  const target = error.meta?.target;
+  const columns = Array.isArray(target) ? target.join(", ") : "This value";
+  return `${columns} is already in use.`;
+}
+
+function apiErrorFromPrisma(error: Prisma.PrismaClientKnownRequestError) {
+  switch (error.code) {
+    case PRISMA_UNIQUE_VIOLATION:
+      return apiError("CONFLICT", uniqueViolationMessage(error), 409);
+    case PRISMA_RECORD_NOT_FOUND:
+      return apiError("NOT_FOUND", MESSAGE_NOT_FOUND, 404);
+    case PRISMA_TOO_MANY_CONNECTIONS:
+      return apiError("INTERNAL", MESSAGE_DATABASE_BUSY, 500);
+    default:
+      return null;
+  }
+}
+
+/**
+ * For a route's `catch`: a ServiceError becomes its response, a known Prisma
+ * failure a readable one, anything else a logged 500.
+ */
 export function apiErrorFrom(error: unknown, context: string) {
   if (error instanceof ServiceError) {
     return apiError(error.code, error.message, error.status, error.fields);
   }
   console.error(`${context} failed`, error);
-  return apiError("INTERNAL", "Something went wrong. Please try again.", 500);
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const response = apiErrorFromPrisma(error);
+    if (response) return response;
+  }
+  return apiError("INTERNAL", MESSAGE_INTERNAL, 500);
 }
