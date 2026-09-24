@@ -12,3 +12,5 @@ export const MAX_PRODUCT_ADD_ONS = 4;
 export const NAV_CATEGORY_LIMIT = 8;
 export const HOME_CATEGORY_LIMIT = 4;
 export const STOREFRONT_CATEGORIES_REVALIDATE_SECONDS = 300;
+
+export const DB_POOL_MAX = 5;

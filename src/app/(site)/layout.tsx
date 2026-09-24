@@ -4,6 +4,8 @@ import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
 import { listStorefrontCategories } from "@/services/catalogue.service";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Site chrome — header, footer, skip-link, `<main>` container, and the
  * phone's bottom tab bar.
