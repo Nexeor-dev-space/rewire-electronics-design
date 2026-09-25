@@ -84,7 +84,7 @@ export function ProductGallery({ images }: { images: GalleryImage[] }) {
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"
             className={cn(
-              "[mix-blend-mode:multiply] transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
+              "transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
               active.fit === "cover"
                 ? "object-cover"
                 : "object-contain p-10 sm:p-16",
