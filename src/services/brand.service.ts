@@ -7,14 +7,11 @@ import { prisma } from "@/lib/db";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import type { brandListQuerySchema, brandSchema } from "@/validators/brand.validator";
 import { releaseImage } from "./media.service";
+import { productCountPhrase } from "./product.service";
 
 /**
- * Brands for the console. Flat, so the only rules are name uniqueness and
- * releasing an image once nothing points at it.
- *
- * There is deliberately no delete block: the issue asks for one when a brand
- * is linked to active products, and there is no Product model yet. The check
- * belongs here when there is.
+ * Brands for the console. Flat, so the rules are name uniqueness, releasing an
+ * image once nothing points at it, and refusing to delete a brand with products.
  */
 
 type Tx = Prisma.TransactionClient;
@@ -110,8 +107,19 @@ export async function updateBrand(id: string, data: BrandData) {
 
 export async function deleteBrand(id: string) {
   await prisma.$transaction(async (tx) => {
-    const current = await tx.brand.findUnique({ where: { id }, select: { imageId: true } });
+    const current = await tx.brand.findUnique({
+      where: { id },
+      select: { name: true, imageId: true, _count: { select: { products: true } } },
+    });
     if (!current) throw notFound();
+
+    if (current._count.products > 0) {
+      throw new ServiceError(
+        "CONFLICT",
+        `${current.name} has ${productCountPhrase(current._count.products)}. Move or delete them first.`,
+        409,
+      );
+    }
 
     await tx.brand.delete({ where: { id } });
     if (current.imageId !== null) await releaseImage(tx, current.imageId);

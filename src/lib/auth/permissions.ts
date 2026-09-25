@@ -31,6 +31,9 @@ export const PERMISSIONS = {
   users: adminPermission("service", "users"),
   categories: adminPermission("catalogue", "categories"),
   brands: adminPermission("catalogue", "brands"),
+  products: adminPermission("catalogue", "products"),
+  inventory: adminPermission("catalogue", "inventory"),
+  addOns: adminPermission("catalogue", "add-ons"),
 } as const;
 
 export function canAccessAdmin(role: Role): boolean {

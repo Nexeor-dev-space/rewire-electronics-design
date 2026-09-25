@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { siteConfig } from "@/lib/site";
-import { getCategories } from "@/lib/categories";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -29,7 +29,7 @@ const rise = {
  * process section that follows.
  */
 export function AboutWhat() {
-  const categories = getCategories();
+  const categories = useStorefrontCategories();
 
   return (
     <section
@@ -99,7 +99,7 @@ export function AboutWhat() {
                     {category.name}
                   </span>
                   <span className="text-[0.875rem] text-ink-secondary">
-                    {category.note}
+                    {category.description}
                   </span>
                 </dd>
               </motion.div>

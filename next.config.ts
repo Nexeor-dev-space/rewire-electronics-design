@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
         destination: "/returns-refunds-cancellation",
         permanent: true,
       },
+
+      { source: "/category/:slug", destination: "/collection/:slug", permanent: true },
     ];
   },
 };

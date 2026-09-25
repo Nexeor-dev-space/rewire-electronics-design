@@ -2,49 +2,28 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  CONDITION_META,
-  GRADE_META,
-  productHref,
-  savingPercent,
-  type ShopProduct,
-} from "@/lib/shop";
-import { cn, formatPrice } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
+import { CONDITION_META, GRADE_META, productHref } from "@/lib/shop";
+import { cn, savingsPercent } from "@/lib/utils";
+import { availabilityFromStock } from "@/types";
+import type { ShopCard } from "@/types/catalogue";
 import { WishlistButton } from "@/components/product/wishlist-button";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
 
-/** Units at or below this earn the scarcity line on the plate. */
-const LOW_STOCK = 4;
-
-/**
- * ShopProductCard — the catalogue's unit of stock.
- *
- * Same visual language as the homepage's `StorefrontCard`: square
- * plate, brand-line eyebrow, name, price with strikethrough, wishlist
- * over the plate and add-to-cart under the copy. Shop-specific facts —
- * condition, grade, key specification — are woven into the identity
- * rows without disturbing the shape: `CONDITION` doubles as the eyebrow
- * when it is more useful than the brand (sealed stock, open-box), the
- * key specification is the variant line, and the grade sits with the
- * storage below the name. A shopper arriving from the homepage should
- * not be able to name what changed, only that there are now filters
- * beside the grid.
- */
 export function ShopProductCard({
   product,
   priority,
 }: {
-  product: ShopProduct;
+  product: ShopCard;
   priority?: boolean;
 }) {
   const condition = CONDITION_META[product.condition];
   const grade = product.grade ? GRADE_META[product.grade] : null;
-  const saving = savingPercent(product);
-  const low = product.stock > 0 && product.stock <= LOW_STOCK;
-  const soldOut = product.stock <= 0;
-
-  /* Cutouts float inside the plate; photographs fill it. */
-  const contain = product.image.fit === "contain";
+  const saving =
+    product.originalPrice !== null ? savingsPercent(product.price, product.originalPrice) : 0;
+  const availability = availabilityFromStock(product.stock);
+  const low = availability === "low-stock";
+  const soldOut = availability === "sold-out";
 
   return (
     <article className="group/card relative flex h-full w-full flex-col">
@@ -60,19 +39,21 @@ export function ShopProductCard({
           (contain padding trimmed to match) and takes ~25% off every
           card's height, so the catalogue shows more rows per screen. */}
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
-        <Image
-          src={product.image.url}
-          alt={product.image.alt}
-          fill
-          priority={priority}
-          sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 18vw"
-          className={cn(
-            contain ? "object-contain p-5 sm:p-6" : "object-cover",
-            "[mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-            "group-hover/card:scale-[1.04]",
-            soldOut && "opacity-45 grayscale",
-          )}
-        />
+        {product.imageUrl && (
+          <Image
+            src={product.imageUrl}
+            alt={product.imageAlt}
+            fill
+            priority={priority}
+            sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, (max-width: 1536px) 22vw, 18vw"
+            className={cn(
+              "object-contain p-5 sm:p-6",
+              "[mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+              "group-hover/card:scale-[1.04]",
+              soldOut && "opacity-45 grayscale",
+            )}
+          />
+        )}
 
         {/* Top-left: stock signal, same mono voice as StorefrontCard.
             Sold-out and low-stock share the corner; sold-out wins if
@@ -144,17 +125,13 @@ export function ShopProductCard({
 
         <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
           <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
-            {formatPrice(product.price, product.currency, product.locale)}
+            {formatMoney(product.price)}
           </span>
-          {product.originalPrice && product.originalPrice > product.price && (
+          {product.originalPrice !== null && product.originalPrice > product.price && (
             <>
               <span className="sr-only">was </span>
               <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
-                {formatPrice(
-                  product.originalPrice,
-                  product.currency,
-                  product.locale,
-                )}
+                {formatMoney(product.originalPrice)}
               </s>
             </>
           )}

@@ -17,7 +17,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-surface-2 text-ink-secondary edge-light",
         outline: "border border-line-strong text-ink-secondary",
-        accent: "bg-accent/10 text-accent border border-accent/25",
+        accent: "bg-accent text-white border border-accent",
         /** Live drop — pulsing dot signals urgency without shouting. */
         live: "bg-live/10 text-live border border-live/25",
         warn: "bg-warn/10 text-warn border border-warn/25",

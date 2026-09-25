@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { DURATION, EASE_OUT_EXPO, staggerChildren, viewportOnce } from "@/lib/motion";
 import { richTextToPlainText } from "@/lib/rich-text";
+import { toJsonLd } from "@/lib/seo";
 import type { FaqEntry } from "@/lib/faq-entry";
 import { FaqItem } from "./faq-item";
 
@@ -22,7 +23,7 @@ const lineClip = {
 };
 
 function faqJsonLd(faqs: FaqEntry[]): string {
-  return JSON.stringify({
+  return toJsonLd({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: faqs.map((faq) => ({
@@ -33,7 +34,7 @@ function faqJsonLd(faqs: FaqEntry[]): string {
         text: richTextToPlainText(faq.answer),
       },
     })),
-  }).replace(/</g, "\\u003c");
+  });
 }
 
 export function Faq({

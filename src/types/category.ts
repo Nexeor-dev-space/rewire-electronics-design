@@ -1,5 +1,9 @@
 import type { z } from "zod";
-import type { CategoryType, categorySchema } from "@/validators/category.validator";
+import type {
+  CategoryStatus,
+  CategoryType,
+  categorySchema,
+} from "@/validators/category.validator";
 
 /**
  * Dates arrive on the client as ISO strings, so `updatedAt` is a `string`
@@ -9,11 +13,16 @@ import type { CategoryType, categorySchema } from "@/validators/category.validat
 export interface CategorySummary {
   id: string;
   name: string;
+  slug: string;
   /** Derived from `parentId`, never stored. */
   type: CategoryType;
   parentId: string | null;
   /** `/api/v1/media/<id>`, or null when the category has no image. */
   imageUrl: string | null;
+  description: string;
+  status: CategoryStatus;
+  showInNav: boolean;
+  sortOrder: number;
   /** ISO string — shown as "Last edited". */
   updatedAt: string;
 }

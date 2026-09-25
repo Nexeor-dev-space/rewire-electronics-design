@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { deleteCategory, getCategory, updateCategory } from "@/services/category.service";
 import { categorySchema } from "@/validators/category.validator";
 
@@ -36,7 +37,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await updateCategory(id, input.data));
+    const result = await updateCategory(id, input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/categories/[id]");
   }
@@ -48,7 +51,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await deleteCategory(id));
+    const result = await deleteCategory(id);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "DELETE /admin/categories/[id]");
   }

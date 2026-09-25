@@ -18,11 +18,29 @@ export const API_ENDPOINTS = {
     categories: {
       list: `${V1}/admin/categories`,
       detail: (id: string) => `${V1}/admin/categories/${id}`,
+      status: (id: string) => `${V1}/admin/categories/${id}/status`,
     },
     brands: {
       list: `${V1}/admin/brands`,
       detail: (id: string) => `${V1}/admin/brands/${id}`,
     },
+    products: {
+      list: `${V1}/admin/products`,
+      detail: (id: string) => `${V1}/admin/products/${id}`,
+      status: (id: string) => `${V1}/admin/products/${id}/status`,
+    },
+    addOns: {
+      list: `${V1}/admin/add-ons`,
+      detail: (id: string) => `${V1}/admin/add-ons/${id}`,
+    },
+    inventory: {
+      list: `${V1}/admin/inventory`,
+      detail: (variantId: string) => `${V1}/admin/inventory/${variantId}`,
+    },
+  },
+  products: {
+    list: `${V1}/products`,
+    detail: (slug: string) => `${V1}/products/${slug}`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

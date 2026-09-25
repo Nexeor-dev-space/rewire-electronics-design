@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { createCategory, listCategories } from "@/services/category.service";
 import { categoryListQuerySchema, categorySchema } from "@/validators/category.validator";
 
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createCategory(input.data), 201);
+    const result = await createCategory(input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/categories");
   }

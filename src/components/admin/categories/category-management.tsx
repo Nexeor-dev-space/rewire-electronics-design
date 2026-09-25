@@ -6,11 +6,18 @@ import { RowActions, Thumbnail } from "@/components/admin/shared/row-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteCategory, useGetCategories } from "@/hooks/use-category";
+import {
+  useDeleteCategory,
+  useGetCategories,
+  useSetCategoryStatus,
+} from "@/hooks/use-category";
+import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { CategoryNode, CategorySummary } from "@/types/category";
+import { CATEGORY_STATUSES, type CategoryStatus } from "@/validators/category.validator";
 import { CategoryFormModal } from "./category-form-modal";
 
 /**
@@ -21,8 +28,7 @@ import { CategoryFormModal } from "./category-form-modal";
  * Pagination walks parents, not categories, which is why the counter says so.
  */
 
-const PAGE_SIZE = 20;
-const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_minmax(0,1fr)_6rem]";
+const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_9rem_minmax(0,1fr)_6rem]";
 
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
 
@@ -35,17 +41,19 @@ export function CategoryManagement() {
 
   const categories = useGetCategories({
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: ADMIN_PAGE_SIZE,
     search: search || undefined,
   });
   const deleteCategory = useDeleteCategory();
+  const setCategoryStatus = useSetCategoryStatus();
+  const busyId = setCategoryStatus.isPending ? setCategoryStatus.variables?.id : undefined;
 
   // Search once typing pauses.
   useEffect(() => {
     const id = window.setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [searchInput]);
 
@@ -97,10 +105,15 @@ export function CategoryManagement() {
     );
   } else {
     const { items, total } = categories.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>
+        {setCategoryStatus.isError && (
+          <p role="alert" className="mb-4 text-sm text-danger">
+            {setCategoryStatus.error.message}
+          </p>
+        )}
         <div className="overflow-hidden rounded-xl border border-line">
           <TableHeader />
           <ul>
@@ -108,7 +121,8 @@ export function CategoryManagement() {
               <CategoryGroup
                 key={parent.id}
                 parent={parent}
-                deletingId={deleteCategory.isPending ? (deleteCategory.variables ?? null) : null}
+                busyId={deleteCategory.isPending ? (deleteCategory.variables ?? busyId) : busyId}
+                onStatusChange={(id, status) => setCategoryStatus.mutate({ id, status })}
                 onEdit={(id) => setModal({ kind: "edit", id })}
                 onDelete={setToDelete}
               />
@@ -177,7 +191,7 @@ export function CategoryManagement() {
         description={
           toDelete?.type === "parent"
             ? "Parent categories can only be deleted once nothing sits under them."
-            : "This removes the category. Products already using it are not changed."
+            : "This removes the category. Archive it instead to hide it and keep the record."
         }
         confirmLabel="Delete category"
         error={deleteCategory.isError ? deleteCategory.error.message : undefined}
@@ -191,12 +205,14 @@ export function CategoryManagement() {
 
 function CategoryGroup({
   parent,
-  deletingId,
+  busyId,
+  onStatusChange,
   onEdit,
   onDelete,
 }: {
   parent: CategoryNode;
-  deletingId: string | null;
+  busyId: string | undefined;
+  onStatusChange: (id: string, status: CategoryStatus) => void;
   onEdit: (id: string) => void;
   onDelete: (category: CategorySummary) => void;
 }) {
@@ -205,7 +221,8 @@ function CategoryGroup({
       <CategoryRow
         category={parent}
         childCount={parent.childCount}
-        deleting={deletingId === parent.id}
+        busy={busyId === parent.id}
+        onStatusChange={(status) => onStatusChange(parent.id, status)}
         onEdit={() => onEdit(parent.id)}
         onDelete={() => onDelete(parent)}
       />
@@ -217,7 +234,8 @@ function CategoryGroup({
               <CategoryRow
                 category={child}
                 nested
-                deleting={deletingId === child.id}
+                busy={busyId === child.id}
+                onStatusChange={(status) => onStatusChange(child.id, status)}
                 onEdit={() => onEdit(child.id)}
                 onDelete={() => onDelete(child)}
               />
@@ -233,35 +251,39 @@ function CategoryRow({
   category,
   childCount,
   nested = false,
-  deleting,
+  busy,
+  onStatusChange,
   onEdit,
   onDelete,
 }: {
   category: CategorySummary;
   childCount?: number;
   nested?: boolean;
-  deleting: boolean;
+  busy: boolean;
+  onStatusChange: (status: CategoryStatus) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const notes = [
+    childCount ? `${childCount} ${childCount === 1 ? "subcategory" : "subcategories"}` : null,
+    `Position ${category.sortOrder}`,
+    !nested && !category.showInNav ? "Hidden from menus" : null,
+  ].filter(Boolean);
+
   return (
     <div
       className={cn(
         "grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center",
         COLUMNS,
         nested && "lg:pl-12",
-        deleting && "opacity-50",
+        busy && "opacity-50",
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
         <Thumbnail url={category.imageUrl} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-ink">{category.name}</p>
-          {childCount !== undefined && childCount > 0 && (
-            <p className="mt-0.5 text-xs text-ink-muted">
-              {childCount} {childCount === 1 ? "subcategory" : "subcategories"}
-            </p>
-          )}
+          <p className="mt-0.5 text-xs text-ink-muted">{notes.join(" · ")}</p>
         </div>
       </div>
 
@@ -274,6 +296,20 @@ function CategoryRow({
         </Badge>
       </div>
 
+      <Select
+        value={category.status}
+        disabled={busy}
+        onChange={(event) => onStatusChange(event.target.value as CategoryStatus)}
+        aria-label={`Status of ${category.name}`}
+        className="h-9 text-xs"
+      >
+        {CATEGORY_STATUSES.map((value) => (
+          <option key={value} value={value}>
+            {PRODUCT_STATUS_LABELS[value]}
+          </option>
+        ))}
+      </Select>
+
       <time dateTime={category.updatedAt} className="text-sm text-ink-secondary">
         {new Date(category.updatedAt).toLocaleDateString("en-GB", {
           day: "numeric",
@@ -284,7 +320,7 @@ function CategoryRow({
 
       <RowActions
         name={category.name}
-        disabled={deleting}
+        disabled={busy}
         onEdit={onEdit}
         onDelete={onDelete}
       />
@@ -299,6 +335,7 @@ function TableHeader() {
     >
       <p className="eyebrow">Category</p>
       <p className="eyebrow">Type</p>
+      <p className="eyebrow">Status</p>
       <p className="eyebrow">Last edited</p>
       <span className="sr-only">Actions</span>
     </div>
@@ -322,6 +359,7 @@ function TableSkeleton() {
             <Skeleton className="h-4 w-40" />
           </div>
           <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-8 w-28" />
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-7 w-16" />
         </div>

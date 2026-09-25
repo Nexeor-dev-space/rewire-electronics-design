@@ -4,6 +4,7 @@ import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
 import { deleteBrand, getBrand, updateBrand } from "@/services/brand.service";
+import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { brandSchema } from "@/validators/brand.validator";
 
 type Params = { params: Promise<{ id: string }> };
@@ -36,7 +37,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await updateBrand(id, input.data));
+    const result = await updateBrand(id, input.data);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/brands/[id]");
   }
@@ -48,7 +51,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await deleteBrand(id));
+    const result = await deleteBrand(id);
+    refreshStorefrontCatalogue();
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "DELETE /admin/brands/[id]");
   }

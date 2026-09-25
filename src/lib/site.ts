@@ -1,4 +1,3 @@
-import { getCategories } from "./categories";
 import { policyLink } from "./policy-types";
 
 export const siteConfig = {
@@ -24,42 +23,6 @@ export interface NavPanel {
   wide?: boolean;
   footer?: NavItem;
 }
-
-export interface PrimaryNavItem extends NavItem {
-  panel?: NavPanel;
-}
-
-export const mainNav: PrimaryNavItem[] = [
-  { label: "Upcoming Drops", href: "/", badge: "live" },
-  { label: "Shop", href: "/" },
-  {
-    label: "Categories",
-    href: "/",
-    panel: {
-      wide: true,
-      items: getCategories().map((category) => ({
-        label: category.name,
-        href: "/",
-        note: category.note,
-      })),
-      footer: { label: "Browse the full collection", href: "/" },
-    },
-  },
-  { label: "How It Works", href: "/process" },
-  {
-    label: "Support",
-    href: "/support",
-    panel: {
-      items: [
-        policyLink("faq"),
-        policyLink("warranty"),
-        policyLink("shipping"),
-        policyLink("returns-refunds-cancellation"),
-        { label: "Contact", href: "/support#contact" },
-      ],
-    },
-  },
-];
 
 export const accountNav: NavItem[] = [
   { label: "My Orders", href: "/account/orders" },

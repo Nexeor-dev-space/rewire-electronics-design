@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { accountNav, siteConfig } from "@/lib/site";
 import { getDrawerSections } from "@/lib/navigation";
 import { useAccount } from "@/components/providers/account-provider";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
@@ -43,7 +44,7 @@ export function MobileDrawer({
   const [expanded, setExpanded] = useState<string | null>(null);
   /** Profile disclosure. Closed on every open — never on page load. */
   const [accountExpanded, setAccountExpanded] = useState(false);
-  const sections = getDrawerSections();
+  const sections = getDrawerSections(useStorefrontCategories());
   const { user, ready, signIn, signOut } = useAccount();
 
   useEffect(() => {

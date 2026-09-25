@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { databaseUrl } from "./db-url";
+import { DB_POOL_MAX } from "./constants";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -8,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function createClient(): PrismaClient {
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString: databaseUrl() }),
+    adapter: new PrismaPg({ connectionString: databaseUrl(), max: DB_POOL_MAX }),
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 }

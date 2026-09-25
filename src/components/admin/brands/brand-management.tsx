@@ -8,11 +8,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteBrand, useGetBrands } from "@/hooks/use-brand";
+import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { BrandListItem } from "@/types/brand";
 import { BrandFormModal } from "./brand-form-modal";
 
-const PAGE_SIZE = 20;
 const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_6rem]";
 
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
@@ -24,7 +24,7 @@ export function BrandManagement() {
   const [modal, setModal] = useState<Modal>(null);
   const [toDelete, setToDelete] = useState<BrandListItem | null>(null);
 
-  const brands = useGetBrands({ page, pageSize: PAGE_SIZE, search: search || undefined });
+  const brands = useGetBrands({ page, pageSize: ADMIN_PAGE_SIZE, search: search || undefined });
   const deleteBrand = useDeleteBrand();
 
   // Search once typing pauses.
@@ -32,7 +32,7 @@ export function BrandManagement() {
     const id = window.setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [searchInput]);
 
@@ -81,7 +81,7 @@ export function BrandManagement() {
     );
   } else {
     const { items, total } = brands.data;
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
 
     content = (
       <>

@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
  * inside a padded plate, while lifestyle plates fill it. On mobile the
  * thumbnails become a horizontal rail that scrolls independently.
  */
-export function ProductGallery({ images }: { images: Media[] }) {
+type GalleryImage = Pick<Media, "id" | "url" | "alt" | "fit">;
+
+export function ProductGallery({ images }: { images: GalleryImage[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = images[activeIndex] ?? images[0];
 
@@ -82,7 +84,7 @@ export function ProductGallery({ images }: { images: Media[] }) {
             priority
             sizes="(max-width: 1024px) 100vw, 55vw"
             className={cn(
-              "[mix-blend-mode:multiply] transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
+              "transition-opacity duration-(--duration-base) ease-(--ease-out-expo)",
               active.fit === "cover"
                 ? "object-cover"
                 : "object-contain p-10 sm:p-16",

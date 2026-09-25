@@ -19,6 +19,13 @@ export function formatPrice(
   }).format(cents / 100);
 }
 
+export function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 /** Percentage saved vs. original price, rounded. */
 export function savingsPercent(price: number, originalPrice: number) {
   if (originalPrice <= 0 || price >= originalPrice) return 0;

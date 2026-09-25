@@ -1,10 +1,11 @@
 "use client";
 
-import { addOnsTotal, type AddOn } from "@/lib/add-ons";
+import { addOnsTotal } from "@/lib/add-ons";
 import { cn, formatPrice } from "@/lib/utils";
+import type { ShopAddOn } from "@/types/catalogue";
 
 interface Props {
-  addOns: AddOn[];
+  addOns: ShopAddOn[];
   selected: string[];
   onToggle: (id: string) => void;
   /** The configured device price, so the block can show a bag total. */

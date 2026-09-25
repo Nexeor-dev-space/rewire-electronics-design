@@ -57,6 +57,11 @@ export async function readImage(id: string) {
  */
 export async function releaseImage(tx: Prisma.TransactionClient, imageId: string) {
   await tx.mediaAsset.deleteMany({
-    where: { id: imageId, categories: { none: {} }, brands: { none: {} } },
+    where: {
+      id: imageId,
+      categories: { none: {} },
+      brands: { none: {} },
+      productImages: { none: {} },
+    },
   });
 }

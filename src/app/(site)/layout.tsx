@@ -1,6 +1,10 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
+import { listStorefrontCategories } from "@/services/catalogue.service";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Site chrome — header, footer, skip-link, `<main>` container, and the
@@ -10,11 +14,13 @@ import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
  * skip the chrome entirely — deliberately including the tab bar, since
  * mid-checkout navigation is exactly what that flow removes.
  */
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const categories = await listStorefrontCategories();
+
   return (
-    <>
+    <StorefrontCategoriesProvider categories={categories}>
       {/* Keyboard users can bypass the fixed header */}
       <a
         href="#main"
@@ -34,6 +40,6 @@ export default function SiteLayout({
         <Footer />
       </div>
       <MobileTabBar />
-    </>
+    </StorefrontCategoriesProvider>
   );
 }

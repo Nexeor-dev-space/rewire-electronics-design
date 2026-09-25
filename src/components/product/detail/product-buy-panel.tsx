@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Product, ProductOption } from "@/types";
-import { AVAILABILITY_LABELS } from "@/types";
+import { useState } from "react";
+import type { ProductOption } from "@/types";
+import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn, formatPrice, savingsPercent } from "@/lib/utils";
+import { cn, savingsPercent } from "@/lib/utils";
+import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { useAccount } from "@/components/providers/account-provider";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
-import { addOnsFor, defaultSelection } from "@/lib/add-ons";
+import { defaultSelection } from "@/lib/add-ons";
+import { CONDITION_META, GRADE_META } from "@/lib/shop";
+import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
 import { ProductAddOns } from "./product-add-ons";
 
 /**
@@ -22,29 +25,79 @@ import { ProductAddOns } from "./product-add-ons";
  * hides the distinction shoppers came here to check.
  */
 interface Props {
-  product: Product;
-  condition: string;
-  grade?: string;
+  product: ShopProductDetail;
+  addOns: ShopAddOn[];
+  variant: ShopVariant;
+  onVariantChange: (id: string) => void;
 }
 
 const OPTION_UNSELECTABLE =
   "cursor-not-allowed border-line text-ink-muted line-through decoration-1";
 
-export function ProductBuyPanel({ product, condition, grade }: Props) {
-  const [storage, setStorage] = useState<ProductOption | undefined>(
-    product.storageOptions?.find((o) => o.available),
-  );
-  const [color, setColor] = useState<ProductOption | undefined>(
-    product.colorOptions?.find((o) => o.available),
-  );
+const inStock = (variant: ShopVariant) => variant.stock > 0;
+
+type Axis = "state" | "storage" | "colour";
+const AXES: Axis[] = ["state", "storage", "colour"];
+
+const stateLabel = (variant: ShopVariant) =>
+  [CONDITION_META[variant.condition].label, variant.grade && GRADE_META[variant.grade].label]
+    .filter(Boolean)
+    .join(" · ");
+
+const axisValue = (variant: ShopVariant, axis: Axis) =>
+  axis === "state" ? `${variant.condition}|${variant.grade ?? ""}` : variant[axis];
+
+const axisLabel = (variant: ShopVariant, axis: Axis) =>
+  axis === "state" ? stateLabel(variant) : (variant[axis] ?? "");
+
+function optionsFor(variants: ShopVariant[], selected: ShopVariant, axis: Axis): ProductOption[] {
+  const earlier = AXES.slice(0, AXES.indexOf(axis));
+  const samples = new Map<string, ShopVariant>();
+  for (const variant of variants) {
+    const value = axisValue(variant, axis);
+    if (value !== null && !samples.has(value)) samples.set(value, variant);
+  }
+  return [...samples].map(([value, sample]) => ({
+    label: axisLabel(sample, axis),
+    value,
+    swatch: axis === "colour" ? (sample.colourHex ?? undefined) : undefined,
+    available: variants.some(
+      (variant) =>
+        axisValue(variant, axis) === value &&
+        inStock(variant) &&
+        earlier.every((other) => axisValue(variant, other) === axisValue(selected, other)),
+    ),
+  }));
+}
+
+const compareRanks = (a: number[], b: number[]) =>
+  a.reduce((difference, rank, index) => difference || rank - b[index], 0);
+
+function closestVariant(variants: ShopVariant[], selected: ShopVariant, axis: Axis, value: string) {
+  const others = AXES.filter((other) => other !== axis);
+  const rank = (variant: ShopVariant) =>
+    [
+      others.every((other) => axisValue(variant, other) === axisValue(selected, other)),
+      inStock(variant),
+      ...others.map((other) => axisValue(variant, other) === axisValue(selected, other)),
+    ].map(Number);
+  return variants
+    .filter((variant) => axisValue(variant, axis) === value)
+    .sort((a, b) => compareRanks(rank(b), rank(a)))[0];
+}
+
+export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: Props) {
+  const variants = product.variants;
+  const stateOptions = optionsFor(variants, variant, "state");
+  const storageOptions = optionsFor(variants, variant, "storage");
+  const colorOptions = optionsFor(variants, variant, "colour");
   const [saved, setSaved] = useState(false);
 
-  // Add-ons: category-scoped list (accessories drop through with an
-  // empty list), and a local set of ticked IDs.
-  const addOns = useMemo(
-    () => addOnsFor(product.categorySlug ?? product.category),
-    [product.categorySlug, product.category],
-  );
+  function choose(axis: Axis, value: string) {
+    const next = closestVariant(variants, variant, axis, value);
+    if (next) onVariantChange(next.id);
+  }
+
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
     defaultSelection,
   );
@@ -63,18 +116,11 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
   const line = items.find((l) => l.productSlug === product.slug);
   const inCartQty = line?.quantity ?? 0;
 
-  const price = useMemo(() => {
-    const delta = (storage?.priceDelta ?? 0) + (color?.priceDelta ?? 0);
-    return product.price + delta;
-  }, [product.price, storage, color]);
-
-  const originalPrice = product.originalPrice
-    ? product.originalPrice + ((storage?.priceDelta ?? 0) + (color?.priceDelta ?? 0))
-    : undefined;
-
+  const price = variant.price;
+  const originalPrice = variant.compareAtPrice ?? undefined;
   const saving = originalPrice ? savingsPercent(price, originalPrice) : 0;
 
-  const availability = product.availability ?? "in-stock";
+  const availability = availabilityFromStock(variant.stock);
   const soldOut = availability === "sold-out";
   const comingSoon = availability === "coming-soon";
   const low = availability === "low-stock";
@@ -86,9 +132,9 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       ? "Join waitlist"
       : "Add to Cart";
 
-  const currentVariantLabel = [color?.label, storage?.label]
+  const currentVariantLabel = [stateLabel(variant), variant.colour, variant.storage]
     .filter(Boolean)
-    .join(" · ") || product.variant;
+    .join(" · ");
 
   function handleAddToCart() {
     if (!purchasable) return;
@@ -98,12 +144,16 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       variantLabel: currentVariantLabel,
       quantity: 1,
       unitPrice: price,
-      currency: product.currency,
-      locale: product.locale ?? "en-AE",
+      currency: CURRENCY,
+      locale: LOCALE,
     });
   }
 
-  const maxStock = Math.max(1, Math.min(product.stock || 1, 5));
+  const maxStock = Math.max(1, Math.min(variant.stock || 1, 5));
+
+  const trustItems = TRUST_ITEMS.map((item) =>
+    item.icon === ShieldIcon ? { ...item, title: `${product.warrantyMonths}-mo warranty` } : item,
+  );
 
   function handleIncrement() {
     if (!line || inCartQty >= maxStock) return;
@@ -129,12 +179,12 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       {/* ---------- Price (sits directly under the name) ---------- */}
       <div className="mt-5 flex flex-wrap items-end gap-x-4 gap-y-2">
         <span className="text-4xl font-medium tabular-nums text-ink">
-          {formatPrice(price, product.currency, product.locale)}
+          {formatMoney(price)}
         </span>
         {originalPrice && originalPrice > price && (
           <>
             <s className="font-mono text-sm tabular-nums text-ink-muted">
-              {formatPrice(originalPrice, product.currency, product.locale)}
+              {formatMoney(originalPrice)}
             </s>
             {saving > 0 && (
               <Badge variant="accent" className="text-[0.6875rem]">
@@ -152,15 +202,23 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       )}
 
       {/* ---------- Condition + Grade ---------- */}
-      <dl className="mt-8 grid grid-cols-2 gap-6 border-y border-line py-6">
+      <dl className="mt-8 grid grid-cols-2 gap-6 border-y border-line py-6 sm:grid-cols-3">
         <div>
           <dt className="eyebrow">Condition</dt>
-          <dd className="mt-2 text-base font-medium text-ink">{condition}</dd>
+          <dd className="mt-2 text-base font-medium text-ink">
+            {CONDITION_META[variant.condition].label}
+          </dd>
         </div>
-        {grade && (
+        {variant.grade && (
           <div>
             <dt className="eyebrow">Grade</dt>
-            <dd className="mt-2 text-base font-medium text-ink">{grade}</dd>
+            <dd className="mt-2 text-base font-medium text-ink">{GRADE_META[variant.grade].label}</dd>
+          </div>
+        )}
+        {variant.batteryHealth !== null && (
+          <div>
+            <dt className="eyebrow">Battery health</dt>
+            <dd className="mt-2 text-base font-medium tabular-nums text-ink">{variant.batteryHealth}%</dd>
           </div>
         )}
       </dl>
@@ -213,18 +271,41 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         >
           {AVAILABILITY_LABELS[availability]}
         </span>
-        {low && product.stock > 0 && (
-          <span className="text-ink-muted">· {product.stock} left</span>
+        {low && variant.stock > 0 && (
+          <span className="text-ink-muted">· {variant.stock} left</span>
         )}
       </div>
 
+      {stateOptions.length > 1 && (
+        <OptionGroup
+          label="Condition"
+          value={stateLabel(variant)}
+          options={stateOptions}
+          onSelect={(option) => choose("state", option.value)}
+          renderOption={(option, selected) => (
+            <span
+              className={cn(
+                "flex h-11 items-center justify-center rounded-lg border px-4 text-sm font-medium transition-colors duration-(--duration-fast)",
+                selected
+                  ? "border-ink bg-ink text-surface"
+                  : option.available
+                    ? "border-line text-ink hover:border-ink"
+                    : OPTION_UNSELECTABLE,
+              )}
+            >
+              {option.label}
+            </span>
+          )}
+        />
+      )}
+
       {/* ---------- Storage ---------- */}
-      {product.storageOptions && product.storageOptions.length > 0 && (
+      {storageOptions.length > 0 && (
         <OptionGroup
           label="Storage"
-          value={storage?.label}
-          options={product.storageOptions}
-          onSelect={setStorage}
+          value={variant.storage ?? undefined}
+          options={storageOptions}
+          onSelect={(option) => choose("storage", option.value)}
           renderOption={(option, selected) => (
             <span
               className={cn(
@@ -243,12 +324,12 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
       )}
 
       {/* ---------- Colour ---------- */}
-      {product.colorOptions && product.colorOptions.length > 0 && (
+      {colorOptions.length > 0 && (
         <OptionGroup
           label="Colour"
-          value={color?.label}
-          options={product.colorOptions}
-          onSelect={setColor}
+          value={variant.colour ?? undefined}
+          options={colorOptions}
+          onSelect={(option) => choose("colour", option.value)}
           renderOption={(option, selected) => (
             <span
               className={cn(
@@ -286,8 +367,8 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
         selected={selectedAddOns}
         onToggle={toggleAddOn}
         basePrice={price}
-        currency={product.currency}
-        locale={product.locale}
+        currency={CURRENCY}
+        locale={LOCALE}
       />
 
       {/* ---------- CTA ----------
@@ -387,7 +468,7 @@ export function ProductBuyPanel({ product, condition, grade }: Props) {
           icon in an accent-tinted tile, a bold label, and a one-line
           reassurance — the promise is scannable, not a whisper. */}
       <ul className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {TRUST_ITEMS.map(({ title, sub, icon: Icon }) => (
+        {trustItems.map(({ title, sub, icon: Icon }) => (
           <li
             key={title}
             className={cn(
@@ -493,12 +574,12 @@ function LockIcon() {
   );
 }
 
-const TRUST_ITEMS = [
+const TRUST_ITEMS: { title: string; sub: string; icon: () => React.JSX.Element }[] = [
   { title: "Free delivery", sub: "On every order", icon: TruckIcon },
-  { title: "12-mo warranty", sub: "Rewire-backed", icon: ShieldIcon },
+  { title: "Warranty", sub: "Rewire-backed", icon: ShieldIcon },
   { title: "14-day returns", sub: "No questions asked", icon: ReturnIcon },
   { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
-] as const;
+];
 
 function PlusIcon() {
   return (

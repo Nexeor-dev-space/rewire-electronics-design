@@ -173,7 +173,7 @@ Catalogue → **Categories** (`/admin/categories`) and **Brands**
 | `src/components/admin/{categories,brands}/` | List and add/edit modal |
 | `src/components/admin/shared/` | `ImageField`, and the row bits both tables share |
 | `src/hooks/use-category.ts`, `use-brand.ts`, `use-upload.ts` | Queries and mutations |
-| `src/app/api/v1/admin/{categories,brands}/` | `GET`/`POST` list, `GET`/`PUT`/`DELETE` one |
+| `src/app/api/v1/admin/{categories,brands}/` | `GET`/`POST` list, `GET`/`PUT`/`DELETE` one; `PATCH categories/[id]/status` |
 | `src/app/api/v1/uploads/images/`, `src/app/api/v1/media/[id]/` | Upload and serve images |
 | `src/services/{category,brand,media}.service.ts` | Queries and rules |
 | `prisma/schema/catalogue.prisma`, `media.prisma` | `Category`, `Brand`, `MediaAsset` |
@@ -197,11 +197,21 @@ holding the trimmed, lowercased name. The obvious constraint,
 `parentId` as distinct, so two top-level categories with the same name would
 both insert. A duplicate answers 409 on the `name` field.
 
+**Status, position and menus.** A category is Draft, Published or Archived
+(new ones default to Published), set in the modal or from the select on its
+row. Only published categories reach the storefront, and a child is hidden when
+its parent is. Position (`sortOrder`, lower first, then name) orders the admin
+list, the shop filters and the storefront menus. On a parent, "Show in the
+storefront menus and home page" (`showInNav`) decides whether it appears in the
+header, mega menus, mobile drawer and home strip; unticked, it stays browsable.
+The description (up to 300 characters) shows in the menus and on the category
+page. Every write refreshes the cached storefront menus, see
+[CATALOGUE.md](CATALOGUE.md) §5.
+
 **Deleting** a parent that still has children is refused (409) and the message
-names the count; the confirm dialog stays open and shows it. There is no
-product-linkage check yet, and no `productCount` on either response: there is
-no `Product` model to count, and a field hardcoded to zero would be read as
-real. Both arrive with the Products module.
+names the count; the confirm dialog stays open and shows it. A category or
+brand that still has products is refused the same way, naming the product
+count.
 
 **Images** go to `MediaAsset` (bytes in Postgres) behind
 `src/lib/storage/image-storage.ts`, so a move to object storage is one driver
@@ -210,6 +220,24 @@ happens as soon as a file is chosen, which is what makes a real progress figure
 possible; an image uploaded into a modal that is then cancelled is collected by
 a sweep of unreferenced assets older than 24 hours, run on each upload. Changing
 or removing an image deletes the old asset once nothing else points at it.
+
+## Products, Add-ons and Inventory
+
+Catalogue → **Products** (`/admin/products`), **Inventory**
+(`/admin/products/inventory`) and **Add-ons** (`/admin/add-ons`). Permission
+keys `catalogue.products`, `catalogue.inventory` and `catalogue.add-ons`. The
+upload route also accepts the products permission, so the product form can
+upload images.
+
+1. **Products** lists, creates, edits, publishes, unpublishes, archives and
+   deletes products. The form holds details, images (each with an optional
+   colour), specs and a variants editor.
+2. **Inventory** is a paged list of variants, filterable to low or out of
+   stock, with the stock count edited in place.
+3. **Add-ons** lists and edits the extras offered on the product page, and the
+   categories each one applies to.
+
+The rules, endpoints and data model are in [CATALOGUE.md](CATALOGUE.md).
 
 ## The shell
 

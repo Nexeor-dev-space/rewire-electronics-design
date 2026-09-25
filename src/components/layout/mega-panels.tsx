@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getUpcomingDrops } from "@/lib/drops";
-import { getCategories } from "@/lib/categories";
 import Image from "next/image";
-import { aboutColumns, shopBrowse, shopPopular } from "@/lib/navigation";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { aboutColumns, shopBrowseLinks, shopPopular } from "@/lib/navigation";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -171,12 +171,14 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
    ============================================================ */
 
 export function ShopMenu() {
+  const browse = shopBrowseLinks(useStorefrontCategories());
+
   return (
     <div className="grid grid-cols-12 gap-10 xl:gap-14">
       <div className="col-span-3">
         <MenuLabel>Browse</MenuLabel>
         <ul className="mt-5">
-          {shopBrowse.map((item) => (
+          {browse.map((item) => (
             <MenuItem key={item.href} item={item} />
           ))}
         </ul>
@@ -242,7 +244,7 @@ export function ShopMenu() {
    ============================================================ */
 
 export function CategoriesMenu() {
-  const categories = getCategories();
+  const categories = useStorefrontCategories();
 
   return (
     <div>
@@ -271,17 +273,19 @@ export function CategoriesMenu() {
               {/* The photograph is the box. Decorative — the name below
                   carries the accessible label. Prefers the wide cut; the
                   portrait rail shot is only a fallback. */}
-              <Image
-                src={(category.menuImage ?? category.image).url}
-                alt=""
-                fill
-                sizes="(max-width: 1280px) 30vw, 16vw"
-                className={cn(
-                  "object-cover",
-                  "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-                  "group-hover/card:scale-[1.04]",
-                )}
-              />
+              {category.imageUrl && (
+                <Image
+                  src={category.imageUrl}
+                  alt=""
+                  fill
+                  sizes="(max-width: 1280px) 30vw, 16vw"
+                  className={cn(
+                    "object-cover",
+                    "transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+                    "group-hover/card:scale-[1.04]",
+                  )}
+                />
+              )}
 
               {/* One uniform light-dark wash across the whole plate. The
                   earlier build layered a flat scrim under a bottom-heavy
@@ -300,7 +304,7 @@ export function CategoriesMenu() {
                   {category.name}
                 </span>
                 <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink/75 [text-shadow:0_1px_8px_rgb(17_17_17/0.55)]">
-                  {category.count} devices
+                  {category.productCount} devices
                 </span>
               </span>
             </Link>

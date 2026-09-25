@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { getFeaturedCategories } from "@/lib/categories";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { HOME_CATEGORY_LIMIT } from "@/lib/constants";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { CategoryCard } from "@/components/home/categories/category-card";
 
@@ -33,7 +34,8 @@ import { CategoryCard } from "@/components/home/categories/category-card";
  * it is the classic way to lose the LCP a hero exists to win.
  */
 export function CategoryStrip() {
-  const categories = getFeaturedCategories();
+  const categories = useStorefrontCategories().slice(0, HOME_CATEGORY_LIMIT);
+  if (categories.length === 0) return null;
 
   return (
     <motion.nav

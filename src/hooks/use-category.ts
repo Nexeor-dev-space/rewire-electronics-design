@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import type { Paginated } from "@/lib/api/api-response";
+import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import type {
   CategoryDetail,
   CategoryFilters,
@@ -11,6 +12,7 @@ import type {
   CategoryNode,
   CategorySummary,
 } from "@/types/category";
+import type { CategoryStatus } from "@/validators/category.validator";
 
 const categoryKeys = {
   all: ["categories"] as const,
@@ -21,7 +23,7 @@ const categoryKeys = {
 const endpoints = API_ENDPOINTS.admin.categories;
 
 /** Parents for the picker. One page is enough — see the spec's known limits. */
-const PARENT_FILTERS = { type: "parent", pageSize: 100 } as const;
+const PARENT_FILTERS = { type: "parent", pageSize: PICKER_PAGE_SIZE } as const;
 
 /* ---------- queries ---------- */
 
@@ -68,6 +70,15 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, ...input }: CategoryInput & { id: string }) =>
       apiRequest<CategoryDetail>(endpoints.detail(id), { method: "PUT", body: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
+  });
+}
+
+export function useSetCategoryStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: CategoryStatus }) =>
+      apiRequest<CategoryDetail>(endpoints.status(id), { method: "PATCH", body: { status } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
   });
 }

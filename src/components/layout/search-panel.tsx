@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import { searchCatalogue } from "@/lib/search";
 import { productHrefForCategory, productHrefForDrop } from "@/lib/route-map";
 import { EASE_OUT_EXPO } from "@/lib/motion";
@@ -53,7 +54,8 @@ export function SearchPanel({
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
-  const results = useMemo(() => searchCatalogue(query), [query]);
+  const categories = useStorefrontCategories();
+  const results = useMemo(() => searchCatalogue(query, categories), [query, categories]);
 
   /* Focus the field on open; hand focus back to the icon on close.
      `initialQuery` seeds the overlay's field so the header's inline
