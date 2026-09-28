@@ -26,7 +26,7 @@ export function Footer() {
               <h3 className="eyebrow mb-5">{group.title}</h3>
               <ul className="space-y-3">
                 {group.items.map((item) => (
-                  <li key={item.href}>
+                  <li key={item.label}>
                     <Link
                       href={item.href}
                       className="-my-1.5 inline-block py-1.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
