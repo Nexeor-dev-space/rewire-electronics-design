@@ -1,0 +1,55 @@
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+model Coupon {
+  id               String           @id @default(cuid())
+  code             String           @unique
+  description      String           @default("")
+  type             CouponType
+  value            Int
+  minOrderAmount   Int              @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  active           Boolean          @default(true)
+  usageLimit       Int?
+  perCustomerLimit Int?
+  redemptionCount  Int              @default(0)
+  appliesToAll     Boolean          @default(true)
+  products         CouponProduct[]
+  categories       CouponCategory[]
+  carts            Cart[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([active, endsAt])
+  @@index([updatedAt])
+  @@map("coupons")
+}
+
+model CouponProduct {
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([couponId, productId])
+  @@index([productId])
+  @@map("coupon_products")
+}
+
+model CouponCategory {
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@id([couponId, categoryId])
+  @@index([categoryId])
+  @@map("coupon_categories")
+}

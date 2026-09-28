@@ -1,0 +1,49 @@
+/// DEV: email without SMTP prints to the server log; Google and Apple are hidden.
+/// LIVE: stored credentials only; a missing one turns off only its own feature.
+enum IntegrationMode {
+  DEV
+  LIVE
+}
+
+/// The allow list of stored credentials. A new key needs a migration.
+enum IntegrationKey {
+  SMTP_HOST
+  SMTP_PORT
+  SMTP_USER
+  SMTP_PASS
+  EMAIL_FROM
+  APP_URL
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  APPLE_CLIENT_ID
+  APPLE_TEAM_ID
+  APPLE_KEY_ID
+  APPLE_PRIVATE_KEY
+}
+
+/// Singleton. The service only ever upserts id 1; no row reads as DEV.
+model IntegrationSettings {
+  id          Int             @id @default(1)
+  mode        IntegrationMode @default(DEV)
+  updatedById String?
+  updatedBy   User?           @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("integration_settings")
+}
+
+/// A write-only credential. `valueEncrypted` is `sealSecret(value, key)`;
+/// the plain value never leaves the server.
+model IntegrationCredential {
+  key            IntegrationKey @id
+  valueEncrypted String
+  /// Last characters for the admin screen; null for short values and the PEM key.
+  hint           String?
+  updatedById    String?
+  updatedBy      User?          @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("integration_credentials")
+}

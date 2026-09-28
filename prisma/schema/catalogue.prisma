@@ -24,6 +24,7 @@ model Category {
 
   products Product[]
   addOns   AddOnCategory[]
+  coupons  CouponCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,6 +96,7 @@ model Product {
   variants ProductVariant[]
   images   ProductImage[]
   specs    ProductSpec[]
+  coupons  CouponProduct[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -125,6 +127,8 @@ model ProductVariant {
   compareAtPrice Int?
   stock          Int  @default(0)
   sortOrder      Int  @default(0)
+
+  cartItems CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +189,7 @@ model AddOn {
   appliesToAll Boolean @default(false)
 
   categories AddOnCategory[]
+  cartItems  CartItemAddOn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

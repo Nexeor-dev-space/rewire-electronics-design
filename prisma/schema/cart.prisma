@@ -1,0 +1,46 @@
+model Cart {
+  id             String     @id @default(cuid())
+  userId         String?    @unique
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestTokenHash String?    @unique
+  couponId       String?
+  coupon         Coupon?    @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  items          CartItem[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([couponId])
+  @@index([updatedAt])
+  @@map("carts")
+}
+
+model CartItem {
+  id            String          @id @default(cuid())
+  cartId        String
+  cart          Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId     String
+  variant       ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity      Int
+  seenUnitPrice Int
+  addOns        CartItemAddOn[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([cartId, variantId])
+  @@index([variantId])
+  @@map("cart_items")
+}
+
+model CartItemAddOn {
+  cartItemId String
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  addOnId    String
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  seenPrice  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@id([cartItemId, addOnId])
+  @@index([addOnId])
+  @@map("cart_item_add_ons")
+}
