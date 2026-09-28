@@ -9,6 +9,8 @@ import type { PolicySlug, RichTextDoc } from "../src/lib/policy-types";
 import { databaseUrl } from "../src/lib/db-url";
 import { hashPassword } from "../src/lib/auth/password";
 import { seedCatalogue } from "./seed-catalogue";
+import type { HomepageSectionType } from "../src/lib/homepage-sections";
+import { SHOP_INDEX_HREF } from "../src/lib/route-map";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: databaseUrl() }),
@@ -470,9 +472,116 @@ async function seedAdmin() {
   console.log(`  ${email}`);
 }
 
+/* ============================================================
+   Homepage — the copy the sections carried before the CMS
+   ============================================================ */
+
+interface SeedSection {
+  type: HomepageSectionType;
+  title: string;
+  eyebrow?: string;
+  subtitle?: string;
+  description?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+}
+
+/** In page order. A "\n" in a title starts a new line of the heading. */
+const homepage: SeedSection[] = [
+  {
+    type: "HERO",
+    eyebrow: "A limited release, once a month.",
+    description: "Certified refurbished electronics, released in numbered editions.",
+    title: "Premium certified electronics.",
+    subtitle: "Professionally inspected. Fully warranted. Released in very limited quantities.",
+  },
+  {
+    type: "UPCOMING_DROPS",
+    eyebrow: "Certified refurbished",
+    title: "Refurbished.\nReady to ship.",
+    subtitle:
+      "Premium devices, professionally restored to the Rewire standard — 68-point inspection, certified battery health, and a 12-month warranty on every unit.",
+    ctaLabel: "Browse the full catalogue",
+    ctaHref: SHOP_INDEX_HREF,
+  },
+  {
+    type: "BEST_SELLERS",
+    eyebrow: "In stock now",
+    title: "Just listed.",
+    subtitle:
+      "No countdown, no allocation. The newest listings, available to buy today and covered by the same standard as everything we release.",
+    ctaLabel: "Shop all devices",
+    ctaHref: SHOP_INDEX_HREF,
+  },
+  {
+    type: "CONDITIONS",
+    eyebrow: "Shop by condition",
+    title: "What you have.",
+    subtitle:
+      "Three words, three different promises. Repair is what separates Refurbished from Pre-Owned; use is what separates both from Open Box. Every listing carries one of them, and it means this and only this.",
+  },
+  {
+    type: "TESTIMONIALS",
+    title: "The Rewire experience.",
+    subtitle:
+      "What people say after the box arrives — the part of a refurbished purchase nobody can promise you in advance.",
+  },
+  {
+    type: "FAQ",
+    title: "Questions,\nanswered.",
+    subtitle:
+      "Everything worth knowing before a drop opens — how the releases run, what we guarantee, and what happens after the box arrives.",
+  },
+  {
+    type: "INVITATION",
+    title: "The next one goes quickly too.",
+    subtitle: "Join the waitlist for first access, launch reminders, and nothing else.",
+    ctaLabel: "Join the waitlist",
+  },
+];
+
+/**
+ * Replaces the whole homepage — draft and live — and marks it published. Like
+ * the policies, this overwrites anything edited in the console. Images that
+ * only the old rows referenced are collected by the upload sweep.
+ */
+async function seedHomepage() {
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.homepageSection.deleteMany({});
+
+    for (const stage of ["DRAFT", "LIVE"] as const) {
+      await tx.homepageSection.createMany({
+        data: homepage.map((section, index) => ({
+          stage,
+          type: section.type,
+          sortOrder: index,
+          title: section.title,
+          eyebrow: section.eyebrow ?? null,
+          subtitle: section.subtitle ?? null,
+          description: section.description ?? null,
+          ctaLabel: section.ctaLabel ?? null,
+          ctaHref: section.ctaHref ?? null,
+        })),
+      });
+    }
+
+    await tx.homepageState.upsert({
+      where: { id: "homepage" },
+      create: { id: "homepage", draftUpdatedAt: now, publishedAt: now },
+      update: { draftUpdatedAt: now, publishedAt: now },
+    });
+  });
+
+  console.log(`  ${homepage.length} sections, published`);
+}
+
 async function main() {
   console.log("Policies:");
   await seedPolicies();
+  console.log("Homepage:");
+  await seedHomepage();
   console.log("Admin:");
   await seedAdmin();
   console.log("Catalogue:");
