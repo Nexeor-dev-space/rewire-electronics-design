@@ -5,6 +5,8 @@ import { motion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
 import { CONDITION_META, type Condition } from "@/lib/shop";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
+import { headingLines } from "@/lib/homepage-sections";
+import type { PublishedSection } from "@/types/homepage";
 import { cn } from "@/lib/utils";
 import {
   DURATION,
@@ -108,7 +110,7 @@ const tileRise: Variants = {
   },
 };
 
-export function WhatYouHave() {
+export function WhatYouHave({ section }: { section: PublishedSection }) {
   return (
     <section
       aria-labelledby="what-you-have-heading"
@@ -126,28 +128,29 @@ export function WhatYouHave() {
           className="grid gap-6 lg:grid-cols-12 lg:items-end"
         >
           <motion.div variants={rise} className="lg:col-span-7">
-            <p className="eyebrow">Shop by condition</p>
+            {section.eyebrow && <p className="eyebrow">{section.eyebrow}</p>}
             <h2
               id="what-you-have-heading"
               className="mt-4 font-sans text-[clamp(2.25rem,4vw,3.75rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink"
             >
-              <span className="block overflow-hidden pb-[0.15em] -mb-[0.15em]">
-                <motion.span variants={lineClip} className="block">
-                  What you have.
-                </motion.span>
-              </span>
+              {headingLines(section.title).map((line, index) => (
+                <span key={index} className="block overflow-hidden pb-[0.15em] -mb-[0.15em]">
+                  <motion.span variants={lineClip} className="block">
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
             </h2>
           </motion.div>
 
-          <motion.p
-            variants={rise}
-            className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-4 lg:col-start-9 lg:justify-self-end lg:text-right"
-          >
-            Three words, three different promises. Repair is what
-            separates Refurbished from Pre-Owned; use is what separates
-            both from Open Box. Every listing carries one of them, and it
-            means this and only this.
-          </motion.p>
+          {section.subtitle && (
+            <motion.p
+              variants={rise}
+              className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-4 lg:col-start-9 lg:justify-self-end lg:text-right"
+            >
+              {section.subtitle}
+            </motion.p>
+          )}
         </motion.div>
 
         {/* ---------- Legend grid ---------- */}

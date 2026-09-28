@@ -1,19 +1,22 @@
-import { Hero } from "@/components/home/hero/hero";
-import { UpcomingDrops } from "@/components/home/upcoming-drops/upcoming-drops";
-import { Featured } from "@/components/home/featured/featured";
-import { WhatYouHave } from "@/components/home/conditions/what-you-have";
-import { Stories } from "@/components/home/stories/stories";
-import { Faq } from "@/components/home/faq/faq";
-import { Invitation } from "@/components/home/invitation/invitation";
+import { HomepageSection } from "@/components/home/homepage-section";
 import { FEATURED_PRODUCTS_LIMIT } from "@/lib/constants";
 import { toFaqEntries } from "@/lib/faq-entry";
 import { getPublishedPolicy } from "@/lib/policies";
 import { listNewestShopProducts } from "@/services/catalogue.service";
+import { getPublishedHomepage } from "@/services/homepage.service";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The homepage is whatever was last published through the homepage API — see
+ * docs/HOMEPAGE-CMS.md. The CMS decides which sections show, in what order,
+ * with what copy; product data comes from the catalogue. There is no fallback
+ * copy here: an unpublished database renders the header and footer only, and
+ * the seed publishes the defaults.
+ */
 export default async function Home() {
-  const [faqPolicy, featured] = await Promise.all([
+  const [sections, faqPolicy, products] = await Promise.all([
+    getPublishedHomepage(),
     getPublishedPolicy("faq"),
     listNewestShopProducts(FEATURED_PRODUCTS_LIMIT),
   ]);
@@ -21,13 +24,9 @@ export default async function Home() {
 
   return (
     <>
-      <Hero />
-      <UpcomingDrops />
-      {featured.length > 0 && <Featured products={featured} />}
-      <WhatYouHave />
-      <Stories />
-      {faqs.length > 0 && <Faq faqs={faqs} />}
-      <Invitation />
+      {sections.map((section) => (
+        <HomepageSection key={section.id} section={section} faqs={faqs} products={products} />
+      ))}
     </>
   );
 }

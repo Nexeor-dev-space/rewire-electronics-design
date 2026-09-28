@@ -17,8 +17,10 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { getLiveDrop } from "@/lib/drops";
+import { headingLines } from "@/lib/homepage-sections";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import type { PublishedSection } from "@/types/homepage";
 import { CategoryStrip } from "./category-strip";
 
 /** Dwell per device before the next crossfade. */
@@ -54,7 +56,7 @@ function enter(delay: number) {
  * motion, while focus is inside the hero, and while the pointer is on the
  * device itself.
  */
-export function Hero() {
+export function Hero({ section }: { section: PublishedSection }) {
   const drop = getLiveDrop();
   const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
@@ -412,12 +414,11 @@ export function Hero() {
             )}
           >
             <p className="max-w-[16rem] font-mono text-[0.6875rem] uppercase leading-loose tracking-[0.22em] text-ink-secondary md:max-w-none">
-              A limited release, once a month.
-              <br />
-              <span className="text-ink-muted">
-                Certified refurbished electronics, released in numbered
-                editions.
-              </span>
+              {section.eyebrow}
+              {section.eyebrow && section.description && <br />}
+              {section.description && (
+                <span className="text-ink-muted">{section.description}</span>
+              )}
             </p>
           </motion.div>
 
@@ -432,12 +433,17 @@ export function Hero() {
               id="hero-heading"
               className="font-sans text-[clamp(2.25rem,3.4vw,3.25rem)] font-light leading-[1.06] tracking-[-0.03em] text-ink"
             >
-              Premium certified electronics.
+              {headingLines(section.title).map((line, index) => (
+                <span key={index} className="block">
+                  {line}
+                </span>
+              ))}
             </h1>
-            <p className="mt-5 text-base leading-relaxed text-ink-secondary sm:mt-8">
-              Professionally inspected. Fully warranted. Released in very
-              limited quantities.
-            </p>
+            {section.subtitle && (
+              <p className="mt-5 text-base leading-relaxed text-ink-secondary sm:mt-8">
+                {section.subtitle}
+              </p>
+            )}
           </motion.div>
         </div>
       </div>

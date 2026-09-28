@@ -39,13 +39,14 @@ function faqJsonLd(faqs: FaqEntry[]): string {
 
 export function Faq({
   faqs,
-  heading = ["Questions,", "answered."],
-  lede = "Everything worth knowing before a drop opens — how the releases run, what we guarantee, and what happens after the box arrives.",
+  heading,
+  lede,
   headingLevel = "h2",
 }: {
   faqs: FaqEntry[];
-  heading?: [string, string];
-  lede?: string;
+  /** One entry per line of the heading. */
+  heading: string[];
+  lede?: string | null;
   headingLevel?: "h1" | "h2";
 }) {
   const [openId, setOpenId] = useState<string | null>(faqs[0]?.id ?? null);
@@ -70,24 +71,23 @@ export function Faq({
               id="faq-heading"
               className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink"
             >
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  {heading[0]}
-                </motion.span>
-              </span>
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  {heading[1]}
-                </motion.span>
-              </span>
+              {heading.filter(Boolean).map((line, index) => (
+                <span key={index} className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
+                  <motion.span variants={lineClip} className="block">
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
             </Heading>
 
-            <motion.p
-              variants={rise}
-              className="mt-8 max-w-sm text-base leading-relaxed text-ink-secondary"
-            >
-              {lede}
-            </motion.p>
+            {lede && (
+              <motion.p
+                variants={rise}
+                className="mt-8 max-w-sm text-base leading-relaxed text-ink-secondary"
+              >
+                {lede}
+              </motion.p>
+            )}
           </motion.div>
 
           {faqs.length === 0 ? (
