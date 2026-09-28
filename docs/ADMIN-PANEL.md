@@ -219,7 +219,23 @@ and no caller changes. One upload endpoint serves both modals. Uploading
 happens as soon as a file is chosen, which is what makes a real progress figure
 possible; an image uploaded into a modal that is then cancelled is collected by
 a sweep of unreferenced assets older than 24 hours, run on each upload. Changing
-or removing an image deletes the old asset once nothing else points at it.
+or removing an image deletes the old asset once nothing else — a category, a
+brand, a product or a homepage section — points at it. The same endpoint will serve the
+homepage's banner images.
+
+## Homepage CMS
+
+The homepage's sections, their draft and published state, and the admin API
+under `/api/v1/admin/homepage`, guarded by permission key
+`storefront.homepage`. The storefront renders whatever was last published.
+
+The editing screen, Storefront → **Homepage Builder**
+(`/admin/storefront/homepage`), belongs to the separate Page Builder issue and
+is still the placeholder; it builds on this API. Until it lands, the homepage
+shows the seeded content.
+
+See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
+types and their fields, and what the seed does.
 
 ## Products, Add-ons and Inventory
 

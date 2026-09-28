@@ -7,7 +7,11 @@ screen and the storefront wiring.
 
 - Route: `/admin/storefront/homepage`
 - Branch: `feat-29-Wire-Design,-Homepage,-CM`, based on `main` at `1896ccd`
-- Status: agreed, not yet implemented
+- Status: implemented without §6. **Scope change (2026-09-25):** the issue's
+  §8 gives section editing, ordering, visibility, drafts, preview and publish
+  UI to the separate Page Builder issue, so the admin screen (§6) was built
+  and then removed. This issue ships the model, the admin API, the storefront
+  consumption and permission enforcement; the Page Builder builds on the API.
 
 ---
 
@@ -82,21 +86,23 @@ banner would lose its picture a day later.
 
 | Type | Items from | Editable fields | Cardinality |
 | --- | --- | --- | --- |
-| `HERO` | live drop — `drops.ts` (P3) | eyebrow, ctaLabel, ctaHref | fixed, one |
-| `UPCOMING_DROPS` | `drops.ts` (P3) | title, subtitle, ctaLabel, ctaHref | fixed, one |
-| `BEST_SELLERS` | `products.ts` (P2) | title, subtitle, ctaLabel, ctaHref | fixed, one |
-| `CONDITIONS` | `CONDITION_META` | eyebrow, title | fixed, one |
-| `TESTIMONIALS` | `testimonials.ts` | title | fixed, one |
-| `FAQ` | the `faq` policy | none — order and visibility only | fixed, one |
-| `INVITATION` | next drop — `drops.ts` (P3) | title, ctaLabel | fixed, one |
-| `PROMO_BANNER` | CMS | image, eyebrow, title, subtitle, description, ctaLabel, ctaHref, seasonal | 0..n |
-| `FEATURED_BRANDS` | `Brand` table | title, subtitle, ctaLabel, ctaHref, brands (ordered) | 0..n |
-| `FEATURED_CATEGORIES` | `Category` table | title, subtitle, ctaLabel, ctaHref, categories (ordered) | 0..n |
+| `HERO` | live drop — `drops.ts` (P3) | title\*, eyebrow, subtitle, description | fixed, one |
+| `UPCOMING_DROPS` | `drops.ts` (P3) | title\*, eyebrow, subtitle, ctaLabel, ctaHref | fixed, one |
+| `BEST_SELLERS` | `products.ts` (P2) | title\*, eyebrow, subtitle, ctaLabel, ctaHref | fixed, one |
+| `CONDITIONS` | `CONDITION_META` | title\*, eyebrow, subtitle | fixed, one |
+| `TESTIMONIALS` | `testimonials.ts` | title\*, subtitle | fixed, one |
+| `FAQ` | the `faq` policy | title\*, subtitle | fixed, one |
+| `INVITATION` | next drop — `drops.ts` (P3) | title\*, ctaLabel\*, subtitle | fixed, one |
+| `PROMO_BANNER` | CMS | title\*, image, eyebrow, subtitle, description, ctaLabel, ctaHref, seasonal | 0..n |
+| `FEATURED_BRANDS` | `Brand` table | title\*, eyebrow, subtitle, ctaLabel, ctaHref, brands\* (ordered) | 0..n |
+| `FEATURED_CATEGORIES` | `Category` table | title\*, eyebrow, subtitle, ctaLabel, ctaHref, categories\* (ordered) | 0..n |
 
-Fixed sections can be reordered and hidden but not created or deleted. The
-exact editable fields for the fixed types are confirmed against each
-component's current hardcoded copy during implementation; a field is only
-exposed if the component has static copy in that slot today.
+\* required. Fixed sections can be reordered and hidden but not created or
+deleted. Each fixed type exposes exactly the slots that hold static copy in its
+component today (the Hero has no button; the Invitation's button opens the
+waitlist, so it has a label and no link). A heading's line breaks are kept: a
+new line in `title` starts a new line of the heading. `ctaLabel` and `ctaHref`
+are filled together or not at all.
 
 `seasonal` is a label on a promo banner (for the admin list and a storefront
 eyebrow style), not a schedule.
@@ -112,7 +118,15 @@ re-seeding resets the homepage and overwrites published edits — documented.
 
 `refIds` holds brand or category ids. Ids are validated on save; a brand or
 category deleted later is simply skipped when the section renders. Brand and
-category deletes are not blocked by homepage usage.
+category deletes are not blocked by homepage usage. Because the storefront read
+is cached, brand and category updates and deletes also revalidate the
+`homepage` tag, so a renamed or deleted brand never lingers on the homepage
+with a broken image.
+
+Item links are best effort until P2 owns listing routes: a brand links to
+`/collection?brand=<name>` (the shop ignores names it doesn't know), and a
+category links to `/collection/<slug>` only when the shop's `resolveCategory`
+recognises it, otherwise to `/collection`.
 
 ---
 
@@ -201,8 +215,8 @@ inputs in `src/validators/homepage.validator.ts`, types in `src/types/homepage.t
 | `PUT /admin/homepage/sections/[id]` | Update a draft section's allowed fields and `visible` |
 | `DELETE /admin/homepage/sections/[id]` | Delete an added section; 409 for fixed types |
 | `PUT /admin/homepage/order` | `{ ids }` — must equal the draft id set exactly (422 otherwise) |
-| `POST /admin/homepage/publish` | Draft → live in one transaction; revalidate |
-| `POST /admin/homepage/discard` | Live → draft in one transaction |
+| `POST /admin/homepage/publish` | Draft → live in one transaction; revalidate. 409 when the draft is empty |
+| `POST /admin/homepage/discard` | Live → draft in one transaction. 409 when nothing has been published |
 
 - **Bounded.** The draft is capped at 30 sections; adding a 31st is 409. The
   `GET` therefore returns one bounded list, not a paginated one — stated in the
