@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "@/components/providers/account-provider";
+import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { signInHref } from "@/lib/auth/next-path";
 import { accountNav } from "@/lib/site";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
@@ -68,7 +70,9 @@ const PROFILE_MENU_ID = "mobile-profile-menu";
 
 export function MobileTabBar() {
   const pathname = usePathname();
-  const { wishlistSlugs, user, ready, signIn, signOut } = useAccount();
+  const { wishlistSlugs } = useAccount();
+  const me = useGetMe();
+  const signOut = useSignOut();
   const [profileOpen, setProfileOpen] = useState(false);
 
   /* A route change closes the panel — the reader has arrived. */
@@ -134,21 +138,21 @@ export function MobileTabBar() {
                 "border border-line bg-surface shadow-(--shadow-float)",
               )}
             >
-              {ready && user ? (
+              {!me.isPending && me.data ? (
                 <>
                   <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
                     <span
                       aria-hidden
                       className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[0.6875rem] text-surface"
                     >
-                      {initialsOf(user.name)}
+                      {initialsOf(me.data.fullName)}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-ink">
-                        {user.name}
+                        {me.data.fullName}
                       </span>
                       <span className="block truncate text-xs text-ink-muted">
-                        {user.email}
+                        {me.data.email}
                       </span>
                     </span>
                   </div>
@@ -172,11 +176,12 @@ export function MobileTabBar() {
                     <button
                       type="button"
                       role="menuitem"
+                      disabled={signOut.isPending}
                       onClick={() => {
                         setProfileOpen(false);
-                        signOut();
+                        signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") });
                       }}
-                      className="block w-full px-4 py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                      className="block w-full px-4 py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink disabled:opacity-60"
                     >
                       Logout
                     </button>
@@ -195,15 +200,10 @@ export function MobileTabBar() {
                     Sign in for orders, tracking, saved devices and
                     waitlists.
                   </p>
-                  <button
-                    type="button"
+                  <Link
+                    href={signInHref(pathname)}
                     role="menuitem"
-                    // ⚠ Stand-in, same as the bar — point at the auth
-                    // route once authentication exists.
-                    onClick={() => {
-                      setProfileOpen(false);
-                      signIn();
-                    }}
+                    onClick={() => setProfileOpen(false)}
                     className={cn(
                       "mt-4 flex h-11 w-full items-center justify-center rounded-full",
                       "bg-ink text-sm font-medium tracking-tight text-surface",
@@ -211,7 +211,7 @@ export function MobileTabBar() {
                     )}
                   >
                     Sign in
-                  </button>
+                  </Link>
                   <Link
                     href="/account/orders"
                     role="menuitem"

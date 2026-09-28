@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { accountNav, siteConfig } from "@/lib/site";
 import { getDrawerSections } from "@/lib/navigation";
-import { useAccount } from "@/components/providers/account-provider";
+import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { signInHref } from "@/lib/auth/next-path";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -45,7 +47,9 @@ export function MobileDrawer({
   /** Profile disclosure. Closed on every open — never on page load. */
   const [accountExpanded, setAccountExpanded] = useState(false);
   const sections = getDrawerSections(useStorefrontCategories());
-  const { user, ready, signIn, signOut } = useAccount();
+  const pathname = usePathname();
+  const me = useGetMe();
+  const signOut = useSignOut();
 
   useEffect(() => {
     if (!open) {
@@ -323,7 +327,7 @@ export function MobileDrawer({
                     Signed out there is nothing to disclose, so the
                     block is absent entirely — the fixed foot below
                     already carries Sign in. */}
-                {ready && user && (
+                {!me.isPending && me.data && (
                   <div className="mb-8 border-b border-line pb-2">
                     <button
                       type="button"
@@ -336,7 +340,7 @@ export function MobileDrawer({
                         aria-hidden
                         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[0.6875rem] text-surface"
                       >
-                        {user.name
+                        {me.data.fullName
                           .split(" ")
                           .map((part) => part[0])
                           .slice(0, 2)
@@ -344,10 +348,10 @@ export function MobileDrawer({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-ink">
-                          {user.name}
+                          {me.data.fullName}
                         </span>
                         <span className="block truncate text-xs text-ink-muted">
-                          {user.email}
+                          {me.data.email}
                         </span>
                       </span>
                       <motion.svg
@@ -394,11 +398,14 @@ export function MobileDrawer({
                             <li className="mt-2 border-t border-line pt-2">
                               <button
                                 type="button"
+                                disabled={signOut.isPending}
                                 onClick={() => {
                                   onClose();
-                                  signOut();
+                                  signOut.mutate(undefined, {
+                                    onSuccess: () => window.location.assign("/"),
+                                  });
                                 }}
-                                className="block w-full py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
+                                className="block w-full py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink disabled:opacity-60"
                               >
                                 Logout
                               </button>
@@ -424,22 +431,17 @@ export function MobileDrawer({
                 accordions scroll behind them. */}
             <div className="shrink-0 border-t border-line bg-void px-(--spacing-gutter) pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  // ⚠ Stand-in, same as the bar — point at the auth route
-                  // once authentication exists.
-                  onClick={() => {
-                    onClose();
-                    if (!user) signIn();
-                  }}
+                <Link
+                  href={me.data ? "/account" : signInHref(pathname)}
+                  onClick={onClose}
                   className={cn(
                     "flex h-11 flex-1 items-center justify-center rounded-full",
                     "border border-line text-sm font-medium tracking-tight text-ink",
                     "transition-colors duration-(--duration-fast) hover:border-ink",
                   )}
                 >
-                  {ready && user ? "Account" : "Sign in"}
-                </button>
+                  {me.data ? "Account" : "Sign in"}
+                </Link>
 
                 <Link
                   href="/cart"

@@ -2,48 +2,42 @@
 
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
+import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { Spinner } from "@/components/ui/spinner";
-import type { CheckoutLine, CheckoutTotals, PromoCode } from "@/lib/checkout";
+import type { AppliedCoupon, Cart, CartLine } from "@/types/cart";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 
 interface Props {
-  lines: CheckoutLine[];
-  totals: CheckoutTotals;
+  cart: Cart;
   deliveryLabel: string;
-  deliveryPrice: number;
-  vatRate: number;
-  discount: number;
-  promo: PromoCode | undefined;
-  onApplyPromo: (code: string) => string | null;
-  onRemovePromo: () => void;
+  onApplyCoupon?: (code: string) => void;
+  onRemoveCoupon?: () => void;
+  couponPending?: boolean;
+  couponFieldError?: string | null;
   onPlaceOrder?: () => void;
   placing?: boolean;
   className?: string;
   compact?: boolean;
+  /** True while a new delivery quote is loading in the background. */
+  quotePending?: boolean;
 }
 
 export function OrderSummary({
-  lines,
-  totals,
+  cart,
   deliveryLabel,
-  deliveryPrice,
-  vatRate,
-  discount,
-  promo,
-  onApplyPromo,
-  onRemovePromo,
+  onApplyCoupon,
+  onRemoveCoupon,
+  couponPending,
+  couponFieldError,
   onPlaceOrder,
   placing,
   className,
   compact,
+  quotePending,
 }: Props) {
-  const money = (value: number) =>
-    formatPrice(value, totals.currency, totals.locale);
-
-  const discounted = Math.max(0, totals.subtotal - discount);
-  const vat = Math.round(discounted * vatRate);
-  const total = Math.max(0, discounted + deliveryPrice + vat);
+  const { items, totals, coupon, couponsAllowed, canCheckout } = cart;
 
   return (
     <aside
@@ -58,52 +52,65 @@ export function OrderSummary({
           Your order
         </h2>
         <span className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
-          {lines.length} {lines.length === 1 ? "item" : "items"}
+          {items.length} {items.length === 1 ? "item" : "items"}
         </span>
       </div>
 
       <ul className="divide-y divide-line border-y border-line">
-        {lines.map((line) => (
-          <LineRow key={line.key} line={line} money={money} />
+        {items.map((line) => (
+          <LineRow key={line.id} line={line} />
         ))}
       </ul>
 
-      {!compact && (
-        <PromoCodeField
-          promo={promo}
-          onApply={onApplyPromo}
-          onRemove={onRemovePromo}
-          formatMoney={money}
+      {!compact && couponsAllowed && (
+        <CouponField
+          coupon={coupon}
+          onApply={onApplyCoupon}
+          onRemove={onRemoveCoupon}
+          pending={couponPending}
+          fieldError={couponFieldError}
         />
       )}
 
       <dl className="grid gap-2.5 text-[0.9375rem]">
-        <Row label="Subtotal" value={money(totals.subtotal)} />
-        {discount > 0 && (
+        <Row label="Subtotal" value={formatMoney(totals.subtotal)} />
+        {totals.discount > 0 && (
           <Row
-            label={promo ? `Discount · ${promo.code}` : "Discount"}
-            value={`− ${money(discount)}`}
+            label={coupon ? `Discount · ${coupon.code}` : "Discount"}
+            value={`− ${formatMoney(totals.discount)}`}
             accent
           />
         )}
         <Row
           label={`Delivery · ${deliveryLabel}`}
-          value={deliveryPrice === 0 ? "Free" : money(deliveryPrice)}
+          value={
+            totals.delivery === null
+              ? "—"
+              : totals.delivery === 0
+                ? "Free"
+                : formatMoney(totals.delivery)
+          }
         />
-        <Row label={`VAT · ${Math.round(vatRate * 100)}%`} value={money(vat)} />
-        {totals.savings > 0 && (
-          <Row
-            label="You save vs. new"
-            value={money(totals.savings)}
-            muted
-          />
-        )}
+        <Row
+          label={`Includes VAT ${totals.vatRatePercent}%`}
+          value={formatMoney(totals.vatIncluded)}
+          muted
+        />
       </dl>
 
       <div className="flex items-baseline justify-between border-t border-line pt-4">
-        <span className="text-[0.9375rem] font-medium text-ink">Total</span>
-        <span className="text-[1.375rem] font-medium tabular-nums text-ink">
-          {money(total)}
+        <span className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink">
+          Total
+          {quotePending && <Spinner className="size-3.5 text-ink-secondary" />}
+        </span>
+        <span
+          aria-live="polite"
+          className={cn(
+            "text-[1.375rem] font-medium tabular-nums text-ink",
+            quotePending && "opacity-70",
+          )}
+        >
+          {formatMoney(totals.total)}
         </span>
       </div>
 
@@ -112,7 +119,7 @@ export function OrderSummary({
           <button
             type="button"
             onClick={onPlaceOrder}
-            disabled={placing || lines.length === 0}
+            disabled={placing || items.length === 0 || !canCheckout}
             aria-busy={placing || undefined}
             className={cn(
               "relative inline-flex h-14 w-full items-center justify-center gap-2 rounded-full px-6",
@@ -130,7 +137,9 @@ export function OrderSummary({
                 placing && "opacity-0",
               )}
             >
-              {placing ? "Processing your order…" : `Place Order · ${money(total)}`}
+              {placing
+                ? "Processing your order…"
+                : `Place Order · ${formatMoney(totals.total)}`}
               {!placing && (
                 <svg
                   aria-hidden
@@ -147,6 +156,12 @@ export function OrderSummary({
               )}
             </span>
           </button>
+
+          {!canCheckout && (
+            <p role="alert" className="text-[0.8125rem] text-danger">
+              Remove unavailable items to continue.
+            </p>
+          )}
 
           <TrustRow />
 
@@ -173,26 +188,22 @@ export function OrderSummary({
   );
 }
 
-function LineRow({
-  line,
-  money,
-}: {
-  line: CheckoutLine;
-  money: (value: number) => string;
-}) {
-  const image = line.product.images[0];
+function LineRow({ line }: { line: CartLine }) {
+  const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
+  const blocked = line.issues.some((issue) =>
+    ["UNAVAILABLE", "OUT_OF_STOCK", "INSUFFICIENT_STOCK"].includes(issue),
+  );
+
   return (
     <li className="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-line bg-void">
-        {image && (
+        {line.imageUrl && (
           <Image
-            src={image.url}
+            src={line.imageUrl}
             alt=""
             fill
             sizes="64px"
-            className={cn(
-              image.fit === "cover" ? "object-cover" : "object-contain p-1.5",
-            )}
+            className="object-contain p-1.5"
           />
         )}
         {line.quantity > 1 && (
@@ -204,70 +215,102 @@ function LineRow({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-[0.9375rem] font-medium text-ink">
-          {line.product.name}
+          {line.productName}
         </p>
-        <p className="mt-0.5 truncate text-[0.75rem] text-ink-secondary">
-          {line.variantLabel}
-        </p>
+        {variantLabel && (
+          <p className="mt-0.5 truncate text-[0.75rem] text-ink-secondary">
+            {variantLabel}
+          </p>
+        )}
         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
-          <span>{line.condition}</span>
+          <span>{CONDITION_META[line.condition].label}</span>
           {line.grade && (
             <>
               <span aria-hidden className="text-ink-faint">
                 ·
               </span>
-              <span>Grade {line.grade}</span>
+              <span>{GRADE_META[line.grade].label}</span>
             </>
           )}
         </p>
+
+        {line.addOns.length > 0 && (
+          <ul className="mt-1.5 flex flex-col gap-0.5">
+            {line.addOns.map((addOn) => (
+              <li
+                key={addOn.id}
+                className="flex items-baseline justify-between gap-3 text-[0.75rem] text-ink-secondary"
+              >
+                <span className="truncate">+ {addOn.label}</span>
+                <span className="shrink-0 font-mono tabular-nums text-ink-muted">
+                  {formatMoney(addOn.price)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="text-[0.9375rem] font-medium tabular-nums text-ink">
-          {money(line.unitPrice * line.quantity)}
-        </p>
-        {line.originalUnitPrice != null &&
-          line.originalUnitPrice > line.unitPrice && (
-            <p className="mt-0.5 font-mono text-[0.6875rem] tabular-nums text-ink-muted">
-              <s>{money(line.originalUnitPrice * line.quantity)}</s>
-            </p>
-          )}
+        {blocked ? (
+          <p className="text-[0.9375rem] font-medium tabular-nums text-ink-muted">—</p>
+        ) : (
+          <p className="text-[0.9375rem] font-medium tabular-nums text-ink">
+            {formatMoney(line.lineTotal)}
+          </p>
+        )}
+        {line.previousUnitPrice != null && (
+          <p className="mt-0.5 font-mono text-[0.6875rem] tabular-nums text-ink-muted">
+            <s>{formatMoney(line.previousUnitPrice * line.quantity)}</s>
+          </p>
+        )}
       </div>
     </li>
   );
 }
 
-function PromoCodeField({
-  promo,
+function CouponField({
+  coupon,
   onApply,
   onRemove,
-  formatMoney,
+  pending,
+  fieldError,
 }: {
-  promo: PromoCode | undefined;
-  onApply: (code: string) => string | null;
-  onRemove: () => void;
-  formatMoney: (value: number) => string;
+  coupon: AppliedCoupon | null;
+  onApply?: (code: string) => void;
+  onRemove?: () => void;
+  pending?: boolean;
+  fieldError?: string | null;
 }) {
-  void formatMoney;
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  if (promo) {
+  if (coupon) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-live/30 bg-live/5 px-4 py-3">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3 rounded-xl border px-4 py-3",
+          coupon.valid ? "border-live/30 bg-live/5" : "border-danger/30 bg-danger/5",
+        )}
+      >
         <div className="min-w-0">
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-live">
-            Promo applied · {promo.code}
+          <p
+            className={cn(
+              "font-mono text-[0.6875rem] uppercase tracking-[0.16em]",
+              coupon.valid ? "text-live" : "text-danger",
+            )}
+          >
+            {coupon.valid ? "Promo applied" : "Promo not applied"} · {coupon.code}
           </p>
           <p className="mt-1 truncate text-[0.8125rem] text-ink-secondary">
-            {promo.label}
+            {coupon.valid ? coupon.description : coupon.message}
           </p>
         </div>
         <button
           type="button"
           onClick={onRemove}
-          className="shrink-0 text-[0.75rem] font-medium text-ink-secondary transition-colors hover:text-ink"
+          disabled={pending}
+          className="shrink-0 text-[0.75rem] font-medium text-ink-secondary transition-colors hover:text-ink disabled:opacity-50"
         >
           Remove
         </button>
@@ -321,47 +364,34 @@ function PromoCodeField({
             <input
               type="text"
               value={value}
-              onChange={(event) => {
-                setValue(event.target.value);
-                setError(null);
-              }}
+              onChange={(event) => setValue(event.target.value)}
               placeholder="Enter code"
               aria-label="Promo code"
-              aria-invalid={Boolean(error) || undefined}
-              aria-describedby={error ? "promo-error" : undefined}
+              aria-invalid={Boolean(fieldError) || undefined}
+              aria-describedby={fieldError ? "promo-error" : undefined}
               className={cn(
                 "h-11 flex-1 rounded-lg bg-void px-3 text-sm text-ink placeholder:text-ink-muted",
                 "border transition-colors duration-(--duration-fast)",
-                error
+                fieldError
                   ? "border-danger"
                   : "border-line hover:border-line-strong focus:border-accent focus:outline-none",
               )}
             />
             <button
               type="button"
-              onClick={() => {
-                const problem = onApply(value);
-                if (problem) setError(problem);
-                else setValue("");
-              }}
-              className="inline-flex h-11 items-center justify-center rounded-lg border border-line-strong px-4 text-[0.8125rem] font-medium text-ink transition-colors hover:bg-white/5"
+              onClick={() => onApply?.(value)}
+              disabled={pending || value.trim().length === 0}
+              aria-busy={pending || undefined}
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-line-strong px-4 text-[0.8125rem] font-medium text-ink transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
             >
               Apply
             </button>
           </div>
-          {error && (
-            <p
-              id="promo-error"
-              role="alert"
-              className="mt-2 text-[0.75rem] text-danger"
-            >
-              {error}
+          {fieldError && (
+            <p id="promo-error" role="alert" className="mt-2 text-[0.75rem] text-danger">
+              {fieldError}
             </p>
           )}
-          <p className="mt-2 text-[0.75rem] text-ink-muted">
-            Try <span className="font-mono text-ink-secondary">REWIRE10</span>{" "}
-            for a first-order discount.
-          </p>
         </div>
       )}
     </div>

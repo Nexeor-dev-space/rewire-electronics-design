@@ -12,9 +12,10 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { getProductBySlug } from "@/lib/catalog";
 import { getCrossSell } from "@/lib/cross-sell";
-import { useAccount } from "@/components/providers/account-provider";
+import { useGetCart } from "@/hooks/use-cart";
 import { useCartFeedback } from "./cart-feedback-provider";
-import { cn, formatPrice } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
 import type { Product } from "@/types";
 
 /**
@@ -42,27 +43,25 @@ const FOCUSABLE =
 
 export function AddToCartModal() {
   const { latest, isOpen, close } = useCartFeedback();
-  const { items, cartCount } = useAccount();
+  const cart = useGetCart();
   const prefersReduced = useReducedMotion();
 
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  const anchor = useMemo<Product | null>(
+  // Cross-sell recommendations still come from the mock catalogue's
+  // category map — there is no real recommendation source yet. A slug
+  // that does not resolve there (any real product not mirrored in the
+  // mock catalogue) just means an empty rail, never a broken modal: the
+  // confirmation above it is built entirely from the real cart line.
+  const crossSellAnchor = useMemo<Product | null>(
     () => (latest ? (getProductBySlug(latest.productSlug) ?? null) : null),
     [latest],
   );
 
-  const addons = useMemo(() => (anchor ? getCrossSell(anchor, 3) : []), [anchor]);
-
-  const subtotal = useMemo(
-    () =>
-      items.reduce((sum, line) => {
-        const product = getProductBySlug(line.productSlug);
-        if (!product) return sum;
-        return sum + product.price * line.quantity;
-      }, 0),
-    [items],
+  const addons = useMemo(
+    () => (crossSellAnchor ? getCrossSell(crossSellAnchor, 3) : []),
+    [crossSellAnchor],
   );
 
   /* ---------- Focus management + Escape + body lock ---------- */
@@ -108,11 +107,11 @@ export function AddToCartModal() {
     [close],
   );
 
-  const showPanel = isOpen && Boolean(anchor && latest);
+  const showPanel = isOpen && Boolean(latest);
 
   return (
     <AnimatePresence>
-      {showPanel && anchor && latest && (
+      {showPanel && latest && (
         <motion.div
           aria-hidden={false}
           className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
@@ -176,12 +175,13 @@ export function AddToCartModal() {
             <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain">
               <div className="px-5 pb-2 sm:px-7">
                 <AddedProduct
-                  product={anchor}
+                  productName={latest.productName}
+                  brand={latest.brand}
+                  imageUrl={latest.imageUrl}
+                  imageAlt={latest.imageAlt}
                   variantLabel={latest.variantLabel}
                   quantity={latest.quantity}
                   unitPrice={latest.unitPrice}
-                  currency={latest.currency}
-                  locale={latest.locale}
                 />
 
                 {addons.length > 0 && (
@@ -190,7 +190,7 @@ export function AddToCartModal() {
                     <ul className="mt-4 flex flex-col gap-2.5">
                       {addons.map((addon) => (
                         <li key={addon.slug}>
-                          <AddonRow addon={addon} />
+                          <AddonRow addon={addon} onNavigate={close} />
                         </li>
                       ))}
                     </ul>
@@ -200,10 +200,8 @@ export function AddToCartModal() {
             </div>
 
             <ModalFooter
-              cartCount={cartCount}
-              subtotal={subtotal}
-              currency={anchor.currency}
-              locale={anchor.locale ?? "en-AE"}
+              cartCount={cart.data?.itemCount ?? 0}
+              subtotal={cart.data?.totals.subtotal ?? 0}
               onContinue={close}
             />
           </motion.div>
@@ -254,43 +252,42 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
    ============================================================ */
 
 function AddedProduct({
-  product,
+  productName,
+  brand,
+  imageUrl,
+  imageAlt,
   variantLabel,
   quantity,
   unitPrice,
-  currency,
-  locale,
 }: {
-  product: Product;
+  productName: string;
+  brand: string;
+  imageUrl: string | null;
+  imageAlt: string;
   variantLabel: string;
   quantity: number;
   unitPrice: number;
-  currency: string;
-  locale: string;
 }) {
-  const image = product.images[0];
   return (
     <article className="flex items-start gap-4 sm:gap-5">
       <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:size-28">
-        {image && (
+        {imageUrl && (
           <Image
-            src={image.url}
-            alt={image.alt}
+            src={imageUrl}
+            alt={imageAlt}
             fill
             sizes="112px"
-            className={
-              image.fit === "cover" ? "object-cover" : "object-contain p-3"
-            }
+            className="object-contain p-3"
           />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-          {product.brand}
+          {brand}
         </p>
         <h2 className="mt-1 text-[1.125rem] font-medium leading-tight tracking-[-0.01em] text-ink sm:text-[1.25rem]">
-          {product.name}
+          {productName}
         </h2>
         <p className="mt-1 text-[0.8125rem] text-ink-secondary">
           {variantLabel}
@@ -298,7 +295,7 @@ function AddedProduct({
 
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <p className="text-[1.125rem] font-medium tabular-nums text-ink">
-            {formatPrice(unitPrice * quantity, currency, locale)}
+            {formatMoney(unitPrice * quantity)}
           </p>
           {quantity > 1 && (
             <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
@@ -357,37 +354,24 @@ function AddonsHeader() {
   );
 }
 
-function AddonRow({ addon }: { addon: Product }) {
+/**
+ * AddonRow — a companion product, linking to its own page rather than
+ * adding it directly. These recommendations come from the mock
+ * catalogue's category map (see `lib/cross-sell.ts`), which carries no
+ * real variant to add — see Q7 in `docs/CART.md`.
+ */
+function AddonRow({ addon, onNavigate }: { addon: Product; onNavigate: () => void }) {
   const image = addon.images[0];
-  const { items, addItem, removeItem } = useAccount();
-  const line = items.find((l) => l.productSlug === addon.slug);
-  const added = Boolean(line);
-
-  const handleToggle = useCallback(() => {
-    if (added && line) {
-      removeItem(line.id);
-    } else if (!added) {
-      addItem(addon.slug, 1);
-    }
-  }, [added, line, addItem, removeItem, addon.slug]);
 
   return (
-    <label
+    <Link
+      href={`/product/${addon.slug}`}
+      onClick={onNavigate}
       className={cn(
-        "group/addon flex cursor-pointer items-center gap-3 rounded-2xl border p-3",
-        "transition-[background-color,border-color] duration-(--duration-fast)",
-        added
-          ? "border-line-strong bg-surface-2"
-          : "border-line bg-surface-2/60 hover:border-line-strong",
+        "group/addon flex items-center gap-3 rounded-2xl border border-line bg-surface-2/60 p-3",
+        "transition-[background-color,border-color] duration-(--duration-fast) hover:border-line-strong",
       )}
     >
-      <input
-        type="checkbox"
-        className="peer sr-only"
-        checked={added}
-        onChange={handleToggle}
-        aria-label={added ? `Remove ${addon.name}` : `Add ${addon.name}`}
-      />
       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-surface-3">
         {image && (
           <Image
@@ -410,36 +394,23 @@ function AddonRow({ addon }: { addon: Product }) {
           {addon.variant}
         </p>
         <p className="mt-1 font-mono text-[0.8125rem] tabular-nums text-ink">
-          {formatPrice(addon.price, addon.currency, addon.locale)}
+          {formatMoney(addon.price)}
         </p>
       </div>
 
-      <span
+      <svg
         aria-hidden
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded-md border",
-          "transition-[background-color,border-color] duration-(--duration-fast)",
-          added
-            ? "border-accent bg-accent"
-            : "border-line-strong bg-surface group-hover/addon:border-ink-muted",
-          "peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
-        )}
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-3.5 shrink-0 text-ink-muted transition-[transform,color] duration-(--duration-fast) group-hover/addon:translate-x-1 group-hover/addon:text-ink"
       >
-        {added && (
-          <svg
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-3 text-void"
-          >
-            <path d="M2.5 6.5l2.5 2.5 4.5-5" />
-          </svg>
-        )}
-      </span>
-    </label>
+        <path d="M3 8h10M9 4l4 4-4 4" />
+      </svg>
+    </Link>
   );
 }
 
@@ -450,14 +421,10 @@ function AddonRow({ addon }: { addon: Product }) {
 function ModalFooter({
   cartCount,
   subtotal,
-  currency,
-  locale,
   onContinue,
 }: {
   cartCount: number;
   subtotal: number;
-  currency: string;
-  locale: string;
   onContinue: () => void;
 }) {
   return (
@@ -470,7 +437,7 @@ function ModalFooter({
           <span className="mr-2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
             Subtotal
           </span>
-          {formatPrice(subtotal, currency, locale)}
+          {formatMoney(subtotal)}
         </p>
       </div>
 

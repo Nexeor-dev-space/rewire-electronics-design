@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAccount } from "@/components/providers/account-provider";
+import { useGetCart } from "@/hooks/use-cart";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
@@ -16,8 +16,9 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
  * count in the accessible name rather than as a separate live region.
  */
 export function CartButton({ className }: { className?: string }) {
-  const { cartCount, ready } = useAccount();
-  const showCount = ready && cartCount > 0;
+  const cart = useGetCart();
+  const cartCount = cart.data?.itemCount ?? 0;
+  const showCount = !cart.isPending && cartCount > 0;
 
   return (
     <Link

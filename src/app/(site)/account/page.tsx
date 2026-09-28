@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AccountOverview } from "@/components/account/account-overview";
-import { AccountGated } from "@/components/account/account-auth-gate";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -9,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function AccountPage() {
-  return (
-    <AccountGated>
-      <AccountOverview />
-    </AccountGated>
-  );
+  return <AccountOverview />;
 }
