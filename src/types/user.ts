@@ -15,7 +15,7 @@ export interface UserListItem {
   id: string;
   fullName: string;
   email: string;
-  phone: string;
+  phone: string | null;
   role: Role;
   /** ISO string — shown as "Last edited". */
   updatedAt: string;

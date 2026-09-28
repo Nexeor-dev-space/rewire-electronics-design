@@ -218,7 +218,7 @@ function UserRow({
             {ROLE_LABELS[user.role]}
           </Badge>
         </div>
-        <p className="text-sm tabular-nums text-ink-secondary">{user.phone}</p>
+        <p className="text-sm tabular-nums text-ink-secondary">{user.phone ?? "—"}</p>
         <time dateTime={user.updatedAt} className="text-sm text-ink-secondary">
           {new Date(user.updatedAt).toLocaleDateString("en-GB", {
             day: "numeric",
