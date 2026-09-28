@@ -37,7 +37,7 @@ export function refreshStorefrontCatalogue() {
   revalidateTag(CATALOGUE_CACHE_TAG);
 }
 
-const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
+export const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
   status: "PUBLISHED",
   OR: [{ parentId: null }, { parent: { is: { status: "PUBLISHED" } } }],
 };
