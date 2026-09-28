@@ -476,8 +476,8 @@ The cart is a server cart, read and changed only through
 | Header cart count | `components/layout/cart-button.tsx` | `useGetCart().itemCount`; hidden while the query is pending, so no badge flash |
 | Cart page `/cart` | `components/cart/cart-view.tsx` | `useGetCart()`; lines, issues and totals as priced by the server |
 | Add to cart modal | `components/cart/add-to-cart-modal.tsx` | `useGetCart()` for the count and subtotal; the added line from the mutation response |
-| Product page buy panel | `components/product/detail/product-buy-panel.tsx` | `useGetCart()` for the selected variant's line; add, update and remove mutations |
-| Card Add to cart | `components/product/add-to-cart-button.tsx` | `useAddCartItem()` with `ShopCard.variantId` |
+| Product page buy panel | `components/product/detail/product-buy-panel.tsx` | `useGetCart()` for the selected variant's line; add, update and remove mutations; a skeleton fills the CTA slot while the cart query is pending so the button never flashes before the stepper |
+| Card Add to cart | `components/product/add-to-cart-button.tsx` | `useAddCartItem()` with `ShopCard.variantId`; becomes the same − N + stepper once that variant is in the cart, reading the shared `useGetCart()` cache (one request for every card on the page) |
 | Checkout `/checkout` | `components/checkout/checkout-view.tsx`, `order-summary.tsx` | `useGetCartQuote(emirate, method)`: lines, totals, coupon and delivery options in one response |
 
 Three rules for anything that shows cart data:

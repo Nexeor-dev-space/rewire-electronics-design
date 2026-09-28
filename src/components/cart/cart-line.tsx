@@ -7,6 +7,7 @@ import { BLOCKING_CART_LINE_ISSUES } from "@/types/cart";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { QuantityStepper } from "@/components/cart/quantity-stepper";
 
 interface CartLineProps {
   line: CartLineData;
@@ -157,8 +158,10 @@ export function CartLine({
               value={line.quantity}
               max={line.maxQuantity}
               disabled={busy}
-              onChange={onQuantityChange}
-              productName={line.productName}
+              canDecrement={line.quantity > 1}
+              onIncrement={() => onQuantityChange(Math.min(line.maxQuantity, line.quantity + 1))}
+              onDecrement={() => onQuantityChange(Math.max(1, line.quantity - 1))}
+              itemLabel={line.productName}
             />
 
             <button
@@ -327,81 +330,3 @@ function LineAddOns({
   );
 }
 
-/* ============================================================
-   Local: quantity stepper
-   ============================================================ */
-
-function QuantityStepper({
-  value,
-  max,
-  disabled,
-  onChange,
-  productName,
-}: {
-  value: number;
-  max: number;
-  disabled?: boolean;
-  onChange: (next: number) => void;
-  productName: string;
-}) {
-  return (
-    <div className="flex h-10 items-center rounded-full border border-line px-1">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(1, value - 1))}
-        disabled={disabled || value <= 1}
-        aria-label={`Decrease quantity of ${productName}`}
-        className="flex size-8 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5 disabled:pointer-events-none disabled:opacity-30"
-      >
-        <MinusIcon />
-      </button>
-      <span
-        aria-live="polite"
-        className="w-7 text-center font-mono text-[0.8125rem] tabular-nums text-ink"
-      >
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={disabled || value >= max}
-        aria-label={`Increase quantity of ${productName}`}
-        className="flex size-8 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/5 disabled:pointer-events-none disabled:opacity-30"
-      >
-        <PlusIcon />
-      </button>
-    </div>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="size-3"
-    >
-      <path d="M8 3v10M3 8h10" />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="size-3"
-    >
-      <path d="M3 8h10" />
-    </svg>
-  );
-}

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import { useAddCartItem } from "@/hooks/use-cart";
+import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
+import { QuantityStepper } from "@/components/cart/quantity-stepper";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
@@ -75,7 +77,26 @@ export function AddToCartButton({
   className?: string;
 }) {
   const addCartItem = useAddCartItem();
+  const updateCartItem = useUpdateCartItem();
+  const removeCartItem = useRemoveCartItem();
+  const cart = useGetCart();
   const soldOut = product.soldOut === true;
+
+  const line = product.variantId
+    ? cart.data?.items.find((item) => item.variantId === product.variantId)
+    : undefined;
+  const inCartQty = line?.quantity ?? 0;
+  const stepperBusy = updateCartItem.isPending || removeCartItem.isPending;
+
+  function handleIncrement() {
+    if (!line || stepperBusy || inCartQty >= line.maxQuantity) return;
+    updateCartItem.mutate({ id: line.id, quantity: inCartQty + 1 });
+  }
+  function handleDecrement() {
+    if (!line || stepperBusy) return;
+    if (inCartQty <= 1) removeCartItem.mutate(line.id);
+    else updateCartItem.mutate({ id: line.id, quantity: inCartQty - 1 });
+  }
 
   if (!product.variantId) {
     return (
@@ -100,6 +121,26 @@ export function AddToCartButton({
     event.stopPropagation();
     if (soldOut) return;
     addCartItem.mutate({ variantId: product.variantId!, quantity: 1, addOnIds: [] });
+  }
+
+  if (cart.isPending) {
+    return <Skeleton className={cn(className, "h-11 rounded-full")} />;
+  }
+
+  if (!soldOut && line) {
+    return (
+      <QuantityStepper
+        value={inCartQty}
+        max={line.maxQuantity}
+        disabled={stepperBusy}
+        onIncrement={handleIncrement}
+        onDecrement={handleDecrement}
+        groupLabel={`${product.name} in cart`}
+        variant="filled"
+        size="md"
+        className={className}
+      />
+    );
   }
 
   return (
