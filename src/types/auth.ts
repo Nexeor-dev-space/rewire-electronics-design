@@ -1,12 +1,25 @@
 import type { z } from "zod";
 import type { Role } from "@/lib/auth/permissions";
-import type { signInSchema } from "@/validators/auth.validator";
+import type {
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  signInSchema,
+  signUpSchema,
+  verifyEmailSchema,
+} from "@/validators/auth.validator";
 
 export interface SessionUser {
   id: string;
   fullName: string;
   email: string;
+  phone: string | null;
   role: Role;
+  emailVerified: boolean;
+  createdAt: Date;
+}
+
+export interface Me extends Omit<SessionUser, "createdAt"> {
+  createdAt: string;
 }
 
 export interface SignInResult {
@@ -15,3 +28,7 @@ export interface SignInResult {
 }
 
 export type SignInInput = z.input<typeof signInSchema>;
+export type SignUpInput = z.input<typeof signUpSchema>;
+export type VerifyEmailInput = z.input<typeof verifyEmailSchema>;
+export type ForgotPasswordInput = z.input<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.input<typeof resetPasswordSchema>;

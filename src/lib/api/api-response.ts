@@ -12,7 +12,9 @@ export type ErrorCode =
   | "FORBIDDEN" // 403
   | "NOT_FOUND" // 404
   | "CONFLICT" // 409
-  | "INTERNAL"; // 500
+  | "RATE_LIMITED" // 429
+  | "INTERNAL" // 500
+  | "NOT_CONFIGURED"; // 503
 
 export interface ApiErrorBody {
   code: ErrorCode | "NETWORK";

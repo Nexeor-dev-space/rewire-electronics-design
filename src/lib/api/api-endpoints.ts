@@ -3,12 +3,21 @@
  * inside hooks or components.
  */
 
+import type { Emirate } from "@/lib/emirates";
+import type { IntegrationKey } from "@/types/integration";
+
 const V1 = "/api/v1";
 
 export const API_ENDPOINTS = {
   auth: {
     signIn: `${V1}/auth/sign-in`,
     signOut: `${V1}/auth/sign-out`,
+    signUp: `${V1}/auth/sign-up`,
+    me: `${V1}/auth/me`,
+    verifyEmail: `${V1}/auth/verify-email`,
+    resendVerification: `${V1}/auth/resend-verification`,
+    forgotPassword: `${V1}/auth/forgot-password`,
+    resetPassword: `${V1}/auth/reset-password`,
   },
   admin: {
     users: {
@@ -45,10 +54,31 @@ export const API_ENDPOINTS = {
       publish: `${V1}/admin/homepage/publish`,
       discard: `${V1}/admin/homepage/discard`,
     },
+    integrations: {
+      status: `${V1}/admin/integrations`,
+      mode: `${V1}/admin/integrations/mode`,
+      credential: (key: IntegrationKey) => `${V1}/admin/integrations/credentials/${key}`,
+    },
+    coupons: {
+      list: `${V1}/admin/coupons`,
+      detail: (id: string) => `${V1}/admin/coupons/${id}`,
+    },
+    deliveryZones: {
+      list: `${V1}/admin/delivery-zones`,
+      detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
+    },
   },
   products: {
     list: `${V1}/products`,
     detail: (slug: string) => `${V1}/products/${slug}`,
+  },
+  cart: {
+    root: `${V1}/cart`,
+    items: `${V1}/cart/items`,
+    item: (id: string) => `${V1}/cart/items/${id}`,
+    coupon: `${V1}/cart/coupon`,
+    acknowledge: `${V1}/cart/acknowledge`,
+    quote: `${V1}/cart/quote`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 /**
  * Shared field validators (Zod). A field that means the same thing in two
@@ -42,3 +43,27 @@ export const emailValidator = z
   .min(1, "Enter an email address.")
   .max(254, "That email address is too long.")
   .pipe(z.email("Enter a valid email address."));
+
+export const newPasswordValidator = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`)
+  .max(PASSWORD_MAX_LENGTH, "That password is too long.");
+
+export const phoneValidator = z
+  .string()
+  .trim()
+  .min(1, "Enter a phone number.")
+  .regex(/^\+?[\d\s()-]{7,20}$/, "Enter a valid phone number.");
+
+export const optionalPhoneValidator = z
+  .string()
+  .trim()
+  .nullish()
+  .transform((value) => value || null)
+  .pipe(phoneValidator.nullable());
+
+export const authTokenValidator = z
+  .string()
+  .trim()
+  .min(1, "This link is incomplete. Open it again from your email.")
+  .max(128, "This link has expired or was already used.");

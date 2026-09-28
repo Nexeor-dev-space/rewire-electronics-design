@@ -35,6 +35,9 @@ export const PERMISSIONS = {
   products: adminPermission("catalogue", "products"),
   inventory: adminPermission("catalogue", "inventory"),
   addOns: adminPermission("catalogue", "add-ons"),
+  integrations: adminPermission("governance", "integrations"),
+  coupons: adminPermission("marketing", "coupons"),
+  deliveryZones: adminPermission("governance", "delivery"),
 } as const;
 
 export function canAccessAdmin(role: Role): boolean {
@@ -66,4 +69,8 @@ export function assignableRoles(viewer: Role): Role[] {
 /** A password decides who can sign in as an account, so only Admins set one. */
 export function canSetPassword(viewer: Role): boolean {
   return viewer === "ADMIN";
+}
+
+export function canManageIntegrations(role: Role): boolean {
+  return role === "ADMIN";
 }

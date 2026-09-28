@@ -94,6 +94,7 @@ export async function createUser(viewer: Actor, data: UserData) {
         phone: data.phone,
         role: data.role,
         passwordHash,
+        emailVerifiedAt: new Date(),
       },
       select: { id: true },
     });
@@ -175,7 +176,7 @@ async function findManageable(tx: Tx, viewer: Actor, id: string) {
   return target;
 }
 
-async function assertEmailFree(tx: Tx, email: string, exceptId?: string) {
+export async function assertEmailFree(tx: Tx, email: string, exceptId?: string) {
   const owner = await tx.user.findUnique({ where: { email }, select: { id: true } });
   if (owner && owner.id !== exceptId) {
     // Deleted (INACTIVE) accounts keep their email too.
