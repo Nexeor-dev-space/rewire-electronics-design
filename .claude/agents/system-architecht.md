@@ -28,6 +28,26 @@ Use Grep or Glob only for an exact string the graph did not surface. The graph c
 
 Bash is for graphify, read-only `git` (status, log, diff, show) and `npx prisma migrate status`. Nothing else.
 
+
+## Save tokens
+
+1. Query graphify with a budget: `graphify query "<question>" --budget 800`. Use `graphify explain "<symbol>"` for one symbol instead of opening whole files.
+2. Read only the line ranges you need. Don't re-read a file you already read unless it changed.
+3. Read only the contract sections for your stage, not the whole plan.
+4. The graph is rebuilt on every commit by a git hook. Still run `graphify update .` after your own code changes.
+5. Keep your final report under 25 lines: files, new functions, checks run, what was not verified, deviations. No restating the brief.
+
+## Project map (reuse these, don't search for them)
+
+1. API responses: `apiSuccess`, `apiError` in `src/lib/api/api-response.ts`. Client calls: `apiRequest` in `src/lib/api/api-client.ts`. Paths: `API_ENDPOINTS` in `src/lib/api/api-endpoints.ts`.
+2. Auth: `getSession`, `startSession`, `authorizeApi` in `src/lib/auth/session.ts`; `PERMISSIONS`, `hasPermission` in `src/lib/auth/permissions.ts`; `readAuthSecret` in `src/lib/auth/auth-secret.ts`; `safeNextPath`, `signInHref` in `src/lib/auth/next-path.ts`; tokens in `src/lib/auth/tokens.ts`.
+3. Rate limits: `limitByIp`, `limitByUser` in `src/lib/rate-limit.ts`, rules in `RATE_LIMITS` in `src/lib/constants.ts`.
+4. Email: `sendEmail` in `src/lib/email/`. Settings and credentials: `getIntegrationConfig` in `src/services/integration.service.ts`.
+5. Pricing: `priceCart`, `evaluateCoupon` in `src/lib/pricing/`. Cart: `src/services/cart.service.ts`, `src/lib/cart-rules.ts`, `src/lib/cart-owner.ts`.
+6. Catalogue: `src/services/catalogue.service.ts` (`PUBLISHED` filter, shop helpers). Admin screens follow `src/components/admin/brands/` and `categories/`.
+7. Hooks: `src/hooks/use-<module>.ts`; `useGetMe` in `use-auth.ts`, `use-cart.ts`.
+8. Contracts: `C:/Users/AMAL/.claude/plans/phase-<n>-*-contract.md`.
+
 ## Core philosophy
 
 Design for the long term, but choose the simplest structure that meets the requirements. The project runs on a small server: prefer pagination, bounded queries and no background jobs unless required.
