@@ -27,6 +27,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {
 
 export const PERMISSIONS = {
   content: adminPermission("storefront", "content"),
+  homepage: adminPermission("storefront", "homepage"),
   /** Covers both Users screens — staff accounts and customer accounts. */
   users: adminPermission("service", "users"),
   categories: adminPermission("catalogue", "categories"),

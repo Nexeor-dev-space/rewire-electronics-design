@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
 import { getNextDrop } from "@/lib/drops";
+import { headingLines } from "@/lib/homepage-sections";
+import type { PublishedSection } from "@/types/homepage";
 import { formatDropDate } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO, viewportOnce } from "@/lib/motion";
 
@@ -26,7 +28,7 @@ const rise = {
  * design — the reader either joins here or leaves knowing when to
  * come back.
  */
-export function Invitation() {
+export function Invitation({ section }: { section: PublishedSection }) {
   const nextDrop = getNextDrop();
   const [waitlistOpen, setWaitlistOpen] = useState(false);
 
@@ -60,24 +62,31 @@ export function Invitation() {
             id="invitation-heading"
             className="mx-auto max-w-3xl font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
           >
-            The next one goes quickly too.
+            {headingLines(section.title).map((line, index) => (
+              <span key={index} className="block">
+                {line}
+              </span>
+            ))}
           </h2>
-          <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-secondary">
-            Join the waitlist for first access, launch reminders, and nothing
-            else.
-          </p>
+          {section.subtitle && (
+            <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-secondary">
+              {section.subtitle}
+            </p>
+          )}
 
-          <div className="mt-11 flex justify-center">
-            <Button
-              variant="accent"
-              size="lg"
-              onClick={() => setWaitlistOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={waitlistOpen}
-            >
-              Join the waitlist
-            </Button>
-          </div>
+          {section.ctaLabel && (
+            <div className="mt-11 flex justify-center">
+              <Button
+                variant="accent"
+                size="lg"
+                onClick={() => setWaitlistOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={waitlistOpen}
+              >
+                {section.ctaLabel}
+              </Button>
+            </div>
+          )}
 
           {/* The facts, set wide and quiet beneath the ask */}
           <dl className="mx-auto mt-20 grid max-w-4xl grid-cols-1 gap-y-8 border-t border-line pt-10 sm:grid-cols-3 sm:gap-x-10">

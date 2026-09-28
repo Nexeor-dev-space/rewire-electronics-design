@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { getUpcomingDrops, type UpcomingDrop } from "@/lib/drops";
-import { SHOP_INDEX_HREF } from "@/lib/route-map";
+import { headingLines } from "@/lib/homepage-sections";
+import type { PublishedSection } from "@/types/homepage";
 import { resolveWaitlistPreselect } from "@/lib/waitlist";
 import { buttonVariants } from "@/components/ui/button";
 import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
@@ -48,7 +49,7 @@ const lineClip = {
  * pick, from a dropdown, the exact device they just clicked "Join
  * Waitlist" on.
  */
-export function UpcomingDrops() {
+export function UpcomingDrops({ section }: { section: PublishedSection }) {
   const drops = getUpcomingDrops();
   const [waitlistDrop, setWaitlistDrop] = useState<UpcomingDrop | null>(null);
   const preselect = waitlistDrop
@@ -92,10 +93,14 @@ export function UpcomingDrops() {
             variants={rise}
             className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted"
           >
-            Certified refurbished
-            <span aria-hidden className="mx-2.5 text-ink-faint">
-              ·
-            </span>
+            {section.eyebrow && (
+              <>
+                {section.eyebrow}
+                <span aria-hidden className="mx-2.5 text-ink-faint">
+                  ·
+                </span>
+              </>
+            )}
             {String(drops.length).padStart(2, "0")} devices
           </motion.p>
 
@@ -104,26 +109,23 @@ export function UpcomingDrops() {
               id="upcoming-drops-heading"
               className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.02] tracking-[-0.035em] text-ink lg:col-span-7"
             >
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  Refurbished.
-                </motion.span>
-              </span>
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  Ready to ship.
-                </motion.span>
-              </span>
+              {headingLines(section.title).map((line, index) => (
+                <span key={index} className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
+                  <motion.span variants={lineClip} className="block">
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
             </h2>
 
-            <motion.p
-              variants={rise}
-              className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:justify-self-end"
-            >
-              Premium devices, professionally restored to the Rewire
-              standard — 68-point inspection, certified battery health, and a
-              12-month warranty on every unit.
-            </motion.p>
+            {section.subtitle && (
+              <motion.p
+                variants={rise}
+                className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:justify-self-end"
+              >
+                {section.subtitle}
+              </motion.p>
+            )}
           </div>
         </motion.div>
 
@@ -161,36 +163,38 @@ export function UpcomingDrops() {
         </motion.ul>
 
         {/* ---------- Section footer ---------- */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={rise}
-          className="mt-20 flex justify-center lg:mt-24"
-        >
-          {/* Secondary to the cards' own actions, deliberately: buying one
-              of these is the section's job, and browsing the rest is the
-              fallback. Sized below the product CTAs so it cannot outweigh
-              them. */}
-          <Link
-            href={SHOP_INDEX_HREF}
-            className={buttonVariants({ variant: "outline", size: "md" })}
+        {section.ctaLabel && section.ctaHref && (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={rise}
+            className="mt-20 flex justify-center lg:mt-24"
           >
-            Browse the full catalogue
-            <svg
-              aria-hidden
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-3.5"
+            {/* Secondary to the cards' own actions, deliberately: buying one
+                of these is the section's job, and browsing the rest is the
+                fallback. Sized below the product CTAs so it cannot outweigh
+                them. */}
+            <Link
+              href={section.ctaHref}
+              className={buttonVariants({ variant: "outline", size: "md" })}
             >
-              <path d="M3 8h10M9 4l4 4-4 4" />
-            </svg>
-          </Link>
-        </motion.div>
+              {section.ctaLabel}
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
+          </motion.div>
+        )}
       </div>
 
       {/* Section-shared modal, per-card content: `preselect` is derived

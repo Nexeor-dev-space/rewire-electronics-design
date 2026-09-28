@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { ShopProductCard } from "@/components/shop/product-card";
 import { buttonVariants } from "@/components/ui/button";
+import { headingLines } from "@/lib/homepage-sections";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { ShopCard } from "@/types/catalogue";
+import type { PublishedSection } from "@/types/homepage";
 
 const rise = {
   hidden: { opacity: 0, y: 28 },
@@ -28,7 +29,17 @@ const lineClip = {
   visible: { y: "0%", transition: { duration: 1, ease: EASE_OUT_EXPO } },
 };
 
-export function Featured({ products }: { products: ShopCard[] }) {
+/**
+ * The everyday shelf. Copy comes from the homepage CMS; the products come
+ * from the catalogue (`listNewestShopProducts`), never from the CMS.
+ */
+export function Featured({
+  section,
+  products,
+}: {
+  section: PublishedSection;
+  products: ShopCard[];
+}) {
   return (
     <section
       aria-labelledby="featured-heading"
@@ -43,12 +54,14 @@ export function Featured({ products }: { products: ShopCard[] }) {
           viewport={viewportOnce}
           variants={staggerChildren(0.1)}
         >
-          <motion.p
-            variants={rise}
-            className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted"
-          >
-            In stock now
-          </motion.p>
+          {section.eyebrow && (
+            <motion.p
+              variants={rise}
+              className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted"
+            >
+              {section.eyebrow}
+            </motion.p>
+          )}
 
           {/* Top-aligned, not bottom-aligned: the heading is a single line
               and the description runs three, so `items-end` bottom-anchored
@@ -61,25 +74,27 @@ export function Featured({ products }: { products: ShopCard[] }) {
               id="featured-heading"
               className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.03] tracking-[-0.035em] text-ink lg:col-span-6"
             >
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  Just listed.
-                </motion.span>
-              </span>
+              {headingLines(section.title).map((line, index) => (
+                <span key={index} className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
+                  <motion.span variants={lineClip} className="block">
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
             </h2>
 
             {/* `lg:pt-3` optically nudges the paragraph down so its first
                 line sits on the heading's cap-height rather than floating
                 a hair above it — the heading's clamp-scaled size leaves a
                 small visual offset that a raw top-align makes obvious. */}
-            <motion.p
-              variants={rise}
-              className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:col-start-8 lg:justify-self-end lg:pt-3"
-            >
-              No countdown, no allocation. The newest listings, available to
-              buy today and covered by the same standard as everything we
-              release.
-            </motion.p>
+            {section.subtitle && (
+              <motion.p
+                variants={rise}
+                className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:col-start-8 lg:justify-self-end lg:pt-3"
+              >
+                {section.subtitle}
+              </motion.p>
+            )}
           </div>
         </motion.div>
 
@@ -110,32 +125,34 @@ export function Featured({ products }: { products: ShopCard[] }) {
           ))}
         </motion.ul>
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={rise}
-          className="mt-16 flex justify-center lg:mt-20"
-        >
-          <Link
-            href={SHOP_INDEX_HREF}
-            className={buttonVariants({ variant: "outline", size: "md" })}
+        {section.ctaLabel && section.ctaHref && (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={rise}
+            className="mt-16 flex justify-center lg:mt-20"
           >
-            Shop all devices
-            <svg
-              aria-hidden
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-3.5"
+            <Link
+              href={section.ctaHref}
+              className={buttonVariants({ variant: "outline", size: "md" })}
             >
-              <path d="M3 8h10M9 4l4 4-4 4" />
-            </svg>
-          </Link>
-        </motion.div>
+              {section.ctaLabel}
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
+          </motion.div>
+        )}
       </div>
     </section>
   );

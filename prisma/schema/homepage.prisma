@@ -1,0 +1,64 @@
+/// Which copy of the homepage a row belongs to. The console edits DRAFT;
+/// shoppers see LIVE. Publish replaces LIVE with a copy of DRAFT, discard the
+/// reverse — see docs/HOMEPAGE-CMS.md.
+enum HomepageStage {
+  DRAFT
+  LIVE
+}
+
+/// Which fields each type carries is decided by `SECTION_RULES` in
+/// `src/lib/homepage-sections.ts`, not here.
+enum HomepageSectionType {
+  HERO
+  UPCOMING_DROPS
+  BEST_SELLERS
+  CONDITIONS
+  TESTIMONIALS
+  FAQ
+  INVITATION
+  PROMO_BANNER
+  FEATURED_BRANDS
+  FEATURED_CATEGORIES
+}
+
+model HomepageSection {
+  id          String              @id @default(cuid())
+  stage       HomepageStage
+  type        HomepageSectionType
+  sortOrder   Int
+  visible     Boolean             @default(true)
+  seasonal    Boolean             @default(false)
+  eyebrow     String?
+  /// A new line starts a new line of the heading.
+  title       String?
+  subtitle    String?
+  description String?
+  ctaLabel    String?
+  ctaHref     String?
+
+  /// A real relation, not an id inside JSON: the orphan sweep deletes any
+  /// asset nothing references.
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  /// Brand or Category ids in display order. Ids that no longer exist are
+  /// skipped when the section renders.
+  refIds String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage, sortOrder])
+  @@map("homepage_sections")
+}
+
+/// A single row, id "homepage". Drives the console's "Unpublished changes".
+model HomepageState {
+  id             String    @id
+  draftUpdatedAt DateTime
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("homepage_state")
+}

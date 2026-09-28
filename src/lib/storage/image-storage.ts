@@ -9,8 +9,8 @@ import { prisma } from "@/lib/db";
  * interface — no route, service or component changes, and assets keep their
  * `id`, so URLs already in the wild stay valid.
  *
- * Today the driver is Postgres: right for a few dozen category and brand
- * images, wrong once products carry galleries.
+ * Today the driver is Postgres: right for a few dozen category, brand and
+ * homepage images, wrong once products carry galleries.
  */
 
 export interface StoredImage {
@@ -60,6 +60,7 @@ const prismaImageStorage: ImageStorage = {
         categories: { none: {} },
         brands: { none: {} },
         productImages: { none: {} },
+        homepageSections: { none: {} },
       },
     });
     return count;

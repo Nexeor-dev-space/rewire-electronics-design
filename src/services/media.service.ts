@@ -6,8 +6,8 @@ import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES, formatBytes, isImageMimeType } from 
 import { imageStorage, imageUrl } from "@/lib/storage/image-storage";
 
 /**
- * Uploading and serving images. Both the category and the brand modal upload
- * through here, which is why there is one endpoint rather than two.
+ * Uploading and serving images. The category, brand and homepage section
+ * modals all upload through here, which is why there is one endpoint rather than two.
  */
 
 const EXTENSIONS = IMAGE_MIME_TYPES.map((mime) => mime.replace("image/", "").toUpperCase()).join(
@@ -62,6 +62,12 @@ export async function releaseImage(tx: Prisma.TransactionClient, imageId: string
       categories: { none: {} },
       brands: { none: {} },
       productImages: { none: {} },
+      homepageSections: { none: {} },
     },
   });
+}
+
+/** Lets a service refuse a stale image id with a field error instead of a foreign-key 500. */
+export async function imageExists(tx: Prisma.TransactionClient, imageId: string) {
+  return (await tx.mediaAsset.count({ where: { id: imageId } })) > 0;
 }

@@ -37,6 +37,14 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/inventory`,
       detail: (variantId: string) => `${V1}/admin/inventory/${variantId}`,
     },
+    homepage: {
+      draft: `${V1}/admin/homepage`,
+      sections: `${V1}/admin/homepage/sections`,
+      section: (id: string) => `${V1}/admin/homepage/sections/${id}`,
+      order: `${V1}/admin/homepage/order`,
+      publish: `${V1}/admin/homepage/publish`,
+      discard: `${V1}/admin/homepage/discard`,
+    },
   },
   products: {
     list: `${V1}/products`,

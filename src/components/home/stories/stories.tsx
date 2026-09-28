@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { getReviewSummary, getTestimonials } from "@/lib/testimonials";
+import { headingLines } from "@/lib/homepage-sections";
+import type { PublishedSection } from "@/types/homepage";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -39,7 +41,7 @@ const lineClip = {
  * rating is dropped entirely when nothing in the data carries one, so this
  * is safe to ship before real reviews exist.
  */
-export function Stories() {
+export function Stories({ section }: { section: PublishedSection }) {
   const testimonials = getTestimonials();
   const { average, verifiedCount } = getReviewSummary();
 
@@ -66,11 +68,13 @@ export function Stories() {
               id="stories-heading"
               className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.03] tracking-[-0.035em] text-ink"
             >
-              <span className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
-                <motion.span variants={lineClip} className="block">
-                  The Rewire experience.
-                </motion.span>
-              </span>
+              {headingLines(section.title).map((line, index) => (
+                <span key={index} className="block overflow-hidden pb-[0.2em] -mb-[0.2em]">
+                  <motion.span variants={lineClip} className="block">
+                    {line}
+                  </motion.span>
+                </span>
+              ))}
             </h2>
 
             <motion.p
@@ -87,13 +91,14 @@ export function Stories() {
             </motion.p>
           </div>
 
-          <motion.p
-            variants={rise}
-            className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:col-start-8 lg:justify-self-end"
-          >
-            What people say after the box arrives — the part of a refurbished
-            purchase nobody can promise you in advance.
-          </motion.p>
+          {section.subtitle && (
+            <motion.p
+              variants={rise}
+              className="max-w-md text-base leading-relaxed text-ink-secondary lg:col-span-5 lg:col-start-8 lg:justify-self-end"
+            >
+              {section.subtitle}
+            </motion.p>
+          )}
         </motion.div>
 
         <motion.div
