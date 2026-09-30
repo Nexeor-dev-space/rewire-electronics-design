@@ -24,16 +24,22 @@ import {
  * re-run its enter animation when the same product is added twice in a
  * row (a bare object equality check would consider it "unchanged" and
  * not re-mount the confirmation).
+ *
+ * Every field comes straight off the `CartLine` the add-item mutation
+ * returned — no mock-catalogue slug lookup, so the modal always shows
+ * exactly what actually landed in the real cart.
  */
 
 export interface AddedFeedback {
   productSlug: string;
+  productName: string;
+  brand: string;
+  imageUrl: string | null;
+  imageAlt: string;
   variantLabel: string;
   quantity: number;
   /** Unit price paid, in minor units, at the moment of add. */
   unitPrice: number;
-  currency: string;
-  locale: string;
   /** Bumped on each notify so React re-runs the modal transition. */
   nonce: number;
 }

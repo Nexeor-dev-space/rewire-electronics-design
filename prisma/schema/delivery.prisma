@@ -1,0 +1,14 @@
+model DeliveryZone {
+  id              String   @id @default(cuid())
+  emirate         Emirate  @unique
+  standardFee     Int
+  expressFee      Int
+  standardMinDays Int
+  standardMaxDays Int
+  expressMinDays  Int
+  expressMaxDays  Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("delivery_zones")
+}

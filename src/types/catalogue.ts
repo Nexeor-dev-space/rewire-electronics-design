@@ -6,6 +6,7 @@ import type { shopQuerySchema } from "@/validators/catalogue.validator";
 
 export interface ShopCard {
   id: string;
+  variantId: string;
   slug: string;
   name: string;
   brand: string;

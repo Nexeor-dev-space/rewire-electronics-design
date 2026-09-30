@@ -186,7 +186,9 @@ export type ErrorCode =
   | "FORBIDDEN"         // 403
   | "NOT_FOUND"         // 404
   | "CONFLICT"          // 409
-  | "INTERNAL";         // 500
+  | "RATE_LIMITED"      // 429
+  | "INTERNAL"          // 500
+  | "NOT_CONFIGURED";   // 503
 
 export interface ApiErrorBody {
   code: ErrorCode | "NETWORK";
@@ -225,6 +227,21 @@ export function apiError(
 `NETWORK` is never sent by the server — the client uses it when the request
 itself fails.
 
+Two codes need more than a message:
+
+1. `RATE_LIMITED` (429) comes from `limitByIp` / `limitByUser` in
+   `src/lib/rate-limit.ts`, never built by hand. The response also carries a
+   `Retry-After` header in seconds. Rules live in `RATE_LIMITS` in
+   `src/lib/constants.ts`; see [AUTH.md](AUTH.md) §7.
+2. `NOT_CONFIGURED` (503) means a feature's third party credentials are not
+   set, for example email in LIVE mode with no SMTP. Services throw it as a
+   `ServiceError`; the shopper sees "Email isn't set up yet. Please try again
+   later." See [INTEGRATIONS.md](INTEGRATIONS.md) §6.
+
+A client that gets `UNAUTHENTICATED` is sent to sign-in automatically by the
+rule in `query-provider.tsx`, unless the query or mutation sets
+`meta: { authRedirect: false }` ([AUTH.md](AUTH.md) §9.4).
+
 Dates arrive on the client as ISO strings, so type them as `string` in
 `src/types/<module>.ts`.
 
@@ -245,18 +262,37 @@ set can grow without limit it needs its own paginated endpoint. Say in the
 module's doc what `total` counts, because "7" on a screen showing thirty rows
 is otherwise a bug report.
 
+### Bounded lists
+
+A list whose length is fixed by an enum, not by data, may be returned as a
+plain array without pagination. It is the one exception to "lists are
+paginated", and it needs all three of these:
+
+1. The row count cannot grow without a code change (an enum or a constant
+   bounds it).
+2. The bound is small (under ten).
+3. The module's doc names the exception.
+
+Today there is one: `GET /api/v1/admin/delivery-zones` returns
+`DeliveryZoneRow[]`, always seven entries, one per `Emirate`
+([CART.md](CART.md) §6). The cart's own lines are not a list endpoint: they
+travel inside the `Cart` object and are capped by `CART_MAX_LINES`. Add to
+this list rather than returning another unbounded array.
+
 ### Binary responses
 
 `GET /api/v1/media/[id]` returns raw image bytes with a `Content-Type` header
 instead of the envelope, because an image cannot be wrapped in JSON. It is the
-only endpoint that does, and it still fails through `apiErrorFrom`, so a
-missing id answers in the standard error shape. Add to this list rather than
-inventing a second convention.
+only binary endpoint, and it still fails through `apiErrorFrom`, so a missing
+id answers in the standard error shape. Add to this list rather than inventing
+another convention.
 
 The matching client exception is `src/lib/api/upload-client.ts`: uploads go
 through `XMLHttpRequest` rather than `apiRequest`, because `fetch` cannot
 report upload progress. It unwraps the same envelope and throws the same
 `ApiError`, so callers cannot tell the difference.
+
+No API route answers with a redirect.
 
 ---
 
@@ -406,6 +442,15 @@ Rules:
 - **Pass `signal`** in every `queryFn`.
 - **No `fetch` or `useEffect` data loading** in components — always a hook.
 
+**Exception: mutations that return the whole resource.** Every cart mutation
+answers with the full, freshly priced `Cart`. `src/hooks/use-cart.ts`
+therefore writes it straight into the cache with
+`queryClient.setQueryData(cartKeys.detail, cart)` and invalidates only the
+delivery quotes (`cartKeys.quotes`), which depend on it. Invalidating the cart
+too would repeat a request whose answer is already in hand. Use this pattern
+only when the response is the complete object the query holds; otherwise
+invalidate as above. See [CART.md](CART.md) §9.
+
 ---
 
 ## 7. Using the hook in UI
@@ -475,6 +520,9 @@ items. Every file below follows the steps above, in order.
 > `authorizeApi(permission)` from the same file, which returns the 401 / 403
 > for you. Services throw `ServiceError` for expected failures, and a route's
 > `catch` returns `apiErrorFrom(error, "<route>")` — both in `api-response.ts`.
+> `apiErrorFrom` also turns a Prisma unique violation into a 409 naming the
+> column, a missing record into a 404, and a connection shortage into a
+> readable 500, so the form shows a reason instead of the generic sentence.
 
 ### Step 1 — Model
 

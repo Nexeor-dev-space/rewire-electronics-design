@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 
 /** Shown instead of the console to a signed-in account without admin access. */
 export function AccessDenied({ email }: { email: string }) {
@@ -19,7 +20,7 @@ export function AccessDenied({ email }: { email: string }) {
           <Link href="/account" className={buttonVariants({ size: "sm" })}>
             Go to my account
           </Link>
-          <Link href="/sign-in" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          <Link href={SIGN_IN_PAGE_PATH} className={buttonVariants({ variant: "outline", size: "sm" })}>
             Use a different account
           </Link>
         </div>

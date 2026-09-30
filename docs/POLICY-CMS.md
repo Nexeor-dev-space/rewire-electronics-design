@@ -248,6 +248,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/rewire_locale
 No quotes, no space after `=`. `db-url.ts` deliberately has no imports and no
 `server-only`, because `prisma7.config.ts` loads it outside the Next runtime.
 
+The runtime client caps its pg pool at `DB_POOL_MAX` (`src/lib/constants.ts`).
+The server is small and several app containers can share one Postgres, so the
+default of ten connections per process is more than it can carry once a build
+or a burst of requests fans out.
+
 ### Setup
 
 ```

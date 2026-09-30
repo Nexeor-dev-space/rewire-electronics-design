@@ -1,18 +1,19 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { apiError } from "@/lib/api/api-response";
+import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { SessionUser } from "@/types/auth";
 import { hasPermission } from "./permissions";
+import { createSessionToken, readSessionToken } from "./session-token";
 
 /**
- * Sessions are a signed cookie — `<userId>.<expiresAt>.<signature>` — with
- * no session table. The cookie only proves who is asking: role and state are
- * read from the user row on every request, so a role change or a delete
- * applies immediately.
+ * Sessions are a signed cookie — `<userId>.<sessionVersion>.<expiresAt>.<signature>` —
+ * with no session table. The cookie only proves who is asking: role, state and
+ * session version are read from the user row on every request, so a role
+ * change, a delete or a password reset applies immediately.
  */
 
 export interface Session {
@@ -20,52 +21,47 @@ export interface Session {
 }
 
 const COOKIE = "rewire_session";
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
-
-function sign(payload: string): string {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("AUTH_SECRET must be set in .env to at least 32 characters.");
-  }
-  return createHmac("sha256", secret).update(payload).digest("base64url");
-}
-
-function readUserId(token: string): string | null {
-  const [userId, expiresAt, signature] = token.split(".");
-  if (!userId || !expiresAt || !signature) return null;
-
-  const expected = Buffer.from(sign(`${userId}.${expiresAt}`));
-  const actual = Buffer.from(signature);
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
-
-  return Number(expiresAt) * 1000 > Date.now() ? userId : null;
-}
 
 export const getSession = cache(async (): Promise<Session | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
-  const userId = token ? readUserId(token) : null;
-  if (!userId) return null;
+  const claim = token ? readSessionToken(token) : null;
+  if (!claim) return null;
 
   const user = await prisma.user.findFirst({
-    where: { id: userId, state: "ACTIVE" },
-    select: { id: true, fullName: true, email: true, role: true },
+    where: { id: claim.userId, state: "ACTIVE", sessionVersion: claim.sessionVersion },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      role: true,
+      emailVerifiedAt: true,
+      createdAt: true,
+    },
   });
-  return user ? { user } : null;
+  if (!user) return null;
+
+  const { emailVerifiedAt, ...rest } = user;
+  return { user: { ...rest, emailVerified: emailVerifiedAt !== null } };
 });
 
-export async function startSession(userId: string) {
-  const payload = `${userId}.${Math.floor(Date.now() / 1000) + MAX_AGE_SECONDS}`;
-  (await cookies()).set(COOKIE, `${payload}.${sign(payload)}`, {
+export async function startSession(userId: string, sessionVersion: number) {
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
+  (await cookies()).set(COOKIE, createSessionToken(userId, sessionVersion, expiresAt), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: MAX_AGE_SECONDS,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 }
 
 export async function endSession() {
   (await cookies()).delete(COOKIE);
+}
+
+export async function hasSessionCookie(): Promise<boolean> {
+  return (await cookies()).has(COOKIE);
 }
 
 /**

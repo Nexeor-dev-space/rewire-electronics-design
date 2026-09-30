@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo } from "react";
 import { useAccount } from "@/components/providers/account-provider";
+import { useGetMe } from "@/hooks/use-auth";
 import {
   formatOrderDate,
   getRecentOrderedProducts,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/account-data";
 import { getProductBySlug } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { AccountShell } from "./account-shell";
 import { OrderSummaryCard } from "./order-summary-card";
 
@@ -25,7 +27,8 @@ import { OrderSummaryCard } from "./order-summary-card";
  */
 
 export function AccountOverview() {
-  const { user, ready, wishlistSlugs } = useAccount();
+  const { wishlistSlugs } = useAccount();
+  const me = useGetMe();
 
   const recentOrders = useMemo(() => getRecentOrders(3), []);
   const recentProducts = useMemo(() => getRecentOrderedProducts(4), []);
@@ -37,11 +40,28 @@ export function AccountOverview() {
     [recentOrders],
   );
 
-  if (!ready) return <AccountShell title="Account" />;
+  if (me.isPending) return <AccountShell title="Account" />;
+
+  if (me.isError) {
+    return (
+      <AccountShell title="Account">
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-ink-secondary">{me.error.message}</p>
+          <Button variant="outline" size="sm" className="mt-5" onClick={() => me.refetch()}>
+            Try again
+          </Button>
+        </div>
+      </AccountShell>
+    );
+  }
+
+  // The account layout gates this route, so a signed-in visitor always
+  // has a session by the time this renders. `null` is defensive only.
+  const user = me.data;
 
   return (
     <AccountShell
-      title={`Welcome back, ${user?.name?.split(" ")[0] ?? "guest"}.`}
+      title={`Welcome back, ${user?.fullName?.split(" ")[0] ?? "guest"}.`}
       subtitle="Everything you own from Rewire lives here — orders, returns, saved addresses and settings, in one place."
     >
       <div className="grid gap-6">
@@ -117,9 +137,10 @@ export function AccountOverview() {
    ============================================================ */
 
 function ProfileSummary() {
-  const { user } = useAccount();
+  const me = useGetMe();
+  const user = me.data;
   if (!user) return null;
-  const initials = user.name
+  const initials = user.fullName
     .split(" ")
     .map((s) => s[0])
     .slice(0, 2)
@@ -141,11 +162,11 @@ function ProfileSummary() {
           </div>
           <div>
             <h2 id="account-profile-heading" className="text-[1.25rem] font-medium text-ink">
-              {user.name}
+              {user.fullName}
             </h2>
-            {user.memberSince && (
+            {user.createdAt && (
               <p className="mt-1 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-                Member since {formatOrderDate(user.memberSince)}
+                Member since {formatOrderDate(user.createdAt)}
               </p>
             )}
           </div>

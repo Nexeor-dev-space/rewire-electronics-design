@@ -194,12 +194,14 @@ to scroll. Reserving the gutter fixes all of them at once.
 
 Signed out the control is a `Sign in` pill; signed in it is an avatar
 chip plus the word `Account`, which is roughly 40px wider. The swap
-happens after mount, when the provider has read persisted state, so a
+happens after mount, when the session query (`useGetMe`) resolves, so a
 signed in reader watched the utility row grow on every page load, which
 pushed the centred search field left and re-flowed the bar.
 
 `SLOT_WIDTH` now reserves the wider of the two states from first paint.
-Both states render inside the same box.
+Both states render inside the same box. While the query is pending the
+signed out pill shows, so nothing shifts when the real state arrives.
+Where the state comes from is in §9.
 
 ### 4.4 Breakpoint reshuffle
 
@@ -346,8 +348,9 @@ can never trap a reader away from Home.
 
 ### Signed out
 
-The panel is the way in plus one link: a `Sign in` button and
-`Track Order`. Order tracking sits behind the account auth gate either
+The panel is the way in plus one link: a `Sign in` link (to
+`signInHref(pathname)`, so the shopper comes back to the same page) and
+`Track Order`. Order tracking sits behind the account gate (§9.3) either
 way, but naming it here is what stops a shopper hunting for it in a
 company menu where it never belonged.
 
@@ -358,7 +361,8 @@ account block expanded whenever the drawer opened. It is now a
 disclosure under the reader's own name, closed on every open, following
 the same rule as the profile icon. Signed out there is nothing to
 disclose, so the block is absent entirely; the drawer's fixed foot
-already carries `Sign in`.
+already carries `Sign in`. That foot is a link: to `/account` when
+signed in, to `signInHref(pathname)` when signed out.
 
 Desktop navigation is untouched by all of this. `AccountMenu` in the
 header keeps its existing click to open behaviour.
@@ -397,7 +401,102 @@ Those were dead before this change and remain so.
 
 ---
 
-## 9. Checklist for future changes
+## 9. Sign-in, the account gate and header state
+
+The storefront's session is real. The demo customer that
+`AccountProvider` used to fake (`DEMO_USER`, `signIn`, `signOut`,
+`useAccount().user`) is gone, and so is its mock cart; that provider now
+holds only the wishlist. The full auth rules are in [AUTH.md](AUTH.md); the
+cart's data sources are in §10.
+
+### 9.1 Auth pages
+
+`src/app/(auth)/` is a route group with its own layout: no header,
+footer or tab bar, the same reduced chrome as checkout, on storefront
+tokens. Five routes, none indexed:
+
+| Route | Purpose |
+|---|---|
+| `/sign-in?next=` | Email and password |
+| `/register?next=` | New customer account |
+| `/forgot-password` | Request a reset link |
+| `/reset-password?token=` | Set a new password from the link |
+| `/verify-email?token=` | Confirm the email from the link |
+
+The URL `/sign-in` is unchanged; only its file moved from
+`src/app/sign-in/` into the group. Staff sign in on the same page.
+
+### 9.2 Building a sign-in link
+
+Every sign-in link carries the page to come back to. Build it with
+`signInHref(pathname)` from `src/lib/auth/next-path.ts`, never by hand;
+it drops any `next` that is not a same-site path or that points at an
+auth page. The header, drawer and tab bar all do this.
+
+### 9.3 The account gate
+
+`src/app/(site)/account/layout.tsx` guards every `/account/*` page on
+the server. Signed out, it renders `SignInRedirect`, which sends the
+visitor to `/sign-in?next=<the page>` (deep links such as
+`/account/orders/123` survive). The page itself never renders, so no
+account content reaches a signed out visitor. Signed in with an
+unverified email, a `VerifyEmailBanner` with a resend button sits above
+the page.
+
+The account pages no longer wrap themselves in `AccountGated`, and
+`src/components/account/account-auth-gate.tsx` is deleted. A new page
+under `/account` is gated by the layout with no code of its own.
+
+### 9.4 Header, drawer and tab bar state
+
+`AccountMenu`, `MobileDrawer` and `MobileTabBar` read the signed in user
+from `useGetMe()` (`src/hooks/use-auth.ts`), which calls `GET
+/api/v1/auth/me` once per full page load and keeps the answer for 60
+seconds. It answers `null` when signed out, never 401, so the header
+never triggers the sign-in redirect.
+
+1. Signed out or pending: a `Sign in` link to `signInHref(pathname)`.
+2. Signed in: the customer's name and email in the menu, and Logout.
+3. Logout calls `useSignOut()`, which clears the client cache, then does
+   a full load of `/`, so Back cannot show the previous account's data.
+
+The `(site)` layout deliberately does not read the session on the
+server: that would add a database query to every storefront render,
+crawlers included.
+
+---
+
+## 10. Cart and checkout data sources
+
+The cart is a server cart, read and changed only through
+`src/hooks/use-cart.ts`. The full rules are in [CART.md](CART.md).
+
+| Surface | File | Source |
+|---|---|---|
+| Header cart count | `components/layout/cart-button.tsx` | `useGetCart().itemCount`; hidden while the query is pending, so no badge flash |
+| Cart page `/cart` | `components/cart/cart-view.tsx` | `useGetCart()`; lines, issues and totals as priced by the server |
+| Add to cart modal | `components/cart/add-to-cart-modal.tsx` | `useGetCart()` for the count and subtotal; the added line from the mutation response |
+| Product page buy panel | `components/product/detail/product-buy-panel.tsx` | `useGetCart()` for the selected variant's line; add, update and remove mutations; a skeleton fills the CTA slot while the cart query is pending so the button never flashes before the stepper |
+| Card Add to cart | `components/product/add-to-cart-button.tsx` | `useAddCartItem()` with `ShopCard.variantId`; becomes the same − N + stepper once that variant is in the cart, reading the shared `useGetCart()` cache (one request for every card on the page) |
+| Checkout `/checkout` | `components/checkout/checkout-view.tsx`, `order-summary.tsx` | `useGetCartQuote(emirate, method)`: lines, totals, coupon and delivery options in one response |
+
+Three rules for anything that shows cart data:
+
+1. **Never compute a total on the client.** Subtotal, discount, delivery, VAT
+   and total come from the response. VAT is shown as included ("Includes VAT
+   5%"), never added.
+2. **Delivery is only known at checkout.** The cart page shows "Calculated at
+   checkout"; the quote needs an emirate and a method.
+3. **Coupons need a session.** The checkout shows the code field only when
+   `cart.couponsAllowed` is true.
+
+`src/app/checkout/page.tsx` passes only the payment options to the view; the
+old `DELIVERY` and `VAT_RATE` constants are gone. Placing an order is still
+the Phase 4 mock and leaves the cart as it is.
+
+---
+
+## 11. Checklist for future changes
 
 1. Adding or reordering a product family? Do it in the admin Categories
    screen. No code change.
@@ -410,3 +509,7 @@ Those were dead before this change and remain so.
    house rule is that a nav item never 404s.
 5. Adding chrome that changes size after mount? Reserve its box, the way
    `SLOT_WIDTH` does in `account-menu.tsx`.
+6. Adding a sign-in link or an account page? Use `signInHref`, and put
+   the page under `/account` so the layout gates it (§9).
+7. Showing cart data somewhere new? Call `useGetCart` or
+   `useGetCartQuote` and render the server's figures (§10).

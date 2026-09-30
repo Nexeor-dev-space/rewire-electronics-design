@@ -293,13 +293,17 @@ identity, separated from the links by the bar's single hairline.
 - **Identity** (`account-menu.tsx`) is one control in two states. Signed out it is a quiet "Sign in"; signed in it becomes a disclosure with the customer's initials, opening My Orders · My Waitlists · Support Tickets · Returns · Profile, with **Logout below its own rule**. It opens on click only, never hover — a destination menu, not a browsing aid.
 - Below `lg` the bar is **Logo · Search · Cart · Hamburger**, and the drawer carries everything else: the full primary tree as accordions, then the same account block or the Sign in control.
 
-**Session and cart state** come from `AccountProvider`
-(`providers/account-provider.tsx`) via `useAccount()`. It is a front-end
-stand-in — `signIn()` sets a demo customer and localStorage persists it so both
-navigation states are reviewable. Replace `signIn`/`signOut`/`cartCount` with
-the real auth and cart adapters; no component changes. Server and first client
-render are always signed-out with an empty cart, and `ready` gates the badge,
-so there is no hydration mismatch and no badge flash on load.
+**Session state** is real: the identity control, drawer and tab bar read the
+signed-in user from `useGetMe()` (`hooks/use-auth.ts`) and render the
+signed-out control until it resolves, inside a reserved box so nothing shifts
+(see [STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md) §9 and
+[AUTH.md](AUTH.md)). **Cart state** is real: the cart count comes from
+`useGetCart()` (`hooks/use-cart.ts`) and stays hidden while the query is
+pending, so there is no badge flash on load (see [CART.md](CART.md) §9).
+**Wishlist state** still comes from `AccountProvider`
+(`providers/account-provider.tsx`) via `useAccount()`, a localStorage
+stand-in; server and first client render have an empty wishlist and `ready`
+gates its badge, so there is no hydration mismatch.
 
 ## 12. Extending the system
 

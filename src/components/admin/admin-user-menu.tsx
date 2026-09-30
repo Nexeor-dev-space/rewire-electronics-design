@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignOut } from "@/hooks/use-auth";
+import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
@@ -54,7 +55,7 @@ export function AdminUserMenu({ viewer }: { viewer: SessionUser }) {
   function handleSignOut() {
     signOut.mutate(undefined, {
       onSuccess: () => {
-        router.replace("/sign-in");
+        router.replace(SIGN_IN_PAGE_PATH);
         router.refresh();
       },
     });

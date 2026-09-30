@@ -139,7 +139,12 @@ export function ShopProductCard({
 
         <div className="relative z-20 mt-4">
           <AddToCartButton
-            product={{ slug: product.slug, name: product.name, soldOut }}
+            product={{
+              variantId: product.variantId,
+              slug: product.slug,
+              name: product.name,
+              soldOut,
+            }}
             className="w-full"
           />
         </div>

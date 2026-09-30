@@ -7,7 +7,6 @@ import { productHrefForDrop } from "@/lib/route-map";
 import { cn, formatPrice, savingsPercent } from "@/lib/utils";
 import { Countdown } from "@/components/ui/countdown";
 import { WishlistButton } from "@/components/product/wishlist-button";
-import { AddToCartButton } from "@/components/product/add-to-cart-button";
 
 interface DropCardProps {
   drop: UpcomingDrop;
@@ -172,17 +171,37 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
           )}
         </p>
 
-        {/* Primary action — Add to cart when the drop is buyable, a
-            waitlist button otherwise. Both share the AddToCartButton's
-            visual shape so a grid of mixed-state cards has a single
-            action bar rhythm. `z-20` keeps the button above the
-            stretched plate link. */}
+        {/* Primary action — a link to the product page when the drop is
+            buyable (this card has no real variant to add, so it hands
+            the shopper to the PDP's own Add to Cart), a waitlist button
+            otherwise. Both share one visual shape so a grid of
+            mixed-state cards has a single action bar rhythm. `z-20`
+            keeps the control above the stretched plate link. */}
         <div className="relative z-20 mt-4">
           {isBuyable ? (
-            <AddToCartButton
-              product={{ slug: drop.slug, name: drop.name, soldOut: false }}
-              className="w-full"
-            />
+            <Link
+              href={productHrefForDrop(drop.slug)}
+              className={cn(
+                "inline-flex h-11 w-full items-center justify-center gap-2 rounded-full",
+                "bg-accent text-[0.8125rem] font-medium tracking-tight text-white",
+                "transition-[background-color,transform] duration-(--duration-fast)",
+                "hover:bg-accent-hover active:scale-[0.98]",
+              )}
+            >
+              View &amp; Buy
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
           ) : (
             <button
               type="button"

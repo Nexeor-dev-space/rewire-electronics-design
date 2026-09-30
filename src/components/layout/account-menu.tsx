@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { accountNav } from "@/lib/site";
-import { useAccount } from "@/components/providers/account-provider";
+import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { signInHref } from "@/lib/auth/next-path";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
@@ -36,7 +37,8 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
  */
 const SLOT_WIDTH = "w-[7.5rem]";
 export function AccountMenu() {
-  const { user, ready, signIn, signOut } = useAccount();
+  const me = useGetMe();
+  const signOut = useSignOut();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -60,16 +62,14 @@ export function AccountMenu() {
     };
   }, [open]);
 
-  // Until persisted state is read, render the signed-out control. It is the
-  // same size as the signed-in one, so nothing shifts when the swap happens.
-  if (!ready || !user) {
+  // Until the session query resolves, render the signed-out control. It is
+  // the same size as the signed-in one, so nothing shifts when the swap
+  // happens.
+  if (me.isPending || !me.data) {
     return (
       <div className={cn("hidden lg:block", SLOT_WIDTH)}>
-        <button
-          type="button"
-          // ⚠ Stand-in for the real flow: point this at the auth route (or the
-          // provider's sign-in call) once authentication exists.
-          onClick={signIn}
+        <Link
+          href={signInHref(pathname)}
           className={cn(
             "flex h-10 w-full items-center justify-center rounded-full px-4",
             "text-[0.8125rem] font-medium tracking-tight text-ink-secondary",
@@ -78,12 +78,13 @@ export function AccountMenu() {
           )}
         >
           Sign in
-        </button>
+        </Link>
       </div>
     );
   }
 
-  const initials = user.name
+  const user = me.data;
+  const initials = user.fullName
     .split(" ")
     .map((part) => part[0])
     .slice(0, 2)
@@ -131,7 +132,7 @@ export function AccountMenu() {
           >
             <div className="border-b border-line px-4 py-3.5">
               <p className="truncate text-[0.8125rem] font-medium text-ink">
-                {user.name}
+                {user.fullName}
               </p>
               <p className="mt-0.5 truncate text-xs text-ink-muted">
                 {user.email}
@@ -161,14 +162,15 @@ export function AccountMenu() {
               <button
                 type="button"
                 role="menuitem"
+                disabled={signOut.isPending}
                 onClick={() => {
                   setOpen(false);
-                  signOut();
+                  signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") });
                 }}
                 className={cn(
                   "block w-full px-4 py-2 text-left text-[0.8125rem] text-ink-secondary",
                   "transition-colors duration-(--duration-fast)",
-                  "hover:bg-ink/5 hover:text-ink",
+                  "hover:bg-ink/5 hover:text-ink disabled:opacity-60",
                 )}
               >
                 Logout

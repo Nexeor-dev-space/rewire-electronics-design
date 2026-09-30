@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAccount } from "@/components/providers/account-provider";
+import { usePathname } from "next/navigation";
+import { useSignOut } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,8 +37,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AccountSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { signOut } = useAccount();
+  const signOut = useSignOut();
 
   return (
     <nav
@@ -78,11 +77,9 @@ export function AccountSidebar() {
         <li className="mt-2 border-t border-line pt-2">
           <button
             type="button"
-            onClick={() => {
-              signOut();
-              router.push("/");
-            }}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.03] hover:text-ink"
+            disabled={signOut.isPending}
+            onClick={() => signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") })}
+            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.03] hover:text-ink disabled:opacity-60"
           >
             <LogoutIcon className="size-4 shrink-0 text-ink-muted" />
             Logout

@@ -133,7 +133,9 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    grade.
 3. **Variants keep their id on save.** Variants sent with an `id` are updated,
    variants without one are created, and variants left out are deleted. This
-   keeps a variant's identity stable for the cart and orders later.
+   keeps a variant's identity stable for the cart and orders later. A deleted
+   variant disappears from every cart that held it, without a notice; archive
+   the product instead and carts flag the line as unavailable.
 4. **Images and specs are replaced on save.** An image dropped from a product
    releases its `MediaAsset` once nothing else uses it.
 5. **Publishing needs at least one image** (409 otherwise).
@@ -143,6 +145,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    instead to keep the record.
 8. Categories and brands with products can't be deleted; the message names the
    count.
+9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
+   closing the modal drops the cached product and the next open fetches it
+   again. Without this, stock changed from Inventory was shown stale and the
+   next save wrote the old stock back.
 
 ### Add-on rules
 
@@ -151,6 +157,23 @@ lists, and at least one of the two is required. A product shows add-ons
 attached to its own category or to that category's parent. Inactive add-ons are
 never shown. The product page shows at most `MAX_PRODUCT_ADD_ONS` (4),
 protection first, then popular, then cheapest.
+
+### Shared with the cart
+
+The cart must apply exactly the storefront's visibility and add-on rules, so
+`src/services/catalogue.service.ts` exports them rather than letting
+`cart.service.ts` copy them:
+
+1. `VISIBLE_CATEGORY` and `PUBLISHED`: the Prisma filters for a visible
+   category and a published product in one.
+2. `offeredAddOnWhere(categoryIds)` and `OFFERED_ADD_ON_ORDER`: the add-on
+   filter and order above.
+3. `shopAddOnSelect` and `toShopAddOn`: the add-on select and its mapping to
+   `ShopAddOn`.
+
+Changing any of these changes the cart too: which lines are flagged
+unavailable, and which add-ons a cart row offers and accepts. See
+[CART.md](CART.md) §7.
 
 ---
 
@@ -210,9 +233,11 @@ products, not variants.
 
 A `ShopCard` shows one variant: the cheapest one that matches the condition,
 grade and storage filters, or the cheapest overall when none are set. The card
-carries that variant's condition, grade, storage, colour, price and compare at
-price, plus total stock across variants, the first image and `optionCount`
-(the number of variants). Types are in `src/types/catalogue.ts`.
+carries that variant's id (`variantId`), condition, grade, storage, colour,
+price and compare at price, plus total stock across variants, the first image
+and `optionCount` (the number of variants). The card's Add to cart adds
+`variantId`, the variant it displays, with no add-ons. Types are in
+`src/types/catalogue.ts`.
 
 ### `GET /api/v1/products/[slug]`
 
@@ -242,7 +267,11 @@ page and the API cannot disagree.
 | `/product/[slug]` | `findShopProductPage` |
 
 All of these render per request (`force-dynamic`), because they read the
-database.
+database. The `(site)` layout is `force-dynamic` too, since it loads the
+storefront categories for every page in the group. Without it, `next build`
+prerenders the static pages under `(site)` across several worker processes,
+each opening its own connection pool, and a small Postgres answers `P2037:
+too many clients already`.
 
 **The shop pages** (`collection`, `collection/[category]`, `search`) parse the
 URL with `shopFiltersFromParams` in `src/lib/catalogue.ts`, load the first page
@@ -359,10 +388,12 @@ All in `src/lib/constants.ts`.
 
 ## 9. Known limits
 
-1. **The cart still uses the mock catalogue.** Add to cart on the product page
-   and on cards writes a slug into the local mock cart (`AccountProvider`),
-   which looks it up in `src/lib/catalog.ts`. Phase 4 replaces this with the
-   server cart.
+1. **Resolved in Phase 4: the cart is on the server.** Add to cart on the
+   product page and on cards now calls the cart API with a real variant id
+   ([CART.md](CART.md)). What still reads the mock catalogue
+   (`src/lib/catalog.ts`) is the add to cart modal's cross sell rail, the home
+   setup kit and the drop cards; all three link to product pages instead of
+   adding.
 2. **Filters are not written to the URL.** A shared or reloaded shop URL keeps
    the filters it arrived with, but ticks made on the page are lost on reload
    or Back.

@@ -9,18 +9,17 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { useAccount } from "@/components/providers/account-provider";
-import {
-  discountAmount,
-  findPromo,
-  nextOrderNumber,
-  persistOrder,
-  resolveCheckoutLines,
-  totalsFor,
-  type PlacedOrder,
-  type PromoCode,
-} from "@/lib/checkout";
-import { cn, formatPrice } from "@/lib/utils";
+import { useApplyCoupon, useGetCartQuote, useRemoveCoupon } from "@/hooks/use-cart";
+import { useGetMe } from "@/hooks/use-auth";
+import { apiFieldErrors } from "@/lib/api/api-client";
+import { signInHref } from "@/lib/auth/next-path";
+import { DELIVERY_METHOD_LABELS, DELIVERY_METHODS, formatEta, type DeliveryMethod } from "@/lib/delivery";
+import { EMIRATES, type Emirate } from "@/lib/emirates";
+import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
+import { CONDITION_META, GRADE_META } from "@/lib/shop";
+import { nextOrderNumber, persistOrder, type PlacedOrder } from "@/lib/checkout";
+import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { CheckoutProgress, type ProgressStep } from "./checkout-progress";
 import { CheckoutSection } from "./checkout-section";
 import { Field } from "./field";
@@ -30,11 +29,17 @@ import { OrderSummary } from "./order-summary";
 /**
  * CheckoutView — the whole flow on one page, real-cart-aware.
  *
- * Reads bag straight off the AccountProvider so the numbers agree with
- * whatever the shopper actually added; if the bag is empty, the page
- * shows an empty state rather than a phantom form. State (delivery,
- * payment, promo, form values) lives at the top of the tree so the
- * summary and the sticky mobile CTA both react in the same paint.
+ * Lines, totals, the coupon field and the delivery quote all come from
+ * `cart.quote` — re-priced by the server for the chosen emirate and
+ * method, so the numbers on this page can never drift from the cart's.
+ * If the cart is empty, the page shows an empty state rather than a
+ * phantom form. State (delivery, payment, form values) lives at the top
+ * of the tree so the summary and the sticky mobile CTA both react in
+ * the same paint.
+ *
+ * Order submission is still the Phase 4 mock — a timed redirect to a
+ * localStorage-backed success page. Real order creation, stock
+ * reservation and the cart-emptying transaction land in Phase 5.
  *
  * The progress indicator is passive — it observes which section is on
  * screen rather than gating the flow. The page is still one long form
@@ -43,20 +48,8 @@ import { OrderSummary } from "./order-summary";
  */
 
 interface Props {
-  delivery: (OptionListItem & { price: number; estimate: string })[];
   payment: OptionListItem[];
-  vatRate: number;
 }
-
-const EMIRATES = [
-  "Abu Dhabi",
-  "Ajman",
-  "Dubai",
-  "Fujairah",
-  "Ras Al Khaimah",
-  "Sharjah",
-  "Umm Al Quwain",
-];
 
 const PROGRESS: ProgressStep[] = [
   { id: "contact", label: "Information" },
@@ -65,14 +58,16 @@ const PROGRESS: ProgressStep[] = [
   { id: "review", label: "Review" },
 ];
 
-export function CheckoutView({ delivery, payment, vatRate }: Props) {
-  const { items, ready, user, clearCart } = useAccount();
-  const lines = useMemo(() => resolveCheckoutLines(items), [items]);
-  const totals = useMemo(() => totalsFor(lines), [lines]);
+export function CheckoutView({ payment }: Props) {
+  const { data: me } = useGetMe();
 
-  const [deliveryId, setDeliveryId] = useState(delivery[0]?.value ?? "");
+  const [emirate, setEmirate] = useState<Emirate>("DUBAI");
+  const [method, setMethod] = useState<DeliveryMethod>("STANDARD");
+  const quote = useGetCartQuote(emirate, method);
+  const applyCoupon = useApplyCoupon();
+  const removeCoupon = useRemoveCoupon();
+
   const [paymentId, setPaymentId] = useState(payment[0]?.value ?? "");
-  const [promo, setPromo] = useState<PromoCode | undefined>(undefined);
   const [placing, setPlacing] = useState(false);
   const [activeStep, setActiveStep] = useState<string>(PROGRESS[0].id);
   const [billingSame, setBillingSame] = useState(true);
@@ -82,19 +77,29 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const activeDelivery = useMemo(
-    () => delivery.find((option) => option.value === deliveryId),
-    [delivery, deliveryId],
-  );
+  const cart = quote.data?.cart;
+  const lines = cart?.items ?? [];
+
+  const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map((option) => ({
+    value: option.method,
+    label: DELIVERY_METHOD_LABELS[option.method],
+    supporting: formatEta(option.etaMinDays, option.etaMaxDays),
+    trailing: option.fee === 0 ? "Free" : formatMoney(option.fee),
+  }));
+
+  const activeDeliveryOption = quote.data?.options.find((option) => option.method === method);
+  const deliveryLabel = activeDeliveryOption
+    ? `${DELIVERY_METHOD_LABELS[method]} · ${formatEta(activeDeliveryOption.etaMinDays, activeDeliveryOption.etaMaxDays)}`
+    : DELIVERY_METHOD_LABELS[method];
+
   const activePayment = useMemo(
     () => payment.find((option) => option.value === paymentId),
     [payment, paymentId],
   );
 
-  const discount = discountAmount(totals.subtotal, promo);
-  const discounted = Math.max(0, totals.subtotal - discount);
-  const vat = Math.round(discounted * vatRate);
-  const total = Math.max(0, discounted + (activeDelivery?.price ?? 0) + vat);
+  const couponFieldError = applyCoupon.isError
+    ? apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message
+    : null;
 
   /* ---------- Progress observer — section in view drives the pill. */
   useEffect(() => {
@@ -114,25 +119,16 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
     );
     targets.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [ready, lines.length]);
-
-  const handleApplyPromo = (code: string): string | null => {
-    const found = findPromo(code);
-    if (!found) return "That code isn't valid.";
-    setPromo(found);
-    return null;
-  };
-
-  const handleRemovePromo = () => setPromo(undefined);
+  }, [lines.length]);
 
   const savedAddresses = useMemo(
     () =>
-      user
+      me
         ? [
             {
               id: "home",
               label: "Home",
-              name: user.name,
+              name: me.fullName,
               line1: "18 Al Wasl Villas, Villa 12",
               city: "Dubai",
               emirate: "Dubai",
@@ -140,7 +136,7 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
             },
           ]
         : [],
-    [user],
+    [me],
   );
 
   useEffect(() => {
@@ -151,14 +147,13 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
 
   const handlePlaceOrder = async (event?: FormEvent) => {
     event?.preventDefault();
-    if (placing || !lines.length) return;
+    if (placing || !cart || lines.length === 0 || !cart.canCheckout) return;
 
     const form = formRef.current;
     if (form && !form.reportValidity()) return;
 
     setPlacing(true);
     const data = form ? new FormData(form) : null;
-    const emirate = data?.get("emirate")?.toString() || "Dubai";
     const savedAddr = savedAddresses.find((a) => a.id === selectedAddressId);
     const address = savedAddr
       ? {
@@ -180,7 +175,7 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
           line1: data?.get("address-1")?.toString() || "",
           line2: data?.get("address-2")?.toString() || undefined,
           city: data?.get("city")?.toString() || "",
-          emirate,
+          emirate: EMIRATES.find((e) => e.value === emirate)?.label ?? "Dubai",
           country: "United Arab Emirates",
           postalCode: data?.get("postal")?.toString() || undefined,
           phone: data?.get("phone")?.toString() || "",
@@ -191,45 +186,76 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
       number: nextOrderNumber(),
       placedAt: new Date().toISOString(),
       lines: lines.map((line) => ({
-        slug: line.product.slug,
-        name: line.product.name,
-        variantLabel: line.variantLabel,
-        condition: line.condition,
-        grade: line.grade,
+        slug: line.productSlug,
+        name: line.productName,
+        variantLabel: [line.storage, line.colour].filter(Boolean).join(" · "),
+        condition: CONDITION_META[line.condition].label,
+        grade: line.grade ? GRADE_META[line.grade].label : undefined,
         quantity: line.quantity,
         unitPrice: line.unitPrice,
-        imageUrl: line.product.images[0]?.url,
-        imageAlt: line.product.images[0]?.alt,
-        imageFit: line.product.images[0]?.fit,
+        imageUrl: line.imageUrl ?? undefined,
+        imageAlt: line.imageAlt,
+        imageFit: "contain",
       })),
       contact: {
         email: data?.get("email")?.toString() || "",
         phone: data?.get("phone")?.toString() || address.phone,
       },
       address,
-      deliveryLabel: activeDelivery?.label ?? "",
-      deliveryEstimate: activeDelivery?.estimate ?? "",
-      deliveryPrice: activeDelivery?.price ?? 0,
+      deliveryLabel,
+      deliveryEstimate: activeDeliveryOption
+        ? formatEta(activeDeliveryOption.etaMinDays, activeDeliveryOption.etaMaxDays)
+        : "",
+      deliveryPrice: cart.totals.delivery ?? 0,
       paymentLabel: activePayment?.label ?? "",
-      promoCode: promo?.code,
-      discount,
-      subtotal: totals.subtotal,
-      total,
-      currency: totals.currency,
-      locale: totals.locale,
+      promoCode: cart.coupon?.valid ? cart.coupon.code : undefined,
+      discount: cart.totals.discount,
+      subtotal: cart.totals.subtotal,
+      total: cart.totals.total,
+      currency: CURRENCY,
+      locale: LOCALE,
     };
 
     // Simulate the processor round-trip; UX guidance is 700–900ms so the
-    // spinner feels honest rather than instant-and-fake.
+    // spinner feels honest rather than instant-and-fake. Real order
+    // creation — and the transaction that empties the cart — is built
+    // in Phase 5; today's mock flow leaves the cart as it is.
     window.setTimeout(() => {
       persistOrder(order);
-      clearCart();
       router.push(`/checkout/success?order=${encodeURIComponent(order.number)}`);
     }, 850);
   };
 
+  /* ---------- Loading ---------- */
+  if (quote.isPending) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-(--spacing-gutter) py-16 text-center">
+        <Spinner className="size-6 text-ink-secondary" />
+        <p className="text-sm text-ink-secondary">Loading your cart…</p>
+      </div>
+    );
+  }
+
+  /* ---------- Error ---------- */
+  if (quote.isError) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-(--spacing-gutter) py-16 text-center">
+        <p role="alert" className="text-sm text-ink-secondary">
+          {quote.error.message}
+        </p>
+        <button
+          type="button"
+          onClick={() => quote.refetch()}
+          className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
   /* ---------- Empty bag ---------- */
-  if (ready && lines.length === 0) {
+  if (lines.length === 0) {
     return <EmptyBag />;
   }
 
@@ -261,17 +287,11 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
 
           {/* ---------- Mobile: compact order summary ---------- */}
           <OrderSummary
-            lines={lines}
-            totals={totals}
-            deliveryLabel={activeDelivery?.label ?? "—"}
-            deliveryPrice={activeDelivery?.price ?? 0}
-            vatRate={vatRate}
-            discount={discount}
-            promo={promo}
-            onApplyPromo={handleApplyPromo}
-            onRemovePromo={handleRemovePromo}
+            cart={cart!}
+            deliveryLabel={deliveryLabel}
             className="lg:hidden"
             compact
+            quotePending={quote.isFetching}
           />
 
           {/* ---------- 01. Contact ---------- */}
@@ -281,9 +301,9 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
             title="Contact information"
             description="We will send the order confirmation and tracking here."
             aside={
-              !user && (
+              !me && (
                 <a
-                  href="#"
+                  href={signInHref("/checkout")}
                   className="font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
                 >
                   Sign in
@@ -299,7 +319,7 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
                 autoComplete="email"
                 required
                 placeholder="you@example.com"
-                defaultValue={user?.email}
+                defaultValue={me?.email}
               />
               <Field
                 id="phone"
@@ -457,7 +477,8 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
                       id="emirate"
                       name="emirate"
                       required
-                      defaultValue="Dubai"
+                      value={emirate}
+                      onChange={(event) => setEmirate(event.target.value as Emirate)}
                       autoComplete="address-level1"
                       className={cn(
                         "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
@@ -465,8 +486,10 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
                         "hover:border-line-strong focus:border-accent focus:outline-none",
                       )}
                     >
-                      {EMIRATES.map((emirate) => (
-                        <option key={emirate}>{emirate}</option>
+                      {EMIRATES.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
                       ))}
                     </select>
                     <svg
@@ -510,9 +533,16 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
           >
             <OptionList
               name="delivery-method"
-              value={deliveryId}
-              onChange={setDeliveryId}
-              options={delivery}
+              value={method}
+              onChange={(value) => setMethod(value as DeliveryMethod)}
+              options={
+                deliveryOptions.length > 0
+                  ? deliveryOptions
+                  : DELIVERY_METHODS.map((value) => ({
+                      value,
+                      label: DELIVERY_METHOD_LABELS[value],
+                    }))
+              }
             />
             <p className="mt-4 text-[0.75rem] leading-relaxed text-ink-muted">
               Your order is carefully packed and fully tracked. You will get a
@@ -599,17 +629,14 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
                 </div>
               </div>
               <div className="mt-6 grid gap-3 border-t border-line pt-5 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
-                <ReviewRow
-                  label="Delivery"
-                  value={`${activeDelivery?.label ?? "—"} · ${activeDelivery?.estimate ?? ""}`}
-                />
+                <ReviewRow label="Delivery" value={deliveryLabel} />
                 <ReviewRow
                   label="Payment"
                   value={activePayment?.label ?? "—"}
                 />
                 <ReviewRow
                   label="Order total"
-                  value={formatPrice(total, totals.currency, totals.locale)}
+                  value={formatMoney(cart!.totals.total)}
                   strong
                 />
               </div>
@@ -621,17 +648,15 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
         <div className="hidden lg:block">
           <div className="sticky top-24">
             <OrderSummary
-              lines={lines}
-              totals={totals}
-              deliveryLabel={activeDelivery?.label ?? "—"}
-              deliveryPrice={activeDelivery?.price ?? 0}
-              vatRate={vatRate}
-              discount={discount}
-              promo={promo}
-              onApplyPromo={handleApplyPromo}
-              onRemovePromo={handleRemovePromo}
+              cart={cart!}
+              deliveryLabel={deliveryLabel}
+              onApplyCoupon={(code) => applyCoupon.mutate({ code })}
+              onRemoveCoupon={() => removeCoupon.mutate()}
+              couponPending={applyCoupon.isPending || removeCoupon.isPending}
+              couponFieldError={couponFieldError}
               onPlaceOrder={handlePlaceOrder}
               placing={placing}
+              quotePending={quote.isFetching}
             />
           </div>
         </div>
@@ -640,9 +665,8 @@ export function CheckoutView({ delivery, payment, vatRate }: Props) {
       {/* ---------- Sticky mobile CTA ---------- */}
       <StickyMobileCta
         placing={placing}
-        total={total}
-        currency={totals.currency}
-        locale={totals.locale}
+        total={cart!.totals.total}
+        canCheckout={cart!.canCheckout}
         onPlaceOrder={handlePlaceOrder}
       />
     </form>
@@ -784,14 +808,12 @@ function ReviewRow({
 function StickyMobileCta({
   placing,
   total,
-  currency,
-  locale,
+  canCheckout,
   onPlaceOrder,
 }: {
   placing: boolean;
   total: number;
-  currency: string;
-  locale: string;
+  canCheckout: boolean;
   onPlaceOrder: () => void;
 }) {
   return (
@@ -799,7 +821,7 @@ function StickyMobileCta({
       <button
         type="button"
         onClick={onPlaceOrder}
-        disabled={placing}
+        disabled={placing || !canCheckout}
         aria-busy={placing || undefined}
         className={cn(
           "flex h-13 w-full items-center justify-between gap-3 rounded-full px-5",
@@ -812,7 +834,7 @@ function StickyMobileCta({
         )}
       >
         <span>{placing ? "Processing…" : "Place Order"}</span>
-        <span className="tabular-nums">{formatPrice(total, currency, locale)}</span>
+        <span className="tabular-nums">{formatMoney(total)}</span>
       </button>
     </div>
   );

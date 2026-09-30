@@ -5,11 +5,13 @@ import type { ProductOption } from "@/types";
 import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
-import { useAccount } from "@/components/providers/account-provider";
+import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
+import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
-import { defaultSelection } from "@/lib/add-ons";
+import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
 import { ProductAddOns } from "./product-add-ons";
@@ -98,22 +100,43 @@ export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: P
     if (next) onVariantChange(next.id);
   }
 
-  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
-    defaultSelection,
-  );
+  const cart = useGetCart();
+  const addCartItem = useAddCartItem();
+  const updateCartItem = useUpdateCartItem();
+  const removeCartItem = useRemoveCartItem();
+  const { notifyAdded } = useCartFeedback();
+  const cartLoading = cart.isPending;
+
+  // The line for THIS variant, if any — drives the stepper and the
+  // add-on checkboxes. Add-ons ticked before the line exists live in
+  // local state; once it exists the line's own set is the source of
+  // truth and a toggle mutates it directly.
+  const [pendingAddOns, setPendingAddOns] = useState<string[]>([]);
+  const line = cart.data?.items.find((item) => item.variantId === variant.id);
+  const offeredAddOnIds = line
+    ? new Set(line.offeredAddOns.map((addOn) => addOn.id))
+    : null;
+  const selectedAddOns = line
+    ? line.addOns.map((addOn) => addOn.id).filter((id) => offeredAddOnIds!.has(id))
+    : pendingAddOns;
+
   function toggleAddOn(id: string) {
-    setSelectedAddOns((current) =>
-      current.includes(id)
+    if (line) {
+      const current = line.addOns
+        .map((addOn) => addOn.id)
+        .filter((entry) => offeredAddOnIds!.has(entry) || entry === id);
+      const next = current.includes(id)
         ? current.filter((entry) => entry !== id)
-        : [...current, id],
-    );
+        : [...current, id];
+      updateCartItem.mutate({ id: line.id, addOnIds: next });
+    } else {
+      const next = pendingAddOns.includes(id)
+        ? pendingAddOns.filter((entry) => entry !== id)
+        : [...pendingAddOns, id];
+      setPendingAddOns(next);
+    }
   }
 
-  const { items, addItem, updateQuantity, removeItem } = useAccount();
-  const { notifyAdded } = useCartFeedback();
-
-  // The line for THIS product, if any — drives the stepper state.
-  const line = items.find((l) => l.productSlug === product.slug);
   const inCartQty = line?.quantity ?? 0;
 
   const price = variant.price;
@@ -137,36 +160,52 @@ export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: P
     .join(" · ");
 
   function handleAddToCart() {
-    if (!purchasable) return;
-    addItem(product.slug, 1);
-    notifyAdded({
-      productSlug: product.slug,
-      variantLabel: currentVariantLabel,
-      quantity: 1,
-      unitPrice: price,
-      currency: CURRENCY,
-      locale: LOCALE,
-    });
+    if (!purchasable || addCartItem.isPending) return;
+    addCartItem.mutate(
+      { variantId: variant.id, quantity: 1, addOnIds: pendingAddOns },
+      {
+        onSuccess: (nextCart) => {
+          const added = nextCart.items.find((item) => item.variantId === variant.id);
+          if (!added) return;
+          setPendingAddOns([]);
+          notifyAdded({
+            productSlug: product.slug,
+            productName: product.name,
+            brand: product.brand,
+            imageUrl: added.imageUrl,
+            imageAlt: added.imageAlt,
+            variantLabel: currentVariantLabel,
+            quantity: added.quantity,
+            unitPrice: added.unitPrice,
+          });
+        },
+      },
+    );
   }
 
-  const maxStock = Math.max(1, Math.min(variant.stock || 1, 5));
+  const maxQuantity = line?.maxQuantity ?? Math.min(variant.stock || 0, CART_MAX_LINE_QUANTITY);
 
   const trustItems = TRUST_ITEMS.map((item) =>
     item.icon === ShieldIcon ? { ...item, title: `${product.warrantyMonths}-mo warranty` } : item,
   );
 
+  const stepperBusy = updateCartItem.isPending || removeCartItem.isPending;
+
   function handleIncrement() {
-    if (!line || inCartQty >= maxStock) return;
-    updateQuantity(line.id, inCartQty + 1);
+    if (!line || inCartQty >= maxQuantity || stepperBusy) return;
+    updateCartItem.mutate({ id: line.id, quantity: inCartQty + 1 });
   }
   function handleDecrement() {
-    if (!line) return;
+    if (!line || stepperBusy) return;
     if (inCartQty <= 1) {
-      removeItem(line.id);
+      removeCartItem.mutate(line.id);
     } else {
-      updateQuantity(line.id, inCartQty - 1);
+      updateCartItem.mutate({ id: line.id, quantity: inCartQty - 1 });
     }
   }
+
+  const cartError =
+    addCartItem.error?.message ?? updateCartItem.error?.message ?? removeCartItem.error?.message;
 
   return (
     <div className="flex flex-col">
@@ -379,48 +418,26 @@ export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: P
           orphaned 56px heart under a full-width CTA looked accidental.
           Inline keeps the two actions reading as one control cluster. */}
       <div className="mt-10 flex gap-3 sm:gap-4">
-        {purchasable && inCartQty > 0 ? (
-          <div
-            role="group"
-            aria-label={`${product.name} in cart`}
-            className={cn(
-              "flex h-14 flex-1 items-center justify-between rounded-full px-2",
-              "bg-accent text-white",
-            )}
-          >
-            <button
-              type="button"
-              onClick={handleDecrement}
-              aria-label={
-                inCartQty <= 1
-                  ? `Remove ${product.name} from cart`
-                  : `Decrease quantity`
-              }
-              className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-white/15"
-            >
-              {inCartQty <= 1 ? <TrashIcon /> : <MinusIcon />}
-            </button>
-            <span
-              aria-live="polite"
-              className="min-w-8 text-center font-mono text-base font-medium tabular-nums"
-            >
-              {inCartQty}
-            </span>
-            <button
-              type="button"
-              onClick={handleIncrement}
-              disabled={inCartQty >= maxStock}
-              aria-label="Increase quantity"
-              className="flex size-11 items-center justify-center rounded-full transition-colors hover:bg-white/15 disabled:opacity-40"
-            >
-              <PlusIcon />
-            </button>
-          </div>
+        {cartLoading ? (
+          <Skeleton className="h-14 flex-1 rounded-full" />
+        ) : purchasable && inCartQty > 0 ? (
+          <QuantityStepper
+            value={inCartQty}
+            max={maxQuantity}
+            disabled={stepperBusy}
+            onIncrement={handleIncrement}
+            onDecrement={handleDecrement}
+            groupLabel={`${product.name} in cart`}
+            variant="filled"
+            size="lg"
+            className="flex-1"
+          />
         ) : (
           <Button
             size="lg"
             variant="primary"
             onClick={handleAddToCart}
+            loading={addCartItem.isPending}
             className={cn(
               "flex-1",
               purchasable &&
@@ -461,6 +478,12 @@ export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: P
           </svg>
         </button>
       </div>
+
+      {cartError && (
+        <p role="alert" className="mt-3 text-[0.8125rem] text-danger">
+          {cartError}
+        </p>
+      )}
 
       {/* ---------- Trust row ----------
           Rewritten to earn attention: two-column card grid on mobile,
@@ -580,25 +603,3 @@ const TRUST_ITEMS: { title: string; sub: string; icon: () => React.JSX.Element }
   { title: "14-day returns", sub: "No questions asked", icon: ReturnIcon },
   { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
 ];
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="size-4">
-      <path d="M8 3v10M3 8h10" />
-    </svg>
-  );
-}
-function MinusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" className="size-4">
-      <path d="M3 8h10" />
-    </svg>
-  );
-}
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="size-[1.125rem]">
-      <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6" />
-    </svg>
-  );
-}

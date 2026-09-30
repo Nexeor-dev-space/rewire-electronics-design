@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,17 @@ import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
 import { useSignIn } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { FORGOT_PASSWORD_PAGE_PATH, REGISTER_PAGE_PATH } from "@/lib/constants";
+import { safeNextPath } from "@/lib/auth/next-path";
 import { siteConfig } from "@/lib/site";
 import { signInSchema } from "@/validators/auth.validator";
 
-export function SignInForm() {
+interface Props {
+  /** Where to land after a successful sign-in, if it's a safe path. */
+  next?: string;
+}
+
+export function SignInForm({ next }: Props) {
   const router = useRouter();
   const signIn = useSignIn();
   const id = useId();
@@ -31,15 +39,16 @@ export function SignInForm() {
     setErrors({});
     signIn.mutate(parsed.data, {
       onSuccess: ({ redirectTo }) => {
-        router.replace(redirectTo);
+        router.replace(safeNextPath(next) ?? redirectTo);
         router.refresh();
       },
-      onError: (error) => setErrors(apiFieldErrors(error)),
+      onError: (err) => setErrors(apiFieldErrors(err)),
     });
   }
 
   const emailError = errors.email?.[0];
   const passwordError = errors.password?.[0];
+  const registerHref = next ? `${REGISTER_PAGE_PATH}?next=${encodeURIComponent(next)}` : REGISTER_PAGE_PATH;
 
   return (
     <div className="w-full max-w-sm">
@@ -70,7 +79,15 @@ export function SignInForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`${id}-password`}>Password</Label>
+            <div className="flex items-baseline justify-between gap-3">
+              <Label htmlFor={`${id}-password`}>Password</Label>
+              <Link
+                href={FORGOT_PASSWORD_PAGE_PATH}
+                className="text-[0.8125rem] font-medium text-ink-secondary hover:text-ink"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id={`${id}-password`}
               type="password"
@@ -94,6 +111,13 @@ export function SignInForm() {
           Sign in
         </Button>
       </form>
+
+      <p className="mt-6 text-center text-[0.875rem] text-ink-secondary">
+        New to {siteConfig.shortName}?{" "}
+        <Link href={registerHref} className="font-medium text-ink hover:text-accent">
+          Create an account
+        </Link>
+      </p>
     </div>
   );
 }

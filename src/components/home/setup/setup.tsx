@@ -17,8 +17,6 @@ import {
   viewportOnce,
 } from "@/lib/motion";
 import { cn, formatPrice } from "@/lib/utils";
-import { useAccount } from "@/components/providers/account-provider";
-import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 
 const rise = {
   hidden: { opacity: 0, y: 28 },
@@ -155,13 +153,8 @@ function KitBuilder({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(additions.map((product) => product.id)),
   );
-  const [committed, setCommitted] = useState(false);
-
-  const { addItem } = useAccount();
-  const { notifyAdded } = useCartFeedback();
 
   const toggle = (id: string) => {
-    setCommitted(false);
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -182,22 +175,6 @@ function KitBuilder({
 
   const money = (value: number) =>
     formatPrice(value, anchor.currency, anchor.locale);
-
-  const commitKit = () => {
-    if (committed) return;
-    // Anchor is always included. Add every selected companion after.
-    addItem(anchor.slug, 1);
-    chosen.forEach((p) => addItem(p.slug, 1));
-    notifyAdded({
-      productSlug: anchor.slug,
-      variantLabel: anchor.variant,
-      quantity: 1,
-      unitPrice: anchor.price,
-      currency: anchor.currency,
-      locale: anchor.locale,
-    });
-    setCommitted(true);
-  };
 
   return (
     <div className="flex flex-col">
@@ -266,73 +243,34 @@ function KitBuilder({
           </div>
 
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-            {committed ? (
-              <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                <p className="inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-live">
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="size-3"
-                  >
-                    <path d="m3 8 3.5 3.5L13 4.5" />
-                  </svg>
-                  Kit added
-                </p>
-                <Link
-                  href="/cart"
-                  className={cn(
-                    "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                    "bg-accent text-white",
-                    "text-sm font-medium",
-                    "transition-colors duration-(--duration-fast) hover:bg-accent-hover",
-                  )}
-                >
-                  View cart
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="size-3.5"
-                  >
-                    <path d="M3 8h10M9 4l4 4-4 4" />
-                  </svg>
-                </Link>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={commitKit}
-                className={cn(
-                  "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-                  "bg-accent text-white",
-                  "text-sm font-medium",
-                  "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-                  "hover:bg-accent-hover active:scale-[0.98]",
-                )}
+            {/* This kit spans several mock products with no single DB
+                variant, so the CTA hands the shopper to the anchor
+                device's own page rather than adding anything fake to a
+                real cart — see docs/CART.md, Q7. */}
+            <Link
+              href={`/product/${anchor.slug}`}
+              className={cn(
+                "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
+                "bg-accent text-white",
+                "text-sm font-medium",
+                "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
+                "hover:bg-accent-hover active:scale-[0.98]",
+              )}
+            >
+              Shop the anchor device
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
               >
-                Add kit to bag
-                <svg
-                  aria-hidden
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  className="size-3.5"
-                >
-                  <path d="M8 3v10M3 8h10" />
-                </svg>
-              </button>
-            )}
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
           </div>
         </div>
       </div>

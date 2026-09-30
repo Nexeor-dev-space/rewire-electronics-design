@@ -394,6 +394,13 @@ export const adminNav: AdminNavSection[] = [
         routes: ["/admin/settings/general"],
       },
       {
+        key: "integrations",
+        label: "API Credentials",
+        href: "/admin/settings/integrations",
+        description:
+          "Email and site address credentials, and the DEV / LIVE switch. Admins only.",
+      },
+      {
         key: "roles",
         label: "Roles",
         href: "/admin/roles",

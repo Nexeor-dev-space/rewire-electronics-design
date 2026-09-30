@@ -42,7 +42,7 @@ export const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
   OR: [{ parentId: null }, { parent: { is: { status: "PUBLISHED" } } }],
 };
 
-const PUBLISHED: Prisma.ProductWhereInput = { status: "PUBLISHED", category: VISIBLE_CATEGORY };
+export const PUBLISHED: Prisma.ProductWhereInput = { status: "PUBLISHED", category: VISIBLE_CATEGORY };
 
 const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
   newest: [{ publishedAt: "desc" }, { id: "asc" }],
@@ -62,6 +62,7 @@ const cardSelect = {
   images: { select: { mediaId: true, alt: true }, orderBy: { sortOrder: "asc" }, take: 1 },
   variants: {
     select: {
+      id: true,
       condition: true,
       grade: true,
       price: true,
@@ -195,6 +196,7 @@ function toCard(row: CardRow, query?: ShopQuery): ShopCard {
   const image = row.images[0];
   return {
     id: row.id,
+    variantId: shown.id,
     slug: row.slug,
     name: row.name,
     brand: row.brand.name,
@@ -392,26 +394,48 @@ export async function listNewestShopProducts(limit: number) {
   return rows.map((row) => toCard(row));
 }
 
-async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
-  const categoryIds = [category.id, ...(category.parent ? [category.parent.id] : [])];
-  const rows = await prisma.addOn.findMany({
-    where: {
-      active: true,
-      OR: [{ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } }],
-    },
-    select: { id: true, name: true, note: true, kind: true, price: true, popular: true },
-    orderBy: [{ kind: "asc" }, { popular: "desc" }, { price: "asc" }],
-    take: MAX_PRODUCT_ADD_ONS,
-  });
+export function offeredAddOnWhere(categoryIds: string[]): Prisma.AddOnWhereInput {
+  return {
+    active: true,
+    OR: [{ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } }],
+  };
+}
 
-  return rows.map((row) => ({
+export const OFFERED_ADD_ON_ORDER: Prisma.AddOnOrderByWithRelationInput[] = [
+  { kind: "asc" },
+  { popular: "desc" },
+  { price: "asc" },
+];
+
+export const shopAddOnSelect = {
+  id: true,
+  name: true,
+  note: true,
+  kind: true,
+  price: true,
+  popular: true,
+} satisfies Prisma.AddOnSelect;
+
+export function toShopAddOn(row: Prisma.AddOnGetPayload<{ select: typeof shopAddOnSelect }>): ShopAddOn {
+  return {
     id: row.id,
     label: row.name,
     note: row.note,
     price: row.price,
     kind: row.kind.toLowerCase() as ShopAddOn["kind"],
     popular: row.popular,
-  }));
+  };
+}
+
+async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
+  const categoryIds = [category.id, ...(category.parent ? [category.parent.id] : [])];
+  const rows = await prisma.addOn.findMany({
+    where: offeredAddOnWhere(categoryIds),
+    select: shopAddOnSelect,
+    orderBy: OFFERED_ADD_ON_ORDER,
+    take: MAX_PRODUCT_ADD_ONS,
+  });
+  return rows.map(toShopAddOn);
 }
 
 export async function findShopProductPage(slug: string): Promise<ShopProductPage | null> {

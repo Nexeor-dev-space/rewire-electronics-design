@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAccount } from "@/components/providers/account-provider";
+import { Button } from "@/components/ui/button";
+import { useGetMe, useSignOut } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { AccountShell } from "./account-shell";
 
@@ -10,9 +10,11 @@ import { AccountShell } from "./account-shell";
  * AccountSettings — /account/settings.
  *
  * Three horizontal beats, each in its own card: personal info,
- * password, notification preferences. Password + notifications are
- * client-only stand-ins with success confirmations so the interaction
- * is reviewable end-to-end; real endpoints will replace the handlers.
+ * password, notification preferences. Personal info is read-only —
+ * editing it lands in Stage 3.3 (`account/profile`) — while password
+ * and notifications are still client-only stand-ins with success
+ * confirmations, so the interaction is reviewable end-to-end until
+ * their real endpoints land in Phase 3.
  */
 
 const NOTIFY_KEY = "rewire.account.notifications.v1";
@@ -32,15 +34,8 @@ const DEFAULT_NOTIFY: NotifyPrefs = {
 };
 
 export function AccountSettings() {
-  const router = useRouter();
-  const { user, ready, updateUser, signOut } = useAccount();
-
-  const [personal, setPersonal] = useState({
-    name: user?.name ?? "",
-    email: user?.email ?? "",
-    phone: user?.phone ?? "",
-  });
-  const [personalSaved, setPersonalSaved] = useState(false);
+  const me = useGetMe();
+  const signOut = useSignOut();
 
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
@@ -57,7 +52,22 @@ export function AccountSettings() {
   });
   const [notifySaved, setNotifySaved] = useState(false);
 
-  if (!ready) return <AccountShell title="Account settings" />;
+  if (me.isPending) return <AccountShell title="Account settings" />;
+
+  if (me.isError) {
+    return (
+      <AccountShell title="Account settings">
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-ink-secondary">{me.error.message}</p>
+          <Button variant="outline" size="sm" className="mt-5" onClick={() => me.refetch()}>
+            Try again
+          </Button>
+        </div>
+      </AccountShell>
+    );
+  }
+
+  const user = me.data;
 
   return (
     <AccountShell
@@ -65,45 +75,21 @@ export function AccountSettings() {
       subtitle="Personal information, sign-in and how we reach out to you."
     >
       <div className="flex flex-col gap-6">
-        {/* ---------- Personal info ---------- */}
-        <SettingsCard
-          title="Personal information"
-          hint="Used on invoices and delivery notes."
-          onSubmit={(e) => {
-            e.preventDefault();
-            updateUser(personal);
-            setPersonalSaved(true);
-            window.setTimeout(() => setPersonalSaved(false), 2200);
-          }}
-          saveDisabled={
-            personal.name === (user?.name ?? "") &&
-            personal.email === (user?.email ?? "") &&
-            personal.phone === (user?.phone ?? "")
-          }
-          saveLabel="Save changes"
-          savedMessage={personalSaved ? "Saved" : null}
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Full name"
-              value={personal.name}
-              onChange={(v) => setPersonal({ ...personal, name: v })}
-            />
-            <Field
-              label="Phone"
-              type="tel"
-              value={personal.phone}
-              onChange={(v) => setPersonal({ ...personal, phone: v })}
-            />
-            <Field
-              className="sm:col-span-2"
-              label="Email"
-              type="email"
-              value={personal.email}
-              onChange={(v) => setPersonal({ ...personal, email: v })}
-            />
+        {/* ---------- Personal info — read only until account/profile lands ---------- */}
+        <section className="rounded-2xl border border-line bg-surface p-6 md:p-7">
+          <div className="mb-5">
+            <h2 className="text-[1.125rem] font-medium text-ink">Personal information</h2>
+            <p className="mt-1 text-[0.875rem] text-ink-secondary">
+              Used on invoices and delivery notes. Editing these arrives soon — contact support for
+              changes in the meantime.
+            </p>
           </div>
-        </SettingsCard>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ReadOnlyField label="Full name" value={user?.fullName ?? ""} />
+            <ReadOnlyField label="Phone" value={user?.phone ?? "Not added yet"} />
+            <ReadOnlyField className="sm:col-span-2" label="Email" value={user?.email ?? ""} />
+          </div>
+        </section>
 
         {/* ---------- Password ---------- */}
         <SettingsCard
@@ -210,11 +196,9 @@ export function AccountSettings() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                signOut();
-                router.push("/");
-              }}
-              className="inline-flex h-11 items-center rounded-full border border-line-strong px-5 text-[0.875rem] font-medium text-ink hover:border-danger hover:text-danger"
+              disabled={signOut.isPending}
+              onClick={() => signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") })}
+              className="inline-flex h-11 items-center rounded-full border border-line-strong px-5 text-[0.875rem] font-medium text-ink hover:border-danger hover:text-danger disabled:opacity-60"
             >
               Logout
             </button>
@@ -361,5 +345,26 @@ function Field({
         className="h-11 rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
       />
     </label>
+  );
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+        {label}
+      </span>
+      <p className="flex h-11 items-center rounded-xl border border-line bg-surface-2/60 px-3.5 text-[0.9375rem] text-ink-secondary">
+        {value}
+      </p>
+    </div>
   );
 }

@@ -95,7 +95,7 @@ Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
 | `src/lib/auth/permissions.ts` | Roles, `ROLE_PERMISSIONS`, and the rules for managing accounts |
 | `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
 | `src/lib/auth/password.ts` | scrypt hashing |
-| `src/app/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out |
+| `src/app/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
 
 **Permissions.** `ROLE_PERMISSIONS` lists the `adminPermission(area, key)` keys
 each role may use, or `"*"` for all. Admin and Staff currently have `"*"`,
@@ -113,10 +113,19 @@ there; the checks below already read it.
   called directly.
 
 **Sessions** are a signed cookie (`AUTH_SECRET`), seven days. The cookie only
-identifies the user; role and state are read from the database on each
-request, so a role change or a deletion applies immediately.
+identifies the user and carries their `sessionVersion`; role, state and
+version are read from the database on each request, so a role change or a
+deletion applies immediately. The full rules, the sign-in rate limit (10
+attempts per 15 minutes per IP, staff included) and the known risks are in
+[AUTH.md](AUTH.md).
 
-**Account rules** (`permissions.ts`, enforced in `customer.service.ts`): only
+Staff and Admins sign in with a password only: forgot password is for
+customers, so an Admin sets console passwords in the Users
+screen. Setting a password there does not sign that user out of other
+devices. An expired session on any admin screen now redirects to
+`/sign-in?next=<the screen>` instead of showing an error.
+
+**Account rules** (`permissions.ts`, enforced in `user.service.ts`): only
 Admins give the Admin role, edit or delete Admin accounts, or set passwords;
 nobody changes their own role or deletes themselves; the last Admin can't be
 removed.
@@ -128,6 +137,30 @@ AUTH_SECRET=<32+ random characters>
 SEED_ADMIN_EMAIL=you@example.com
 SEED_ADMIN_PASSWORD=<10+ characters>
 ```
+
+`AUTH_SECRET` also derives the key that encrypts the API Credentials below.
+Changing it signs everyone out and makes every stored credential unreadable.
+
+Email and the site address are **not** `.env` values. After
+the first sign-in, an Admin sets them on the API Credentials screen.
+
+## API Credentials
+
+Governance → **API Credentials** (`/admin/settings/integrations`), permission
+key `governance.integrations`.
+
+1. Holds the SMTP settings, sender address and site address, encrypted, and the DEV / LIVE switch. Values are write-only: the screen
+   shows set or not set, the last four characters of longer values, and when
+   it changed.
+2. **Admins only.** Staff hold `"*"`, so the permission key alone would admit
+   them. The page and every `/api/v1/admin/integrations` route also check
+   `canManageIntegrations(role)` in `permissions.ts`, which is true for Admin
+   only, and answer 403 "Only Admins can manage integrations." otherwise. The
+   sidebar does not filter by role, so Staff see the row and land on "Access
+   denied".
+
+Keys, modes, encryption and the Gmail and Resend setup steps are in
+[INTEGRATIONS.md](INTEGRATIONS.md).
 
 ## Users
 
@@ -255,6 +288,33 @@ upload images.
 
 The rules, endpoints and data model are in [CATALOGUE.md](CATALOGUE.md).
 
+## Discount Codes and Delivery Zones
+
+Marketing → **Discount Codes** (`/admin/marketing/coupons`) and Governance →
+**Delivery Zones** (`/admin/settings/delivery`). Permission keys
+`marketing.coupons` (`PERMISSIONS.coupons`) and `governance.delivery`
+(`PERMISSIONS.deliveryZones`). Both pages check their key with
+`hasPermission` and show "Access denied" otherwise.
+
+1. **Discount Codes** lists codes with search by code, an Active / Inactive
+   filter and pagination. Each row shows the discount, the minimum order,
+   redemptions against the usage limit, and a status badge (Active,
+   Scheduled, Expired, Disabled, Used up) computed by the server. The modal
+   sets code, description, percent or fixed amount, minimum order, start and
+   end, active, total and per customer limits, and either "Applies to every
+   product" or a list of products and categories. Delete asks for
+   confirmation; carts holding the code lose it.
+2. **Delivery Zones** is one table of the seven emirates, each with a
+   standard and an express fee and delivery window. Edit opens a dialog per
+   emirate with a live preview of the window text. A zone never saved shows
+   "Not set", and checkout refuses to deliver there. There is no add or
+   delete.
+
+The rules, endpoints and the seed are in [CART.md](CART.md) §4 to §6. Seed the
+seven zones once per database; note that `npm run db:seed` also overwrites
+policies and the homepage and resets the seeded Admin's password
+([CART.md](CART.md) §5).
+
 ## The shell
 
 `AdminShell` wraps every admin page through `src/app/admin/layout.tsx`. It
@@ -324,11 +384,7 @@ reporting or analytics is present, as the issue specifies.
    renders the admin not-found screen correctly but answers HTTP 200. Verified
    against a normal segment under the same layout, which does answer 404. This
    resolves itself as modules land and claim their own static segments.
-2. **The storefront still uses the stand-in session.** `/sign-in` issues a real
-   session, but `AccountProvider` and the `/account` pages still use the
-   localStorage demo user.
-3. **Sign-in has no rate limiting**, and there is no sign-up or password reset.
-4. **Lenis smooth scroll still runs.** The site wide scroll driver from the root
+2. **Lenis smooth scroll still runs.** The site wide scroll driver from the root
    layout applies to the console too. The navigation rail opts out with
    `data-lenis-prevent`. If the console ever feels wrong under it, the provider
    can be moved into the `(site)` group.

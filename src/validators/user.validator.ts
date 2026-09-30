@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { ROLES } from "@/lib/auth/permissions";
 import { EMIRATE_VALUES } from "@/lib/emirates";
-import { emailValidator, paginationQueryValidator } from "./common/primitives.validator";
+import {
+  emailValidator,
+  newPasswordValidator,
+  optionalPhoneValidator,
+  paginationQueryValidator,
+} from "./common/primitives.validator";
 
 /**
  * The console's two Users screens read the same endpoint and differ only by
@@ -31,14 +36,10 @@ export const addressSchema = z.object({
 export const userSchema = z.object({
   fullName: z.string().trim().min(1, "Enter the full name.").max(120),
   email: emailValidator,
-  phone: z
-    .string()
-    .trim()
-    .min(1, "Enter a phone number.")
-    .regex(/^\+?[\d\s()-]{7,20}$/, "Enter a valid phone number."),
+  phone: optionalPhoneValidator,
   role: z.enum(ROLES, { error: "Choose a role." }),
   /** Optional. Without a password the account can't sign in. */
-  password: z.string().min(8, "Use at least 8 characters.").max(128).optional(),
+  password: newPasswordValidator.optional(),
   addresses: z
     .array(addressSchema)
     .max(10, "Save up to 10 addresses.")

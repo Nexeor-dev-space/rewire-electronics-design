@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { getProductBySlug } from "@/lib/catalog";
-import { addOnsFor, addOnsTotal } from "@/lib/add-ons";
-import { useAccount, type CartItem } from "@/components/providers/account-provider";
+import { useAcknowledgeCart, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { Container } from "@/components/layout/container";
+import { Button } from "@/components/ui/button";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { fadeUp, staggerChildren, viewportOnce } from "@/lib/motion";
-import type { Product } from "@/types";
 import { CartLine } from "./cart-line";
 import { CartSummary } from "./cart-summary";
 import { CartEmpty } from "./cart-empty";
@@ -17,44 +15,17 @@ import { CartSkeleton } from "./cart-skeleton";
 /**
  * Cart page — the review-and-commit surface.
  *
- * Three states live under one route: not-yet-hydrated (skeleton), empty,
- * populated. `ready` from the account provider gates the switch so the
- * page never flashes an empty state before persisted lines have been
- * read from storage.
- *
- * Product data is resolved from the catalogue by slug on every render.
- * Lines whose slug no longer resolves (catalogue removed, renamed) are
- * quietly dropped from the view rather than shown as broken rows — the
- * next cart mutation will let the user reconcile.
+ * Reads and mutates the real cart through `use-cart.ts`; every figure on
+ * the page — lines, totals, issues — is priced by the server on every
+ * request, so nothing here is derived from stale client state.
  */
 export function CartView() {
-  const { ready, items, updateQuantity, removeItem, toggleLineAddOn, cartCount } =
-    useAccount();
+  const cart = useGetCart();
+  const updateCartItem = useUpdateCartItem();
+  const removeCartItem = useRemoveCartItem();
+  const acknowledgeCart = useAcknowledgeCart();
 
-  const resolved = items
-    .map((line) => ({ line, product: getProductBySlug(line.productSlug) }))
-    .filter((entry): entry is { line: CartItem; product: Product } =>
-      Boolean(entry.product),
-    );
-
-  // Device price scales with quantity; the line's ticked add-ons are
-  // priced once per line (see `CartItem.addOnIds`). Same arithmetic the
-  // row itself prints, so the summary and the lines cannot disagree.
-  const subtotal = resolved.reduce(
-    (sum, { line, product }) =>
-      sum +
-      product.price * line.quantity +
-      addOnsTotal(
-        addOnsFor(product.categorySlug ?? product.category),
-        line.addOnIds ?? [],
-      ),
-    0,
-  );
-
-  const currency = resolved[0]?.product.currency ?? "AED";
-  const locale = resolved[0]?.product.locale ?? "en-AE";
-
-  if (!ready) {
+  if (cart.isPending) {
     return (
       <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
         <Container width="wide">
@@ -65,7 +36,28 @@ export function CartView() {
     );
   }
 
-  if (resolved.length === 0) {
+  if (cart.isError) {
+    return (
+      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+        <Container width="wide">
+          <CartHeader count={0} />
+          <div
+            role="alert"
+            className="mt-12 rounded-2xl border border-line bg-surface p-8 text-center"
+          >
+            <p className="text-sm text-ink-secondary">{cart.error.message}</p>
+            <Button variant="outline" size="sm" className="mt-5" onClick={() => cart.refetch()}>
+              Try again
+            </Button>
+          </div>
+        </Container>
+      </div>
+    );
+  }
+
+  const data = cart.data;
+
+  if (data.items.length === 0) {
     return (
       <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
         <Container width="wide">
@@ -76,10 +68,44 @@ export function CartView() {
     );
   }
 
+  const hasPriceChange = data.items.some((item) => item.issues.includes("PRICE_CHANGED"));
+  const mutationError =
+    updateCartItem.error?.message ?? removeCartItem.error?.message ?? acknowledgeCart.error?.message;
+
   return (
     <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
       <Container width="wide">
-        <CartHeader count={cartCount} />
+        <CartHeader count={data.itemCount} />
+
+        {mutationError && (
+          <p role="alert" className="mt-6 text-[0.875rem] text-danger">
+            {mutationError}
+          </p>
+        )}
+
+        {/* ---------- Price-changed notice ----------
+            Cleared by "Got it" (acknowledgeCart) or by editing the
+            affected line, which refreshes its seen price on the next
+            mutation response. */}
+        {hasPriceChange && (
+          <div
+            role="status"
+            className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-5 py-4"
+          >
+            <p className="text-[0.875rem] text-ink-secondary">
+              The price changed on one or more items since you added them. The
+              current price is shown below.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={acknowledgeCart.isPending}
+              onClick={() => acknowledgeCart.mutate()}
+            >
+              Got it
+            </Button>
+          </div>
+        )}
 
         <motion.div
           initial="hidden"
@@ -98,16 +124,31 @@ export function CartView() {
               Items in your cart
             </h2>
             <ul className="border-t border-line">
-              {resolved.map(({ line, product }) => (
+              {data.items.map((line) => (
                 <li key={line.id} className="border-b border-line">
                   <CartLine
                     line={line}
-                    product={product}
-                    onQuantityChange={(qty) => updateQuantity(line.id, qty)}
-                    onRemove={() => removeItem(line.id)}
-                    onToggleAddOn={(addOnId) =>
-                      toggleLineAddOn(line.id, addOnId)
+                    busy={
+                      (updateCartItem.isPending && updateCartItem.variables?.id === line.id) ||
+                      (removeCartItem.isPending && removeCartItem.variables === line.id)
                     }
+                    onQuantityChange={(quantity) => {
+                      if (quantity <= 0) removeCartItem.mutate(line.id);
+                      else updateCartItem.mutate({ id: line.id, quantity });
+                    }}
+                    onRemove={() => removeCartItem.mutate(line.id)}
+                    onToggleAddOn={(addOnId) => {
+                      const offeredIds = new Set(
+                        line.offeredAddOns.map((addOn) => addOn.id),
+                      );
+                      const current = line.addOns
+                        .map((addOn) => addOn.id)
+                        .filter((id) => offeredIds.has(id) || id === addOnId);
+                      const next = current.includes(addOnId)
+                        ? current.filter((id) => id !== addOnId)
+                        : [...current, addOnId];
+                      updateCartItem.mutate({ id: line.id, addOnIds: next });
+                    }}
                   />
                 </li>
               ))}
@@ -145,10 +186,9 @@ export function CartView() {
             className="lg:col-span-5 xl:col-span-4"
           >
             <CartSummary
-              subtotal={subtotal}
-              currency={currency}
-              locale={locale}
-              itemCount={cartCount}
+              totals={data.totals}
+              itemCount={data.itemCount}
+              canCheckout={data.canCheckout}
             />
           </motion.aside>
         </motion.div>
