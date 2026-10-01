@@ -262,10 +262,10 @@ The homepage's sections, their draft and published state, and the admin API
 under `/api/v1/admin/homepage`, guarded by permission key
 `storefront.homepage`. The storefront renders whatever was last published.
 
-The editing screen, Storefront → **Homepage Builder**
-(`/admin/storefront/homepage`), belongs to the separate Page Builder issue and
-is still the placeholder; it builds on this API. Until it lands, the homepage
-shows the seeded content.
+The editing screen is Storefront → **Homepage Builder**
+(`/admin/storefront/homepage`). It edits the draft (add, edit, hide, reorder,
+delete sections), opens a staff only preview of the draft at
+`/preview/homepage`, and publishes or discards it.
 
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.
