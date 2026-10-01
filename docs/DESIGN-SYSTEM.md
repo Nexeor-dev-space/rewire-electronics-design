@@ -4,6 +4,8 @@ Light luxury, editorial, cinematic. This document is the contract every future
 page and component must follow. Tokens live in `src/app/globals.css`; motion
 vocabulary in `src/lib/motion.ts`. If a value isn't a token, it doesn't ship.
 
+sd
+
 ---
 
 ## 1. Design philosophy
