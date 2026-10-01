@@ -55,5 +55,10 @@ export const RATE_LIMITS = {
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
 export const FORGOT_PASSWORD_PAGE_PATH = "/forgot-password";
+
+/** The Homepage Builder, the staff draft preview it opens, and the FAQ's editor. */
+export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";
+export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
+export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;

@@ -1,8 +1,4 @@
-import { HomepageSection } from "@/components/home/homepage-section";
-import { FEATURED_PRODUCTS_LIMIT } from "@/lib/constants";
-import { toFaqEntries } from "@/lib/faq-entry";
-import { getPublishedPolicy } from "@/lib/policies";
-import { listNewestShopProducts } from "@/services/catalogue.service";
+import { HomepageSections } from "@/components/home/homepage-sections";
 import { getPublishedHomepage } from "@/services/homepage.service";
 
 export const dynamic = "force-dynamic";
@@ -15,18 +11,5 @@ export const dynamic = "force-dynamic";
  * the seed publishes the defaults.
  */
 export default async function Home() {
-  const [sections, faqPolicy, products] = await Promise.all([
-    getPublishedHomepage(),
-    getPublishedPolicy("faq"),
-    listNewestShopProducts(FEATURED_PRODUCTS_LIMIT),
-  ]);
-  const faqs = toFaqEntries(faqPolicy);
-
-  return (
-    <>
-      {sections.map((section) => (
-        <HomepageSection key={section.id} section={section} faqs={faqs} products={products} />
-      ))}
-    </>
-  );
+  return <HomepageSections sections={await getPublishedHomepage()} />;
 }

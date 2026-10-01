@@ -298,16 +298,22 @@ export async function discardHomepageDraft() {
 
 /* ---------- storefront ---------- */
 
+/** The storefront's homepage: visible live sections. */
+export function getPublishedHomepage(): Promise<PublishedSection[]> {
+  return getHomepageSections("LIVE");
+}
+
 /**
- * Visible live sections in order, read fresh on every request — not cached.
- * The homepage renders per request anyway (`force-dynamic`), and a cache here
- * outlived the seed (which runs outside Next and can't clear it) and served an
- * empty homepage. Reading live also means a renamed, unpublished or deleted
- * brand or category leaves the homepage immediately.
+ * Visible sections of `stage` in order, read fresh on every request — not
+ * cached. The homepage renders per request anyway (`force-dynamic`), and a
+ * cache here outlived the seed (which runs outside Next and can't clear it)
+ * and served an empty homepage. Reading fresh also means a renamed,
+ * unpublished or deleted brand or category leaves the page immediately.
+ * DRAFT feeds the staff preview, LIVE the storefront.
  */
-export async function getPublishedHomepage(): Promise<PublishedSection[]> {
+export async function getHomepageSections(stage: Stage): Promise<PublishedSection[]> {
   const rows = await prisma.homepageSection.findMany({
-    where: { stage: "LIVE", visible: true },
+    where: { stage, visible: true },
     select: sectionSelect,
     orderBy: { sortOrder: "asc" },
   });
