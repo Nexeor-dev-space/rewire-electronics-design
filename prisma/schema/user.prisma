@@ -39,6 +39,7 @@ model User {
   integrationSettingsUpdates   IntegrationSettings[]
   integrationCredentialUpdates IntegrationCredential[]
   rolePermissionUpdates        RolePermission[]
+  auditLogs                    AuditLog[]
 
   @@index([state, updatedAt])
   @@map("users")
@@ -51,6 +52,7 @@ enum PermissionAction {
   EDIT
   DELETE
   PUBLISH
+  RESTORE
 }
 
 model RolePermission {

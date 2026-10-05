@@ -92,6 +92,9 @@ model Product {
   status      ProductStatus @default(DRAFT)
   publishedAt DateTime?
   minPrice    Int           @default(0)
+  /// Soft delete: set when the product goes to Trash, cleared on restore.
+  /// Every product query filters `deletedAt: null`; see docs/TRASH-AUDIT.md.
+  deletedAt   DateTime?
 
   variants ProductVariant[]
   images   ProductImage[]
@@ -106,6 +109,7 @@ model Product {
   @@index([categoryId, status])
   @@index([brandId, status])
   @@index([updatedAt])
+  @@index([deletedAt])
   @@map("products")
 }
 

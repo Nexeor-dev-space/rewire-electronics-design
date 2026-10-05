@@ -1,0 +1,27 @@
+/// One admin change: who made it, what it touched, and the values before and
+/// after. Written by `recordAudit` in `src/services/audit.service.ts`; never
+/// edited or deleted from the console. See docs/TRASH-AUDIT.md.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  /// Snapshots, so the entry still reads right after the user changes or goes.
+  actorName   String
+  actorRole   UserRole
+  /// One of `AUDIT_ACTIONS` in `src/lib/audit.ts`.
+  action      String
+  /// The permission module key, e.g. `catalogue.products`.
+  module      String
+  recordId    String?
+  recordLabel String
+  /// Changed fields only; the whole record on create (after) or delete (before).
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([module, createdAt])
+  @@index([actorId, createdAt])
+  @@index([recordId])
+  @@map("audit_logs")
+}
