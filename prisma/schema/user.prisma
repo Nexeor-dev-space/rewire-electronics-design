@@ -1,6 +1,6 @@
 /// Who an account is. ADMIN and STAFF reach the console; CUSTOMER never does.
-/// Which console areas each role reaches is configured in
-/// `src/lib/auth/permissions.ts`, not here.
+/// Which console modules STAFF reaches, and what it may do there, is stored in
+/// `RolePermission`; ADMIN and CUSTOMER are fixed in `src/lib/auth/permissions.ts`.
 enum UserRole {
   ADMIN
   STAFF
@@ -38,9 +38,32 @@ model User {
 
   integrationSettingsUpdates   IntegrationSettings[]
   integrationCredentialUpdates IntegrationCredential[]
+  rolePermissionUpdates        RolePermission[]
 
   @@index([state, updatedAt])
   @@map("users")
+}
+
+/// What a role may do inside one admin module.
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  PUBLISH
+}
+
+model RolePermission {
+  role        UserRole
+  module      String
+  actions     PermissionAction[]
+  updatedById String?
+  updatedBy   User?              @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@id([role, module])
+  @@map("role_permissions")
 }
 
 enum AuthTokenType {
