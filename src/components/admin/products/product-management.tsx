@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions, Thumbnail } from "@/components/admin/shared/row-actions";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteProduct, useGetProducts, useSetProductStatus } from "@/hooks/use-product";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ProductListItem } from "@/types/product";
@@ -22,6 +24,7 @@ const COLUMNS =
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
 
 export function ProductManagement() {
+  const access = useModuleAccess(PERMISSIONS.products);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProductStatus | "">("");
@@ -104,9 +107,13 @@ export function ProductManagement() {
                 <ProductRow
                   product={product}
                   busy={busyId === product.id || deletingId === product.id}
-                  onStatusChange={(next) => setProductStatus.mutate({ id: product.id, status: next })}
-                  onEdit={() => setModal({ kind: "edit", id: product.id })}
-                  onDelete={() => setToDelete(product)}
+                  onStatusChange={
+                    access.publish
+                      ? (next) => setProductStatus.mutate({ id: product.id, status: next })
+                      : undefined
+                  }
+                  onEdit={access.edit ? () => setModal({ kind: "edit", id: product.id }) : undefined}
+                  onDelete={access.delete ? () => setToDelete(product) : undefined}
                 />
               </li>
             ))}
@@ -140,9 +147,11 @@ export function ProductManagement() {
       title="Products"
       description="Product information, variants, images and specifications. Variants carry storage, colour, price and stock."
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add product
-        </Button>
+        access.create && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            Add product
+          </Button>
+        )
       }
     >
       <div className="mb-5 flex flex-wrap gap-3">
@@ -210,9 +219,10 @@ function ProductRow({
 }: {
   product: ProductListItem;
   busy: boolean;
-  onStatusChange: (status: ProductStatus) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Absent without Publish: the select stays, locked. */
+  onStatusChange?: (status: ProductStatus) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className={cn("grid gap-x-4 gap-y-2 px-5 py-4 lg:items-center", COLUMNS, busy && "opacity-50")}>
@@ -228,8 +238,8 @@ function ProductRow({
 
       <Select
         value={product.status}
-        disabled={busy}
-        onChange={(event) => onStatusChange(event.target.value as ProductStatus)}
+        disabled={busy || !onStatusChange}
+        onChange={(event) => onStatusChange?.(event.target.value as ProductStatus)}
         aria-label={`Status of ${product.name}`}
         className="h-9 text-xs"
       >

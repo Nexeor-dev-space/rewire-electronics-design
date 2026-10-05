@@ -43,12 +43,21 @@ export async function savePolicy(
   // A Server Action is a public POST endpoint whatever page renders it, so
   // it checks access itself rather than trusting the admin layout.
   const session = await getSession();
-  if (!session || !hasPermission(session.user.role, PERMISSIONS.content)) {
+  const { permissions } = session?.user ?? { permissions: {} };
+  if (!hasPermission(permissions, PERMISSIONS.content, "EDIT")) {
     return { ok: false, error: "Your account doesn't have access to edit policies." };
   }
 
   if (!isPolicySlug(slug)) {
     return { ok: false, error: "Unknown policy." };
+  }
+
+  // Taking a policy live or offline is a publish.
+  if (!hasPermission(permissions, PERMISSIONS.content, "PUBLISH")) {
+    const current = await prisma.policy.findUnique({ where: { slug }, select: { published: true } });
+    if (current && current.published !== input.published) {
+      return { ok: false, error: "Your account can't publish or unpublish policies." };
+    }
   }
 
   const title = input.title.trim();

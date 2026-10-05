@@ -13,7 +13,7 @@ export default async function IntegrationsPage() {
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
   const allowed =
-    hasPermission(session.user.role, PERMISSIONS.integrations) &&
+    hasPermission(session.user.permissions, PERMISSIONS.integrations) &&
     canManageIntegrations(session.user.role);
 
   if (!allowed) {

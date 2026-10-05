@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Input, Select } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInventory, useSetStock } from "@/hooks/use-inventory";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PRODUCT_STATUS_LABELS, conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
@@ -148,6 +150,7 @@ function InventoryRow({ item }: { item: InventoryItem }) {
   const [value, setValue] = useState(String(item.stock));
   const [error, setError] = useState<string | undefined>();
   const setStock = useSetStock();
+  const { edit: canEdit } = useModuleAccess(PERMISSIONS.inventory);
 
   const options = [
     conditionLabel(item.condition),
@@ -194,6 +197,7 @@ function InventoryRow({ item }: { item: InventoryItem }) {
           <Input
             inputMode="numeric"
             value={value}
+            disabled={!canEdit}
             onChange={(event) => setValue(event.target.value)}
             aria-label={`Stock for ${item.sku}`}
             aria-invalid={error ? true : undefined}
@@ -202,9 +206,11 @@ function InventoryRow({ item }: { item: InventoryItem }) {
               item.stock === 0 && "text-danger",
             )}
           />
-          <Button type="submit" variant="outline" size="sm" className="h-9 px-3" disabled={!dirty} loading={setStock.isPending}>
-            Save
-          </Button>
+          {canEdit && (
+            <Button type="submit" variant="outline" size="sm" className="h-9 px-3" disabled={!dirty} loading={setStock.isPending}>
+              Save
+            </Button>
+          )}
         </div>
         <FieldError className="text-xs">{error}</FieldError>
       </form>

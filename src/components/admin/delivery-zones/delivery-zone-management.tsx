@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetDeliveryZones, useUpdateDeliveryZone } from "@/hooks/use-delivery-zone";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import type { Emirate } from "@/lib/emirates";
 import { formatMoney, fromMinorUnits, toMinorUnits } from "@/lib/money";
@@ -18,6 +20,7 @@ import type { DeliveryZoneRow } from "@/types/delivery";
 const COLUMNS = "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_6rem_5rem]";
 
 export function DeliveryZoneManagement() {
+  const { edit: canEdit } = useModuleAccess(PERMISSIONS.deliveryZones);
   const zones = useGetDeliveryZones();
   const [editing, setEditing] = useState<DeliveryZoneRow | null>(null);
 
@@ -40,7 +43,7 @@ export function DeliveryZoneManagement() {
         <ul>
           {zones.data.map((zone) => (
             <li key={zone.emirate} className="border-b border-line last:border-b-0">
-              <ZoneRow zone={zone} onEdit={() => setEditing(zone)} />
+              <ZoneRow zone={zone} onEdit={canEdit ? () => setEditing(zone) : undefined} />
             </li>
           ))}
         </ul>
@@ -60,7 +63,7 @@ export function DeliveryZoneManagement() {
   );
 }
 
-function ZoneRow({ zone, onEdit }: { zone: DeliveryZoneRow; onEdit: () => void }) {
+function ZoneRow({ zone, onEdit }: { zone: DeliveryZoneRow; onEdit?: () => void }) {
   return (
     <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS)}>
       <p className="text-sm font-medium text-ink">{zone.label}</p>
@@ -93,9 +96,11 @@ function ZoneRow({ zone, onEdit }: { zone: DeliveryZoneRow; onEdit: () => void }
         </span>
       </div>
       <div className="lg:justify-self-end">
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          Edit
-        </Button>
+        {onEdit && (
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            Edit
+          </Button>
+        )}
       </div>
     </div>
   );

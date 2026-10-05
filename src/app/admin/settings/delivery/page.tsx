@@ -12,7 +12,7 @@ export default async function DeliveryZonesPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.deliveryZones)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.deliveryZones)) {
     return (
       <AdminPage title="Delivery Zones">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Delivery Zones." />

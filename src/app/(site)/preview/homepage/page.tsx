@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  */
 export default async function HomepagePreview() {
   const session = await getSession();
-  if (!session || !hasPermission(session.user.role, PERMISSIONS.homepage)) notFound();
+  if (!session || !hasPermission(session.user.permissions, PERMISSIONS.homepage)) notFound();
 
   const sections = await getHomepageSections("DRAFT");
 

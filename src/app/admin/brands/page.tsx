@@ -12,7 +12,7 @@ export default async function BrandsPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.brands)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.brands)) {
     return (
       <AdminPage title="Brands">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Brands." />

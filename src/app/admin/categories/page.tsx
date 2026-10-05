@@ -12,7 +12,7 @@ export default async function CategoriesPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.categories)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.categories)) {
     return (
       <AdminPage title="Categories">
         <AdminEmptyState

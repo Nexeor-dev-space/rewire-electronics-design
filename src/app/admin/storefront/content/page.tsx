@@ -1,13 +1,30 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminPage } from "@/components/admin/admin-page";
+import { redirect } from "next/navigation";
+import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { Badge } from "@/components/ui/badge";
 import { listPolicies } from "@/lib/policies";
 import { POLICY_ROUTES } from "@/lib/policy-types";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { getSession } from "@/lib/auth/session";
+import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Content & Policies" };
 
 export default async function ContentPoliciesPage() {
+  const session = await getSession();
+  if (!session) redirect(SIGN_IN_PAGE_PATH);
+
+  const { permissions } = session.user;
+  if (!hasPermission(permissions, PERMISSIONS.content)) {
+    return (
+      <AdminPage title="Content & Policies">
+        <AdminEmptyState title="Access denied" description="Your role doesn't include Content & Policies." />
+      </AdminPage>
+    );
+  }
+
+  const canEdit = hasPermission(permissions, PERMISSIONS.content, "EDIT");
   const policies = await listPolicies();
 
   return (
@@ -27,12 +44,16 @@ export default async function ContentPoliciesPage() {
             <li key={policy.slug} className="border-b border-line last:border-b-0">
               <div className="grid gap-2 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4">
                 <div className="md:col-span-5">
-                  <Link
-                    href={`/admin/storefront/content/${policy.slug}`}
-                    className="text-sm font-medium text-ink underline-offset-4 hover:underline"
-                  >
-                    {policy.title}
-                  </Link>
+                  {canEdit ? (
+                    <Link
+                      href={`/admin/storefront/content/${policy.slug}`}
+                      className="text-sm font-medium text-ink underline-offset-4 hover:underline"
+                    >
+                      {policy.title}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium text-ink">{policy.title}</p>
+                  )}
                   <p className="mt-0.5 font-mono text-[0.6875rem] text-ink-muted">
                     {policy.slug}
                   </p>
@@ -68,26 +89,28 @@ export default async function ContentPoliciesPage() {
                       View page
                     </Link>
 
-                    <Link
-                      href={`/admin/storefront/content/${policy.slug}`}
-                      aria-label={`Edit ${policy.title}`}
-                      title="Edit"
-                      className="rounded-md border border-line p-1.5 text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-surface-2 hover:text-ink"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="size-4"
-                        aria-hidden
+                    {canEdit && (
+                      <Link
+                        href={`/admin/storefront/content/${policy.slug}`}
+                        aria-label={`Edit ${policy.title}`}
+                        title="Edit"
+                        className="rounded-md border border-line p-1.5 text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-surface-2 hover:text-ink"
                       >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </Link>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-4"
+                          aria-hidden
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>

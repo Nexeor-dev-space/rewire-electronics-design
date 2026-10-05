@@ -41,7 +41,14 @@ function toDraft(policy: PolicyData): {
 
 type Draft = ReturnType<typeof toDraft>;
 
-export function PolicyEditor({ policy }: { policy: PolicyData }) {
+export function PolicyEditor({
+  policy,
+  canPublish,
+}: {
+  policy: PolicyData;
+  /** Without it the Published switch is locked; the server refuses a change too. */
+  canPublish: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -178,6 +185,7 @@ export function PolicyEditor({ policy }: { policy: PolicyData }) {
             label="Published"
             hint="Unpublished policies return 404 on the storefront."
             checked={draft.published}
+            disabled={!canPublish}
             onChange={(published) => setDraft((current) => ({ ...current, published }))}
           />
           <ToggleField
@@ -293,12 +301,14 @@ function ToggleField({
   label,
   hint,
   checked,
+  disabled,
   onChange,
 }: {
   id: string;
   label: string;
   hint: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (value: boolean) => void;
 }) {
   return (
@@ -307,8 +317,9 @@ function ToggleField({
         id={id}
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 size-4 shrink-0 accent-(--color-accent)"
+        className="mt-0.5 size-4 shrink-0 accent-(--color-accent) disabled:opacity-40"
       />
       <label htmlFor={id} className="cursor-pointer">
         <span className="block text-sm text-ink">{label}</span>

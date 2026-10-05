@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions } from "@/components/admin/shared/row-actions";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteAddOn, useGetAddOns } from "@/hooks/use-add-on";
 import { ADD_ON_KIND_LABELS } from "@/lib/catalogue";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { AddOnItem } from "@/types/add-on";
@@ -22,6 +24,7 @@ const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_7rem_minmax(0,1.5fr)_6rem_6rem
 type Modal = { kind: "create" } | { kind: "edit"; addOn: AddOnItem } | null;
 
 export function AddOnManagement() {
+  const access = useModuleAccess(PERMISSIONS.addOns);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<AddOnKind | "">("");
@@ -101,8 +104,8 @@ export function AddOnManagement() {
                 <AddOnRow
                   addOn={addOn}
                   deleting={deletingId === addOn.id}
-                  onEdit={() => setModal({ kind: "edit", addOn })}
-                  onDelete={() => setToDelete(addOn)}
+                  onEdit={access.edit ? () => setModal({ kind: "edit", addOn }) : undefined}
+                  onDelete={access.delete ? () => setToDelete(addOn) : undefined}
                 />
               </li>
             ))}
@@ -136,9 +139,11 @@ export function AddOnManagement() {
       title="Add-ons"
       description="Optional extras offered alongside a device: cases, chargers, extended cover."
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add add-on
-        </Button>
+        access.create && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            Add add-on
+          </Button>
+        )
       }
     >
       <div className="mb-5 flex flex-wrap gap-3">
@@ -199,8 +204,8 @@ function AddOnRow({
 }: {
   addOn: AddOnItem;
   deleting: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const offeredOn = addOn.appliesToAll
     ? "Every product"

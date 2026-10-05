@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions, Thumbnail } from "@/components/admin/shared/row-actions";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteBrand, useGetBrands } from "@/hooks/use-brand";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import type { BrandListItem } from "@/types/brand";
 import { BrandFormModal } from "./brand-form-modal";
@@ -18,6 +20,7 @@ const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_6rem]";
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
 
 export function BrandManagement() {
+  const access = useModuleAccess(PERMISSIONS.brands);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -93,8 +96,8 @@ export function BrandManagement() {
                 <BrandRow
                   brand={brand}
                   deleting={deleteBrand.isPending && deleteBrand.variables === brand.id}
-                  onEdit={() => setModal({ kind: "edit", id: brand.id })}
-                  onDelete={() => setToDelete(brand)}
+                  onEdit={access.edit ? () => setModal({ kind: "edit", id: brand.id }) : undefined}
+                  onDelete={access.delete ? () => setToDelete(brand) : undefined}
                 />
               </li>
             ))}
@@ -133,9 +136,11 @@ export function BrandManagement() {
       title="Brands"
       description="Brand records and the logos they carry."
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add brand
-        </Button>
+        access.create && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            Add brand
+          </Button>
+        )
       }
     >
       <Input
@@ -178,8 +183,8 @@ function BrandRow({
 }: {
   brand: BrandListItem;
   deleting: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions } from "@/components/admin/shared/row-actions";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import {
   useReorderHomepageSections,
   useUpdateHomepageSection,
 } from "@/hooks/use-homepage";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { FAQ_EDITOR_PATH, HOMEPAGE_PREVIEW_PATH } from "@/lib/constants";
 import { firstLine, rowErrorMessage, sectionToInput, swapItems } from "@/lib/homepage-builder";
 import {
@@ -45,6 +47,7 @@ const BADGE_CLASS = "px-2 py-1 text-[0.625rem]";
  * docs/HOMEPAGE-CMS.md.
  */
 export function HomepageBuilder() {
+  const access = useModuleAccess(PERMISSIONS.homepage);
   const draft = useGetHomepageDraft();
   const updateSection = useUpdateHomepageSection();
   const deleteSection = useDeleteHomepageSection();
@@ -137,9 +140,9 @@ export function HomepageBuilder() {
               onToggle={() => toggleVisible(section)}
               onMoveUp={() => move(sections, index, -1)}
               onMoveDown={() => move(sections, index, 1)}
-              onEdit={() => openModal({ kind: "edit", section })}
+              onEdit={access.edit ? () => openModal({ kind: "edit", section }) : undefined}
               onDelete={
-                isAddableSectionType(section.type)
+                access.delete && isAddableSectionType(section.type)
                   ? () => setConfirm({ kind: "delete", section })
                   : undefined
               }
@@ -168,44 +171,50 @@ export function HomepageBuilder() {
             >
               Preview
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!data.hasUnpublishedChanges || data.publishedAt === null}
-              onClick={() => setConfirm({ kind: "discard" })}
-            >
-              Discard draft
-            </Button>
-            <Button
-              size="sm"
-              disabled={!data.hasUnpublishedChanges || data.sections.length === 0}
-              onClick={() => setConfirm({ kind: "publish" })}
-            >
-              Publish
-            </Button>
+            {access.publish && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!data.hasUnpublishedChanges || data.publishedAt === null}
+                  onClick={() => setConfirm({ kind: "discard" })}
+                >
+                  Discard draft
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!data.hasUnpublishedChanges || data.sections.length === 0}
+                  onClick={() => setConfirm({ kind: "publish" })}
+                >
+                  Publish
+                </Button>
+              </>
+            )}
           </div>
         )
       }
     >
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <span className="eyebrow mr-1">Add section</span>
-        {ADDABLE_SECTION_TYPES.map((type) => (
-          <Button
-            key={type}
-            variant="outline"
-            size="sm"
-            disabled={!data || full}
-            onClick={() => openModal({ kind: "add", type })}
-          >
-            {SECTION_RULES[type].label}
-          </Button>
-        ))}
-        {full && (
-          <p className="text-xs text-ink-muted">
-            The homepage holds at most {MAX_HOMEPAGE_SECTIONS} sections.
-          </p>
-        )}
-      </div>
+      {access.create && (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="eyebrow mr-1">Add section</span>
+          {ADDABLE_SECTION_TYPES.map((type) => (
+            <Button
+              key={type}
+              variant="outline"
+              size="sm"
+              disabled={!data || full}
+              onClick={() => openModal({ kind: "add", type })}
+            >
+              {SECTION_RULES[type].label}
+            </Button>
+          ))}
+          {full && (
+            <p className="text-xs text-ink-muted">
+              The homepage holds at most {MAX_HOMEPAGE_SECTIONS} sections.
+            </p>
+          )}
+        </div>
+      )}
 
       {actionError && (
         <p role="alert" className="mb-4 text-sm text-danger">
@@ -307,11 +316,13 @@ function SectionRow({
   onToggle: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onEdit: () => void;
+  /** Absent without Edit: moving and show/hide lock too. */
+  onEdit?: () => void;
   /** Only added section types can be deleted. */
   onDelete?: () => void;
 }) {
   const label = SECTION_RULES[section.type].label;
+  const locked = disabled || !onEdit;
   return (
     <div
       className={cn(
@@ -323,7 +334,7 @@ function SectionRow({
         <Button
           variant="ghost"
           size="sm"
-          disabled={disabled || first}
+          disabled={locked || first}
           onClick={onMoveUp}
           aria-label={`Move ${label} up`}
         >
@@ -332,7 +343,7 @@ function SectionRow({
         <Button
           variant="ghost"
           size="sm"
-          disabled={disabled || last}
+          disabled={locked || last}
           onClick={onMoveDown}
           aria-label={`Move ${label} down`}
         >
@@ -353,7 +364,7 @@ function SectionRow({
         )}
         {!section.visible && <Badge className={BADGE_CLASS}>Hidden</Badge>}
         <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" checked={section.visible} disabled={disabled} onChange={onToggle} />
+          <input type="checkbox" checked={section.visible} disabled={locked} onChange={onToggle} />
           Visible
         </label>
       </div>
@@ -361,9 +372,11 @@ function SectionRow({
       {onDelete ? (
         <RowActions name={label} disabled={disabled} onEdit={onEdit} onDelete={onDelete} />
       ) : (
-        <Button variant="outline" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Edit ${label}`}>
-          Edit
-        </Button>
+        onEdit && (
+          <Button variant="outline" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Edit ${label}`}>
+            Edit
+          </Button>
+        )
       )}
     </div>
   );

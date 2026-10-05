@@ -12,7 +12,7 @@ export default async function AddOnsPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.addOns)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.addOns)) {
     return (
       <AdminPage title="Add-ons">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Add-ons." />
