@@ -67,6 +67,9 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
     },
+    roles: {
+      staff: `${V1}/admin/roles/staff`,
+    },
   },
   products: {
     list: `${V1}/products`,

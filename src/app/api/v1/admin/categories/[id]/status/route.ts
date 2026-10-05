@@ -10,7 +10,7 @@ import { categoryStatusSchema } from "@/validators/category.validator";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.categories);
+  const auth = await authorizeApi(PERMISSIONS.categories, "PUBLISH");
   if (!auth.ok) return auth.response;
 
   const input = categoryStatusSchema.safeParse(await req.json().catch(() => null));

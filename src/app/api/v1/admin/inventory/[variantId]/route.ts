@@ -10,7 +10,7 @@ import { stockUpdateSchema } from "@/validators/inventory.validator";
 type Params = { params: Promise<{ variantId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.inventory);
+  const auth = await authorizeApi(PERMISSIONS.inventory, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = stockUpdateSchema.safeParse(await req.json().catch(() => null));

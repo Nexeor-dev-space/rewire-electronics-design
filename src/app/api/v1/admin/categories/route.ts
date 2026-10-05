@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { authorizeApi } from "@/lib/auth/session";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { authorizeApi, forbidden } from "@/lib/auth/session";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { createCategory, listCategories } from "@/services/category.service";
 import { categoryListQuerySchema, categorySchema } from "@/validators/category.validator";
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.categories);
+  const auth = await authorizeApi(PERMISSIONS.categories, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = categorySchema.safeParse(await req.json().catch(() => null));
@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
       z.flattenError(input.error).fieldErrors,
     );
   }
+
+  // Anything but a draft goes live or is archived, which is a publish.
+  const canPublish = hasPermission(auth.session.user.permissions, PERMISSIONS.categories, "PUBLISH");
+  if (!canPublish && input.data.status !== "DRAFT") return forbidden();
 
   try {
     const result = await createCategory(input.data);

@@ -60,5 +60,7 @@ export const FORGOT_PASSWORD_PAGE_PATH = "/forgot-password";
 export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";
 export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
+/** Where staff accounts and their roles are managed, linked from the Roles screen. */
+export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;

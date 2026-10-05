@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = productSchema.safeParse(await req.json().catch(() => null));

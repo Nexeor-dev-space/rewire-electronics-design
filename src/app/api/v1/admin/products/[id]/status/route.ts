@@ -10,7 +10,7 @@ import { productStatusSchema } from "@/validators/product.validator";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "PUBLISH");
   if (!auth.ok) return auth.response;
 
   const input = productStatusSchema.safeParse(await req.json().catch(() => null));

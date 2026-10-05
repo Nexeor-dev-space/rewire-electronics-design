@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = productSchema.safeParse(await req.json().catch(() => null));
@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

@@ -7,7 +7,7 @@ import { addHomepageSection } from "@/services/homepage.service";
 import { createHomepageSectionSchema } from "@/validators/homepage.validator";
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.homepage);
+  const auth = await authorizeApi(PERMISSIONS.homepage, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = createHomepageSectionSchema.safeParse(await req.json().catch(() => null));

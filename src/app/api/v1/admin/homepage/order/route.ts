@@ -7,7 +7,7 @@ import { reorderHomepageSections } from "@/services/homepage.service";
 import { reorderHomepageSchema } from "@/validators/homepage.validator";
 
 export async function PUT(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.homepage);
+  const auth = await authorizeApi(PERMISSIONS.homepage, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = reorderHomepageSchema.safeParse(await req.json().catch(() => null));

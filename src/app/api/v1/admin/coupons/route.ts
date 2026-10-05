@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.coupons);
+  const auth = await authorizeApi(PERMISSIONS.coupons, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = couponSchema.safeParse(await req.json().catch(() => null));

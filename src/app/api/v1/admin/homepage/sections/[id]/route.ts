@@ -9,7 +9,7 @@ import { homepageSectionSchema } from "@/validators/homepage.validator";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.homepage);
+  const auth = await authorizeApi(PERMISSIONS.homepage, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = homepageSectionSchema.safeParse(await req.json().catch(() => null));
@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.homepage);
+  const auth = await authorizeApi(PERMISSIONS.homepage, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

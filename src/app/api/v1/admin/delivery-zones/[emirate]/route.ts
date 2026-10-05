@@ -9,7 +9,7 @@ import { deliveryZoneParamsSchema, deliveryZoneSchema } from "@/validators/deliv
 type Params = { params: Promise<{ emirate: string }> };
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.deliveryZones);
+  const auth = await authorizeApi(PERMISSIONS.deliveryZones, "EDIT");
   if (!auth.ok) return auth.response;
 
   const target = deliveryZoneParamsSchema.safeParse(await params);

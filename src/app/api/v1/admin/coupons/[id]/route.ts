@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.coupons);
+  const auth = await authorizeApi(PERMISSIONS.coupons, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = couponSchema.safeParse(await req.json().catch(() => null));
@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.coupons);
+  const auth = await authorizeApi(PERMISSIONS.coupons, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

@@ -4,7 +4,7 @@ import { authorizeApi } from "@/lib/auth/session";
 import { discardHomepageDraft } from "@/services/homepage.service";
 
 export async function POST() {
-  const auth = await authorizeApi(PERMISSIONS.homepage);
+  const auth = await authorizeApi(PERMISSIONS.homepage, "PUBLISH");
   if (!auth.ok) return auth.response;
 
   try {

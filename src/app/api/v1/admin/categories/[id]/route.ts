@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { authorizeApi } from "@/lib/auth/session";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { authorizeApi, forbidden } from "@/lib/auth/session";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { deleteCategory, getCategory, updateCategory } from "@/services/category.service";
 import { categorySchema } from "@/validators/category.validator";
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.categories);
+  const auth = await authorizeApi(PERMISSIONS.categories, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = categorySchema.safeParse(await req.json().catch(() => null));
@@ -37,6 +37,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    // Changing the status from the form is a publish, as on the status route.
+    const canPublish = hasPermission(auth.session.user.permissions, PERMISSIONS.categories, "PUBLISH");
+    if (!canPublish && (await getCategory(id)).status !== input.data.status) return forbidden();
+
     const result = await updateCategory(id, input.data);
     refreshStorefrontCatalogue();
     return apiSuccess(result);
@@ -46,7 +50,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.categories);
+  const auth = await authorizeApi(PERMISSIONS.categories, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

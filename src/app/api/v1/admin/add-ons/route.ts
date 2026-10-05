@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.addOns);
+  const auth = await authorizeApi(PERMISSIONS.addOns, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = addOnSchema.safeParse(await req.json().catch(() => null));

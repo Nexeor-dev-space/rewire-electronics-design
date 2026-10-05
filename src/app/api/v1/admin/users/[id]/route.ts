@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.users);
+  const auth = await authorizeApi(PERMISSIONS.users, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = userSchema.safeParse(await req.json().catch(() => null));
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.users);
+  const auth = await authorizeApi(PERMISSIONS.users, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
