@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { createUser, listUsers } from "@/services/user.service";
 import { userListQuerySchema, userSchema } from "@/validators/user.validator";
 
@@ -33,7 +34,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createUser(auth.session.user, input.data), 201);
+    const result = await createUser(auth.session.user, input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.users,
+      recordId: result.id,
+      recordLabel: result.fullName,
+      after: result,
+    });
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/users");
   }

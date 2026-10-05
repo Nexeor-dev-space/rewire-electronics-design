@@ -3,8 +3,10 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { addHomepageSection } from "@/services/homepage.service";
 import { createHomepageSectionSchema } from "@/validators/homepage.validator";
+import { SECTION_RULES } from "@/lib/homepage-sections";
 
 export async function POST(req: NextRequest) {
   const auth = await authorizeApi(PERMISSIONS.homepage, "CREATE");
@@ -21,7 +23,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await addHomepageSection(input.data), 201);
+    const result = await addHomepageSection(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.homepage,
+      recordLabel: SECTION_RULES[input.data.type].label,
+      after: input.data,
+    });
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/homepage/sections");
   }

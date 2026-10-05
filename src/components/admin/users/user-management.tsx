@@ -169,7 +169,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
       <ConfirmDialog
         open={toDelete !== null}
         title={`Delete ${toDelete?.fullName ?? "account"}?`}
-        description="They'll be removed from this list and won't be able to sign in."
+        description="They can't sign in, and the account moves to Trash, where it can be restored."
         confirmLabel="Delete account"
         onCancel={() => setToDelete(null)}
         onConfirm={confirmDelete}

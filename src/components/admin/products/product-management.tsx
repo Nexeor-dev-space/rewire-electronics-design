@@ -199,7 +199,7 @@ export function ProductManagement() {
       <ConfirmDialog
         open={toDelete !== null}
         title={`Delete ${toDelete?.name ?? "product"}?`}
-        description="This removes the product, its variants, images and specs. Archive it instead to keep the record."
+        description="It leaves the storefront and moves to Trash, where it can be restored as a Draft."
         confirmLabel="Delete product"
         error={deleteProduct.isError ? deleteProduct.error.message : undefined}
         loading={deleteProduct.isPending}

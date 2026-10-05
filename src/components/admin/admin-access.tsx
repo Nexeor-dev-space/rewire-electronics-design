@@ -25,7 +25,7 @@ export function useAdminPermissions(): PermissionGrid {
   return useContext(AdminAccessContext);
 }
 
-/** `{ view, create, edit, delete, publish }` for one module. */
+/** `{ view, create, edit, delete, publish, restore }` for one module. */
 export function useModuleAccess(module: string): ModuleAccess {
   return moduleAccess(useAdminPermissions(), module);
 }

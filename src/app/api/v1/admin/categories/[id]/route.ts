@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { authorizeApi, forbidden } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { deleteCategory, getCategory, updateCategory } from "@/services/category.service";
 import { categorySchema } from "@/validators/category.validator";
@@ -38,10 +39,19 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   try {
     // Changing the status from the form is a publish, as on the status route.
+    const before = await getCategory(id);
     const canPublish = hasPermission(auth.session.user.permissions, PERMISSIONS.categories, "PUBLISH");
-    if (!canPublish && (await getCategory(id)).status !== input.data.status) return forbidden();
+    if (!canPublish && before.status !== input.data.status) return forbidden();
 
     const result = await updateCategory(id, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.categories,
+      recordId: id,
+      recordLabel: result.name,
+      before,
+      after: result,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {
@@ -55,7 +65,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    const before = await getCategory(id);
     const result = await deleteCategory(id);
+    await recordAudit(auth.session.user, {
+      action: "DELETE",
+      module: PERMISSIONS.categories,
+      recordId: id,
+      recordLabel: before.name,
+      before,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {

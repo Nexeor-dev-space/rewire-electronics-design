@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS, type PermissionGrid } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { getStaffPermissions, saveStaffPermissions } from "@/services/role-permission.service";
 import type { StaffPermissions } from "@/types/role";
 import { staffPermissionsSchema } from "@/validators/role.validator";
@@ -29,10 +30,19 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
+    const before = await getStaffPermissions();
     const permissions = await saveStaffPermissions(
       input.data.permissions as PermissionGrid,
       auth.session.user.id,
     );
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.roles,
+      recordId: "STAFF",
+      recordLabel: "Staff role",
+      before,
+      after: permissions,
+    });
     return apiSuccess<StaffPermissions>({ permissions });
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/roles/staff");

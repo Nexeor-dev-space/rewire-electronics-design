@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { createCoupon, listCoupons } from "@/services/coupon.service";
 import { couponListQuerySchema, couponSchema } from "@/validators/coupon.validator";
 
@@ -37,7 +38,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createCoupon(input.data), 201);
+    const result = await createCoupon(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.coupons,
+      recordId: result.id,
+      recordLabel: result.code,
+      after: result,
+    });
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/coupons");
   }

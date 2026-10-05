@@ -19,7 +19,7 @@ import {
 import { STAFF_ACCOUNTS_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const COLUMNS = "grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))]";
+const COLUMNS = "grid-cols-[minmax(0,1.6fr)_repeat(6,minmax(0,1fr))]";
 
 const FIXED_ROLES = [
   { label: "Admin", access: "Every module and action, always. Not editable, so nobody can lock the console." },
@@ -107,7 +107,7 @@ function StaffGrid({ saved }: { saved: PermissionGrid }) {
   return (
     <>
       <div className="overflow-x-auto rounded-xl border border-line">
-        <div className="min-w-[36rem]">
+        <div className="min-w-[40rem]">
           <div className={cn("grid gap-4 border-b border-line bg-surface-2 px-5 py-3", COLUMNS)}>
             <p className="eyebrow">Module</p>
             {PERMISSION_ACTIONS.map((action) => (

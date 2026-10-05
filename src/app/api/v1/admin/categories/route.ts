@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { authorizeApi, forbidden } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { createCategory, listCategories } from "@/services/category.service";
 import { categoryListQuerySchema, categorySchema } from "@/validators/category.validator";
@@ -43,6 +44,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await createCategory(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.categories,
+      recordId: result.id,
+      recordLabel: result.name,
+      after: result,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result, 201);
   } catch (error) {

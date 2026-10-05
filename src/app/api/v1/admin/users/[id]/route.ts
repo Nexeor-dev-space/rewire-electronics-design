@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { deleteUser, getUser, updateUser } from "@/services/user.service";
 import { userSchema } from "@/validators/user.validator";
 
@@ -32,7 +33,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await updateUser(auth.session.user, id, input.data));
+    const before = await getUser(id);
+    const result = await updateUser(auth.session.user, id, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.users,
+      recordId: id,
+      recordLabel: result.fullName,
+      before,
+      after: result,
+    });
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PATCH /admin/users/[id]");
   }
@@ -44,7 +55,16 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await deleteUser(auth.session.user, id));
+    const before = await getUser(id);
+    const result = await deleteUser(auth.session.user, id);
+    await recordAudit(auth.session.user, {
+      action: "DELETE",
+      module: PERMISSIONS.users,
+      recordId: id,
+      recordLabel: before.fullName,
+      before,
+    });
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "DELETE /admin/users/[id]");
   }

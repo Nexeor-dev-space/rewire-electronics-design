@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { createBrand, listBrands } from "@/services/brand.service";
 import { brandListQuerySchema, brandSchema } from "@/validators/brand.validator";
 
@@ -37,7 +38,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createBrand(input.data), 201);
+    const result = await createBrand(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.brands,
+      recordId: result.id,
+      recordLabel: result.name,
+      after: result,
+    });
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/brands");
   }

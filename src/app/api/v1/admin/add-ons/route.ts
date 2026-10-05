@@ -4,6 +4,7 @@ import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
 import { createAddOn, listAddOns } from "@/services/add-on.service";
+import { recordAudit } from "@/services/audit.service";
 import { addOnListQuerySchema, addOnSchema } from "@/validators/add-on.validator";
 
 export async function GET(req: NextRequest) {
@@ -37,7 +38,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await createAddOn(input.data), 201);
+    const result = await createAddOn(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.addOns,
+      recordId: result.id,
+      recordLabel: result.name,
+      after: result,
+    });
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /admin/add-ons");
   }

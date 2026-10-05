@@ -70,6 +70,17 @@ export const API_ENDPOINTS = {
     roles: {
       staff: `${V1}/admin/roles/staff`,
     },
+    auditLogs: {
+      list: `${V1}/admin/audit-logs`,
+    },
+    trash: {
+      products: `${V1}/admin/trash/products`,
+      product: (id: string) => `${V1}/admin/trash/products/${id}`,
+      restoreProduct: (id: string) => `${V1}/admin/trash/products/${id}/restore`,
+      users: `${V1}/admin/trash/users`,
+      user: (id: string) => `${V1}/admin/trash/users/${id}`,
+      restoreUser: (id: string) => `${V1}/admin/trash/users/${id}/restore`,
+    },
   },
   products: {
     list: `${V1}/products`,

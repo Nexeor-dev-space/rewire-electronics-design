@@ -16,7 +16,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 /* ---------- modules and actions ---------- */
 
-export const PERMISSION_ACTIONS = ["VIEW", "CREATE", "EDIT", "DELETE", "PUBLISH"] as const;
+export const PERMISSION_ACTIONS = ["VIEW", "CREATE", "EDIT", "DELETE", "PUBLISH", "RESTORE"] as const;
 export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
 
 export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
@@ -25,6 +25,7 @@ export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
   EDIT: "Edit",
   DELETE: "Delete",
   PUBLISH: "Publish",
+  RESTORE: "Restore",
 };
 
 /** Module keys: `adminPermission(area, key)`, the same key the nav row carries. */
@@ -42,6 +43,9 @@ export const PERMISSIONS = {
   coupons: adminPermission("marketing", "coupons"),
   deliveryZones: adminPermission("governance", "delivery"),
   roles: adminPermission("governance", "roles"),
+  changeLog: adminPermission("governance", "change-log"),
+  /** Restore (RESTORE) and delete permanently (DELETE) for products and users. */
+  trash: adminPermission("governance", "trash"),
 } as const;
 
 export interface AdminModule {
@@ -53,7 +57,7 @@ export interface AdminModule {
   adminOnly?: boolean;
 }
 
-const ALL_ACTIONS = PERMISSION_ACTIONS;
+const ALL_ACTIONS: readonly PermissionAction[] = ["VIEW", "CREATE", "EDIT", "DELETE", "PUBLISH"];
 const CRUD: readonly PermissionAction[] = ["VIEW", "CREATE", "EDIT", "DELETE"];
 const VIEW_EDIT: readonly PermissionAction[] = ["VIEW", "EDIT"];
 
@@ -69,6 +73,8 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.users, label: "Users", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
+  { key: PERMISSIONS.changeLog, label: "Change Log", actions: ["VIEW"] },
+  { key: PERMISSIONS.trash, label: "Trash", actions: ["VIEW", "RESTORE", "DELETE"] },
   { key: PERMISSIONS.integrations, label: "API Credentials", actions: VIEW_EDIT, adminOnly: true },
   { key: PERMISSIONS.roles, label: "Roles", actions: VIEW_EDIT, adminOnly: true },
 ];
@@ -114,7 +120,7 @@ export function hasPermission(
   return permissions[module]?.includes(action) ?? false;
 }
 
-/** The five actions as booleans, for a screen deciding what to show. */
+/** The actions as booleans, for a screen deciding what to show. */
 export function moduleAccess(permissions: PermissionGrid, module: string) {
   return {
     view: hasPermission(permissions, module, "VIEW"),
@@ -122,6 +128,7 @@ export function moduleAccess(permissions: PermissionGrid, module: string) {
     edit: hasPermission(permissions, module, "EDIT"),
     delete: hasPermission(permissions, module, "DELETE"),
     publish: hasPermission(permissions, module, "PUBLISH"),
+    restore: hasPermission(permissions, module, "RESTORE"),
   };
 }
 

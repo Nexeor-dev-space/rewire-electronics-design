@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { deleteBrand, getBrand, updateBrand } from "@/services/brand.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { brandSchema } from "@/validators/brand.validator";
@@ -37,7 +38,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    const before = await getBrand(id);
     const result = await updateBrand(id, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.brands,
+      recordId: id,
+      recordLabel: result.name,
+      before,
+      after: result,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {
@@ -51,7 +61,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    const before = await getBrand(id);
     const result = await deleteBrand(id);
+    await recordAudit(auth.session.user, {
+      action: "DELETE",
+      module: PERMISSIONS.brands,
+      recordId: id,
+      recordLabel: before.name,
+      before,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {
