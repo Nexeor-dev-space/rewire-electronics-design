@@ -33,7 +33,6 @@ that keeps people from clicking into a 403.
 | --- | --- |
 | `prisma/schema/user.prisma` | `PermissionAction` enum, `RolePermission` model |
 | `src/lib/auth/permissions.ts` | `PERMISSIONS`, `ADMIN_MODULES`, `STAFF_MODULES`, `hasPermission`, `moduleAccess`, `normaliseActions`, `fullGrid`, `hasAnyModule`, `visibleAdminNav` (client safe) |
-| `src/lib/auth/permissions.test.ts` | Tests for the rules above |
 | `src/services/role-permission.service.ts` | `getRolePermissions(role)`, `getStaffPermissions()`, `saveStaffPermissions(grid, actorId)` and the in memory cache |
 | `src/lib/auth/session.ts` | `getSession()` attaches `user.permissions`; `authorizeApi(module, action)`; `forbidden()` |
 | `src/validators/role.validator.ts` | `staffPermissionsSchema` |

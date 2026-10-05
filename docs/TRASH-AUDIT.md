@@ -39,7 +39,6 @@ Orders don't exist yet. When they do, an order status change is one
 | `prisma/schema/catalogue.prisma` | `Product.deletedAt` |
 | `prisma/schema/user.prisma` | `PermissionAction.RESTORE` |
 | `src/lib/audit.ts` | `AUDIT_ACTIONS`, labels, `auditSnapshot`, `auditDiff`, `auditFieldLabel`, `auditModuleLabel` (client safe) |
-| `src/lib/audit.test.ts` | Tests for the above |
 | `src/services/audit.service.ts` | `recordAudit`, `listAuditLogs` |
 | `src/services/product.service.ts` | Soft `deleteProduct`, `listDeletedProducts`, `restoreProduct`, `purgeProduct`, `getProduct(id, { inTrash })` |
 | `src/services/user.service.ts` | `listDeletedUsers`, `restoreUser`, `getUser(id, { inTrash })` |
