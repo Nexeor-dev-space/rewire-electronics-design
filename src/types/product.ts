@@ -70,6 +70,15 @@ export interface ProductDetail {
   variants: ProductVariantDetail[];
   images: ProductImageDetail[];
   specs: ProductSpecDetail[];
+  /** SEO overrides; null or empty falls back on the storefront (`productSeo`). */
+  seoTitle: string | null;
+  metaDescription: string | null;
+  metaKeywords: string[];
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImageId: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
 }
 
 export type ProductFilters = {

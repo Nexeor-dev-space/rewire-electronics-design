@@ -11,12 +11,14 @@ import { useGetBrands } from "@/hooks/use-brand";
 import { useGetCategories } from "@/hooks/use-category";
 import { useCreateProduct, useGetProduct, useUpdateProduct } from "@/hooks/use-product";
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { PICKER_PAGE_SIZE } from "@/lib/constants";
+import { PICKER_PAGE_SIZE, SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { fromMinorUnits, toMinorUnits } from "@/lib/money";
+import { clip } from "@/lib/seo";
 import { slugify } from "@/lib/utils";
 import type { ProductDetail } from "@/types/product";
 import { GRADED_CONDITIONS, productSchema } from "@/validators/product.validator";
 import { ProductImagesField, type DraftImage } from "./product-images-field";
+import { ProductSeoFields, seoInput, toDraftSeo, type DraftSeo } from "./product-seo-fields";
 import { ProductSpecsEditor, newSpecKey, type DraftSpec } from "./product-specs-editor";
 import {
   ProductVariantsEditor,
@@ -149,6 +151,7 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
     initial?.specs.map((spec) => ({ ...spec, key: newSpecKey() })) ?? [],
   );
   const [variants, setVariants] = useState<DraftVariant[]>(() => toDraftVariants(initial));
+  const [seo, setSeo] = useState<DraftSeo>(() => toDraftSeo(initial));
   const [errors, setErrors] = useState<Errors>({});
 
   const brands = useGetBrands(PICKER_FILTERS);
@@ -158,6 +161,16 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   const mutation = initial ? updateProduct : createProduct;
 
   const error = (path: string) => errors[path];
+
+  // The same fallbacks the storefront uses (`productSeo`), shown as placeholders.
+  const brandName = brands.data?.items.find((brand) => brand.id === brandId)?.name ?? "";
+  const seoFallback = {
+    title: [brandName, name.trim()].filter(Boolean).join(" ") || "Brand and product name",
+    description:
+      clip(description || lines(highlights)[0] || "", SEO_DESCRIPTION_MAX_LENGTH) ||
+      "The product description",
+    canonical: `/product/${slug || "…"}`,
+  };
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -187,6 +200,7 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
           variant.compareAtPrice.trim() === "" ? null : (toMinorUnits(variant.compareAtPrice) ?? 0),
         stock: optionalNumber(variant.stock),
       })),
+      ...seoInput(seo),
     });
     if (!parsed.success) {
       setErrors(issuesToErrors(parsed.error.issues));
@@ -349,6 +363,8 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
           />
 
           <ProductSpecsEditor specs={specs} onChange={setSpecs} error={error("specs")} errorAt={error} />
+
+          <ProductSeoFields seo={seo} onChange={setSeo} fallback={seoFallback} errorAt={error} />
         </div>
       </DialogBody>
 

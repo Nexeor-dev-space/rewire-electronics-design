@@ -117,6 +117,13 @@ const detailSelect = {
     },
     orderBy: { sortOrder: "asc" },
   },
+  seoTitle: true,
+  metaDescription: true,
+  metaKeywords: true,
+  ogTitle: true,
+  ogDescription: true,
+  ogImageId: true,
+  canonicalUrl: true,
 } satisfies Prisma.ProductSelect;
 
 type DetailRow = Prisma.ProductGetPayload<{ select: typeof detailSelect }>;
@@ -259,6 +266,15 @@ function toDetail(row: DetailRow): ShopProductDetail {
     specs: groupSpecs(row.specs),
     variants: row.variants.map(toVariant),
     listedAt: row.publishedAt?.toISOString() ?? null,
+    seo: {
+      seoTitle: row.seoTitle,
+      metaDescription: row.metaDescription,
+      metaKeywords: row.metaKeywords,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImageUrl: imageUrlOrNull(row.ogImageId),
+      canonicalUrl: row.canonicalUrl,
+    },
   };
 }
 

@@ -60,6 +60,7 @@ const prismaImageStorage: ImageStorage = {
         categories: { none: {} },
         brands: { none: {} },
         productImages: { none: {} },
+        productOgImages: { none: {} },
         homepageSections: { none: {} },
       },
     });

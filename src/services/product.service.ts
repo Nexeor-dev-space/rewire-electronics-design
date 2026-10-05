@@ -10,7 +10,7 @@ import type {
   productSchema,
   productStatusSchema,
 } from "@/validators/product.validator";
-import { releaseImage } from "./media.service";
+import { imageExists, releaseImage } from "./media.service";
 
 type Tx = Prisma.TransactionClient;
 type ProductData = z.output<typeof productSchema>;
@@ -70,6 +70,13 @@ const detailSelect = {
   },
   images: { select: { mediaId: true, alt: true, colour: true }, orderBy: { sortOrder: "asc" } },
   specs: { select: { group: true, label: true, value: true }, orderBy: { sortOrder: "asc" } },
+  seoTitle: true,
+  metaDescription: true,
+  metaKeywords: true,
+  ogTitle: true,
+  ogDescription: true,
+  ogImageId: true,
+  canonicalUrl: true,
 } satisfies Prisma.ProductSelect;
 
 const notFound = () =>
@@ -154,6 +161,7 @@ export async function getProduct(id: string, { inTrash = false } = {}) {
   return {
     ...row,
     images: row.images.map((image) => ({ ...image, url: imageUrl(image.mediaId) })),
+    ogImageUrl: imageUrlOrNull(row.ogImageId),
   };
 }
 
@@ -188,7 +196,11 @@ export async function updateProduct(id: string, data: ProductData) {
     async (tx) => {
       const current = await tx.product.findFirst({
         where: { id, ...LIVE },
-        select: { images: { select: { mediaId: true } }, variants: { select: { id: true } } },
+        select: {
+          ogImageId: true,
+          images: { select: { mediaId: true } },
+          variants: { select: { id: true } },
+        },
       });
       if (!current) throw notFound();
 
@@ -231,6 +243,9 @@ export async function updateProduct(id: string, data: ProductData) {
       const keptMedia = new Set(data.images.map((image) => image.mediaId));
       for (const { mediaId } of current.images) {
         if (!keptMedia.has(mediaId)) await releaseImage(tx, mediaId);
+      }
+      if (current.ogImageId !== null && current.ogImageId !== data.ogImageId) {
+        await releaseImage(tx, current.ogImageId);
       }
     },
     { timeout: WRITE_TIMEOUT_MS },
@@ -315,12 +330,13 @@ export async function purgeProduct(id: string) {
   await prisma.$transaction(async (tx) => {
     const current = await tx.product.findFirst({
       where: { id, ...IN_TRASH },
-      select: { images: { select: { mediaId: true } } },
+      select: { ogImageId: true, images: { select: { mediaId: true } } },
     });
     if (!current) throw notFound();
 
     await tx.product.delete({ where: { id } });
     for (const { mediaId } of current.images) await releaseImage(tx, mediaId);
+    if (current.ogImageId !== null) await releaseImage(tx, current.ogImageId);
   });
 
   return { id };
@@ -339,6 +355,13 @@ function productFields(data: ProductData) {
     highlights: data.highlights,
     included: data.included,
     minPrice: Math.min(...data.variants.map((variant) => variant.price)),
+    seoTitle: data.seoTitle,
+    metaDescription: data.metaDescription,
+    metaKeywords: data.metaKeywords,
+    ogTitle: data.ogTitle,
+    ogDescription: data.ogDescription,
+    ogImageId: data.ogImageId,
+    canonicalUrl: data.canonicalUrl,
   };
 }
 
@@ -408,6 +431,11 @@ async function assertReferences(tx: Tx, data: ProductData) {
   if (!category) {
     const message = "That category no longer exists.";
     throw new ServiceError("VALIDATION", message, 422, { categoryId: [message] });
+  }
+
+  if (data.ogImageId !== null && !(await imageExists(tx, data.ogImageId))) {
+    const message = "The share image no longer exists. Upload it again.";
+    throw new ServiceError("VALIDATION", message, 422, { ogImageId: [message] });
   }
 
   const mediaIds = data.images.map((image) => image.mediaId);

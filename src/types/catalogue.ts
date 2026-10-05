@@ -87,6 +87,17 @@ export interface ShopAddOn {
   popular: boolean;
 }
 
+/** The admin's SEO overrides, raw; `productSeo` in `src/lib/seo.ts` adds the fallbacks. */
+export interface ProductSeoFields {
+  seoTitle: string | null;
+  metaDescription: string | null;
+  metaKeywords: string[];
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
+}
+
 export interface ShopProductDetail {
   id: string;
   slug: string;
@@ -101,6 +112,7 @@ export interface ShopProductDetail {
   specs: SpecGroup[];
   variants: ShopVariant[];
   listedAt: string | null;
+  seo: ProductSeoFields;
 }
 
 export interface StorefrontCategory {
