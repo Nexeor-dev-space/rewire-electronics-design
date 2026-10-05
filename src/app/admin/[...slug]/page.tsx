@@ -13,6 +13,7 @@ function pathFrom(slug: string[]): string {
 
 const BUILT_ROUTES = new Set([
   "/admin/storefront/content",
+  "/admin/storefront/homepage",
   "/admin/users",
   "/admin/users/staff",
   "/admin/users/customers",

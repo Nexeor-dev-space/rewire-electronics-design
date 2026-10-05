@@ -22,10 +22,9 @@ publish, not a deployment.
 Permission key: `storefront.homepage` (`PERMISSIONS.homepage`), checked by every
 route.
 
-**Scope.** This module is the backend and the storefront's consumption of it.
-The editing screen — Storefront → Homepage Builder, `/admin/storefront/homepage`
-— belongs to the separate Page Builder issue, is still the placeholder, and
-builds on this API. Until it lands, the homepage shows the seeded content.
+**Scope.** This module is the backend, the storefront's consumption of it, and
+the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage`
+(§9). Staff preview the draft at `/preview/homepage` before publishing.
 
 ### Files
 
@@ -38,6 +37,12 @@ builds on this API. Until it lands, the homepage shows the seeded content.
 | `src/services/homepage.service.ts` | Draft reads and writes, publish, discard, the cached storefront read |
 | `src/app/api/v1/admin/homepage/` | The admin API — see below |
 | `src/lib/api/api-endpoints.ts` | `API_ENDPOINTS.admin.homepage`, for the Page Builder's hooks |
+| `src/hooks/use-homepage.ts` | React Query hooks for the admin API. Key `["homepage"]`; a successful mutation writes the returned draft into the cache with no refetch, a failed one reloads the draft |
+| `src/lib/homepage-builder.ts` | Pure helpers for the builder: `swapItems`, `sectionToInput`, `emptySectionInput`, `validateSection`, `firstLine`, `flattenCategoryRefs`. Client-safe, unit tested |
+| `src/components/admin/homepage/` | The builder screen, the section form and the brand and category picker |
+| `src/app/admin/storefront/homepage/page.tsx` | The builder route, guarded by `storefront.homepage` |
+| `src/app/(site)/preview/homepage/page.tsx` | The staff draft preview |
+| `src/components/home/homepage-sections.tsx` | Renders a list of sections with the FAQ and product data they share. Used by `/` and the preview |
 | `src/components/home/homepage-section.tsx` | Section type → storefront component |
 | `src/components/home/{promo-banner,featured-brands,featured-categories}/` | The three section types staff can add |
 | `src/components/home/shared/section-header.tsx` | Header and closing link those three share |
@@ -177,7 +182,9 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
   later is **skipped** when the section renders; a featured section with
   nothing left is not rendered at all. Brand and category deletes are not
   blocked by homepage use.
-- The storefront read (`getPublishedHomepage`) is **not cached**: the
+- The storefront read (`getPublishedHomepage`, which is
+  `getHomepageSections("LIVE")`; the preview calls it with `"DRAFT"`, with
+  the same skipping rules) is **not cached**: the
   homepage renders per request (`force-dynamic`), so it reads the live rows
   each time. A renamed, unpublished or deleted brand or category leaves the
   homepage immediately, and a seed shows up without clearing anything. (An
@@ -198,8 +205,8 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
 - **No optimistic concurrency.** Two people editing the draft at once
   overwrite each other's field edits. A reorder sent from a stale tab (the set
   of sections changed) is refused with "The page changed since you loaded it".
-- **Choosing brands and categories.** The Page Builder's picker will most
-  likely read the catalogue list endpoints, which check the
+- **Choosing brands and categories.** The Page Builder's picker reads the
+  catalogue list endpoints, which check the
   `catalogue.brands` / `catalogue.categories` permissions. Today every console
   role holds all of them; a role narrowed later needs those two as well as
   `storefront.homepage`.
@@ -231,3 +238,56 @@ the homepage renders the header and footer only.
 4. Add a case to `src/components/home/homepage-section.tsx`. The switch is
    exhaustive, so the type-check fails until you do.
 5. If it is fixed, add its default row to `homepage` in `prisma/seed.ts`.
+
+---
+
+## 9. Homepage Builder
+
+Storefront → Homepage Builder, `/admin/storefront/homepage`. Signed out
+redirects to sign in; a role without `storefront.homepage` sees "Access
+denied". Everything on the screen edits the draft; shoppers see nothing until
+Publish.
+
+**Toolbar.**
+
+1. Status: "Unpublished changes", "Never published", or "Published" with the
+   date.
+2. **Preview** opens `/preview/homepage` in a new tab.
+3. **Discard draft** asks first. Disabled when there is nothing unpublished or
+   nothing has ever been published.
+4. **Publish** asks first. Disabled when there is nothing unpublished or the
+   draft is empty.
+
+**Section list**, in draft order. Each row shows the type, the first line of
+its title, Seasonal and Hidden badges, a Visible checkbox, move up and down
+buttons, Edit, and Delete for added types only. **Add section** offers the
+addable types and is disabled at 30 sections. A note links to Content &
+Policies, where the FAQ section's questions are edited.
+
+**Section form.** One modal for every type. It shows only the fields
+`SECTION_RULES` gives the type, with their length limits; the title is a
+textarea because a new line starts a new heading line. Promo banners get the
+shared image upload and a Seasonal checkbox; featured sections get the
+picker. Before sending, `validateSection` runs the same schema and type rules
+as the API, so most mistakes show without a round trip; the API's 422 field
+errors land on the same inputs.
+
+**Picker.** Searches brands or categories through the catalogue list
+endpoints, one page of results (`PICKER_PAGE_SIZE`). Chosen items keep their
+order, can be moved and removed, up to 12.
+
+**Preview.** `/preview/homepage` renders the draft's visible sections with the
+real header and footer through the same `HomepageSections` component as `/`.
+Only staff with `storefront.homepage` can open it; anyone else gets a 404. It
+is marked noindex. A bar at the bottom links back to the builder.
+
+**Known edges.**
+
+1. A featured section whose brands or categories were all deleted can't be
+   shown or hidden from the list: the API asks for at least one item. The
+   error names the section; choose new items in Edit.
+2. Moving a section from a stale tab (a section was added or deleted
+   elsewhere) is refused with "The page changed since you loaded it", and
+   the list reloads.
+3. No locking between editors: two people saving the same section overwrite
+   each other (§6).
