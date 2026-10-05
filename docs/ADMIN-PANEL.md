@@ -199,7 +199,16 @@ Staff role happens here, in the Staff modal.
   one marked, or the first when none is.
 * **Emails** are stored lowercased and must be unique (409 on the email field).
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
-  the list and can't sign in; its email stays taken.
+  the list and can't sign in; its email stays taken. It waits in Governance →
+  Trash → Users, where it can be restored ([TRASH-AUDIT.md](TRASH-AUDIT.md)).
+
+## Change Log and Trash
+
+Governance → **Change Log** (`/admin/change-log`, `governance.change-log`)
+lists every recorded admin change with its previous and new values.
+Governance → **Trash** (`/admin/trash/products`, `/admin/trash/users`,
+`governance.trash`) holds deleted products and accounts for restore. Both are
+described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
 ## Categories and Brands
 

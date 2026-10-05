@@ -16,6 +16,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Pages, components, styling, motion, loading states | [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) |
 | Admin console, sidebar, admin routes | [docs/ADMIN-PANEL.md](docs/ADMIN-PANEL.md) |
 | Roles, staff permissions, `authorizeApi` actions, the Roles screen, hiding admin buttons | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) |
+| The change log, `recordAudit`, Trash, soft delete, restoring products or users | [docs/TRASH-AUDIT.md](docs/TRASH-AUDIT.md) |
 | Policy pages, rich text, the policy editor | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
 | Homepage sections, the homepage CMS API, publishing | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |

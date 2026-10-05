@@ -12,8 +12,8 @@ changes data in the console.
 
 1. Three fixed roles, the `UserRole` enum: `ADMIN`, `STAFF`, `CUSTOMER`.
    There are no custom roles.
-2. Five actions, the `PermissionAction` enum: `VIEW`, `CREATE`, `EDIT`,
-   `DELETE`, `PUBLISH`.
+2. Six actions, the `PermissionAction` enum: `VIEW`, `CREATE`, `EDIT`,
+   `DELETE`, `PUBLISH`, `RESTORE`. Restore exists only on Trash.
 3. **Admin** always holds every action on every module. It is fixed in code
    and can't be edited, so nobody can lock the console.
 4. **Customer** holds nothing and never reaches the console.
@@ -94,6 +94,8 @@ Migration: `add_role_permissions` (run by the developer with
 | Users | `service.users` | View, Create, Edit, Delete |
 | Discount Codes | `marketing.coupons` | View, Create, Edit, Delete |
 | Delivery Zones | `governance.delivery` | View, Edit |
+| Change Log | `governance.change-log` | View |
+| Trash | `governance.trash` | View, Restore, Delete (delete permanently) |
 | API Credentials | `governance.integrations` | Admin only |
 | Roles | `governance.roles` | Admin only |
 
@@ -114,6 +116,7 @@ so the rule holds even for a hand written API call.
 | Edit | `PUT` / `PATCH` | Homepage: edit, show or hide, reorder. Inventory: stock |
 | Delete | `DELETE` | |
 | Publish | `PATCH …/status` (products, categories), `POST homepage/publish`, `POST homepage/discard` | See below for status set from a form |
+| Restore | `POST trash/…/restore` | Trash only; see [TRASH-AUDIT.md](TRASH-AUDIT.md) |
 
 Publish through a form:
 
@@ -171,7 +174,7 @@ user can't view, and a section left empty. Rows for modules not built yet
 
 **Buttons.** `AdminShell` puts the session's grid in `AdminAccessProvider`.
 A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
-`{ view, create, edit, delete, publish }`:
+`{ view, create, edit, delete, publish, restore }`:
 
 | Screen | Without the action |
 | --- | --- |

@@ -141,10 +141,14 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 5. **Publishing needs at least one image** (409 otherwise).
 6. **An image colour must match a variant colour.** The admin picks it from a
    list built from the variants in the form; "All colours" leaves it empty.
-7. **Deleting** a product removes its variants, images and specs. Archive it
-   instead to keep the record.
+7. **Deleting** a product moves it to Trash: `deletedAt` is set and the status
+   becomes Draft, and its variants, images and specs are kept. Every admin
+   product query filters `deletedAt: null`, and the storefront's `PUBLISHED`
+   filter includes it too. Trash can restore it (as a Draft) or delete it
+   permanently; see [TRASH-AUDIT.md](TRASH-AUDIT.md). A product in Trash still
+   holds its slug and SKUs, and the 409 for a clash says so.
 8. Categories and brands with products can't be deleted; the message names the
-   count.
+   count, products in Trash included.
 9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
    closing the modal drops the cached product and the next open fetches it
    again. Without this, stock changed from Inventory was shown stale and the
