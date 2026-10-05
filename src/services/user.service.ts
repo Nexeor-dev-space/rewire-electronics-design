@@ -10,7 +10,8 @@ import type { userListQuerySchema, userSchema } from "@/validators/user.validato
 
 /**
  * Accounts for the console's Users screens. Deleting is soft: `state`
- * becomes INACTIVE, and every read here only sees ACTIVE users.
+ * becomes INACTIVE, and every read here only sees ACTIVE users except the
+ * Trash ones (`listDeletedUsers`, `getUser(id, { inTrash: true })`).
  */
 
 type Tx = Prisma.TransactionClient;
@@ -63,9 +64,9 @@ export async function listUsers({
   return { items, page, pageSize, total };
 }
 
-export async function getUser(id: string) {
+export async function getUser(id: string, { inTrash = false } = {}) {
   const user = await prisma.user.findFirst({
-    where: { id, state: "ACTIVE" },
+    where: { id, state: inTrash ? "INACTIVE" : "ACTIVE" },
     select: {
       ...userSelect,
       passwordHash: true,
@@ -152,6 +153,62 @@ export async function deleteUser(viewer: Actor, id: string) {
   });
 
   return { id };
+}
+
+/* ---------- trash ---------- */
+
+export async function listDeletedUsers({
+  page,
+  pageSize,
+  search,
+}: {
+  page: number;
+  pageSize: number;
+  search?: string;
+}) {
+  const where: Prisma.UserWhereInput = {
+    state: "INACTIVE",
+    ...(search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: "insensitive" } },
+            { email: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [items, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      select: userSelect,
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { items, page, pageSize, total };
+}
+
+/**
+ * Brings an account back from Trash. Only Admins restore Admin accounts.
+ * The session version moves on, so cookies from before the delete stay dead
+ * and the person signs in again.
+ */
+export async function restoreUser(viewer: Actor, id: string) {
+  const target = await prisma.user.findFirst({ where: { id, state: "INACTIVE" }, select: { role: true } });
+  if (!target) throw notFound();
+  if (!canManageUser(viewer, target)) {
+    throw new ServiceError("FORBIDDEN", "Only an admin can restore an admin account.", 403);
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: { state: "ACTIVE", sessionVersion: { increment: 1 } },
+  });
+  return getUser(id);
 }
 
 /* ---------- rules ---------- */

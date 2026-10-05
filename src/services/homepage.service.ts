@@ -105,6 +105,13 @@ export async function getHomepageDraft() {
   };
 }
 
+/** One draft section as the builder shows it; the change log's previous value. */
+export async function findDraftSection(id: string) {
+  const section = (await getHomepageDraft()).sections.find((row) => row.id === id);
+  if (!section) throw notFound();
+  return section;
+}
+
 /* ---------- draft writes ---------- */
 
 export async function addHomepageSection(data: CreateSectionData) {

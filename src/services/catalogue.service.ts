@@ -42,7 +42,11 @@ export const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
   OR: [{ parentId: null }, { parent: { is: { status: "PUBLISHED" } } }],
 };
 
-export const PUBLISHED: Prisma.ProductWhereInput = { status: "PUBLISHED", category: VISIBLE_CATEGORY };
+export const PUBLISHED: Prisma.ProductWhereInput = {
+  status: "PUBLISHED",
+  deletedAt: null,
+  category: VISIBLE_CATEGORY,
+};
 
 const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
   newest: [{ publishedAt: "desc" }, { id: "asc" }],

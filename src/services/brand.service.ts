@@ -116,7 +116,7 @@ export async function deleteBrand(id: string) {
     if (current._count.products > 0) {
       throw new ServiceError(
         "CONFLICT",
-        `${current.name} has ${productCountPhrase(current._count.products)}. Move or delete them first.`,
+        `${current.name} has ${productCountPhrase(current._count.products)} (Trash included). Move them, or delete them permanently from Trash.`,
         409,
       );
     }

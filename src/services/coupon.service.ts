@@ -170,7 +170,7 @@ async function assertCodeFree(tx: Tx, code: string, exceptId?: string) {
 
 async function assertTargetsExist(tx: Tx, productIds: string[], categoryIds: string[]) {
   if (productIds.length > 0) {
-    const found = await tx.product.count({ where: { id: { in: productIds } } });
+    const found = await tx.product.count({ where: { id: { in: productIds }, deletedAt: null } });
     if (found !== productIds.length) {
       const message = "One of the products no longer exists.";
       throw new ServiceError("VALIDATION", message, 422, { productIds: [message] });

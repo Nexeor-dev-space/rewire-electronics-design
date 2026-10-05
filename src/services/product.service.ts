@@ -16,6 +16,7 @@ type Tx = Prisma.TransactionClient;
 type ProductData = z.output<typeof productSchema>;
 type ProductQuery = z.output<typeof productListQuerySchema>;
 type ProductStatusData = z.output<typeof productStatusSchema>;
+type TrashQuery = { page: number; pageSize: number; search?: string };
 type VariantData = ProductData["variants"][number];
 
 const WRITE_TIMEOUT_MS = 15_000;
@@ -74,6 +75,14 @@ const detailSelect = {
 const notFound = () =>
   new ServiceError("NOT_FOUND", "We couldn't find that product. It may have been deleted.", 404);
 
+/**
+ * Soft delete. A product in Trash has `deletedAt` set and is held at Draft,
+ * so the storefront (which shows Published only) never serves it. Admin
+ * queries add `LIVE` themselves.
+ */
+const LIVE = { deletedAt: null } satisfies Prisma.ProductWhereInput;
+const IN_TRASH = { deletedAt: { not: null } } satisfies Prisma.ProductWhereInput;
+
 export const productCountPhrase = (count: number) =>
   `${count} ${count === 1 ? "product" : "products"}`;
 
@@ -105,6 +114,7 @@ export async function listProducts({
   brandId,
 }: ProductQuery) {
   const where: Prisma.ProductWhereInput = {
+    ...LIVE,
     ...(status ? { status } : {}),
     ...(brandId ? { brandId } : {}),
     ...(categoryId ? { category: { OR: [{ id: categoryId }, { parentId: categoryId }] } } : {}),
@@ -133,8 +143,12 @@ export async function listProducts({
   return { items: rows.map(toListItem), page, pageSize, total };
 }
 
-export async function getProduct(id: string) {
-  const row = await prisma.product.findUnique({ where: { id }, select: detailSelect });
+/** A live product; `{ inTrash: true }` reads one from Trash instead. */
+export async function getProduct(id: string, { inTrash = false } = {}) {
+  const row = await prisma.product.findFirst({
+    where: { id, ...(inTrash ? IN_TRASH : LIVE) },
+    select: detailSelect,
+  });
   if (!row) throw notFound();
 
   return {
@@ -172,8 +186,8 @@ export async function createProduct(data: ProductData) {
 export async function updateProduct(id: string, data: ProductData) {
   await prisma.$transaction(
     async (tx) => {
-      const current = await tx.product.findUnique({
-        where: { id },
+      const current = await tx.product.findFirst({
+        where: { id, ...LIVE },
         select: { images: { select: { mediaId: true } }, variants: { select: { id: true } } },
       });
       if (!current) throw notFound();
@@ -227,8 +241,8 @@ export async function updateProduct(id: string, data: ProductData) {
 
 export async function setProductStatus(id: string, { status }: ProductStatusData) {
   await prisma.$transaction(async (tx) => {
-    const current = await tx.product.findUnique({
-      where: { id },
+    const current = await tx.product.findFirst({
+      where: { id, ...LIVE },
       select: { publishedAt: true, _count: { select: { images: true } } },
     });
     if (!current) throw notFound();
@@ -249,10 +263,58 @@ export async function setProductStatus(id: string, { status }: ProductStatusData
   return getProduct(id);
 }
 
+/** Moves a product to Trash. Its variants, images and specs stay for a restore. */
 export async function deleteProduct(id: string) {
+  const { count } = await prisma.product.updateMany({
+    where: { id, ...LIVE },
+    data: { deletedAt: new Date(), status: "DRAFT" },
+  });
+  if (count === 0) throw notFound();
+  return { id };
+}
+
+/* ---------- trash ---------- */
+
+export async function listDeletedProducts({ page, pageSize, search }: TrashQuery) {
+  const where: Prisma.ProductWhereInput = {
+    ...IN_TRASH,
+    ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+  };
+
+  const [rows, total] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      select: { ...listSelect, deletedAt: true },
+      orderBy: { deletedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    items: rows.map((row) => ({ ...toListItem(row), deletedAt: row.deletedAt as Date })),
+    page,
+    pageSize,
+    total,
+  };
+}
+
+/** Back from Trash as a Draft, so it never goes live by surprise. */
+export async function restoreProduct(id: string) {
+  const { count } = await prisma.product.updateMany({
+    where: { id, ...IN_TRASH },
+    data: { deletedAt: null, status: "DRAFT" },
+  });
+  if (count === 0) throw notFound();
+  return getProduct(id);
+}
+
+/** Deletes a product in Trash for good, freeing its slug and SKUs. */
+export async function purgeProduct(id: string) {
   await prisma.$transaction(async (tx) => {
-    const current = await tx.product.findUnique({
-      where: { id },
+    const current = await tx.product.findFirst({
+      where: { id, ...IN_TRASH },
       select: { images: { select: { mediaId: true } } },
     });
     if (!current) throw notFound();
@@ -307,9 +369,11 @@ function specFields(spec: ProductData["specs"][number], index: number) {
 /* ---------- rules ---------- */
 
 async function assertSlugFree(tx: Tx, slug: string, exceptId?: string) {
-  const owner = await tx.product.findUnique({ where: { slug }, select: { id: true } });
+  const owner = await tx.product.findUnique({ where: { slug }, select: { id: true, deletedAt: true } });
   if (owner && owner.id !== exceptId) {
-    const message = "Another product already uses this URL slug.";
+    const message = owner.deletedAt
+      ? "A product in Trash uses this URL slug. Restore it or delete it permanently first."
+      : "Another product already uses this URL slug.";
     throw new ServiceError("CONFLICT", message, 409, { slug: [message] });
   }
 }
@@ -320,10 +384,12 @@ async function assertSkusFree(tx: Tx, variants: VariantData[], exceptProductId?:
       sku: { in: variants.map((variant) => variant.sku), mode: "insensitive" },
       ...(exceptProductId ? { productId: { not: exceptProductId } } : {}),
     },
-    select: { sku: true },
+    select: { sku: true, product: { select: { deletedAt: true } } },
   });
   if (taken) {
-    const message = `SKU ${taken.sku} is already used by another product.`;
+    const message = taken.product.deletedAt
+      ? `SKU ${taken.sku} belongs to a product in Trash. Restore it or delete it permanently first.`
+      : `SKU ${taken.sku} is already used by another product.`;
     throw new ServiceError("CONFLICT", message, 409, { variants: [message] });
   }
 }
