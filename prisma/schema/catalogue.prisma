@@ -96,6 +96,19 @@ model Product {
   /// Every product query filters `deletedAt: null`; see docs/TRASH-AUDIT.md.
   deletedAt   DateTime?
 
+  /// SEO overrides, all optional. Empty means the storefront falls back to
+  /// the product's own name, description and images; see `productSeo` in
+  /// `src/lib/seo.ts` and docs/CATALOGUE.md.
+  seoTitle        String?
+  metaDescription String?
+  metaKeywords    String[]
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+  /// A site path (`/product/x`) or an absolute https URL.
+  canonicalUrl    String?
+
   variants ProductVariant[]
   images   ProductImage[]
   specs    ProductSpec[]
