@@ -92,25 +92,31 @@ Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/auth/permissions.ts` | Roles, `ROLE_PERMISSIONS`, and the rules for managing accounts |
+| `src/lib/auth/permissions.ts` | Roles, modules, actions, the permission checks, and the rules for managing accounts |
+| `src/services/role-permission.service.ts` | Loads, caches and saves the Staff permission grid |
 | `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
 | `src/lib/auth/password.ts` | scrypt hashing |
 | `src/app/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
 
-**Permissions.** `ROLE_PERMISSIONS` lists the `adminPermission(area, key)` keys
-each role may use, or `"*"` for all. Admin and Staff currently have `"*"`,
-Customer has none. When the staff permission system is specified, narrow Staff
-there; the checks below already read it.
+**Permissions.** Each module has the actions View, Create, Edit, Delete and
+Publish (only the ones it supports). Admin always holds every action,
+Customer none, and Staff holds what an Admin sets on the **Roles** screen
+(Governance → Roles, `/admin/roles`). The full rules, the module list, the
+API and the known limits are in [PERMISSIONS.md](PERMISSIONS.md).
 
 **Checks.**
 
-* `src/app/admin/layout.tsx` — signed out → `/sign-in`; a role with no
-  permissions → the access-denied screen instead of the console.
-* A built module's page checks its own key with `hasPermission`.
-* Every `/api/v1/admin` route starts with `authorizeApi(PERMISSIONS.<module>)`:
-  401 when signed out, 403 without the permission.
+* `src/app/admin/layout.tsx`: signed out → `/sign-in`; a Customer, or Staff
+  whose grid grants no module → the access-denied screen instead of the console.
+* A built module's page checks View with
+  `hasPermission(session.user.permissions, PERMISSIONS.<module>)`.
+* Every `/api/v1/admin` route starts with
+  `authorizeApi(PERMISSIONS.<module>, "<ACTION>")`: 401 when signed out, 403
+  without the action.
 * Server Actions check for themselves (`savePolicy`), because they can be
   called directly.
+* The sidebar hides modules the user can't view, and each screen hides the
+  buttons for actions the user lacks (`useModuleAccess`).
 
 **Sessions** are a signed cookie (`AUTH_SECRET`), seven days. The cookie only
 identifies the user and carries their `sessionVersion`; role, state and
@@ -152,12 +158,11 @@ key `governance.integrations`.
 1. Holds the SMTP settings, sender address and site address, encrypted, and the DEV / LIVE switch. Values are write-only: the screen
    shows set or not set, the last four characters of longer values, and when
    it changed.
-2. **Admins only.** Staff hold `"*"`, so the permission key alone would admit
-   them. The page and every `/api/v1/admin/integrations` route also check
-   `canManageIntegrations(role)` in `permissions.ts`, which is true for Admin
-   only, and answer 403 "Only Admins can manage integrations." otherwise. The
-   sidebar does not filter by role, so Staff see the row and land on "Access
-   denied".
+2. **Admins only.** API Credentials is an Admin only module, never on the
+   Staff grid, so Staff don't see the row and the page answers "Access
+   denied". Every `/api/v1/admin/integrations` route also checks
+   `canManageIntegrations(role)` in `permissions.ts`, true for Admin only, and
+   answers 403 "Only Admins can manage integrations." otherwise.
 
 Keys, modes, encryption and the Gmail and Resend setup steps are in
 [INTEGRATIONS.md](INTEGRATIONS.md).
@@ -172,7 +177,9 @@ Service → **Users**, with two screens beneath it:
 Both render the same module with a different `group`, and each fetches only its
 own accounts (`?group=staff` / `?group=customers`). `/admin/users` redirects to
 the customers screen. Staff accounts used to sit under Governance → Staff &
-Roles; that row is now just **Roles**, for the roles themselves.
+Roles; that row is now just **Roles**, where an Admin sets what the Staff role
+may do ([PERMISSIONS.md](PERMISSIONS.md)). Giving an account the Admin or
+Staff role happens here, in the Staff modal.
 
 | File | Purpose |
 | --- | --- |
