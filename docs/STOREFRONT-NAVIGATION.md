@@ -48,7 +48,7 @@ an admin change reaches all of them at once, with no code change:
 | Shop and Categories menus | `components/layout/mega-panels.tsx` | `shopBrowseLinks()` and the list itself |
 | Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories)` |
 | Homepage strip | `components/home/hero/category-strip.tsx` | The first `HOME_CATEGORY_LIMIT` (4) |
-| Search panel | `components/layout/search-panel.tsx` | `searchCatalogue(query, categories)` |
+| Search panel | `components/layout/search-panel.tsx` | The list, shown before the shopper types; typed queries go to `GET /api/v1/search` |
 | About page | `components/about/what.tsx` | The list, with descriptions |
 | Just listed | `components/home/featured/featured.tsx` | Not the family list: the newest in stock products from the database, see [CATALOGUE.md](CATALOGUE.md) |
 
@@ -56,6 +56,26 @@ A category's brand dropdown lists the brands of its in stock published
 products, its children included, and only appears when there is more than
 one brand. The cache and how admin writes refresh it are described in
 [CATALOGUE.md](CATALOGUE.md) §5.
+
+**Search has one component.** The header field (`inline-search.tsx`), the
+mobile search icon and the mobile drawer's search button all open the same
+`SearchPanel`; none of them searches on its own. Their label and placeholder
+come from `searchCopy` in `src/lib/site.ts`, and every "see all" path is built
+by `searchHref(q)`. In the panel:
+
+1. Before two characters are typed it shows the storefront categories.
+2. While typing, `useSearchSuggestions` (`src/hooks/use-search.ts`) calls
+   `GET /api/v1/search` after `SEARCH_DEBOUNCE_MS`, and shows Products, Brands
+   and Categories, each linking to its page, plus "See all results".
+3. It shows a skeleton while loading, a message if the request fails, and "No
+   results found" with a Clear search button when nothing matches.
+4. Enter opens `/search?q=`. Clear empties the field; Escape or a click
+   outside closes the panel.
+
+The search rules and the API are in [CATALOGUE.md](CATALOGUE.md) §4 "Search".
+The old full screen `SearchOverlay`, its `searchSuggestions` list and the mock
+`src/lib/search.ts` adapter (hardcoded quick searches and sample drops) were
+removed, so the storefront keeps no search data of its own.
 
 ### Hiding a family
 

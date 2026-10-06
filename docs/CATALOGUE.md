@@ -207,7 +207,7 @@ Query parameters, validated by `shopQuerySchema` in
 | Parameter | Meaning |
 | --- | --- |
 | `page`, `pageSize` | Default page size `SHOP_PAGE_SIZE` (12), maximum `SHOP_MAX_PAGE_SIZE` (48) |
-| `q` | Text search on product name, brand name and category name, up to 100 characters |
+| `q` | Text search, up to `SEARCH_QUERY_MAX_LENGTH` (100) characters; see "Search" below |
 | `category` | Comma separated category slugs. A parent slug also matches its children |
 | `condition` | `new`, `open-box`, `pre-owned`, `refurbished` |
 | `grade` | `premium`, `excellent`, `very-good`, `good` |
@@ -270,6 +270,46 @@ included and warranty months, plus:
 The product page calls the same `findShopProductPage` service function, so the
 page and the API cannot disagree.
 
+### Search
+
+There is one search, end to end. `searchWhere(q)` in
+`src/services/catalogue.service.ts` is the only product text filter: both
+`/search` (through `listShopProducts`) and the suggestions API use it, so a
+suggestion and the full results never disagree.
+
+1. The query is lowercased and split on spaces, keeping the first
+   `SEARCH_MAX_WORDS` (5) words.
+2. **Every word must match somewhere** on the product, partially and without
+   case: product name, description, brand name, category name, or any
+   variant's SKU, storage or colour. "iphone 128" finds an iPhone with a 128GB
+   variant; "A2848" finds the variant with that SKU.
+3. Only `PUBLISHED` products in visible categories are searched, as everywhere
+   else on the storefront. There is no separate search table or index; the
+   matches are `ILIKE` queries on the catalogue tables.
+
+### `GET /api/v1/search?q=`
+
+Public, no session. Feeds the header search panel while the shopper types.
+
+| Part | Rule |
+| --- | --- |
+| `q` | Validated by `searchSuggestionsQuerySchema`. Missing, blank, shorter than `SEARCH_MIN_QUERY_LENGTH` (2) or longer than `SEARCH_QUERY_MAX_LENGTH` (100) answers 200 with empty lists, never an error |
+| `products` | Up to `SEARCH_SUGGESTION_LIMITS.products` (5) `ShopCard`s matching `searchWhere`, newest first |
+| `brands` | Up to 4 brands with at least one published product whose name contains any word, as `{ name }` |
+| `categories` | Up to 4 visible categories whose name contains any word, as `{ name, slug }` |
+
+Three small bounded queries per request. The panel links a product to
+`/product/[slug]`, a brand to `/collection?brand=<name>` and a category to
+`/collection/[slug]`.
+
+```json
+{
+  "products": [ShopCard],
+  "brands": [{ "name": "Apple" }],
+  "categories": [{ "name": "Smartphones", "slug": "smartphones" }]
+}
+```
+
 ---
 
 ## 5. Storefront
@@ -280,7 +320,7 @@ page and the API cannot disagree.
 | `/collection` | Every published product |
 | `/collection/[category]` | The same page, with the category filter set |
 | `/category/[slug]` | Permanent redirect to `/collection/[slug]` (`next.config.ts`) |
-| `/search?q=` | The same page, with the text search set. Not indexed |
+| `/search?q=` | The same page, with the text search set, a "Clear search" link and a "No results found" empty state. Not indexed |
 | `/product/[slug]` | `findShopProductPage` |
 
 All of these render per request (`force-dynamic`), because they read the
@@ -450,6 +490,11 @@ All in `src/lib/constants.ts`.
 | `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
 | `HOME_CATEGORY_LIMIT` | 4 | Categories in the home strip |
 | `STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` | 300 | Longest the cached menu categories live |
+| `SEARCH_QUERY_MAX_LENGTH` | 100 | Longest search query (`q`) |
+| `SEARCH_MIN_QUERY_LENGTH` | 2 | Shortest query that gets suggestions |
+| `SEARCH_MAX_WORDS` | 5 | Words of a query that are matched |
+| `SEARCH_SUGGESTION_LIMITS` | 5, 4, 4 | Products, brands and categories in the search panel |
+| `SEARCH_DEBOUNCE_MS` | 300 | Pause in typing before the panel asks for suggestions |
 | `SEO_TITLE_MAX_LENGTH`, `SEO_DESCRIPTION_MAX_LENGTH`, `OG_TITLE_MAX_LENGTH`, `OG_DESCRIPTION_MAX_LENGTH`, `SEO_KEYWORDS_MAX`, `SEO_KEYWORD_MAX_LENGTH`, `CANONICAL_URL_MAX_LENGTH` | 70, 160, 95, 200, 10, 40, 512 | Product SEO fields (section 7) |
 
 ---
