@@ -55,9 +55,10 @@ export async function savePolicy(
   // The previous value for the change log, and the publish check below.
   const before = await readPolicy(slug);
 
-  // Taking a policy live or offline is a publish.
+  // Taking a policy live or offline is a publish. A missing policy counts as
+  // unpublished, so it can't skip the check.
   const canPublish = hasPermission(session.user.permissions, PERMISSIONS.content, "PUBLISH");
-  if (!canPublish && before && before.published !== input.published) {
+  if (!canPublish && (before?.published ?? false) !== input.published) {
     return { ok: false, error: "Your account can't publish or unpublish policies." };
   }
 
