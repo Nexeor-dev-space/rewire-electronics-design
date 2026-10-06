@@ -1,6 +1,6 @@
 /// Who an account is. ADMIN and STAFF reach the console; CUSTOMER never does.
-/// Which console modules STAFF reaches, and what it may do there, is stored in
-/// `RolePermission`; ADMIN and CUSTOMER are fixed in `src/lib/auth/permissions.ts`.
+/// ADMIN and CUSTOMER access is fixed in `src/lib/auth/permissions.ts`; what a
+/// STAFF account may do comes from its `StaffRole`.
 enum UserRole {
   ADMIN
   STAFF
@@ -28,6 +28,9 @@ model User {
   passwordHash    String?
   emailVerifiedAt DateTime?
   sessionVersion  Int       @default(0)
+  /// STAFF only. Null means no access until an Admin assigns a role.
+  staffRoleId     String?
+  staffRole       StaffRole? @relation("StaffRoleUsers", fields: [staffRoleId], references: [id], onDelete: Restrict)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -38,34 +41,49 @@ model User {
 
   integrationSettingsUpdates   IntegrationSettings[]
   integrationCredentialUpdates IntegrationCredential[]
-  rolePermissionUpdates        RolePermission[]
+  staffRoleUpdates             StaffRole[]           @relation("StaffRoleUpdatedBy")
   auditLogs                    AuditLog[]
 
   @@index([state, updatedAt])
+  @@index([staffRoleId])
   @@map("users")
 }
 
-/// What a role may do inside one admin module.
-enum PermissionAction {
+/// A role's access to one admin module. No row means No Access. What each
+/// level allows is decided in `levelActions` (`src/lib/auth/permissions.ts`).
+enum AccessLevel {
   VIEW
-  CREATE
   EDIT
-  DELETE
-  PUBLISH
-  RESTORE
+  FULL
 }
 
-model RolePermission {
-  role        UserRole
-  module      String
-  actions     PermissionAction[]
+/// A custom role an Admin creates and assigns to STAFF accounts. It can't be
+/// deleted while any account holds it.
+model StaffRole {
+  id          String                @id @default(cuid())
+  name        String
+  /// Trimmed and lowercased name, so names are unique ignoring case.
+  nameKey     String                @unique
+  description String?
+  users       User[]                @relation("StaffRoleUsers")
+  permissions StaffRolePermission[]
   updatedById String?
-  updatedBy   User?              @relation(fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  updatedBy   User?                 @relation("StaffRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
 
-  @@id([role, module])
-  @@map("role_permissions")
+  @@map("staff_roles")
+}
+
+model StaffRolePermission {
+  roleId String
+  role   StaffRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  /// A permission module key, e.g. `catalogue.products`.
+  module String
+  level  AccessLevel
+
+  @@id([roleId, module])
+  @@map("staff_role_permissions")
 }
 
 enum AuthTokenType {
