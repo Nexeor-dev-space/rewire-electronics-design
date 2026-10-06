@@ -143,8 +143,8 @@ What is recorded today:
 | Delivery Zones | update |
 | Homepage Builder | add, edit (including show or hide), delete, reorder, publish, discard |
 | Content & Policies | save (title, text, published, draft notice, blocks) |
-| Users | create, update, delete, restore |
-| Roles | Staff permission changes |
+| Customers, Staff accounts | create, update (including a Staff role change), delete, restore; logged under the account's module |
+| Roles | create, update, delete a Staff role |
 | API Credentials | credential set or removed (no values), mode change |
 
 ---
@@ -174,8 +174,10 @@ What is recorded today:
 1. Delete is unchanged: `state: INACTIVE`.
 2. **Restore** sets `ACTIVE` and increments `sessionVersion`, so cookies from
    before the delete stay dead and the person signs in again.
-3. Only Admins restore Admin accounts (`canManageUser`), and the screen hides
-   Restore on those rows for Staff.
+3. Restoring a customer needs Trash Restore and Customers Edit. Restoring an
+   Admin or Staff account also needs Staff accounts, which only Admins hold
+   (`accountModule`), so in practice only Admins restore console accounts.
+   The screen hides Restore on rows the viewer can't restore.
 4. Accounts are not deleted permanently from Trash. Their email stays taken.
 
 ---
