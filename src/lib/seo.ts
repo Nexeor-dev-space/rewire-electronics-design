@@ -63,6 +63,15 @@ export function toJsonLd(data: object): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
+/**
+ * True when a product's canonical is its own page: no override, or one that
+ * resolves to `/product/<slug>`. Only these belong in the sitemap.
+ */
+export function isSelfCanonical(product: { slug: string; canonicalUrl: string | null }): boolean {
+  if (product.canonicalUrl === null) return true;
+  return absoluteUrl(product.canonicalUrl) === absoluteUrl(productHref(product));
+}
+
 export function productJsonLd(product: ShopProductDetail): string {
   const prices = product.variants.map((variant) => variant.price);
   return toJsonLd({
@@ -72,7 +81,8 @@ export function productJsonLd(product: ShopProductDetail): string {
     description: product.description || product.highlights[0],
     brand: { "@type": "Brand", name: product.brand },
     image: product.images.map((image) => absoluteUrl(image.url)),
-    url: absoluteUrl(productHref(product)),
+    // The same canonical the page declares, so the signals agree.
+    url: absoluteUrl(productSeo(product).canonical),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: CURRENCY,

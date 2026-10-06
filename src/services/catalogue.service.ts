@@ -473,7 +473,7 @@ export async function listSitemapEntries() {
   const [products, categories] = await Promise.all([
     prisma.product.findMany({
       where: PUBLISHED,
-      select: { slug: true, updatedAt: true },
+      select: { slug: true, canonicalUrl: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: SITEMAP_PRODUCT_LIMIT,
     }),

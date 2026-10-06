@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { productHrefForCategory, SHOP_INDEX_HREF } from "@/lib/route-map";
-import { absoluteUrl } from "@/lib/seo";
+import { absoluteUrl, isSelfCanonical } from "@/lib/seo";
 import { productHref } from "@/lib/shop";
 import { listSitemapEntries } from "@/services/catalogue.service";
 
@@ -16,7 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absoluteUrl(productHrefForCategory(category.slug)),
       lastModified: category.updatedAt,
     })),
-    ...products.map((product) => ({
+    // A product whose canonical points elsewhere is not its own page to index.
+    ...products.filter(isSelfCanonical).map((product) => ({
       url: absoluteUrl(productHref(product)),
       lastModified: product.updatedAt,
     })),
