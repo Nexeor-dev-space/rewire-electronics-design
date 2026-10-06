@@ -33,18 +33,26 @@ export const addressSchema = z.object({
  * Create and update take the same body. `addresses` is the full list:
  * addresses missing from it are removed.
  */
-export const userSchema = z.object({
-  fullName: z.string().trim().min(1, "Enter the full name.").max(120),
-  email: emailValidator,
-  phone: optionalPhoneValidator,
-  role: z.enum(ROLES, { error: "Choose a role." }),
-  /** Optional. Without a password the account can't sign in. */
-  password: newPasswordValidator.optional(),
-  addresses: z
-    .array(addressSchema)
-    .max(10, "Save up to 10 addresses.")
-    .refine(
-      (list) => list.filter((address) => address.isPrimary).length <= 1,
-      "Only one address can be primary.",
-    ),
-});
+export const userSchema = z
+  .object({
+    fullName: z.string().trim().min(1, "Enter the full name.").max(120),
+    email: emailValidator,
+    phone: optionalPhoneValidator,
+    role: z.enum(ROLES, { error: "Choose a role." }),
+    /** The custom role a Staff account works under; null for Admin and Customer. */
+    staffRoleId: z.string().min(1).nullable().default(null),
+    /** Optional. Without a password the account can't sign in. */
+    password: newPasswordValidator.optional(),
+    addresses: z
+      .array(addressSchema)
+      .max(10, "Save up to 10 addresses.")
+      .refine(
+        (list) => list.filter((address) => address.isPrimary).length <= 1,
+        "Only one address can be primary.",
+      ),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === "STAFF" && data.staffRoleId === null) {
+      ctx.addIssue({ code: "custom", path: ["staffRoleId"], message: "Choose a staff role." });
+    }
+  });

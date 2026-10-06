@@ -511,7 +511,8 @@ export function isAdminItemActive(
   item: AdminNavItem,
 ): boolean {
   if (!match) return false;
-  return match.item === item || match.parent === item;
+  // By href, not identity: the sidebar renders copies with filtered children.
+  return match.item.href === item.href || match.parent?.href === item.href;
 }
 
 /* ============================================================

@@ -6,8 +6,15 @@ import { apiError } from "@/lib/api/api-response";
 import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { SessionUser } from "@/types/auth";
-import { getRolePermissions } from "@/services/role-permission.service";
-import { hasPermission, type PermissionAction } from "./permissions";
+import {
+  fullGrid,
+  gridFromLevels,
+  hasPermission,
+  type PermissionAction,
+  type PermissionGrid,
+  type Role,
+  type StoredAccessLevel,
+} from "./permissions";
 import { createSessionToken, readSessionToken } from "./session-token";
 
 /**
@@ -38,14 +45,23 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: true,
       emailVerifiedAt: true,
       createdAt: true,
+      // A Staff role's levels ride on the same query, so a role edit applies on the next request.
+      staffRole: { select: { permissions: { select: { module: true, level: true } } } },
     },
   });
   if (!user) return null;
 
-  const { emailVerifiedAt, ...rest } = user;
-  const permissions = await getRolePermissions(user.role);
+  const { emailVerifiedAt, staffRole, ...rest } = user;
+  const permissions = permissionsFor(user.role, staffRole?.permissions ?? []);
   return { user: { ...rest, emailVerified: emailVerifiedAt !== null, permissions } };
 });
+
+/** Admin: everything. Staff: its role's levels (none without a role). Customer: nothing. */
+function permissionsFor(role: Role, levels: { module: string; level: StoredAccessLevel }[]): PermissionGrid {
+  if (role === "ADMIN") return fullGrid();
+  if (role === "STAFF") return gridFromLevels(levels);
+  return {};
+}
 
 export async function startSession(userId: string, sessionVersion: number) {
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;

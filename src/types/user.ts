@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { Role } from "@/lib/auth/permissions";
 import type { Emirate } from "@/lib/emirates";
+import type { NamedRef } from "@/types/product";
 import type { UserGroup, userSchema } from "@/validators/user.validator";
 
 export interface UserAddress {
@@ -17,6 +18,8 @@ export interface UserListItem {
   email: string;
   phone: string | null;
   role: Role;
+  /** Staff accounts only; null for a Staff account no role has been assigned to yet. */
+  staffRole: NamedRef | null;
   /** ISO string — shown as "Last edited". */
   updatedAt: string;
 }

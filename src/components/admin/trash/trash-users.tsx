@@ -9,7 +9,7 @@ import { Dialog, DialogBody } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetTrashUser, useGetTrashUsers, useRestoreUser } from "@/hooks/use-trash";
-import { PERMISSIONS, ROLE_LABELS, canManageUser } from "@/lib/auth/permissions";
+import { PERMISSIONS, ROLE_LABELS, accountModule, canManageUser, hasPermission } from "@/lib/auth/permissions";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { emirateLabel } from "@/lib/emirates";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,11 @@ export function TrashUsers({ viewer }: { viewer: SessionUser }) {
                     busy={busyId === user.id}
                     onView={() => setViewing(user.id)}
                     onRestore={
-                      access.restore && canManageUser(viewer, user) ? () => setToRestore(user) : undefined
+                      access.restore &&
+                      canManageUser(viewer, user) &&
+                      hasPermission(viewer.permissions, accountModule(user.role), "EDIT")
+                        ? () => setToRestore(user)
+                        : undefined
                     }
                   />
                 </div>

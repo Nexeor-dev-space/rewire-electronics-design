@@ -62,6 +62,8 @@ export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 /** Where staff accounts and their roles are managed, linked from the Roles screen. */
 export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
+export const STAFF_ROLE_NAME_MAX_LENGTH = 60;
+export const STAFF_ROLE_DESCRIPTION_MAX_LENGTH = 200;
 
 /** Product SEO field limits: what search results and share cards show before truncating. */
 export const SEO_TITLE_MAX_LENGTH = 70;

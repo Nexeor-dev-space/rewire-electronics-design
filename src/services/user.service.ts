@@ -6,6 +6,7 @@ import { ServiceError } from "@/lib/api/api-response";
 import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { assertStaffRoleExists } from "@/services/staff-role.service";
 import type { userListQuerySchema, userSchema } from "@/validators/user.validator";
 
 /**
@@ -23,6 +24,7 @@ const userSelect = {
   email: true,
   phone: true,
   role: true,
+  staffRole: { select: { id: true, name: true } },
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
@@ -88,12 +90,14 @@ export async function createUser(viewer: Actor, data: UserData) {
 
   const id = await prisma.$transaction(async (tx) => {
     await assertEmailFree(tx, data.email);
+    await assertStaffRole(tx, data);
     const user = await tx.user.create({
       data: {
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
         role: data.role,
+        staffRoleId: staffRoleIdFor(data),
         passwordHash,
         emailVerifiedAt: new Date(),
       },
@@ -123,6 +127,7 @@ export async function updateUser(viewer: Actor, id: string, data: UserData) {
     }
 
     await assertEmailFree(tx, data.email, id);
+    await assertStaffRole(tx, data);
     await saveAddresses(tx, id, data.addresses);
     await tx.user.update({
       where: { id },
@@ -131,6 +136,7 @@ export async function updateUser(viewer: Actor, id: string, data: UserData) {
         email: data.email,
         phone: data.phone,
         role: data.role,
+        staffRoleId: staffRoleIdFor(data),
         passwordHash,
         // Address-only edits still count as editing the account.
         updatedAt: new Date(),
@@ -212,6 +218,16 @@ export async function restoreUser(viewer: Actor, id: string) {
 }
 
 /* ---------- rules ---------- */
+
+/** Only a Staff account holds a Staff role; anything else stores null. */
+function staffRoleIdFor(data: UserData): string | null {
+  return data.role === "STAFF" ? data.staffRoleId : null;
+}
+
+async function assertStaffRole(tx: Tx, data: UserData) {
+  const roleId = staffRoleIdFor(data);
+  if (roleId) await assertStaffRoleExists(tx, roleId);
+}
 
 function checkRoleAndPassword(viewer: Actor, data: UserData) {
   if (!assignableRoles(viewer.role).includes(data.role)) {
