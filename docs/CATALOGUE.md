@@ -347,7 +347,7 @@ the admin picks the new colour on them.
 
 | Piece | File |
 | --- | --- |
-| Sitemap | `src/app/sitemap.ts`. Home, the shop, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first |
+| Sitemap | `src/app/sitemap.ts`. Home, the shop, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`) |
 | Robots | `src/app/robots.ts`. Keeps `/admin`, `/api`, `/account`, `/cart` and `/checkout` out, except `/api/v1/media/` so product images stay crawlable, and points to the sitemap |
 | Product JSON-LD | `productJsonLd` in `src/lib/seo.ts`, rendered on the product page |
 | Product title, description, keywords, Open Graph, Twitter card, canonical | `generateMetadata` on the product page, values from `productSeo` in `src/lib/seo.ts` |
@@ -396,7 +396,13 @@ The form shows the same fallbacks as placeholders, so a blank field reads as
 (`productOgImages` on `MediaAsset`). Replacing or clearing it releases the old
 asset once nothing else uses it; deleting a product permanently releases it too.
 
-The product JSON-LD keeps the product's own name and description.
+The product JSON-LD keeps the product's own name and description, but its
+`url` is the same canonical the page declares, and the sitemap lists only
+products whose canonical is their own page (`isSelfCanonical` in
+`src/lib/seo.ts`; an override equal to `/product/<slug>`, relative or absolute,
+still counts as their own). So the page, the JSON-LD and the sitemap never
+disagree. Because the sitemap filters after taking the newest
+`SITEMAP_PRODUCT_LIMIT` products, it can list slightly fewer than the limit.
 
 The JSON-LD is a `Product` with an `AggregateOffer`: lowest and highest variant
 price and variant count, plus one `Offer` per variant with its SKU, price,
