@@ -24,7 +24,7 @@ import { AdminUserMenu } from "./admin-user-menu";
  *
  * The whole frame is scoped to `.admin-theme`, the light / dark token set in
  * globals.css. Every component inside it — Card, Button, Badge — reads
- * the same tokens it always did and comes out light, with no admin
+ * the same tokens it always did and comes out in the console palette, with no admin
  * variant of its own.
  */
 

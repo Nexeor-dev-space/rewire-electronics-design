@@ -371,11 +371,34 @@ page scroll while open.
 
 ### Theme
 
-The console is light while the storefront is dark. It does not carry a second
-component library: `.admin-theme` in `globals.css` redefines the same tokens
-every component already reads, exactly as the existing `.theme-dark` and
-`.commerce-dark` scopes do. A `Card`, `Button` or `Badge` dropped into an admin
-page comes out light with no admin variant of its own.
+The console has a light and a dark palette; the storefront is always dark. It
+does not carry a second component library: `.admin-theme` in `globals.css`
+redefines the same tokens every component already reads, exactly as the
+existing `.theme-dark` and `.commerce-dark` scopes do. A `Card`, `Button` or
+`Badge` dropped into an admin page follows the palette with no admin variant
+of its own.
+
+**Light and dark.** Every admin token is `light-dark(light, dark)`, so each
+value is written once and `color-scheme` picks the side:
+
+1. **Default: follow the OS.** `.admin-theme` sets `color-scheme: light dark`,
+   so the browser uses the system setting before first paint.
+2. **The toggle.** A sun / moon button in the header (`AdminThemeToggle`,
+   `src/components/admin/admin-theme-toggle.tsx`) switches to the opposite of
+   what is showing, sets `data-theme="light"` or `"dark"` on the shell (which
+   fixes `color-scheme`), and saves the choice in the `rewire_admin_theme`
+   cookie for a year (`ADMIN_THEME_COOKIE`,
+   `ADMIN_THEME_COOKIE_MAX_AGE_SECONDS` in `src/lib/constants.ts`).
+3. **No flash.** `src/app/admin/layout.tsx` reads the cookie and passes it to
+   `AdminShell`, so a saved choice is in the server HTML. Values other than
+   `light` and `dark` are ignored (`isAdminTheme` in
+   `src/lib/admin-console.ts`).
+4. **Per browser.** The choice is not stored on the account. Deleting the
+   cookie returns to following the OS.
+
+When styling admin UI, use tokens (`bg-ink text-void` for an inverted pill,
+not `text-white`), so both palettes stay readable. `text-white` is fine only on
+`bg-accent`, which stays dark in both.
 
 ## Routes
 

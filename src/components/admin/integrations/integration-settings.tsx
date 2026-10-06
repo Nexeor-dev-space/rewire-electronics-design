@@ -223,7 +223,7 @@ function ModeSwitch({
           className={cn(
             "rounded-full px-4 py-1.5 text-xs font-medium uppercase tracking-[0.08em] transition-colors duration-(--duration-fast)",
             mode === value
-              ? "bg-ink text-white"
+              ? "bg-ink text-void"
               : "text-ink-secondary hover:text-ink disabled:opacity-40",
           )}
         >
