@@ -230,7 +230,8 @@ zones; set them on the Delivery Zones screen instead.
 | Discount Codes | `/admin/marketing/coupons` | `PERMISSIONS.coupons` (`marketing.coupons`) | `src/components/admin/coupons/coupon-management.tsx`, `coupon-form-modal.tsx` |
 | Delivery Zones | `/admin/settings/delivery` | `PERMISSIONS.deliveryZones` (`governance.delivery`) | `src/components/admin/delivery-zones/delivery-zone-management.tsx` |
 
-ADMIN and STAFF hold both through `"*"`. Every route starts with
+Admins hold both; Staff hold them through their Staff role
+([PERMISSIONS.md](PERMISSIONS.md)). Every route starts with
 `authorizeApi` (401 / 403), validates with Zod (422 `VALIDATION` with
 `fields`), and fails through `apiErrorFrom`.
 

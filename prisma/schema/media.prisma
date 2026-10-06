@@ -9,6 +9,7 @@ model MediaAsset {
   categories       Category[]
   brands           Brand[]
   productImages    ProductImage[]
+  productOgImages  Product[]
   homepageSections HomepageSection[]
 
   @@map("media_assets")

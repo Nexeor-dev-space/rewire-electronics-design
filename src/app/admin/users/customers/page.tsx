@@ -12,10 +12,10 @@ export default async function CustomersPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.users)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.customers)) {
     return (
       <AdminPage title="Customers">
-        <AdminEmptyState title="Access denied" description="Your role doesn't include Users." />
+        <AdminEmptyState title="Access denied" description="Your role doesn't include Customers." />
       </AdminPage>
     );
   }

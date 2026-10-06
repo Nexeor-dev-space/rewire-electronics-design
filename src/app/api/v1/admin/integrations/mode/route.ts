@@ -1,7 +1,9 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
-import { setIntegrationMode } from "@/services/integration.service";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { recordAudit } from "@/services/audit.service";
+import { getIntegrationStatus, setIntegrationMode } from "@/services/integration.service";
 import { integrationModeSchema } from "@/validators/integration.validator";
 import { authorizeIntegrations } from "../authorize";
 
@@ -20,7 +22,16 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    return apiSuccess(await setIntegrationMode(input.data.mode, auth.session.user.id));
+    const before = await getIntegrationStatus();
+    const result = await setIntegrationMode(input.data.mode, auth.session.user.id);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.integrations,
+      recordLabel: "Integration mode",
+      before: { mode: before.mode },
+      after: { mode: result.mode },
+    });
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/integrations/mode");
   }

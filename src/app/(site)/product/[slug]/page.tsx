@@ -19,8 +19,7 @@ import { SpecTable } from "@/components/product/detail/spec-table";
 import { IncludedList } from "@/components/product/detail/included-list";
 import { TrustBlocks } from "@/components/product/detail/trust-blocks";
 import { RelatedProducts } from "@/components/product/detail/related-products";
-import { productJsonLd } from "@/lib/seo";
-import { productHref } from "@/lib/shop";
+import { productJsonLd, productSeo } from "@/lib/seo";
 import { findShopProductPage } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +33,25 @@ const getProduct = cache(findShopProductPage);
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const product = await getProduct((await params).slug);
   if (!product) return { title: "Product not found" };
+  const seo = productSeo(product);
   return {
-    title: `${product.brand} ${product.name}`,
-    description: product.description || product.highlights[0],
-    alternates: { canonical: productHref(product) },
-    openGraph: { images: product.images.slice(0, 1).map((image) => image.url) },
+    title: seo.absoluteTitle ? { absolute: seo.title } : seo.title,
+    description: seo.description,
+    keywords: seo.keywords.length > 0 ? seo.keywords : undefined,
+    alternates: { canonical: seo.canonical },
+    openGraph: {
+      type: "website",
+      title: seo.ogTitle,
+      description: seo.ogDescription,
+      url: seo.canonical,
+      images: [{ url: seo.ogImage }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo.ogTitle,
+      description: seo.ogDescription,
+      images: [seo.ogImage],
+    },
   };
 }
 

@@ -110,8 +110,12 @@ everyone (admins, staff and customers) was signed out once when this shipped.
 integration credential unreadable ([INTEGRATIONS.md](INTEGRATIONS.md) §4).
 
 **`SessionUser`.** `{ id, fullName, email, phone: string | null, role,
-emailVerified: boolean, createdAt: Date }`. `Me`, returned by `auth.me`, is the
-same with `createdAt` as an ISO string.
+emailVerified: boolean, createdAt: Date, permissions }`. `permissions` is the
+role's console grid (module key to actions, see [PERMISSIONS.md](PERMISSIONS.md)):
+every action for Admin, the levels of the account's Staff role for Staff
+(nothing without a role), `{}` for Customers. The role's levels are read in
+the same query as the user, so there is no extra query and no cache.
+`Me`, returned by `auth.me`, is the same with `createdAt` as an ISO string.
 
 ---
 

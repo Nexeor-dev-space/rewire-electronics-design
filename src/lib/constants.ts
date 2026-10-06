@@ -60,5 +60,18 @@ export const FORGOT_PASSWORD_PAGE_PATH = "/forgot-password";
 export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";
 export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
+/** Where staff accounts and their roles are managed, linked from the Roles screen. */
+export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
+export const STAFF_ROLE_NAME_MAX_LENGTH = 60;
+export const STAFF_ROLE_DESCRIPTION_MAX_LENGTH = 200;
+
+/** Product SEO field limits: what search results and share cards show before truncating. */
+export const SEO_TITLE_MAX_LENGTH = 70;
+export const SEO_DESCRIPTION_MAX_LENGTH = 160;
+export const OG_TITLE_MAX_LENGTH = 95;
+export const OG_DESCRIPTION_MAX_LENGTH = 200;
+export const SEO_KEYWORDS_MAX = 10;
+export const SEO_KEYWORD_MAX_LENGTH = 40;
+export const CANONICAL_URL_MAX_LENGTH = 512;
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;

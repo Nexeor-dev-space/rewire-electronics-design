@@ -12,10 +12,10 @@ export default async function StaffPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.users)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.staffAccounts)) {
     return (
       <AdminPage title="Staff">
-        <AdminEmptyState title="Access denied" description="Your role doesn't include Users." />
+        <AdminEmptyState title="Access denied" description="Only Admins manage staff accounts." />
       </AdminPage>
     );
   }

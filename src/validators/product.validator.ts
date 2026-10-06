@@ -1,5 +1,14 @@
 import { z } from "zod";
 import {
+  CANONICAL_URL_MAX_LENGTH,
+  OG_DESCRIPTION_MAX_LENGTH,
+  OG_TITLE_MAX_LENGTH,
+  SEO_DESCRIPTION_MAX_LENGTH,
+  SEO_KEYWORDS_MAX,
+  SEO_KEYWORD_MAX_LENGTH,
+  SEO_TITLE_MAX_LENGTH,
+} from "@/lib/constants";
+import {
   idValidator,
   minorUnitsValidator,
   paginationQueryValidator,
@@ -100,6 +109,26 @@ export const productImageSchema = z.object({
   colour: optionalText(40),
 });
 
+/** A site path (`/product/x`, not `//host`) or an absolute https URL. */
+const canonicalUrlValidator = optionalText(CANONICAL_URL_MAX_LENGTH).refine(
+  (value) => value === null || /^\/(?!\/)\S*$/.test(value) || /^https:\/\/\S+$/.test(value),
+  "Use a path like /product/name, or a full https:// address.",
+);
+
+/** All optional; an empty field falls back on the storefront (`productSeo`). */
+const productSeoFields = {
+  seoTitle: optionalText(SEO_TITLE_MAX_LENGTH),
+  metaDescription: optionalText(SEO_DESCRIPTION_MAX_LENGTH),
+  metaKeywords: z
+    .array(z.string().trim().min(1).max(SEO_KEYWORD_MAX_LENGTH, `Keep each keyword to ${SEO_KEYWORD_MAX_LENGTH} characters.`))
+    .max(SEO_KEYWORDS_MAX, `Add up to ${SEO_KEYWORDS_MAX} keywords.`)
+    .default([]),
+  ogTitle: optionalText(OG_TITLE_MAX_LENGTH),
+  ogDescription: optionalText(OG_DESCRIPTION_MAX_LENGTH),
+  ogImageId: idValidator.nullable().default(null),
+  canonicalUrl: canonicalUrlValidator,
+};
+
 export const productSpecSchema = z.object({
   group: z.string().trim().min(1, "Enter a spec group.").max(60),
   label: z.string().trim().min(1, "Enter a spec label.").max(80),
@@ -122,6 +151,7 @@ export const productSchema = z
       .array(productVariantSchema)
       .min(1, "Add at least one variant.")
       .max(MAX_VARIANTS, `Add up to ${MAX_VARIANTS} variants.`),
+    ...productSeoFields,
   })
   .superRefine((data, ctx) => {
     const skus = new Set<string>();

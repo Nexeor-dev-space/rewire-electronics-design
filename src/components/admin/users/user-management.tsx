@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteUser, useGetUsers } from "@/hooks/use-user";
-import { ROLE_LABELS, canManageUser } from "@/lib/auth/permissions";
+import { ROLE_LABELS, accountModule, canManageUser, hasPermission } from "@/lib/auth/permissions";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
@@ -133,9 +133,11 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
       title={copy.title}
       description={copy.description}
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          {copy.add}
-        </Button>
+        hasPermission(viewer.permissions, accountModule(group === "staff" ? "STAFF" : "CUSTOMER"), "CREATE") && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            {copy.add}
+          </Button>
+        )
       }
     >
       <Input
@@ -167,7 +169,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
       <ConfirmDialog
         open={toDelete !== null}
         title={`Delete ${toDelete?.fullName ?? "account"}?`}
-        description="They'll be removed from this list and won't be able to sign in."
+        description="They can't sign in, and the account moves to Trash, where it can be restored."
         confirmLabel="Delete account"
         onCancel={() => setToDelete(null)}
         onConfirm={confirmDelete}
@@ -202,8 +204,10 @@ function UserRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const canEdit = canManageUser(viewer, user);
-  const canDelete = canEdit && user.id !== viewer.id;
+  const manageable = canManageUser(viewer, user);
+  const accountKey = accountModule(user.role);
+  const canEdit = manageable && hasPermission(viewer.permissions, accountKey, "EDIT");
+  const canDelete = manageable && user.id !== viewer.id && hasPermission(viewer.permissions, accountKey, "DELETE");
 
   return (
     <li className={cn("border-b border-line last:border-b-0", deleting && "opacity-50")}>
@@ -215,7 +219,7 @@ function UserRow({
         <p className="truncate text-sm text-ink-secondary">{user.email}</p>
         <div>
           <Badge variant={user.role === "CUSTOMER" ? "outline" : "accent"} className="px-2 py-1 text-[0.625rem]">
-            {ROLE_LABELS[user.role]}
+            {user.role === "STAFF" ? (user.staffRole?.name ?? "Staff · no role") : ROLE_LABELS[user.role]}
           </Badge>
         </div>
         <p className="text-sm tabular-nums text-ink-secondary">{user.phone ?? "—"}</p>

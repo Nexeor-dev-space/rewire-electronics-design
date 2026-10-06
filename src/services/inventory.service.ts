@@ -32,11 +32,12 @@ const STOCK_WHERE: Record<InventoryQuery["stock"], Prisma.ProductVariantWhereInp
 export async function listInventory({ page, pageSize, search, stock }: InventoryQuery) {
   const where: Prisma.ProductVariantWhereInput = {
     ...STOCK_WHERE[stock],
+    product: { deletedAt: null },
     ...(search
       ? {
           OR: [
             { sku: { contains: search, mode: "insensitive" } },
-            { product: { name: { contains: search, mode: "insensitive" } } },
+            { product: { name: { contains: search, mode: "insensitive" }, deletedAt: null } },
           ],
         }
       : {}),
@@ -56,9 +57,20 @@ export async function listInventory({ page, pageSize, search, stock }: Inventory
   return { items, page, pageSize, total };
 }
 
+export async function getInventoryItem(variantId: string) {
+  const item = await prisma.productVariant.findFirst({
+    where: { id: variantId, product: { deletedAt: null } },
+    select: variantSelect,
+  });
+  if (!item) {
+    throw new ServiceError("NOT_FOUND", "We couldn't find that variant. It may have been deleted.", 404);
+  }
+  return item;
+}
+
 export async function setStock(variantId: string, { stock }: StockData) {
   const { count } = await prisma.productVariant.updateMany({
-    where: { id: variantId },
+    where: { id: variantId, product: { deletedAt: null } },
     data: { stock },
   });
   if (count === 0) {

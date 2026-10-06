@@ -4,7 +4,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AccessDenied } from "@/components/auth/access-denied";
 import { adminConsole } from "@/lib/admin-console";
 import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
-import { canAccessAdmin } from "@/lib/auth/permissions";
+import { canAccessAdmin, hasAnyModule } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 
 /**
@@ -35,7 +35,8 @@ export default async function AdminLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
-  if (!canAccessAdmin(session.user.role)) return <AccessDenied email={session.user.email} />;
+  const { role, permissions } = session.user;
+  if (!canAccessAdmin(role) || !hasAnyModule(permissions)) return <AccessDenied email={session.user.email} />;
 
   return <AdminShell viewer={session.user}>{children}</AdminShell>;
 }

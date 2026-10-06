@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { Role } from "@/lib/auth/permissions";
+import type { PermissionGrid, Role } from "@/lib/auth/permissions";
 import type {
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -16,6 +16,8 @@ export interface SessionUser {
   role: Role;
   emailVerified: boolean;
   createdAt: Date;
+  /** What this user may do in the console: everything for Admin, nothing for Customer. */
+  permissions: PermissionGrid;
 }
 
 export interface Me extends Omit<SessionUser, "createdAt"> {

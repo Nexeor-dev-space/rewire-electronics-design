@@ -1,6 +1,6 @@
 /// Who an account is. ADMIN and STAFF reach the console; CUSTOMER never does.
-/// Which console areas each role reaches is configured in
-/// `src/lib/auth/permissions.ts`, not here.
+/// ADMIN and CUSTOMER access is fixed in `src/lib/auth/permissions.ts`; what a
+/// STAFF account may do comes from its `StaffRole`.
 enum UserRole {
   ADMIN
   STAFF
@@ -28,6 +28,9 @@ model User {
   passwordHash    String?
   emailVerifiedAt DateTime?
   sessionVersion  Int       @default(0)
+  /// STAFF only. Null means no access until an Admin assigns a role.
+  staffRoleId     String?
+  staffRole       StaffRole? @relation("StaffRoleUsers", fields: [staffRoleId], references: [id], onDelete: Restrict)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -38,9 +41,49 @@ model User {
 
   integrationSettingsUpdates   IntegrationSettings[]
   integrationCredentialUpdates IntegrationCredential[]
+  staffRoleUpdates             StaffRole[]           @relation("StaffRoleUpdatedBy")
+  auditLogs                    AuditLog[]
 
   @@index([state, updatedAt])
+  @@index([staffRoleId])
   @@map("users")
+}
+
+/// A role's access to one admin module. No row means No Access. What each
+/// level allows is decided in `levelActions` (`src/lib/auth/permissions.ts`).
+enum AccessLevel {
+  VIEW
+  EDIT
+  FULL
+}
+
+/// A custom role an Admin creates and assigns to STAFF accounts. It can't be
+/// deleted while any account holds it.
+model StaffRole {
+  id          String                @id @default(cuid())
+  name        String
+  /// Trimmed and lowercased name, so names are unique ignoring case.
+  nameKey     String                @unique
+  description String?
+  users       User[]                @relation("StaffRoleUsers")
+  permissions StaffRolePermission[]
+  updatedById String?
+  updatedBy   User?                 @relation("StaffRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@map("staff_roles")
+}
+
+model StaffRolePermission {
+  roleId String
+  role   StaffRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  /// A permission module key, e.g. `catalogue.products`.
+  module String
+  level  AccessLevel
+
+  @@id([roleId, module])
+  @@map("staff_role_permissions")
 }
 
 enum AuthTokenType {

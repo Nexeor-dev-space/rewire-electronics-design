@@ -42,7 +42,11 @@ export const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
   OR: [{ parentId: null }, { parent: { is: { status: "PUBLISHED" } } }],
 };
 
-export const PUBLISHED: Prisma.ProductWhereInput = { status: "PUBLISHED", category: VISIBLE_CATEGORY };
+export const PUBLISHED: Prisma.ProductWhereInput = {
+  status: "PUBLISHED",
+  deletedAt: null,
+  category: VISIBLE_CATEGORY,
+};
 
 const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
   newest: [{ publishedAt: "desc" }, { id: "asc" }],
@@ -113,6 +117,13 @@ const detailSelect = {
     },
     orderBy: { sortOrder: "asc" },
   },
+  seoTitle: true,
+  metaDescription: true,
+  metaKeywords: true,
+  ogTitle: true,
+  ogDescription: true,
+  ogImageId: true,
+  canonicalUrl: true,
 } satisfies Prisma.ProductSelect;
 
 type DetailRow = Prisma.ProductGetPayload<{ select: typeof detailSelect }>;
@@ -255,6 +266,15 @@ function toDetail(row: DetailRow): ShopProductDetail {
     specs: groupSpecs(row.specs),
     variants: row.variants.map(toVariant),
     listedAt: row.publishedAt?.toISOString() ?? null,
+    seo: {
+      seoTitle: row.seoTitle,
+      metaDescription: row.metaDescription,
+      metaKeywords: row.metaKeywords,
+      ogTitle: row.ogTitle,
+      ogDescription: row.ogDescription,
+      ogImageUrl: imageUrlOrNull(row.ogImageId),
+      canonicalUrl: row.canonicalUrl,
+    },
   };
 }
 
@@ -453,7 +473,7 @@ export async function listSitemapEntries() {
   const [products, categories] = await Promise.all([
     prisma.product.findMany({
       where: PUBLISHED,
-      select: { slug: true, updatedAt: true },
+      select: { slug: true, canonicalUrl: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: SITEMAP_PRODUCT_LIMIT,
     }),

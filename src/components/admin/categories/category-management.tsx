@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions, Thumbnail } from "@/components/admin/shared/row-actions";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
 } from "@/hooks/use-category";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import type { CategoryNode, CategorySummary } from "@/types/category";
 import { CATEGORY_STATUSES, type CategoryStatus } from "@/validators/category.validator";
@@ -33,6 +35,7 @@ const COLUMNS = "lg:grid-cols-[minmax(0,2fr)_7rem_9rem_minmax(0,1fr)_6rem]";
 type Modal = { kind: "create" } | { kind: "edit"; id: string } | null;
 
 export function CategoryManagement() {
+  const access = useModuleAccess(PERMISSIONS.categories);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -122,9 +125,11 @@ export function CategoryManagement() {
                 key={parent.id}
                 parent={parent}
                 busyId={deleteCategory.isPending ? (deleteCategory.variables ?? busyId) : busyId}
-                onStatusChange={(id, status) => setCategoryStatus.mutate({ id, status })}
-                onEdit={(id) => setModal({ kind: "edit", id })}
-                onDelete={setToDelete}
+                onStatusChange={
+                  access.publish ? (id, status) => setCategoryStatus.mutate({ id, status }) : undefined
+                }
+                onEdit={access.edit ? (id) => setModal({ kind: "edit", id }) : undefined}
+                onDelete={access.delete ? setToDelete : undefined}
               />
             ))}
           </ul>
@@ -162,9 +167,11 @@ export function CategoryManagement() {
       title="Categories"
       description="The category tree the storefront and the feeds both read. Two levels: a parent, and the categories that sit under it."
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add category
-        </Button>
+        access.create && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            Add category
+          </Button>
+        )
       }
     >
       <Input
@@ -212,9 +219,9 @@ function CategoryGroup({
 }: {
   parent: CategoryNode;
   busyId: string | undefined;
-  onStatusChange: (id: string, status: CategoryStatus) => void;
-  onEdit: (id: string) => void;
-  onDelete: (category: CategorySummary) => void;
+  onStatusChange?: (id: string, status: CategoryStatus) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (category: CategorySummary) => void;
 }) {
   return (
     <li className="border-b border-line last:border-b-0">
@@ -222,9 +229,9 @@ function CategoryGroup({
         category={parent}
         childCount={parent.childCount}
         busy={busyId === parent.id}
-        onStatusChange={(status) => onStatusChange(parent.id, status)}
-        onEdit={() => onEdit(parent.id)}
-        onDelete={() => onDelete(parent)}
+        onStatusChange={onStatusChange && ((status) => onStatusChange(parent.id, status))}
+        onEdit={onEdit && (() => onEdit(parent.id))}
+        onDelete={onDelete && (() => onDelete(parent))}
       />
 
       {parent.children.length > 0 && (
@@ -235,9 +242,9 @@ function CategoryGroup({
                 category={child}
                 nested
                 busy={busyId === child.id}
-                onStatusChange={(status) => onStatusChange(child.id, status)}
-                onEdit={() => onEdit(child.id)}
-                onDelete={() => onDelete(child)}
+                onStatusChange={onStatusChange && ((status) => onStatusChange(child.id, status))}
+                onEdit={onEdit && (() => onEdit(child.id))}
+                onDelete={onDelete && (() => onDelete(child))}
               />
             </li>
           ))}
@@ -260,9 +267,10 @@ function CategoryRow({
   childCount?: number;
   nested?: boolean;
   busy: boolean;
-  onStatusChange: (status: CategoryStatus) => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Absent without Publish: the select stays, locked. */
+  onStatusChange?: (status: CategoryStatus) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const notes = [
     childCount ? `${childCount} ${childCount === 1 ? "subcategory" : "subcategories"}` : null,
@@ -298,8 +306,8 @@ function CategoryRow({
 
       <Select
         value={category.status}
-        disabled={busy}
-        onChange={(event) => onStatusChange(event.target.value as CategoryStatus)}
+        disabled={busy || !onStatusChange}
+        onChange={(event) => onStatusChange?.(event.target.value as CategoryStatus)}
         aria-label={`Status of ${category.name}`}
         className="h-9 text-xs"
       >

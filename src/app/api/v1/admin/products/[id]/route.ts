@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { deleteProduct, getProduct, updateProduct } from "@/services/product.service";
 import { productSchema } from "@/validators/product.validator";
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = productSchema.safeParse(await req.json().catch(() => null));
@@ -37,7 +38,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
+    const before = await getProduct(id);
     const result = await updateProduct(id, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.products,
+      recordId: id,
+      recordLabel: result.name,
+      before,
+      after: result,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {
@@ -46,12 +56,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
   try {
+    const before = await getProduct(id);
     const result = await deleteProduct(id);
+    await recordAudit(auth.session.user, {
+      action: "DELETE",
+      module: PERMISSIONS.products,
+      recordId: id,
+      recordLabel: before.name,
+      before,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {

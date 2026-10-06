@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  adminNav,
   isAdminItemActive,
   matchAdminRoute,
   type AdminNavItem,
 } from "@/lib/admin-nav";
+import { visibleAdminNav } from "@/lib/auth/permissions";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { useAdminPermissions } from "./admin-access";
 
 /**
  * The admin navigation list.
@@ -40,6 +41,8 @@ interface Props {
 export function AdminNavList({ onNavigate, collapsed, onExpand }: Props) {
   const pathname = usePathname();
   const match = matchAdminRoute(pathname);
+  const permissions = useAdminPermissions();
+  const adminNav = useMemo(() => visibleAdminNav(permissions), [permissions]);
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set(adminNav.map((section) => section.area)),
   );

@@ -7,8 +7,10 @@ import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useGetStaffRoles } from "@/hooks/use-role";
 import { useCreateUser, useGetUser, useUpdateUser } from "@/hooks/use-user";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { PICKER_PAGE_SIZE } from "@/lib/constants";
 import { ROLE_LABELS, assignableRoles, canSetPassword, type Role } from "@/lib/auth/permissions";
 import type { SessionUser } from "@/types/auth";
 import type { UserDetail } from "@/types/user";
@@ -124,6 +126,7 @@ function UserForm({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [role, setRole] = useState<Role>(initial?.role ?? roles[0]);
+  const [staffRoleId, setStaffRoleId] = useState(initial?.staffRole?.id ?? "");
   const [password, setPassword] = useState("");
   const [addresses, setAddresses] = useState<DraftAddress[]>(
     () => initial?.addresses.map((address) => ({ ...address, key: newKey() })) ?? [],
@@ -152,6 +155,7 @@ function UserForm({
       email,
       phone,
       role,
+      staffRoleId: role === "STAFF" ? staffRoleId || null : null,
       password: password || undefined,
       addresses: addresses.map(({ id: addressId, emirate, street, landmark, isPrimary }) => ({
         id: addressId,
@@ -233,6 +237,15 @@ function UserForm({
             </Select>
           </Field>
 
+          {role === "STAFF" && (
+            <StaffRoleField
+              id={`${id}-staff-role`}
+              value={staffRoleId}
+              onChange={setStaffRoleId}
+              error={error("staffRoleId")}
+            />
+          )}
+
           {canSetPassword(viewer.role) && (
             <Field
               id={`${id}-password`}
@@ -283,5 +296,52 @@ function UserForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+/** The custom role a Staff account works under. Only rendered for Staff, so the roles load only then. */
+function StaffRoleField({
+  id,
+  value,
+  onChange,
+  error,
+}: {
+  id: string;
+  value: string;
+  onChange: (roleId: string) => void;
+  error?: string;
+}) {
+  const roles = useGetStaffRoles({ pageSize: PICKER_PAGE_SIZE });
+  const empty = roles.data?.items.length === 0;
+
+  return (
+    <Field
+      id={id}
+      label="Staff role"
+      error={error}
+      hint={
+        roles.isError
+          ? roles.error.message
+          : empty
+            ? "No staff roles yet. Add one under Governance → Roles."
+            : "Decides what this person can do in the console."
+      }
+    >
+      <Select
+        id={id}
+        value={value}
+        disabled={roles.isPending || empty}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+        className="h-11"
+      >
+        <option value="">{roles.isPending ? "Loading…" : "No role (no access)"}</option>
+        {roles.data?.items.map((role) => (
+          <option key={role.id} value={role.id}>
+            {role.name}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }

@@ -29,20 +29,25 @@ export function RowActions({
   /** Named in each control's accessible label, so the row is unambiguous. */
   name: string;
   disabled?: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Leave out an action the user's role lacks and its button is not shown. */
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className="mt-2 flex gap-1.5 lg:mt-0 lg:justify-end">
-      <IconButton label={`Edit ${name}`} onClick={onEdit} disabled={disabled}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-      </IconButton>
-      <IconButton label={`Delete ${name}`} onClick={onDelete} disabled={disabled}>
-        <path d="M4 7h16" />
-        <path d="M9 7V4.5h6V7" />
-        <path d="M6.5 7l1 12.5h9l1-12.5" />
-      </IconButton>
+      {onEdit && (
+        <IconButton label={`Edit ${name}`} onClick={onEdit} disabled={disabled}>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+        </IconButton>
+      )}
+      {onDelete && (
+        <IconButton label={`Delete ${name}`} onClick={onDelete} disabled={disabled}>
+          <path d="M4 7h16" />
+          <path d="M9 7V4.5h6V7" />
+          <path d="M6.5 7l1 12.5h9l1-12.5" />
+        </IconButton>
+      )}
     </div>
   );
 }

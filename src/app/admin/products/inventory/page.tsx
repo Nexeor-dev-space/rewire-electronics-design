@@ -12,7 +12,7 @@ export default async function InventoryPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.inventory)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.inventory)) {
     return (
       <AdminPage title="Inventory">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Inventory." />

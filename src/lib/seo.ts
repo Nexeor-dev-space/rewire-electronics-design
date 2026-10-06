@@ -1,3 +1,4 @@
+import { SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { CURRENCY, fromMinorUnits } from "@/lib/money";
 import { productHref, type Condition } from "@/lib/shop";
 import { siteConfig } from "@/lib/site";
@@ -12,8 +13,63 @@ const SCHEMA_ITEM_CONDITION: Record<Condition, string> = {
 
 export const absoluteUrl = (path: string) => new URL(path, siteConfig.url).toString();
 
+/** Cuts at a word boundary and adds an ellipsis, for a fallback description. */
+export function clip(text: string, max: number): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
+export interface ProductSeo {
+  title: string;
+  /** True for an admin SEO title: used as written, without the site name suffix. */
+  absoluteTitle: boolean;
+  description: string;
+  keywords: string[];
+  ogTitle: string;
+  ogDescription: string;
+  /** Relative URLs resolve against `metadataBase` in the root layout. */
+  ogImage: string;
+  canonical: string;
+}
+
+/**
+ * What a product page puts in its <head>: the admin's SEO fields, each
+ * falling back to something sensible when left empty (docs/CATALOGUE.md).
+ */
+export function productSeo(product: ShopProductDetail): ProductSeo {
+  const { seo } = product;
+  const name = `${product.brand} ${product.name}`;
+  const description =
+    seo.metaDescription ??
+    clip(product.description || product.highlights[0] || siteConfig.description, SEO_DESCRIPTION_MAX_LENGTH);
+  const title = seo.seoTitle ?? name;
+
+  return {
+    title,
+    absoluteTitle: seo.seoTitle !== null,
+    description,
+    keywords: seo.metaKeywords,
+    ogTitle: seo.ogTitle ?? title,
+    ogDescription: seo.ogDescription ?? description,
+    ogImage: seo.ogImageUrl ?? product.images[0]?.url ?? siteConfig.ogImage,
+    canonical: seo.canonicalUrl ?? productHref(product),
+  };
+}
+
 export function toJsonLd(data: object): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/**
+ * True when a product's canonical is its own page: no override, or one that
+ * resolves to `/product/<slug>`. Only these belong in the sitemap.
+ */
+export function isSelfCanonical(product: { slug: string; canonicalUrl: string | null }): boolean {
+  if (product.canonicalUrl === null) return true;
+  return absoluteUrl(product.canonicalUrl) === absoluteUrl(productHref(product));
 }
 
 export function productJsonLd(product: ShopProductDetail): string {
@@ -25,7 +81,8 @@ export function productJsonLd(product: ShopProductDetail): string {
     description: product.description || product.highlights[0],
     brand: { "@type": "Brand", name: product.brand },
     image: product.images.map((image) => absoluteUrl(image.url)),
-    url: absoluteUrl(productHref(product)),
+    // The same canonical the page declares, so the signals agree.
+    url: absoluteUrl(productSeo(product).canonical),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: CURRENCY,

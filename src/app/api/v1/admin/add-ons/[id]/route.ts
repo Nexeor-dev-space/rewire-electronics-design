@@ -4,6 +4,7 @@ import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
 import { deleteAddOn, getAddOn, updateAddOn } from "@/services/add-on.service";
+import { recordAudit } from "@/services/audit.service";
 import { addOnSchema } from "@/validators/add-on.validator";
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.addOns);
+  const auth = await authorizeApi(PERMISSIONS.addOns, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = addOnSchema.safeParse(await req.json().catch(() => null));
@@ -36,19 +37,38 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   try {
-    return apiSuccess(await updateAddOn(id, input.data));
+    const before = await getAddOn(id);
+    const result = await updateAddOn(id, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.addOns,
+      recordId: id,
+      recordLabel: result.name,
+      before,
+      after: result,
+    });
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/add-ons/[id]");
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.addOns);
+  const auth = await authorizeApi(PERMISSIONS.addOns, "DELETE");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
   try {
-    return apiSuccess(await deleteAddOn(id));
+    const before = await getAddOn(id);
+    const result = await deleteAddOn(id);
+    await recordAudit(auth.session.user, {
+      action: "DELETE",
+      module: PERMISSIONS.addOns,
+      recordId: id,
+      recordLabel: before.name,
+      before,
+    });
+    return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "DELETE /admin/add-ons/[id]");
   }

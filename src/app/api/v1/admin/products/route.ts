@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
 import { createProduct, listProducts } from "@/services/product.service";
 import { productListQuerySchema, productSchema } from "@/validators/product.validator";
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorizeApi(PERMISSIONS.products);
+  const auth = await authorizeApi(PERMISSIONS.products, "CREATE");
   if (!auth.ok) return auth.response;
 
   const input = productSchema.safeParse(await req.json().catch(() => null));
@@ -39,6 +40,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await createProduct(input.data);
+    await recordAudit(auth.session.user, {
+      action: "CREATE",
+      module: PERMISSIONS.products,
+      recordId: result.id,
+      recordLabel: result.name,
+      after: result,
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result, 201);
   } catch (error) {

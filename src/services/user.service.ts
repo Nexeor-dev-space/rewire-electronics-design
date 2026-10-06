@@ -6,11 +6,13 @@ import { ServiceError } from "@/lib/api/api-response";
 import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { assertStaffRoleExists } from "@/services/staff-role.service";
 import type { userListQuerySchema, userSchema } from "@/validators/user.validator";
 
 /**
  * Accounts for the console's Users screens. Deleting is soft: `state`
- * becomes INACTIVE, and every read here only sees ACTIVE users.
+ * becomes INACTIVE, and every read here only sees ACTIVE users except the
+ * Trash ones (`listDeletedUsers`, `getUser(id, { inTrash: true })`).
  */
 
 type Tx = Prisma.TransactionClient;
@@ -22,6 +24,7 @@ const userSelect = {
   email: true,
   phone: true,
   role: true,
+  staffRole: { select: { id: true, name: true } },
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
@@ -63,9 +66,9 @@ export async function listUsers({
   return { items, page, pageSize, total };
 }
 
-export async function getUser(id: string) {
+export async function getUser(id: string, { inTrash = false } = {}) {
   const user = await prisma.user.findFirst({
-    where: { id, state: "ACTIVE" },
+    where: { id, state: inTrash ? "INACTIVE" : "ACTIVE" },
     select: {
       ...userSelect,
       passwordHash: true,
@@ -87,12 +90,14 @@ export async function createUser(viewer: Actor, data: UserData) {
 
   const id = await prisma.$transaction(async (tx) => {
     await assertEmailFree(tx, data.email);
+    await assertStaffRole(tx, data);
     const user = await tx.user.create({
       data: {
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
         role: data.role,
+        staffRoleId: staffRoleIdFor(data),
         passwordHash,
         emailVerifiedAt: new Date(),
       },
@@ -122,6 +127,7 @@ export async function updateUser(viewer: Actor, id: string, data: UserData) {
     }
 
     await assertEmailFree(tx, data.email, id);
+    await assertStaffRole(tx, data);
     await saveAddresses(tx, id, data.addresses);
     await tx.user.update({
       where: { id },
@@ -130,6 +136,7 @@ export async function updateUser(viewer: Actor, id: string, data: UserData) {
         email: data.email,
         phone: data.phone,
         role: data.role,
+        staffRoleId: staffRoleIdFor(data),
         passwordHash,
         // Address-only edits still count as editing the account.
         updatedAt: new Date(),
@@ -154,7 +161,73 @@ export async function deleteUser(viewer: Actor, id: string) {
   return { id };
 }
 
+/* ---------- trash ---------- */
+
+export async function listDeletedUsers({
+  page,
+  pageSize,
+  search,
+}: {
+  page: number;
+  pageSize: number;
+  search?: string;
+}) {
+  const where: Prisma.UserWhereInput = {
+    state: "INACTIVE",
+    ...(search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: "insensitive" } },
+            { email: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [items, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      select: userSelect,
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { items, page, pageSize, total };
+}
+
+/**
+ * Brings an account back from Trash. Only Admins restore Admin accounts.
+ * The session version moves on, so cookies from before the delete stay dead
+ * and the person signs in again.
+ */
+export async function restoreUser(viewer: Actor, id: string) {
+  const target = await prisma.user.findFirst({ where: { id, state: "INACTIVE" }, select: { role: true } });
+  if (!target) throw notFound();
+  if (!canManageUser(viewer, target)) {
+    throw new ServiceError("FORBIDDEN", "Only an admin can restore an admin account.", 403);
+  }
+
+  await prisma.user.update({
+    where: { id },
+    data: { state: "ACTIVE", sessionVersion: { increment: 1 } },
+  });
+  return getUser(id);
+}
+
 /* ---------- rules ---------- */
+
+/** Only a Staff account holds a Staff role; anything else stores null. */
+function staffRoleIdFor(data: UserData): string | null {
+  return data.role === "STAFF" ? data.staffRoleId : null;
+}
+
+async function assertStaffRole(tx: Tx, data: UserData) {
+  const roleId = staffRoleIdFor(data);
+  if (roleId) await assertStaffRoleExists(tx, roleId);
+}
 
 function checkRoleAndPassword(viewer: Actor, data: UserData) {
   if (!assignableRoles(viewer.role).includes(data.role)) {

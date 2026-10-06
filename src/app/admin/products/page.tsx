@@ -12,7 +12,7 @@ export default async function ProductsPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.products)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.products)) {
     return (
       <AdminPage title="Products">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Products." />

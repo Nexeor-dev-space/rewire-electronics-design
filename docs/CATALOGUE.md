@@ -33,7 +33,7 @@ units (fils), like every other price in the project.
 | Model | Holds |
 | --- | --- |
 | `Category` | Name, slug, description, image, parent, status, `showInNav`, `sortOrder` |
-| `Product` | Slug, name, description, brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice` |
+| `Product` | Slug, name, description, brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice`, `deletedAt`, the SEO fields (section 7) |
 | `ProductVariant` | SKU, condition, grade, battery health, storage, colour, colour hex, price, compare at price, stock, sort order |
 | `ProductImage` | A `MediaAsset`, alt text, an optional `colour`, sort order |
 | `ProductSpec` | Group, label, value, sort order |
@@ -141,10 +141,14 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 5. **Publishing needs at least one image** (409 otherwise).
 6. **An image colour must match a variant colour.** The admin picks it from a
    list built from the variants in the form; "All colours" leaves it empty.
-7. **Deleting** a product removes its variants, images and specs. Archive it
-   instead to keep the record.
+7. **Deleting** a product moves it to Trash: `deletedAt` is set and the status
+   becomes Draft, and its variants, images and specs are kept. Every admin
+   product query filters `deletedAt: null`, and the storefront's `PUBLISHED`
+   filter includes it too. Trash can restore it (as a Draft) or delete it
+   permanently; see [TRASH-AUDIT.md](TRASH-AUDIT.md). A product in Trash still
+   holds its slug and SKUs, and the 409 for a clash says so.
 8. Categories and brands with products can't be deleted; the message names the
-   count.
+   count, products in Trash included.
 9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
    closing the modal drops the cached product and the next open fetches it
    again. Without this, stock changed from Inventory was shown stale and the
@@ -343,12 +347,62 @@ the admin picks the new colour on them.
 
 | Piece | File |
 | --- | --- |
-| Sitemap | `src/app/sitemap.ts`. Home, the shop, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first |
+| Sitemap | `src/app/sitemap.ts`. Home, the shop, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`) |
 | Robots | `src/app/robots.ts`. Keeps `/admin`, `/api`, `/account`, `/cart` and `/checkout` out, except `/api/v1/media/` so product images stay crawlable, and points to the sitemap |
 | Product JSON-LD | `productJsonLd` in `src/lib/seo.ts`, rendered on the product page |
-| Canonical and Open Graph image | `generateMetadata` on the product page |
+| Product title, description, keywords, Open Graph, Twitter card, canonical | `generateMetadata` on the product page, values from `productSeo` in `src/lib/seo.ts` |
+| Product SEO fields in the admin | The "SEO and sharing" section of the product form, `src/components/admin/products/product-seo-fields.tsx` |
 
-Absolute URLs come from `siteConfig.url` in `src/lib/site.ts`.
+Absolute URLs come from `siteConfig.url` in `src/lib/site.ts`; relative ones
+(images, a canonical path) resolve against `metadataBase` in the root layout.
+
+### Product SEO fields
+
+Seven optional columns on `Product`, edited in the product form and saved with
+the rest of the product (`POST` / `PUT /api/v1/admin/products`). They are
+returned by the admin product `GET` and, as `seo`, in the storefront product
+detail. There is no separate endpoint or permission: Products Edit covers
+them, and the change log records them like any other product field.
+
+| Field | Limit (constant) | Notes |
+| --- | --- | --- |
+| `seoTitle` | 70 (`SEO_TITLE_MAX_LENGTH`) | Used exactly as written, without the " — Rewire Electronics" suffix |
+| `metaDescription` | 160 (`SEO_DESCRIPTION_MAX_LENGTH`) | |
+| `metaKeywords` | 10 (`SEO_KEYWORDS_MAX`), 40 characters each (`SEO_KEYWORD_MAX_LENGTH`) | Comma separated in the form |
+| `ogTitle` | 95 (`OG_TITLE_MAX_LENGTH`) | |
+| `ogDescription` | 200 (`OG_DESCRIPTION_MAX_LENGTH`) | |
+| `ogImageId` | | A `MediaAsset` from the shared upload, ideally 1200 × 630. Set null if the asset goes |
+| `canonicalUrl` | 512 (`CANONICAL_URL_MAX_LENGTH`) | A site path (`/product/x`, not `//host`) or an `https://` URL; anything else is 422 |
+
+Blank fields are stored as null (keywords as an empty list).
+
+**Fallbacks.** `productSeo(product)` decides what the page renders, taking the
+first value that is set:
+
+| Rendered | Order |
+| --- | --- |
+| `<title>` | `seoTitle` (as written) → "Brand Name" plus the site suffix |
+| meta description | `metaDescription` → the description, else the first highlight, else the site description, clipped to 160 characters at a word |
+| keywords | `metaKeywords`; none rendered when empty |
+| `og:title`, `twitter:title` | `ogTitle` → the title above |
+| `og:description`, `twitter:description` | `ogDescription` → the description above |
+| `og:image`, `twitter:image` | the OG image → the first product image → `siteConfig.ogImage` |
+| canonical, `og:url` | `canonicalUrl` → `/product/<slug>` |
+
+The form shows the same fallbacks as placeholders, so a blank field reads as
+"this is what will be used".
+
+**The OG image** counts as a reference in `releaseImage` and the orphan sweep
+(`productOgImages` on `MediaAsset`). Replacing or clearing it releases the old
+asset once nothing else uses it; deleting a product permanently releases it too.
+
+The product JSON-LD keeps the product's own name and description, but its
+`url` is the same canonical the page declares, and the sitemap lists only
+products whose canonical is their own page (`isSelfCanonical` in
+`src/lib/seo.ts`; an override equal to `/product/<slug>`, relative or absolute,
+still counts as their own). So the page, the JSON-LD and the sitemap never
+disagree. Because the sitemap filters after taking the newest
+`SITEMAP_PRODUCT_LIMIT` products, it can list slightly fewer than the limit.
 
 The JSON-LD is a `Product` with an `AggregateOffer`: lowest and highest variant
 price and variant count, plus one `Offer` per variant with its SKU, price,
@@ -383,6 +437,7 @@ All in `src/lib/constants.ts`.
 | `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
 | `HOME_CATEGORY_LIMIT` | 4 | Categories in the home strip |
 | `STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` | 300 | Longest the cached menu categories live |
+| `SEO_TITLE_MAX_LENGTH`, `SEO_DESCRIPTION_MAX_LENGTH`, `OG_TITLE_MAX_LENGTH`, `OG_DESCRIPTION_MAX_LENGTH`, `SEO_KEYWORDS_MAX`, `SEO_KEYWORD_MAX_LENGTH`, `CANONICAL_URL_MAX_LENGTH` | 70, 160, 95, 200, 10, 40, 512 | Product SEO fields (section 7) |
 
 ---
 

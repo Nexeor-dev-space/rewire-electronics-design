@@ -12,7 +12,7 @@ export default async function CouponsPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.coupons)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.coupons)) {
     return (
       <AdminPage title="Discount Codes">
         <AdminEmptyState title="Access denied" description="Your role doesn't include Discount Codes." />

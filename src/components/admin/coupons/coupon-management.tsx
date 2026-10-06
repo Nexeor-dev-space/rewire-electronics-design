@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { RowActions } from "@/components/admin/shared/row-actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteCoupon, useGetCoupons } from "@/hooks/use-coupon";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatMoney } from "@/lib/money";
 import type { CouponStatus } from "@/lib/pricing/types";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ type Modal = { kind: "create" } | { kind: "edit"; coupon: AdminCoupon } | null;
 type ActiveFilter = "" | "true" | "false";
 
 export function CouponManagement() {
+  const access = useModuleAccess(PERMISSIONS.coupons);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<ActiveFilter>("");
@@ -117,8 +120,8 @@ export function CouponManagement() {
                 <CouponRow
                   coupon={coupon}
                   deleting={deletingId === coupon.id}
-                  onEdit={() => setModal({ kind: "edit", coupon })}
-                  onDelete={() => setToDelete(coupon)}
+                  onEdit={access.edit ? () => setModal({ kind: "edit", coupon }) : undefined}
+                  onDelete={access.delete ? () => setToDelete(coupon) : undefined}
                 />
               </li>
             ))}
@@ -152,9 +155,11 @@ export function CouponManagement() {
       title="Discount Codes"
       description="Coupon codes, their conditions and redemption limits."
       actions={
-        <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-          Add discount code
-        </Button>
+        access.create && (
+          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
+            Add discount code
+          </Button>
+        )
       }
     >
       <div className="mb-5 flex flex-wrap gap-3">
@@ -216,8 +221,8 @@ function CouponRow({
 }: {
   coupon: AdminCoupon;
   deleting: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS, deleting && "opacity-50")}>

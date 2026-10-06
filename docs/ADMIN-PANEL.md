@@ -92,25 +92,32 @@ Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/auth/permissions.ts` | Roles, `ROLE_PERMISSIONS`, and the rules for managing accounts |
+| `src/lib/auth/permissions.ts` | Roles, modules, actions, the permission checks, and the rules for managing accounts |
+| `src/services/role-permission.service.ts` | Loads, caches and saves the Staff permission grid |
 | `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
 | `src/lib/auth/password.ts` | scrypt hashing |
 | `src/app/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
 
-**Permissions.** `ROLE_PERMISSIONS` lists the `adminPermission(area, key)` keys
-each role may use, or `"*"` for all. Admin and Staff currently have `"*"`,
-Customer has none. When the staff permission system is specified, narrow Staff
-there; the checks below already read it.
+**Permissions.** Admin always holds every action and Customer none. Each
+Staff account works under a custom Staff role that an Admin creates on the
+**Roles** screen (Governance → Roles, `/admin/roles`) with an access level
+per module (No access, View, Edit, Full access), and assigns in Users →
+Staff. The full rules, the module list, the
+API and the known limits are in [PERMISSIONS.md](PERMISSIONS.md).
 
 **Checks.**
 
-* `src/app/admin/layout.tsx` — signed out → `/sign-in`; a role with no
-  permissions → the access-denied screen instead of the console.
-* A built module's page checks its own key with `hasPermission`.
-* Every `/api/v1/admin` route starts with `authorizeApi(PERMISSIONS.<module>)`:
-  401 when signed out, 403 without the permission.
+* `src/app/admin/layout.tsx`: signed out → `/sign-in`; a Customer, or Staff
+  whose grid grants no module → the access-denied screen instead of the console.
+* A built module's page checks View with
+  `hasPermission(session.user.permissions, PERMISSIONS.<module>)`.
+* Every `/api/v1/admin` route starts with
+  `authorizeApi(PERMISSIONS.<module>, "<ACTION>")`: 401 when signed out, 403
+  without the action.
 * Server Actions check for themselves (`savePolicy`), because they can be
   called directly.
+* The sidebar hides modules the user can't view, and each screen hides the
+  buttons for actions the user lacks (`useModuleAccess`).
 
 **Sessions** are a signed cookie (`AUTH_SECRET`), seven days. The cookie only
 identifies the user and carries their `sessionVersion`; role, state and
@@ -152,12 +159,11 @@ key `governance.integrations`.
 1. Holds the SMTP settings, sender address and site address, encrypted, and the DEV / LIVE switch. Values are write-only: the screen
    shows set or not set, the last four characters of longer values, and when
    it changed.
-2. **Admins only.** Staff hold `"*"`, so the permission key alone would admit
-   them. The page and every `/api/v1/admin/integrations` route also check
-   `canManageIntegrations(role)` in `permissions.ts`, which is true for Admin
-   only, and answer 403 "Only Admins can manage integrations." otherwise. The
-   sidebar does not filter by role, so Staff see the row and land on "Access
-   denied".
+2. **Admins only.** API Credentials is an Admin only module, never on a
+   Staff role, so Staff don't see the row and the page answers "Access
+   denied". Every `/api/v1/admin/integrations` route also checks
+   `canManageIntegrations(role)` in `permissions.ts`, true for Admin only, and
+   answers 403 "Only Admins can manage integrations." otherwise.
 
 Keys, modes, encryption and the Gmail and Resend setup steps are in
 [INTEGRATIONS.md](INTEGRATIONS.md).
@@ -166,13 +172,18 @@ Keys, modes, encryption and the Gmail and Resend setup steps are in
 
 Service → **Users**, with two screens beneath it:
 
-* `/admin/users/staff` — Admin and Staff accounts, the people who reach the console
-* `/admin/users/customers` — Customer accounts
+* `/admin/users/staff` — Admin and Staff accounts, the people who reach the
+  console. Module `service.staff`, **Admin only**: only Admins create staff,
+  assign Staff roles, or delete and restore staff.
+* `/admin/users/customers` — Customer accounts. Module `service.customers`,
+  which a Staff role can be given.
 
 Both render the same module with a different `group`, and each fetches only its
 own accounts (`?group=staff` / `?group=customers`). `/admin/users` redirects to
 the customers screen. Staff accounts used to sit under Governance → Staff &
-Roles; that row is now just **Roles**, for the roles themselves.
+Roles; that row is now just **Roles**, where an Admin creates the custom Staff
+roles ([PERMISSIONS.md](PERMISSIONS.md)). Giving an account the Admin or Staff
+kind, and a Staff account its role, happens here, in the Staff modal.
 
 | File | Purpose |
 | --- | --- |
@@ -186,13 +197,26 @@ Roles; that row is now just **Roles**, for the roles themselves.
 * Each screen has its own search and pagination, an add/edit modal and delete.
 * **Roles on offer follow the screen:** Staff offers Admin and Staff (Admin
   only gives out Admin); Customers offers Customer alone. So an account can't
-  be moved between the two screens from the modal.
+  be moved between the two screens from the modal, and the API checks Staff
+  accounts for any change involving a non customer role (`accountModule`).
+* **Staff role:** a Staff account must have one of the custom Staff roles,
+  picked in the modal; the list shows its name. See
+  [PERMISSIONS.md](PERMISSIONS.md).
 * **Addresses** (emirate, street, nearest landmark) are edited inside the modal
   and saved with the account in one transaction. Exactly one is primary: the
   one marked, or the first when none is.
 * **Emails** are stored lowercased and must be unique (409 on the email field).
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
-  the list and can't sign in; its email stays taken.
+  the list and can't sign in; its email stays taken. It waits in Governance →
+  Trash → Users, where it can be restored ([TRASH-AUDIT.md](TRASH-AUDIT.md)).
+
+## Change Log and Trash
+
+Governance → **Change Log** (`/admin/change-log`, `governance.change-log`)
+lists every recorded admin change with its previous and new values.
+Governance → **Trash** (`/admin/trash/products`, `/admin/trash/users`,
+`governance.trash`) holds deleted products and accounts for restore. Both are
+described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
 ## Categories and Brands
 

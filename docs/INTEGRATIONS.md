@@ -178,11 +178,11 @@ Switching providers later is data only: replace the four values.
 
 Governance → **API Credentials**, `/admin/settings/integrations`.
 
-1. **Admins only.** Staff hold `"*"` in `ROLE_PERMISSIONS`, so a permission
-   key alone would let them in. The page and every route also check
-   `canManageIntegrations(role)` (`src/lib/auth/permissions.ts`), true for
-   Admin only. Staff see the sidebar row (the sidebar does not filter by role)
-   and land on "Access denied".
+1. **Admins only.** API Credentials is an Admin only module
+   ([PERMISSIONS.md](PERMISSIONS.md)): it is never on the Staff grid, so the
+   sidebar hides it from Staff and the page shows "Access denied". Every route
+   also checks `canManageIntegrations(role)` (`src/lib/auth/permissions.ts`),
+   true for Admin only.
 2. **Mode.** A DEV / LIVE switch; each change goes through a confirm dialog.
    In DEV a warning banner explains what is off.
 3. **Features line.** Email (On, Logged to the server console, or Off),
@@ -199,8 +199,7 @@ Governance → **API Credentials**, `/admin/settings/integrations`.
 ## 9. API
 
 Paths in `API_ENDPOINTS.admin.integrations`. Every route runs
-`authorizeIntegrations()` (`authorizeApi(PERMISSIONS.integrations)` then the
-Admin check), and answers `401`, `403` "Only Admins can manage integrations.",
+`authorizeIntegrations()` (a signed in session, then the Admin check), and answers `401`, `403` "Only Admins can manage integrations.",
 or `500 INTERNAL` (which includes a missing or short `AUTH_SECRET`).
 
 | Route | Input | Success | Errors |

@@ -15,6 +15,7 @@ import {
   type PolicySlug,
   type RichTextDoc,
 } from "@/lib/policy-types";
+import { recordAudit } from "@/services/audit.service";
 
 export interface PolicyBlockInput {
   id: string | null;
@@ -43,12 +44,22 @@ export async function savePolicy(
   // A Server Action is a public POST endpoint whatever page renders it, so
   // it checks access itself rather than trusting the admin layout.
   const session = await getSession();
-  if (!session || !hasPermission(session.user.role, PERMISSIONS.content)) {
+  if (!session || !hasPermission(session.user.permissions, PERMISSIONS.content, "EDIT")) {
     return { ok: false, error: "Your account doesn't have access to edit policies." };
   }
 
   if (!isPolicySlug(slug)) {
     return { ok: false, error: "Unknown policy." };
+  }
+
+  // The previous value for the change log, and the publish check below.
+  const before = await readPolicy(slug);
+
+  // Taking a policy live or offline is a publish. A missing policy counts as
+  // unpublished, so it can't skip the check.
+  const canPublish = hasPermission(session.user.permissions, PERMISSIONS.content, "PUBLISH");
+  if (!canPublish && (before?.published ?? false) !== input.published) {
+    return { ok: false, error: "Your account can't publish or unpublish policies." };
   }
 
   const title = input.title.trim();
@@ -146,6 +157,14 @@ export async function savePolicy(
   }
 
   revalidatePolicy(slug);
+  await recordAudit(session.user, {
+    action: "UPDATE",
+    module: PERMISSIONS.content,
+    recordId: slug,
+    recordLabel: saved.title,
+    before,
+    after: saved,
+  });
 
   return { ok: true, policy: saved };
 }

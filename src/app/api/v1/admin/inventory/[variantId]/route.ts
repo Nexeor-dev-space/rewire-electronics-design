@@ -3,14 +3,15 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
+import { recordAudit } from "@/services/audit.service";
 import { refreshStorefrontCatalogue } from "@/services/catalogue.service";
-import { setStock } from "@/services/inventory.service";
+import { getInventoryItem, setStock } from "@/services/inventory.service";
 import { stockUpdateSchema } from "@/validators/inventory.validator";
 
 type Params = { params: Promise<{ variantId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const auth = await authorizeApi(PERMISSIONS.inventory);
+  const auth = await authorizeApi(PERMISSIONS.inventory, "EDIT");
   if (!auth.ok) return auth.response;
 
   const input = stockUpdateSchema.safeParse(await req.json().catch(() => null));
@@ -25,7 +26,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { variantId } = await params;
   try {
+    const before = await getInventoryItem(variantId);
     const result = await setStock(variantId, input.data);
+    await recordAudit(auth.session.user, {
+      action: "UPDATE",
+      module: PERMISSIONS.inventory,
+      recordId: variantId,
+      recordLabel: `${result.product.name} (${result.sku})`,
+      before: { stock: before.stock },
+      after: { stock: result.stock },
+    });
     refreshStorefrontCatalogue();
     return apiSuccess(result);
   } catch (error) {

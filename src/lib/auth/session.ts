@@ -6,7 +6,15 @@ import { apiError } from "@/lib/api/api-response";
 import { SESSION_MAX_AGE_SECONDS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { SessionUser } from "@/types/auth";
-import { hasPermission } from "./permissions";
+import {
+  fullGrid,
+  gridFromLevels,
+  hasPermission,
+  type PermissionAction,
+  type PermissionGrid,
+  type Role,
+  type StoredAccessLevel,
+} from "./permissions";
 import { createSessionToken, readSessionToken } from "./session-token";
 
 /**
@@ -37,13 +45,23 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: true,
       emailVerifiedAt: true,
       createdAt: true,
+      // A Staff role's levels ride on the same query, so a role edit applies on the next request.
+      staffRole: { select: { permissions: { select: { module: true, level: true } } } },
     },
   });
   if (!user) return null;
 
-  const { emailVerifiedAt, ...rest } = user;
-  return { user: { ...rest, emailVerified: emailVerifiedAt !== null } };
+  const { emailVerifiedAt, staffRole, ...rest } = user;
+  const permissions = permissionsFor(user.role, staffRole?.permissions ?? []);
+  return { user: { ...rest, emailVerified: emailVerifiedAt !== null, permissions } };
 });
+
+/** Admin: everything. Staff: its role's levels (none without a role). Customer: nothing. */
+function permissionsFor(role: Role, levels: { module: string; level: StoredAccessLevel }[]): PermissionGrid {
+  if (role === "ADMIN") return fullGrid();
+  if (role === "STAFF") return gridFromLevels(levels);
+  return {};
+}
 
 export async function startSession(userId: string, sessionVersion: number) {
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
@@ -64,21 +82,26 @@ export async function hasSessionCookie(): Promise<boolean> {
   return (await cookies()).has(COOKIE);
 }
 
+export function forbidden(): Response {
+  return apiError("FORBIDDEN", "Your account doesn't have access to this.", 403);
+}
+
 /**
- * API guard: no session → 401, a permission the role lacks → 403.
+ * API guard: no session → 401, an action the role lacks on the module → 403.
  *
- *   const auth = await authorizeApi(PERMISSIONS.customers);
+ *   const auth = await authorizeApi(PERMISSIONS.coupons, "DELETE");
  *   if (!auth.ok) return auth.response;
  */
 export async function authorizeApi(
-  permission?: string,
+  module?: string,
+  action: PermissionAction = "VIEW",
 ): Promise<{ ok: true; session: Session } | { ok: false; response: Response }> {
   const session = await getSession();
   if (!session) {
     return { ok: false, response: apiError("UNAUTHENTICATED", "Please sign in to continue.", 401) };
   }
-  if (permission && !hasPermission(session.user.role, permission)) {
-    return { ok: false, response: apiError("FORBIDDEN", "Your account doesn't have access to this.", 403) };
+  if (module && !hasPermission(session.user.permissions, module, action)) {
+    return { ok: false, response: forbidden() };
   }
   return { ok: true, session };
 }

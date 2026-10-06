@@ -12,7 +12,7 @@ export default async function HomepageBuilderPage() {
   const session = await getSession();
   if (!session) redirect(SIGN_IN_PAGE_PATH);
 
-  if (!hasPermission(session.user.role, PERMISSIONS.homepage)) {
+  if (!hasPermission(session.user.permissions, PERMISSIONS.homepage)) {
     return (
       <AdminPage title="Homepage Builder">
         <AdminEmptyState

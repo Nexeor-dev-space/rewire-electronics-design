@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { ImageField } from "@/components/admin/shared/image-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -15,6 +16,7 @@ import {
   useUpdateCategory,
 } from "@/hooks/use-category";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PRODUCT_STATUS_LABELS } from "@/lib/catalogue";
 import { slugify } from "@/lib/utils";
 import type { CategoryDetail } from "@/types/category";
@@ -88,6 +90,8 @@ function EditCategory({ id, onClose }: { id: string; onClose: () => void }) {
 
 function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose: () => void }) {
   const id = useId();
+  // Without Publish the status is fixed: a new category starts as a draft.
+  const { publish: canPublish } = useModuleAccess(PERMISSIONS.categories);
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(initial));
@@ -96,7 +100,9 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
   const [imageId, setImageId] = useState<string | null>(initial?.imageId ?? null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(initial?.imageUrl ?? null);
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [status, setStatus] = useState<CategoryStatus>(initial?.status ?? "PUBLISHED");
+  const [status, setStatus] = useState<CategoryStatus>(
+    initial?.status ?? (canPublish ? "PUBLISHED" : "DRAFT"),
+  );
   const [showInNav, setShowInNav] = useState(initial?.showInNav ?? true);
   const [sortOrder, setSortOrder] = useState(String(initial?.sortOrder ?? 0));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -244,6 +250,7 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
               <Select
                 id={`${id}-status`}
                 value={status}
+                disabled={!canPublish}
                 onChange={(event) => setStatus(event.target.value as CategoryStatus)}
                 className="h-11"
               >
