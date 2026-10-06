@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AccessDenied } from "@/components/auth/access-denied";
-import { adminConsole } from "@/lib/admin-console";
-import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
+import { adminConsole, isAdminTheme } from "@/lib/admin-console";
+import { ADMIN_THEME_COOKIE, SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { canAccessAdmin, hasAnyModule } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 
@@ -38,5 +39,13 @@ export default async function AdminLayout({
   const { role, permissions } = session.user;
   if (!canAccessAdmin(role) || !hasAnyModule(permissions)) return <AccessDenied email={session.user.email} />;
 
-  return <AdminShell viewer={session.user}>{children}</AdminShell>;
+  // The saved light / dark choice, rendered on the server so it never flashes.
+  const saved = (await cookies()).get(ADMIN_THEME_COOKIE)?.value;
+  const theme = isAdminTheme(saved) ? saved : null;
+
+  return (
+    <AdminShell viewer={session.user} theme={theme}>
+      {children}
+    </AdminShell>
+  );
 }

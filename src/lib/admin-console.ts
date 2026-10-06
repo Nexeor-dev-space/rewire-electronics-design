@@ -59,3 +59,11 @@ export const adminMetrics: AdminMetric[] = [
 
 /** Stands in for a figure whose API does not exist yet. */
 export const METRIC_PLACEHOLDER = "—";
+
+/** The console's two palettes; no saved choice means follow the OS. */
+export const ADMIN_THEMES = ["light", "dark"] as const;
+export type AdminTheme = (typeof ADMIN_THEMES)[number];
+
+export function isAdminTheme(value: unknown): value is AdminTheme {
+  return ADMIN_THEMES.includes(value as AdminTheme);
+}

@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ADMIN_ROOT } from "@/lib/admin-nav";
-import { adminConsole } from "@/lib/admin-console";
+import { adminConsole, type AdminTheme } from "@/lib/admin-console";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
 import { AdminAccessProvider } from "./admin-access";
 import { AdminNavList } from "./admin-nav";
+import { AdminThemeToggle } from "./admin-theme-toggle";
 import { AdminUserMenu } from "./admin-user-menu";
 
 /**
@@ -21,7 +22,7 @@ import { AdminUserMenu } from "./admin-user-menu";
  * button, so the console keeps one navigation model at every width
  * rather than a second, thinner one for phones.
  *
- * The whole frame is scoped to `.admin-theme`, the light token set in
+ * The whole frame is scoped to `.admin-theme`, the light / dark token set in
  * globals.css. Every component inside it — Card, Button, Badge — reads
  * the same tokens it always did and comes out light, with no admin
  * variant of its own.
@@ -45,12 +46,16 @@ const RETRACT = "duration-(--duration-base) ease-(--ease-out-expo)";
 
 export function AdminShell({
   viewer,
+  theme: savedTheme,
   children,
 }: {
   /** The signed-in staff member, shown in the user menu. */
   viewer: SessionUser;
+  /** The saved light / dark choice from the cookie; null follows the OS. */
+  theme: AdminTheme | null;
   children: ReactNode;
 }) {
+  const [theme, setTheme] = useState(savedTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
@@ -75,7 +80,7 @@ export function AdminShell({
 
   return (
     <AdminAccessProvider permissions={viewer.permissions}>
-      <div className="admin-theme flex min-h-dvh w-full bg-void text-ink">
+      <div data-theme={theme ?? undefined} className="admin-theme flex min-h-dvh w-full bg-void text-ink">
         {/* Keyboard users can bypass the whole rail */}
         <a
           href="#admin-main"
@@ -173,6 +178,7 @@ export function AdminShell({
               >
                 View storefront
               </Link>
+              <AdminThemeToggle theme={theme} onChange={setTheme} />
               <AdminUserMenu viewer={viewer} />
             </div>
           </header>

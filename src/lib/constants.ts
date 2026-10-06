@@ -62,6 +62,9 @@ export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 /** Where staff accounts and their roles are managed, linked from the Roles screen. */
 export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
+/** The console's light / dark choice, per browser. No cookie means follow the OS. */
+export const ADMIN_THEME_COOKIE = "rewire_admin_theme";
+export const ADMIN_THEME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 export const STAFF_ROLE_NAME_MAX_LENGTH = 60;
 export const STAFF_ROLE_DESCRIPTION_MAX_LENGTH = 200;
 
