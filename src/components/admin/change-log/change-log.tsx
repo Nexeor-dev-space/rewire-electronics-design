@@ -203,14 +203,17 @@ function ChangeDetail({ entry }: { entry: AuditLogEntry }) {
     return <p className="text-sm text-ink-secondary">No field values were recorded for this action.</p>;
   }
 
+  // Only the sides that were recorded: a delete has no new value, a create no previous one.
+  const both = entry.before !== null && entry.after !== null;
+
   return (
     <dl className="flex flex-col gap-4">
       {fields.map((field) => (
         <div key={field} className="rounded-lg border border-line p-3">
           <dt className="eyebrow mb-2">{auditFieldLabel(field)}</dt>
-          <dd className="grid gap-3 sm:grid-cols-2">
-            <ValueCell label="Previous" present={entry.before !== null} value={before[field]} />
-            <ValueCell label="New" present={entry.after !== null} value={after[field]} />
+          <dd className={cn("grid gap-3", both && "sm:grid-cols-2")}>
+            {entry.before !== null && <ValueCell label={both ? "Previous" : "Removed"} value={before[field]} />}
+            {entry.after !== null && <ValueCell label="New" value={after[field]} />}
           </dd>
         </div>
       ))}
@@ -218,17 +221,13 @@ function ChangeDetail({ entry }: { entry: AuditLogEntry }) {
   );
 }
 
-function ValueCell({ label, present, value }: { label: string; present: boolean; value: AuditValues[string] }) {
+function ValueCell({ label, value }: { label: string; value: AuditValues[string] }) {
   return (
     <div className="min-w-0">
       <p className="mb-1 text-xs text-ink-muted">{label}</p>
-      {present ? (
-        <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-2 p-2 font-mono text-xs text-ink">
-          {formatValue(value)}
-        </pre>
-      ) : (
-        <p className="text-sm text-ink-muted">—</p>
-      )}
+      <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface-2 p-2 font-mono text-xs text-ink">
+        {formatValue(value)}
+      </pre>
     </div>
   );
 }
