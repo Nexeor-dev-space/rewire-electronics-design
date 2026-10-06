@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { siteConfig } from "@/lib/site";
+import { searchCopy, siteConfig } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -145,7 +145,7 @@ export function Header() {
               ref={searchIconRef}
               type="button"
               onClick={openSearch}
-              aria-label="Search products, brands and devices"
+              aria-label={searchCopy.label}
               aria-expanded={searchOpen}
               aria-controls={SEARCH_PANEL_ID}
               className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.05] hover:text-ink md:hidden"

@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type KeyboardEvent } from "react";
+import { searchCopy } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,12 +67,12 @@ export const InlineSearch = forwardRef<HTMLInputElement, InlineSearchProps>(
           ref={ref}
           type="search"
           role="combobox"
-          aria-label="Search products, brands and devices"
+          aria-label={searchCopy.label}
           aria-expanded={ariaExpanded}
           aria-controls={ariaControls}
           aria-autocomplete="list"
           autoComplete="off"
-          placeholder="Search products, brands & devices"
+          placeholder={searchCopy.placeholder}
           onFocus={onFocus}
           // The overlay owns the query. Keystrokes still bubble up so the
           // shopper's first character isn't lost in the transition.
