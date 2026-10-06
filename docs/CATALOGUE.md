@@ -14,7 +14,7 @@ general conventions; this document covers what is specific to the catalogue.
 | Area | What exists |
 | --- | --- |
 | Database | Categories, products, variants, images, specs, add-ons |
-| Admin | Categories, Products, Add-ons and Inventory screens under Catalogue |
+| Admin | Categories, Products and Add-ons screens under Catalogue. Stock is managed on the product edit form |
 | Product API | `GET /api/v1/products` and `GET /api/v1/products/[slug]` |
 | Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]`, and the header, mega menus, mobile drawer, home category strip and search panel |
 | SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, canonical URLs |
@@ -92,7 +92,6 @@ permission, and every route starts with `authorizeApi`.
 | --- | --- | --- |
 | Categories | `/admin/categories` | `catalogue.categories` |
 | Products | `/admin/products` | `catalogue.products` |
-| Inventory | `/admin/products/inventory` | `catalogue.inventory` |
 | Add-ons | `/admin/add-ons` | `catalogue.add-ons` |
 
 | Endpoint | Methods |
@@ -103,15 +102,13 @@ permission, and every route starts with `authorizeApi`.
 | `/api/v1/admin/products` | `GET` list, `POST` create |
 | `/api/v1/admin/products/[id]` | `GET`, `PUT`, `DELETE` |
 | `/api/v1/admin/products/[id]/status` | `PATCH` publish, unpublish or archive |
-| `/api/v1/admin/inventory` | `GET` a paged list of variants, filter `stock=all,low,out` |
-| `/api/v1/admin/inventory/[variantId]` | `PATCH` one variant's stock |
 | `/api/v1/admin/add-ons` | `GET` list, `POST` create |
 | `/api/v1/admin/add-ons/[id]` | `GET`, `PUT`, `DELETE` |
 
-Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{products,add-ons,inventory}`,
-`src/hooks/use-{product,add-on,inventory}.ts`, the routes above,
-`src/services/{product,add-on,inventory}.service.ts` and
-`src/validators/{product,add-on,inventory}.validator.ts`.
+Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{products,add-ons}`,
+`src/hooks/use-{product,add-on}.ts`, the routes above,
+`src/services/{product,add-on}.service.ts` and
+`src/validators/{product,add-on}.validator.ts`.
 
 ### Category rules
 
@@ -151,8 +148,24 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    count, products in Trash included.
 9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
    closing the modal drops the cached product and the next open fetches it
-   again. Without this, stock changed from Inventory was shown stale and the
-   next save wrote the old stock back.
+   again, and a save never writes back stock older than the database.
+10. **Stock is managed on the product edit form only.** Each variant row has a
+    Stock field, and `ProductVariant.stock` is the single stock record; there
+    is no separate inventory table or screen. Saving the product
+    (`PUT /api/v1/admin/products/[id]`, Products Edit permission) updates each
+    variant by its id, records the change under Products in the change log and
+    calls `refreshStorefrontCatalogue()`, so the Products list total, the
+    product page and storefront availability all read the new count. Above
+    the variant rows the form shows the product's total stock and its
+    availability label (`availabilityFromStock`), worked out from the values
+    being edited.
+
+    The separate Inventory screen (`/admin/products/inventory`), its API
+    (`/api/v1/admin/inventory`), its `catalogue.inventory` permission and the
+    `["inventory"]` query key were removed. Staff roles may still hold a saved
+    `catalogue.inventory` row; `gridFromLevels` ignores keys it does not know,
+    so the row does nothing. Change log entries recorded under it keep the
+    "Inventory" label through `RETIRED_MODULE_LABELS` in `src/lib/audit.ts`.
 
 ### Add-on rules
 

@@ -43,7 +43,6 @@ Orders don't exist yet. When they do, an order status change is one
 | `src/services/product.service.ts` | Soft `deleteProduct`, `listDeletedProducts`, `restoreProduct`, `purgeProduct`, `getProduct(id, { inTrash })` |
 | `src/services/user.service.ts` | `listDeletedUsers`, `restoreUser`, `getUser(id, { inTrash })` |
 | `src/services/homepage.service.ts` | `findDraftSection` (the previous value of a section) |
-| `src/services/inventory.service.ts` | `getInventoryItem` (the previous stock) |
 | `src/validators/audit.validator.ts`, `trash.validator.ts` | Query schemas |
 | `src/types/audit.ts`, `trash.ts` | `AuditLogEntry`, `AuditFilters`, `TrashProduct`, `TrashFilters` |
 | `src/app/api/v1/admin/audit-logs/route.ts` | The change log API |
@@ -136,16 +135,19 @@ What is recorded today:
 
 | Module | Actions |
 | --- | --- |
-| Products | create, update, status change, delete (to Trash), restore, delete permanently |
+| Products | create, update (variant stock included), status change, delete (to Trash), restore, delete permanently |
 | Categories | create, update, status change, delete |
 | Brands, Add-ons, Discount Codes | create, update, delete |
-| Inventory | stock change |
 | Delivery Zones | update |
 | Homepage Builder | add, edit (including show or hide), delete, reorder, publish, discard |
 | Content & Policies | save (title, text, published, draft notice, blocks) |
 | Customers, Staff accounts | create, update (including a Staff role change), delete, restore; logged under the account's module |
 | Roles | create, update, delete a Staff role |
 | API Credentials | credential set or removed (no values), mode change |
+
+Older stock changes were recorded under the removed Inventory module
+(`catalogue.inventory`). `RETIRED_MODULE_LABELS` in `src/lib/audit.ts` keeps
+their "Inventory" label; the module filter no longer lists it.
 
 ---
 
@@ -156,14 +158,14 @@ What is recorded today:
 1. **Delete** (`DELETE /admin/products/[id]`, Products Delete) sets
    `deletedAt` and the status to Draft. Variants, images and specs stay.
 2. **Hidden everywhere.** Admin product queries filter `deletedAt: null`
-   (`LIVE` in `product.service.ts`, inventory, coupon targets), and the
+   (`LIVE` in `product.service.ts`, coupon targets), and the
    storefront's `PUBLISHED` filter includes it. Because a deleted product is
    also a Draft, the storefront could not show it even if a query missed the
    filter.
 3. **Slug and SKUs stay taken** until the product is deleted permanently. The
    409 for a clash says the owner is in Trash.
 4. **Restore** clears `deletedAt` and keeps the product a **Draft**, so it never
-   goes live by surprise. It reappears in Products, Inventory and the pickers.
+   goes live by surprise. It reappears in Products and the pickers.
 5. **Delete permanently** is the old hard delete: variants, images and specs
    are removed and unused images released.
 6. Brands and categories still count products in Trash when refusing a
@@ -215,7 +217,7 @@ All paths are in `API_ENDPOINTS.admin.auditLogs` and `API_ENDPOINTS.admin.trash`
 Hooks: `useGetAuditLogs`; `useGetTrashProducts`, `useGetTrashProduct`,
 `useGetTrashUsers`, `useGetTrashUser`, `useRestoreProduct`, `usePurgeProduct`,
 `useRestoreUser`. Trash mutations invalidate `["trash"]`, `["products"]`,
-`["inventory"]`, `["users"]` and `["audit-logs"]`.
+`["users"]` and `["audit-logs"]`.
 
 ---
 
