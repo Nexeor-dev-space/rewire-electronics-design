@@ -42,10 +42,6 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/add-ons`,
       detail: (id: string) => `${V1}/admin/add-ons/${id}`,
     },
-    inventory: {
-      list: `${V1}/admin/inventory`,
-      detail: (variantId: string) => `${V1}/admin/inventory/${variantId}`,
-    },
     homepage: {
       draft: `${V1}/admin/homepage`,
       sections: `${V1}/admin/homepage/sections`,

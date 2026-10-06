@@ -13,7 +13,7 @@
  * `/admin/products` owns `/admin/products/add`. That is what keeps the
  * parent nav row active on a child page without each child route having
  * to be declared. A more specific declaration always wins, which is how
- * `/admin/products/inventory` can be its own nav item while still living
+ * `/admin/products/upload-products` can be its own nav item while still living
  * underneath the Products route.
  */
 
@@ -121,13 +121,6 @@ export const adminNav: AdminNavSection[] = [
         description:
           "Spreadsheet import for products and variants, with a history of every run and its outcome.",
         routes: ["/admin/products/upload-history"],
-      },
-      {
-        key: "inventory",
-        label: "Inventory",
-        href: "/admin/products/inventory",
-        description:
-          "Stock on hand per variant, low stock thresholds and adjustments.",
       },
       {
         key: "add-ons",
@@ -479,8 +472,8 @@ function normalise(pathname: string): string {
  * A row owns its own route and everything beneath it, so the detail and
  * form routes each module will grow later (`/admin/products/add`,
  * `/admin/orders/1042`) resolve without being declared. When two rows
- * both match, the longer route wins: `/admin/products/inventory` belongs
- * to Inventory, not to Products.
+ * both match, the longer route wins: `/admin/products/upload-products`
+ * belongs to Bulk Product Upload, not to Products.
  */
 export function matchAdminRoute(pathname: string): AdminRouteMatch | null {
   const path = normalise(pathname);
