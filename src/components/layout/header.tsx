@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { searchCopy, siteConfig } from "@/lib/site";
+import { searchCopy, searchHref, siteConfig } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -25,40 +25,55 @@ import { CategoryBar } from "./category-bar";
  *
  * Both rows share one hairline surface and one scroll-hide behaviour, so
  * they read as a single chrome, not two competing bars. The search field
- * is the row's centrepiece and hands off to the existing `SearchPanel`
- * overlay on focus, which owns the real query, results and navigation.
+ * is the row's centrepiece and the real input from `md`: typing there opens
+ * `SearchPanel` with suggestions only. Below `md` the search icon opens the
+ * panel with its own field. Either way exactly one field is on screen.
  */
 
 export function Header() {
   const { scrolled, scrollingDown } = useScrollState();
   const pathname = usePathname();
 
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [initialQuery, setInitialQuery] = useState("");
+  /** One query for the inline field and the panel. */
+  const [query, setQuery] = useState("");
+  /** Which control opened search: the inline field is itself the input. */
+  const [searchFrom, setSearchFrom] = useState<"inline" | "icon">("icon");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchIconRef = useRef<HTMLButtonElement>(null);
 
   const anyOverlayOpen = searchOpen || drawerOpen;
 
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setQuery("");
+  }, []);
+
   /* Close overlays on navigation. */
   useEffect(() => {
     setDrawerOpen(false);
-    setSearchOpen(false);
-  }, [pathname]);
+    closeSearch();
+  }, [pathname, closeSearch]);
 
   /* Global Escape closes overlays — the search panel handles its own too. */
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setSearchOpen(false);
+      if (event.key === "Escape") closeSearch();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [closeSearch]);
 
   const openSearch = useCallback(() => {
+    setSearchFrom("icon");
+    setSearchOpen(true);
+  }, []);
+
+  const openInlineSearch = useCallback(() => {
+    setSearchFrom("inline");
     setSearchOpen(true);
   }, []);
 
@@ -130,10 +145,16 @@ export function Header() {
             <div className="mx-auto hidden max-w-2xl flex-1 md:block">
               <InlineSearch
                 ref={searchInputRef}
-                onFocus={openSearch}
-                onQuery={(value) => {
-                  setInitialQuery(value);
-                  openSearch();
+                value={query}
+                onFocus={openInlineSearch}
+                onChange={(value) => {
+                  setQuery(value);
+                  openInlineSearch();
+                }}
+                onSubmit={() => {
+                  if (!query.trim()) return;
+                  router.push(searchHref(query));
+                  closeSearch();
                 }}
                 ariaExpanded={searchOpen}
                 ariaControls={SEARCH_PANEL_ID}
@@ -184,12 +205,11 @@ export function Header() {
               as an extension of the chrome, not a floating dialog. */}
           <SearchPanel
             open={searchOpen}
-            onClose={() => {
-              setSearchOpen(false);
-              setInitialQuery("");
-            }}
-            triggerRef={searchInputRef.current ? searchInputRef : searchIconRef}
-            initialQuery={initialQuery}
+            onClose={closeSearch}
+            triggerRef={searchFrom === "inline" ? searchInputRef : searchIconRef}
+            query={query}
+            onQueryChange={setQuery}
+            showField={searchFrom === "icon"}
           />
         </div>
       </motion.header>

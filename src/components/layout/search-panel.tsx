@@ -25,13 +25,14 @@ interface SearchPanelProps {
    *  or the inline search input. Focus returns here on close; outside
    *  clicks over it are ignored. */
   triggerRef: RefObject<HTMLElement | null>;
+  /** The query, owned by the header so its inline field and this panel share it. */
+  query: string;
+  onQueryChange: (value: string) => void;
   /**
-   * Seed value from the inline search field. When the shopper starts
-   * typing in the header input, the first keystroke lands in the
-   * inline field and this prop lifts it into the overlay so nothing
-   * is dropped in the handoff.
+   * Draw the panel's own field. False when the header's inline field is
+   * the input (from `md`), so the shopper never sees two search boxes.
    */
-  initialQuery?: string;
+  showField: boolean;
 }
 
 export const SEARCH_PANEL_ID = "site-search-panel";
@@ -53,11 +54,12 @@ export function SearchPanel({
   open,
   onClose,
   triggerRef,
-  initialQuery = "",
+  query,
+  onQueryChange,
+  showField,
 }: SearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState("");
   const [term, setTerm] = useState("");
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
@@ -72,25 +74,17 @@ export function SearchPanel({
     return () => window.clearTimeout(id);
   }, [query]);
 
-  /* Focus the field on open; hand focus back to the icon on close.
-     `initialQuery` seeds the overlay's field so the header's inline
-     input can hand off the first keystroke without dropping it. */
+  /* With its own field, focus it on open and hand focus back to the icon
+     on close. Without one, focus already sits in the header's field. */
   useEffect(() => {
-    if (!open) return;
+    if (!open || !showField) return;
     const trigger = triggerRef.current;
-    setQuery(initialQuery);
-    const id = window.setTimeout(() => {
-      inputRef.current?.focus();
-      // Position the caret at the end of the seeded value.
-      const el = inputRef.current;
-      if (el) el.setSelectionRange(el.value.length, el.value.length);
-    }, 80);
+    const id = window.setTimeout(() => inputRef.current?.focus(), 80);
     return () => {
       window.clearTimeout(id);
-      setQuery("");
       trigger?.focus();
     };
-  }, [open, triggerRef, initialQuery]);
+  }, [open, showField, triggerRef]);
 
   /* Escape anywhere, and any pointer landing outside panel or trigger. */
   useEffect(() => {
@@ -122,8 +116,8 @@ export function SearchPanel({
   }
 
   function clear() {
-    setQuery("");
-    inputRef.current?.focus();
+    onQueryChange("");
+    (showField ? inputRef.current : triggerRef.current)?.focus();
   }
 
   let results: ReactNode;
@@ -218,6 +212,7 @@ export function SearchPanel({
           >
             <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
               {/* ---------- The field: one line, one divider ---------- */}
+              {showField && (
               <form
                 role="search"
                 onSubmit={(event) => {
@@ -247,7 +242,7 @@ export function SearchPanel({
                     id="site-search"
                     type="search"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => onQueryChange(event.target.value)}
                     placeholder={searchCopy.placeholder}
                     autoComplete="off"
                     className={cn(
@@ -269,6 +264,7 @@ export function SearchPanel({
                   )}
                 </div>
               </form>
+              )}
 
               {results}
             </div>
