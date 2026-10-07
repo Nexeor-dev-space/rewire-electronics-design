@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
-import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
+import { CART_MAX_LINE_QUANTITY, RETURN_WINDOW_DAYS } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
@@ -600,6 +600,6 @@ function LockIcon() {
 const TRUST_ITEMS: { title: string; sub: string; icon: () => React.JSX.Element }[] = [
   { title: "Free delivery", sub: "On every order", icon: TruckIcon },
   { title: "Warranty", sub: "Rewire-backed", icon: ShieldIcon },
-  { title: "14-day returns", sub: "No questions asked", icon: ReturnIcon },
+  { title: `${RETURN_WINDOW_DAYS}-day returns`, sub: "No questions asked", icon: ReturnIcon },
   { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
 ];

@@ -9,54 +9,116 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import { z } from "zod";
 import { useApplyCoupon, useGetCartQuote, useRemoveCoupon } from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { signInHref } from "@/lib/auth/next-path";
 import { DELIVERY_METHOD_LABELS, DELIVERY_METHODS, formatEta, type DeliveryMethod } from "@/lib/delivery";
-import { EMIRATES, type Emirate } from "@/lib/emirates";
+import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { nextOrderNumber, persistOrder, type PlacedOrder } from "@/lib/checkout";
 import { cn } from "@/lib/utils";
+import { checkoutInformationSchema } from "@/validators/checkout.validator";
+import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { CheckoutProgress, type ProgressStep } from "./checkout-progress";
-import { CheckoutSection } from "./checkout-section";
+import { CheckoutSection, type CheckoutSectionState } from "./checkout-section";
 import { Field } from "./field";
 import { OptionList, type OptionListItem } from "./option-list";
 import { OrderSummary } from "./order-summary";
-
-/**
- * CheckoutView — the whole flow on one page, real-cart-aware.
- *
- * Lines, totals, the coupon field and the delivery quote all come from
- * `cart.quote` — re-priced by the server for the chosen emirate and
- * method, so the numbers on this page can never drift from the cart's.
- * If the cart is empty, the page shows an empty state rather than a
- * phantom form. State (delivery, payment, form values) lives at the top
- * of the tree so the summary and the sticky mobile CTA both react in
- * the same paint.
- *
- * Order submission is still the Phase 4 mock — a timed redirect to a
- * localStorage-backed success page. Real order creation, stock
- * reservation and the cart-emptying transaction land in Phase 5.
- *
- * The progress indicator is passive — it observes which section is on
- * screen rather than gating the flow. The page is still one long form
- * because a stepped wizard for a bag with two items is friction, not
- * clarity.
- */
 
 interface Props {
   payment: OptionListItem[];
 }
 
-const PROGRESS: ProgressStep[] = [
-  { id: "contact", label: "Information" },
-  { id: "delivery-address", label: "Delivery" },
+interface SavedAddress {
+  id: string;
+  label: string;
+  name: string;
+  line1: string;
+  city: string;
+  emirate: string;
+  phone: string;
+}
+
+const STEPS: ProgressStep[] = [
+  { id: "information", label: "Information" },
+  { id: "delivery", label: "Delivery" },
   { id: "payment", label: "Payment" },
   { id: "review", label: "Review" },
 ];
+
+const INFORMATION_STEP = 0;
+const DELIVERY_STEP = 1;
+const PAYMENT_STEP = 2;
+const REVIEW_STEP = 3;
+
+const INFORMATION_FIELDS = {
+  email: "email",
+  phone: "phone",
+  firstName: "first-name",
+  lastName: "last-name",
+  address1: "address-1",
+  address2: "address-2",
+  city: "city",
+  emirate: "emirate",
+  postalCode: "postal",
+} as const;
+
+type InformationField = keyof typeof INFORMATION_FIELDS;
+type InformationErrors = Partial<Record<InformationField, string>>;
+
+const contactSchema = checkoutInformationSchema.pick({
+  email: true,
+  phone: true,
+  emailOptIn: true,
+});
+
+function readInformation(form: HTMLFormElement, emailOptIn: boolean) {
+  const data = new FormData(form);
+  const values: Record<string, unknown> = { emailOptIn };
+  for (const [field, id] of Object.entries(INFORMATION_FIELDS)) {
+    values[field] = data.get(id) ?? undefined;
+  }
+  return values;
+}
+
+function toInformationErrors(error: z.ZodError): InformationErrors {
+  const fieldErrors: Partial<Record<string, string[]>> = z.flattenError(error).fieldErrors;
+  const errors: InformationErrors = {};
+  for (const field of Object.keys(INFORMATION_FIELDS) as InformationField[]) {
+    const message = fieldErrors[field]?.[0];
+    if (message) errors[field] = message;
+  }
+  return errors;
+}
+
+type InformationCheck =
+  | { summary: string; errors?: undefined }
+  | { errors: InformationErrors; summary?: undefined };
+
+function checkInformation(
+  values: Record<string, unknown>,
+  savedAddress: SavedAddress | undefined,
+): InformationCheck {
+  if (savedAddress) {
+    const result = contactSchema.safeParse(values);
+    if (!result.success) return { errors: toInformationErrors(result.error) };
+    const { email, phone } = result.data;
+    return { summary: [email, phone, `${savedAddress.city}, ${savedAddress.emirate}`].join(" · ") };
+  }
+  const result = checkoutInformationSchema.safeParse(values);
+  if (!result.success) return { errors: toInformationErrors(result.error) };
+  const { email, phone, city, emirate } = result.data;
+  return { summary: [email, phone, `${city}, ${emirateLabel(emirate)}`].join(" · ") };
+}
+
+function formatFee(fee: number): string {
+  return fee === 0 ? "Free" : formatMoney(fee);
+}
 
 export function CheckoutView({ payment }: Props) {
   const { data: me } = useGetMe();
@@ -69,28 +131,35 @@ export function CheckoutView({ payment }: Props) {
 
   const [paymentId, setPaymentId] = useState(payment[0]?.value ?? "");
   const [placing, setPlacing] = useState(false);
-  const [activeStep, setActiveStep] = useState<string>(PROGRESS[0].id);
+  const [openStep, setOpenStep] = useState(INFORMATION_STEP);
+  const [informationSummary, setInformationSummary] = useState("");
+  const [informationErrors, setInformationErrors] = useState<InformationErrors>({});
   const [billingSame, setBillingSame] = useState(true);
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const paymentFieldsRef = useRef<HTMLDivElement>(null);
 
   const cart = quote.data?.cart;
   const lines = cart?.items ?? [];
+  const stepsComplete = openStep === REVIEW_STEP;
 
   const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map((option) => ({
     value: option.method,
     label: DELIVERY_METHOD_LABELS[option.method],
     supporting: formatEta(option.etaMinDays, option.etaMaxDays),
-    trailing: option.fee === 0 ? "Free" : formatMoney(option.fee),
+    trailing: formatFee(option.fee),
   }));
 
   const activeDeliveryOption = quote.data?.options.find((option) => option.method === method);
   const deliveryLabel = activeDeliveryOption
     ? `${DELIVERY_METHOD_LABELS[method]} · ${formatEta(activeDeliveryOption.etaMinDays, activeDeliveryOption.etaMaxDays)}`
     : DELIVERY_METHOD_LABELS[method];
+  const deliverySummary = activeDeliveryOption
+    ? `${deliveryLabel} · ${formatFee(activeDeliveryOption.fee)}`
+    : deliveryLabel;
 
   const activePayment = useMemo(
     () => payment.find((option) => option.value === paymentId),
@@ -101,27 +170,7 @@ export function CheckoutView({ payment }: Props) {
     ? apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message
     : null;
 
-  /* ---------- Progress observer — section in view drives the pill. */
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const targets = PROGRESS.map((step) =>
-      document.getElementById(step.id),
-    ).filter((el): el is HTMLElement => Boolean(el));
-    if (!targets.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]?.target?.id) setActiveStep(visible[0].target.id);
-      },
-      { rootMargin: "-30% 0px -55% 0px", threshold: [0.1, 0.5, 0.9] },
-    );
-    targets.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [lines.length]);
-
-  const savedAddresses = useMemo(
+  const savedAddresses = useMemo<SavedAddress[]>(
     () =>
       me
         ? [
@@ -139,30 +188,79 @@ export function CheckoutView({ payment }: Props) {
     [me],
   );
 
+  const savedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
+
   useEffect(() => {
     if (savedAddresses.length && selectedAddressId === "new") {
       setSelectedAddressId(savedAddresses[0].id);
     }
   }, [savedAddresses, selectedAddressId]);
 
-  const handlePlaceOrder = async (event?: FormEvent) => {
-    event?.preventDefault();
-    if (placing || !cart || lines.length === 0 || !cart.canCheckout) return;
+  const stepState = (step: number): CheckoutSectionState =>
+    step === openStep ? "active" : step < openStep ? "done" : "locked";
+
+  const editStep = (step: number) => {
+    if (step < openStep && !placing) setOpenStep(step);
+  };
+
+  const chooseAddress = (id: string) => {
+    setSelectedAddressId(id);
+    setInformationErrors({});
+  };
+
+  const revalidateInformation = (field: InformationField) => {
+    const form = formRef.current;
+    if (!form || !informationErrors[field]) return;
+    const check = checkInformation(readInformation(form, emailOptIn), savedAddress);
+    setInformationErrors((current) => ({ ...current, [field]: check.errors?.[field] }));
+  };
+
+  const continueInformation = () => {
+    const form = formRef.current;
+    if (!form) return;
+    const check = checkInformation(readInformation(form, emailOptIn), savedAddress);
+    const errors = check.errors;
+    if (errors) {
+      setInformationErrors(errors);
+      const firstInvalid = (Object.keys(INFORMATION_FIELDS) as InformationField[]).find(
+        (field) => errors[field],
+      );
+      if (firstInvalid) document.getElementById(INFORMATION_FIELDS[firstInvalid])?.focus();
+      return;
+    }
+    setInformationErrors({});
+    setInformationSummary(check.summary);
+    setOpenStep(DELIVERY_STEP);
+  };
+
+  const continueDelivery = () => setOpenStep(PAYMENT_STEP);
+
+  const continuePayment = () => {
+    const inputs = Array.from(paymentFieldsRef.current?.querySelectorAll("input") ?? []);
+    const invalid = inputs.find((input) => !input.checkValidity());
+    if (invalid) {
+      invalid.reportValidity();
+      return;
+    }
+    setOpenStep(REVIEW_STEP);
+  };
+
+  const continueStep = [continueInformation, continueDelivery, continuePayment];
+
+  const handlePlaceOrder = () => {
+    if (placing || !cart || lines.length === 0 || !cart.canCheckout || !stepsComplete) return;
 
     const form = formRef.current;
-    if (form && !form.reportValidity()) return;
-
     setPlacing(true);
     const data = form ? new FormData(form) : null;
-    const savedAddr = savedAddresses.find((a) => a.id === selectedAddressId);
-    const address = savedAddr
+    const address = savedAddress
       ? {
-          name: savedAddr.name,
-          line1: savedAddr.line1,
-          city: savedAddr.city,
-          emirate: savedAddr.emirate,
+          name: savedAddress.name,
+          line1: savedAddress.line1,
+          city: savedAddress.city,
+          emirate: savedAddress.emirate,
           country: "United Arab Emirates",
-          phone: savedAddr.phone,
+          phone: savedAddress.phone,
         }
       : {
           name:
@@ -175,15 +273,16 @@ export function CheckoutView({ payment }: Props) {
           line1: data?.get("address-1")?.toString() || "",
           line2: data?.get("address-2")?.toString() || undefined,
           city: data?.get("city")?.toString() || "",
-          emirate: EMIRATES.find((e) => e.value === emirate)?.label ?? "Dubai",
+          emirate: emirateLabel(emirate),
           country: "United Arab Emirates",
           postalCode: data?.get("postal")?.toString() || undefined,
           phone: data?.get("phone")?.toString() || "",
         };
 
+    const orderNumber = nextOrderNumber();
     const order: PlacedOrder = {
-      id: nextOrderNumber().toLowerCase(),
-      number: nextOrderNumber(),
+      id: orderNumber.toLowerCase(),
+      number: orderNumber,
       placedAt: new Date().toISOString(),
       lines: lines.map((line) => ({
         slug: line.productSlug,
@@ -226,7 +325,12 @@ export function CheckoutView({ payment }: Props) {
     }, 850);
   };
 
-  /* ---------- Loading ---------- */
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (openStep === REVIEW_STEP) handlePlaceOrder();
+    else continueStep[openStep]?.();
+  };
+
   if (quote.isPending) {
     return (
       <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-(--spacing-gutter) py-16 text-center">
@@ -236,7 +340,6 @@ export function CheckoutView({ payment }: Props) {
     );
   }
 
-  /* ---------- Error ---------- */
   if (quote.isError) {
     return (
       <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-(--spacing-gutter) py-16 text-center">
@@ -254,7 +357,6 @@ export function CheckoutView({ payment }: Props) {
     );
   }
 
-  /* ---------- Empty bag ---------- */
   if (lines.length === 0) {
     return <EmptyBag />;
   }
@@ -262,17 +364,15 @@ export function CheckoutView({ payment }: Props) {
   return (
     <form
       ref={formRef}
-      onSubmit={handlePlaceOrder}
-      noValidate={false}
+      onSubmit={handleSubmit}
+      noValidate
       className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 pb-40 md:py-12 lg:pb-14"
     >
-      {/* ---------- Progress ---------- */}
-      <div className="mb-8 md:mb-12">
-        <CheckoutProgress steps={PROGRESS} activeId={activeStep} />
+      <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-20 md:mb-12">
+        <CheckoutProgress steps={STEPS} activeIndex={openStep} onSelect={editStep} />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-16">
-        {/* ---------- Left column: form ---------- */}
         <div className="flex flex-col gap-6 lg:gap-8">
           <header>
             <p className="eyebrow">Secure checkout</p>
@@ -285,7 +385,6 @@ export function CheckoutView({ payment }: Props) {
             </p>
           </header>
 
-          {/* ---------- Mobile: compact order summary ---------- */}
           <OrderSummary
             cart={cart!}
             deliveryLabel={deliveryLabel}
@@ -294,12 +393,14 @@ export function CheckoutView({ payment }: Props) {
             quotePending={quote.isFetching}
           />
 
-          {/* ---------- 01. Contact ---------- */}
           <CheckoutSection
-            id="contact"
+            id={STEPS[INFORMATION_STEP].id}
             index="01"
-            title="Contact information"
-            description="We will send the order confirmation and tracking here."
+            title="Contact and address"
+            description="We send the order confirmation and tracking to these details."
+            state={stepState(INFORMATION_STEP)}
+            summary={informationSummary}
+            onEdit={() => editStep(INFORMATION_STEP)}
             aside={
               !me && (
                 <a
@@ -320,15 +421,20 @@ export function CheckoutView({ payment }: Props) {
                 required
                 placeholder="you@example.com"
                 defaultValue={me?.email}
+                error={informationErrors.email}
+                onBlur={() => revalidateInformation("email")}
               />
               <Field
                 id="phone"
                 label="Phone number *"
                 type="tel"
+                inputMode="tel"
                 autoComplete="tel"
                 required
-                placeholder="+971 50 000 0000"
+                placeholder="050 123 4567"
                 hint="For delivery updates only."
+                error={informationErrors.phone}
+                onBlur={() => revalidateInformation("phone")}
               />
               <div className="col-span-6">
                 <Checkbox
@@ -340,77 +446,170 @@ export function CheckoutView({ payment }: Props) {
                 />
               </div>
             </div>
-          </CheckoutSection>
 
-          {/* ---------- 02. Delivery address ---------- */}
-          <CheckoutSection
-            id="delivery-address"
-            index="02"
-            title="Delivery address"
-            description="Where the parcel should arrive."
-          >
-            {savedAddresses.length > 0 && (
-              <div className="mb-6">
-                <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-                  Saved addresses
-                </p>
-                <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                  {savedAddresses.map((addr) => (
-                    <li key={addr.id}>
-                      <label
+            <div className="mt-8 border-t border-line pt-6">
+              <h3 className="text-[1rem] font-medium tracking-tight text-ink">
+                Delivery address
+              </h3>
+              <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+                Where the parcel should arrive.
+              </p>
+
+              {savedAddresses.length > 0 && (
+                <div className="mt-5">
+                  <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
+                    Saved addresses
+                  </p>
+                  <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    {savedAddresses.map((addr) => (
+                      <li key={addr.id}>
+                        <label
+                          className={cn(
+                            "flex cursor-pointer flex-col gap-1 rounded-xl border p-4",
+                            "transition-[border-color,background-color] duration-(--duration-fast)",
+                            selectedAddressId === addr.id
+                              ? "border-accent bg-accent/5"
+                              : "border-line hover:border-line-strong",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="saved-address"
+                            value={addr.id}
+                            checked={selectedAddressId === addr.id}
+                            onChange={() => chooseAddress(addr.id)}
+                            className="sr-only"
+                          />
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-secondary">
+                              {addr.label}
+                            </span>
+                            {selectedAddressId === addr.id && (
+                              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[0.9375rem] font-medium text-ink">
+                            {addr.name}
+                          </p>
+                          <p className="text-[0.8125rem] text-ink-secondary">
+                            {addr.line1}
+                            <br />
+                            {addr.city}, {addr.emirate}
+                          </p>
+                          <p className="text-[0.75rem] text-ink-muted">
+                            {addr.phone}
+                          </p>
+                        </label>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => chooseAddress("new")}
                         className={cn(
-                          "flex cursor-pointer flex-col gap-1 rounded-xl border p-4",
-                          "transition-[border-color,background-color] duration-(--duration-fast)",
-                          selectedAddressId === addr.id
-                            ? "border-accent bg-accent/5"
-                            : "border-line hover:border-line-strong",
+                          "flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-4",
+                          "text-[0.8125rem] font-medium",
+                          "transition-[border-color,color] duration-(--duration-fast)",
+                          selectedAddressId === "new"
+                            ? "border-accent text-accent"
+                            : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
                         )}
                       >
-                        <input
-                          type="radio"
-                          name="saved-address"
-                          value={addr.id}
-                          checked={selectedAddressId === addr.id}
-                          onChange={() => setSelectedAddressId(addr.id)}
-                          className="sr-only"
-                        />
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-secondary">
-                            {addr.label}
-                          </span>
-                          {selectedAddressId === addr.id && (
-                            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent">
-                              Selected
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[0.9375rem] font-medium text-ink">
-                          {addr.name}
-                        </p>
-                        <p className="text-[0.8125rem] text-ink-secondary">
-                          {addr.line1}
-                          <br />
-                          {addr.city}, {addr.emirate}
-                        </p>
-                        <p className="text-[0.75rem] text-ink-muted">
-                          {addr.phone}
-                        </p>
-                      </label>
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          className="size-3.5"
+                        >
+                          <path d="M8 3v10M3 8h10" />
+                        </svg>
+                        Add new address
+                      </button>
                     </li>
-                  ))}
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAddressId("new")}
-                      className={cn(
-                        "flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-4",
-                        "text-[0.8125rem] font-medium",
-                        "transition-[border-color,color] duration-(--duration-fast)",
-                        selectedAddressId === "new"
-                          ? "border-accent text-accent"
-                          : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
-                      )}
+                  </ul>
+                </div>
+              )}
+
+              {selectedAddressId === "new" && (
+                <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
+                  <Field
+                    id="first-name"
+                    label="First name *"
+                    autoComplete="given-name"
+                    required
+                    span={3}
+                    error={informationErrors.firstName}
+                    onBlur={() => revalidateInformation("firstName")}
+                  />
+                  <Field
+                    id="last-name"
+                    label="Last name *"
+                    autoComplete="family-name"
+                    required
+                    span={3}
+                    error={informationErrors.lastName}
+                    onBlur={() => revalidateInformation("lastName")}
+                  />
+                  <Field
+                    id="address-1"
+                    label="Address *"
+                    autoComplete="address-line1"
+                    required
+                    placeholder="Villa / apartment, building, street"
+                    error={informationErrors.address1}
+                    onBlur={() => revalidateInformation("address1")}
+                  />
+                  <Field
+                    id="address-2"
+                    label="Apartment, suite, floor"
+                    autoComplete="address-line2"
+                    trailing="Optional"
+                    error={informationErrors.address2}
+                    onBlur={() => revalidateInformation("address2")}
+                  />
+                  <Field
+                    id="city"
+                    label="City *"
+                    autoComplete="address-level2"
+                    required
+                    span={3}
+                    error={informationErrors.city}
+                    onBlur={() => revalidateInformation("city")}
+                  />
+                  <div className="col-span-6 sm:col-span-3">
+                    <label
+                      htmlFor="emirate"
+                      className="eyebrow block cursor-pointer"
                     >
+                      Emirate *
+                    </label>
+                    <div className="relative mt-2">
+                      <select
+                        id="emirate"
+                        name="emirate"
+                        required
+                        value={emirate}
+                        onChange={(event) => setEmirate(event.target.value as Emirate)}
+                        autoComplete="address-level1"
+                        aria-invalid={informationErrors.emirate ? true : undefined}
+                        aria-describedby={informationErrors.emirate ? "emirate-error" : undefined}
+                        className={cn(
+                          "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
+                          "border border-line transition-colors duration-(--duration-fast)",
+                          "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
+                        )}
+                      >
+                        {EMIRATES.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                       <svg
                         aria-hidden
                         viewBox="0 0 16 16"
@@ -418,118 +617,47 @@ export function CheckoutView({ payment }: Props) {
                         stroke="currentColor"
                         strokeWidth="1.5"
                         strokeLinecap="round"
-                        className="size-3.5"
+                        strokeLinejoin="round"
+                        className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
                       >
-                        <path d="M8 3v10M3 8h10" />
+                        <path d="m4 6 4 4 4-4" />
                       </svg>
-                      Add new address
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            )}
-
-            {selectedAddressId === "new" && (
-              <div className="grid grid-cols-6 gap-4 sm:gap-5">
-                <Field
-                  id="first-name"
-                  label="First name *"
-                  autoComplete="given-name"
-                  required
-                  span={3}
-                />
-                <Field
-                  id="last-name"
-                  label="Last name *"
-                  autoComplete="family-name"
-                  required
-                  span={3}
-                />
-                <Field
-                  id="address-1"
-                  label="Address *"
-                  autoComplete="address-line1"
-                  required
-                  placeholder="Villa / apartment, building, street"
-                />
-                <Field
-                  id="address-2"
-                  label="Apartment, suite, floor"
-                  autoComplete="address-line2"
-                  trailing="Optional"
-                />
-                <Field
-                  id="city"
-                  label="City *"
-                  autoComplete="address-level2"
-                  required
-                  span={3}
-                />
-                <div className="col-span-6 sm:col-span-3">
-                  <label
-                    htmlFor="emirate"
-                    className="eyebrow block cursor-pointer"
-                  >
-                    Emirate *
-                  </label>
-                  <div className="relative mt-2">
-                    <select
-                      id="emirate"
-                      name="emirate"
-                      required
-                      value={emirate}
-                      onChange={(event) => setEmirate(event.target.value as Emirate)}
-                      autoComplete="address-level1"
-                      className={cn(
-                        "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
-                        "border border-line transition-colors duration-(--duration-fast)",
-                        "hover:border-line-strong focus:border-accent focus:outline-none",
-                      )}
-                    >
-                      {EMIRATES.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <svg
-                      aria-hidden
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
-                    >
-                      <path d="m4 6 4 4 4-4" />
-                    </svg>
+                    </div>
+                    <FieldError id="emirate-error" className="mt-1.5 text-[0.75rem]">
+                      {informationErrors.emirate}
+                    </FieldError>
                   </div>
+                  <Field
+                    id="postal"
+                    label="Postal code"
+                    autoComplete="postal-code"
+                    trailing="Optional"
+                    span={3}
+                    error={informationErrors.postalCode}
+                    onBlur={() => revalidateInformation("postalCode")}
+                  />
+                  <Field
+                    id="country"
+                    label="Country / region"
+                    defaultValue="United Arab Emirates"
+                    readOnly
+                    span={3}
+                  />
                 </div>
-                <Field
-                  id="postal"
-                  label="Postal code"
-                  autoComplete="postal-code"
-                  trailing="Optional"
-                  span={3}
-                />
-                <Field
-                  id="country"
-                  label="Country / region"
-                  defaultValue="United Arab Emirates"
-                  readOnly
-                  span={3}
-                />
-              </div>
-            )}
+              )}
+            </div>
+
+            <ContinueButton label="Continue to delivery" onClick={continueInformation} />
           </CheckoutSection>
 
-          {/* ---------- 03. Delivery method ---------- */}
           <CheckoutSection
-            id="delivery"
-            index="03"
+            id={STEPS[DELIVERY_STEP].id}
+            index="02"
             title="Delivery method"
             description="Pick the one that suits you — every option is tracked."
+            state={stepState(DELIVERY_STEP)}
+            summary={deliverySummary}
+            onEdit={() => editStep(DELIVERY_STEP)}
           >
             <OptionList
               name="delivery-method"
@@ -548,47 +676,53 @@ export function CheckoutView({ payment }: Props) {
               Your order is carefully packed and fully tracked. You will get a
               tracking link the moment it leaves the workshop.
             </p>
+
+            <ContinueButton label="Continue to payment" onClick={continueDelivery} />
           </CheckoutSection>
 
-          {/* ---------- 04. Payment ---------- */}
           <CheckoutSection
-            id="payment"
-            index="04"
+            id={STEPS[PAYMENT_STEP].id}
+            index="03"
             title="Payment"
             description="All payments are processed on our provider's secure page. Rewire never stores your card details."
+            state={stepState(PAYMENT_STEP)}
+            summary={activePayment?.label}
+            onEdit={() => editStep(PAYMENT_STEP)}
           >
-            <OptionList
-              name="payment-method"
-              value={paymentId}
-              onChange={setPaymentId}
-              options={payment}
-            />
-
-            {paymentId === "card" && <CardFields />}
-
-            <div className="mt-6 border-t border-line pt-5">
-              <Checkbox
-                id="billing-same"
-                checked={billingSame}
-                onChange={setBillingSame}
-                label="Billing address same as delivery"
+            <div ref={paymentFieldsRef}>
+              <OptionList
+                name="payment-method"
+                value={paymentId}
+                onChange={setPaymentId}
+                options={payment}
               />
-              {!billingSame && (
-                <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
-                  <Field
-                    id="billing-address-1"
-                    label="Billing address *"
-                    required
-                    placeholder="Street, city, emirate"
-                  />
-                  <Field
-                    id="billing-postal"
-                    label="Billing postal code"
-                    trailing="Optional"
-                    span={3}
-                  />
-                </div>
-              )}
+
+              {paymentId === "card" && <CardFields />}
+
+              <div className="mt-6 border-t border-line pt-5">
+                <Checkbox
+                  id="billing-same"
+                  checked={billingSame}
+                  onChange={setBillingSame}
+                  label="Billing address same as delivery"
+                />
+                {!billingSame && (
+                  <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
+                    <Field
+                      id="billing-address-1"
+                      label="Billing address *"
+                      required
+                      placeholder="Street, city, emirate"
+                    />
+                    <Field
+                      id="billing-postal"
+                      label="Billing postal code"
+                      trailing="Optional"
+                      span={3}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-5 flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-live">
@@ -607,46 +741,34 @@ export function CheckoutView({ payment }: Props) {
               </svg>
               Secure payment · encrypted end-to-end
             </div>
+
+            <ContinueButton label="Continue to review" onClick={continuePayment} />
           </CheckoutSection>
 
-          {/* ---------- Review anchor ---------- */}
-          <div id="review" className="scroll-mt-24">
-            <div className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
-              <div className="flex items-baseline justify-between gap-6">
-                <div className="flex items-baseline gap-4">
-                  <span className="font-mono text-[0.75rem] uppercase tracking-[0.2em] text-ink-faint">
-                    05
-                  </span>
-                  <div>
-                    <h2 className="text-[1.25rem] font-medium text-ink sm:text-[1.375rem]">
-                      Review &amp; place order
-                    </h2>
-                    <p className="mt-1 text-[0.8125rem] text-ink-secondary">
-                      Everything checks out? Confirm your order on the right —
-                      or use the sticky bar on mobile.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-3 border-t border-line pt-5 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
-                <ReviewRow label="Delivery" value={deliveryLabel} />
-                <ReviewRow
-                  label="Payment"
-                  value={activePayment?.label ?? "—"}
-                />
-                <ReviewRow
-                  label="Order total"
-                  value={formatMoney(cart!.totals.total)}
-                  strong
-                />
-              </div>
-            </div>
-          </div>
+          <CheckoutSection
+            id={STEPS[REVIEW_STEP].id}
+            index="04"
+            title="Review and place order"
+            description="Everything checks out? Place your order from the summary, or the bar at the bottom on mobile."
+            state={stepState(REVIEW_STEP)}
+          >
+            <dl className="grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
+              <ReviewRow label="Delivery" value={deliveryLabel} />
+              <ReviewRow
+                label="Payment"
+                value={activePayment?.label ?? "—"}
+              />
+              <ReviewRow
+                label="Order total"
+                value={formatMoney(cart!.totals.total)}
+                strong
+              />
+            </dl>
+          </CheckoutSection>
         </div>
 
-        {/* ---------- Right column: sticky summary (desktop) ---------- */}
         <div className="hidden lg:block">
-          <div className="sticky top-24">
+          <div className="sticky top-40">
             <OrderSummary
               cart={cart!}
               deliveryLabel={deliveryLabel}
@@ -656,20 +778,30 @@ export function CheckoutView({ payment }: Props) {
               couponFieldError={couponFieldError}
               onPlaceOrder={handlePlaceOrder}
               placing={placing}
+              stepsComplete={stepsComplete}
               quotePending={quote.isFetching}
             />
           </div>
         </div>
       </div>
 
-      {/* ---------- Sticky mobile CTA ---------- */}
       <StickyMobileCta
         placing={placing}
         total={cart!.totals.total}
-        canCheckout={cart!.canCheckout}
+        canCheckout={cart!.canCheckout && stepsComplete}
         onPlaceOrder={handlePlaceOrder}
       />
     </form>
+  );
+}
+
+function ContinueButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <div className="mt-8 flex justify-end">
+      <Button type="button" onClick={onClick} className="w-full sm:w-auto">
+        {label}
+      </Button>
+    </div>
   );
 }
 

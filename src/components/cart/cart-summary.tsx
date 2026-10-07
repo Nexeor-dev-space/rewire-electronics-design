@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
+import { RETURN_WINDOW_DAYS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { CartTotals } from "@/types/cart";
 
@@ -116,7 +117,7 @@ export function CartSummary({ totals, itemCount, canCheckout }: CartSummaryProps
 
         {/* ---------- Trust footer ---------- */}
         <ul className="mt-8 grid grid-cols-2 gap-3 border-t border-line pt-6 text-[0.75rem] text-ink-secondary">
-          {["Free delivery", "12-month warranty", "14-day returns", "Secure checkout"].map(
+          {["Free delivery", "12-month warranty", `${RETURN_WINDOW_DAYS}-day returns`, "Secure checkout"].map(
             (line) => (
               <li key={line} className="flex items-start gap-2">
                 <svg

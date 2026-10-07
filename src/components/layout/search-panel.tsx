@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { useSearchSuggestions } from "@/hooks/use-catalogue";
+import { SEARCH_DEBOUNCE_MS, SEARCH_SUGGEST_MIN_LENGTH } from "@/lib/constants";
+import { formatMoney } from "@/lib/money";
 import { searchCatalogue } from "@/lib/search";
 import { productHrefForCategory, productHrefForDrop } from "@/lib/route-map";
 import { EASE_OUT_EXPO } from "@/lib/motion";
@@ -56,6 +59,19 @@ export function SearchPanel({
 
   const categories = useStorefrontCategories();
   const results = useMemo(() => searchCatalogue(query, categories), [query, categories]);
+
+  const trimmed = query.trim();
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(trimmed), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [trimmed]);
+
+  const suggestions = useSearchSuggestions(debounced);
+  const searchable = trimmed.length >= SEARCH_SUGGEST_MIN_LENGTH;
+  const products = searchable ? (suggestions.data ?? []) : [];
+  const searching = searchable && (trimmed !== debounced || suggestions.isFetching);
+  const empty = results.empty && products.length === 0 && !searching;
 
   /* Focus the field on open; hand focus back to the icon on close.
      `initialQuery` seeds the overlay's field so the header's inline
@@ -203,7 +219,7 @@ export function SearchPanel({
               </form>
 
               {/* ---------- Three columns ---------- */}
-              {results.empty ? (
+              {empty ? (
                 <p className="py-14 text-sm text-ink-secondary">
                   No matches for{" "}
                   <span className="text-ink">&ldquo;{query.trim()}&rdquo;</span>.
@@ -211,6 +227,46 @@ export function SearchPanel({
                 </p>
               ) : (
                 <div className="grid gap-10 py-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12 lg:py-12">
+                  {searchable && (products.length > 0 || searching) && (
+                    <Column title="Products">
+                      {products.length === 0 ? (
+                        <p className="py-2 text-[0.9375rem] text-ink-muted">Searching…</p>
+                      ) : (
+                        <ul className={cn("space-y-1", searching && "opacity-60")} aria-busy={searching}>
+                          {products.map((product) => (
+                            <li key={product.slug}>
+                              <Link
+                                href={`/product/${product.slug}`}
+                                onClick={onClose}
+                                className="group/product -mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
+                              >
+                                <span className="relative block size-11 shrink-0 overflow-hidden rounded-md border border-line bg-surface">
+                                  {product.imageUrl && (
+                                    <Image
+                                      src={product.imageUrl}
+                                      alt=""
+                                      fill
+                                      sizes="44px"
+                                      className="object-contain p-1"
+                                    />
+                                  )}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) group-hover/product:text-accent">
+                                    {product.name}
+                                  </span>
+                                  <span className="mt-0.5 block truncate font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
+                                    {product.brand} · {formatMoney(product.price)}
+                                  </span>
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Column>
+                  )}
+
                   {results.terms.length > 0 && (
                     <Column title="Quick Searches">
                       <ul className="space-y-1">

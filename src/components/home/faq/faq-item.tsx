@@ -3,37 +3,9 @@
 import { useId } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { DURATION, EASE_OUT_EXPO, collapsePanel, collapsePanelBody } from "@/lib/motion";
 import { RichText } from "@/components/policy/rich-text";
 import type { FaqEntry } from "@/lib/faq-entry";
-
-const panel: Variants = {
-  hidden: {
-    height: 0,
-    opacity: 0,
-    transition: {
-      height: { duration: DURATION.base, ease: EASE_OUT_EXPO },
-      opacity: { duration: 0.18 },
-    },
-  },
-  visible: {
-    height: "auto",
-    opacity: 1,
-    transition: {
-      height: { duration: 0.62, ease: EASE_OUT_EXPO },
-      opacity: { duration: 0.34, delay: 0.06 },
-    },
-  },
-};
-
-const panelBody: Variants = {
-  hidden: { y: -10, opacity: 0, transition: { duration: 0.18 } },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: { duration: 0.7, ease: EASE_OUT_EXPO, delay: 0.08 },
-  },
-};
 
 const rowRise: Variants = {
   hidden: { opacity: 0, y: 18 },
@@ -122,11 +94,11 @@ export function FaqItem({ faq, index, open, onToggle }: FaqItemProps) {
             initial="hidden"
             animate="visible"
             exit="hidden"
-            variants={panel}
+            variants={collapsePanel}
             className="overflow-hidden"
           >
             <motion.div
-              variants={panelBody}
+              variants={collapsePanelBody}
               className={cn(
                 "max-w-[46ch] pb-7 pl-11 pr-10 sm:pb-8 sm:pl-14",
                 "[&_p]:text-[0.9375rem] [&_p]:leading-[1.7]",

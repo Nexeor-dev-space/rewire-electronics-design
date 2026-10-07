@@ -1,25 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { accountNav } from "@/lib/site";
-import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { useGetMe } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
+import { ACCOUNT_HOME_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
 /**
  * AccountMenu — the right end of the bar, in whichever of its two states.
  *
- * Signed out it is a single quiet "Sign in" control. Signed in it becomes a
- * disclosure carrying the customer's initials, opening the account surfaces
- * over a hairline-divided panel with Logout below its own rule.
- *
- * Unlike the primary nav panels this one opens on click only, never hover:
- * it is a destination menu, not a browsing aid, and opening it by accident
- * while reaching for the cart would be worse than one extra click.
+ * Signed out it is a single quiet "Sign in" control. Signed in it is a
+ * link to the account home carrying the customer's initials.
  *
  * **Both states occupy the same box.** The signed-out control is a
  * "Sign in" pill; the signed-in one is an avatar chip plus the word
@@ -38,29 +30,7 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 const SLOT_WIDTH = "w-[7.5rem]";
 export function AccountMenu() {
   const me = useGetMe();
-  const signOut = useSignOut();
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setOpen(false), [pathname]);
-
-  /* Dismiss on outside click and on Escape — the panel holds real links. */
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   // Until the session query resolves, render the signed-out control. It is
   // the same size as the signed-in one, so nothing shifts when the swap
@@ -83,25 +53,22 @@ export function AccountMenu() {
     );
   }
 
-  const user = me.data;
-  const initials = user.fullName
+  const initials = me.data.fullName
     .split(" ")
     .map((part) => part[0])
     .slice(0, 2)
     .join("");
+  const active = pathname.startsWith(ACCOUNT_HOME_PATH);
 
   return (
-    <div ref={rootRef} className={cn("relative hidden lg:block", SLOT_WIDTH)}>
-      <button
-        type="button"
-        onClick={() => setOpen((cur) => !cur)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-controls="account-menu"
+    <div className={cn("hidden lg:block", SLOT_WIDTH)}>
+      <Link
+        href={ACCOUNT_HOME_PATH}
+        aria-current={pathname === ACCOUNT_HOME_PATH ? "page" : undefined}
         className={cn(
           "flex h-10 w-full items-center gap-2.5 rounded-full pl-1.5 pr-3.5",
           "transition-colors duration-(--duration-fast)",
-          open ? "bg-ink/5" : "hover:bg-ink/5",
+          active ? "bg-ink/5" : "hover:bg-ink/5",
         )}
       >
         <span
@@ -113,72 +80,7 @@ export function AccountMenu() {
         <span className="truncate text-[0.8125rem] font-medium tracking-tight text-ink">
           Account
         </span>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            id="account-menu"
-            role="menu"
-            aria-label="Account"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: DURATION.fast, ease: EASE_OUT_EXPO }}
-            className={cn(
-              "absolute right-0 top-[calc(100%+0.5rem)] w-60 overflow-hidden rounded-xl",
-              "border border-line bg-surface shadow-(--shadow-float)",
-            )}
-          >
-            <div className="border-b border-line px-4 py-3.5">
-              <p className="truncate text-[0.8125rem] font-medium text-ink">
-                {user.fullName}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-ink-muted">
-                {user.email}
-              </p>
-            </div>
-
-            <ul className="py-1.5">
-              {accountNav.map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    role="menuitem"
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "block px-4 py-2 text-[0.8125rem] text-ink-secondary",
-                      "transition-colors duration-(--duration-fast)",
-                      "hover:bg-ink/5 hover:text-ink",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="border-t border-line py-1.5">
-              <button
-                type="button"
-                role="menuitem"
-                disabled={signOut.isPending}
-                onClick={() => {
-                  setOpen(false);
-                  signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") });
-                }}
-                className={cn(
-                  "block w-full px-4 py-2 text-left text-[0.8125rem] text-ink-secondary",
-                  "transition-colors duration-(--duration-fast)",
-                  "hover:bg-ink/5 hover:text-ink disabled:opacity-60",
-                )}
-              >
-                Logout
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </Link>
     </div>
   );
 }

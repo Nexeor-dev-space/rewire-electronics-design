@@ -18,6 +18,7 @@ interface Props {
   couponFieldError?: string | null;
   onPlaceOrder?: () => void;
   placing?: boolean;
+  stepsComplete?: boolean;
   className?: string;
   compact?: boolean;
   /** True while a new delivery quote is loading in the background. */
@@ -33,6 +34,7 @@ export function OrderSummary({
   couponFieldError,
   onPlaceOrder,
   placing,
+  stepsComplete = true,
   className,
   compact,
   quotePending,
@@ -119,7 +121,7 @@ export function OrderSummary({
           <button
             type="button"
             onClick={onPlaceOrder}
-            disabled={placing || items.length === 0 || !canCheckout}
+            disabled={placing || items.length === 0 || !canCheckout || !stepsComplete}
             aria-busy={placing || undefined}
             className={cn(
               "relative inline-flex h-14 w-full items-center justify-center gap-2 rounded-full px-6",
@@ -160,6 +162,12 @@ export function OrderSummary({
           {!canCheckout && (
             <p role="alert" className="text-[0.8125rem] text-danger">
               Remove unavailable items to continue.
+            </p>
+          )}
+
+          {canCheckout && !stepsComplete && (
+            <p className="text-[0.8125rem] text-ink-secondary">
+              Complete each step to place your order.
             </p>
           )}
 
@@ -365,6 +373,11 @@ function CouponField({
               type="text"
               value={value}
               onChange={(event) => setValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (!pending && value.trim()) onApply?.(value);
+              }}
               placeholder="Enter code"
               aria-label="Promo code"
               aria-invalid={Boolean(fieldError) || undefined}
