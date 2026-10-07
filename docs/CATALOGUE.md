@@ -346,8 +346,8 @@ database answers 404.
 **Categories in the chrome.** The `(site)` layout loads
 `listStorefrontCategories()` once and hands it to `StorefrontCategoriesProvider`
 (`src/components/providers/storefront-categories-provider.tsx`). The category
-bar, mega menus, Shop menu, mobile drawer, home category strip, search panel
-and the About page read it with `useStorefrontCategories()`. It returns the
+bar, mega menus, Shop menu, mobile drawer, home category strip and the About
+page read it with `useStorefrontCategories()`. It returns the
 published, `showInNav` top level categories in order, up to
 `NAV_CATEGORY_LIMIT` (8), each with its description, image, in stock product
 count and brand counts (children included). The home strip shows the first

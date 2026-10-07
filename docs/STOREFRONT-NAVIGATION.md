@@ -48,7 +48,6 @@ an admin change reaches all of them at once, with no code change:
 | Shop and Categories menus | `components/layout/mega-panels.tsx` | `shopBrowseLinks()` and the list itself |
 | Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories)` |
 | Homepage strip | `components/home/hero/category-strip.tsx` | The first `HOME_CATEGORY_LIMIT` (4) |
-| Search panel | `components/layout/search-panel.tsx` | The list, shown before the shopper types; typed queries go to `GET /api/v1/search` |
 | About page | `components/about/what.tsx` | The list, with descriptions |
 | Just listed | `components/home/featured/featured.tsx` | Not the family list: the newest in stock products from the database, see [CATALOGUE.md](CATALOGUE.md) |
 
@@ -57,13 +56,20 @@ products, its children included, and only appears when there is more than
 one brand. The cache and how admin writes refresh it are described in
 [CATALOGUE.md](CATALOGUE.md) §5.
 
-**Search has one component.** The header field (`inline-search.tsx`), the
-mobile search icon and the mobile drawer's search button all open the same
-`SearchPanel`; none of them searches on its own. Their label and placeholder
-come from `searchCopy` in `src/lib/site.ts`, and every "see all" path is built
-by `searchHref(q)`. In the panel:
+**Search has one component and one field on screen.** The header owns the
+query and shares it with `SearchPanel`. From `md` the header field
+(`inline-search.tsx`) is the input itself: typing there opens the panel
+beneath the bar with suggestions only (`showField={false}`), and Enter goes to
+`/search?q=`. Below `md` the search icon and the mobile drawer's search button
+open the panel with its own field (`showField={true}`), since the bar has no
+field there. Label and placeholder come from `searchCopy` in
+`src/lib/site.ts`, and every "see all" path is built by `searchHref(q)`. In
+the panel:
 
-1. Before two characters are typed it shows the storefront categories.
+1. Tapping search never opens a list on its own. From the inline field the
+   panel stays shut until `SEARCH_MIN_QUERY_LENGTH` (2) characters are typed
+   (`panelOpen` in `header.tsx`); from the icon it shows only its field until
+   then.
 2. While typing, `useSearchSuggestions` (`src/hooks/use-search.ts`) calls
    `GET /api/v1/search` after `SEARCH_DEBOUNCE_MS`, and shows Products, Brands
    and Categories, each linking to its page, plus "See all results".
