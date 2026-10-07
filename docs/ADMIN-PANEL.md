@@ -206,6 +206,11 @@ kind, and a Staff account its role, happens here, in the Staff modal.
   and saved with the account in one transaction. Exactly one is primary: the
   one marked, or the first when none is.
 * **Emails** are stored lowercased and must be unique (409 on the email field).
+* **Guest badge:** a customer row with `isGuest` true is a shadow user made by
+  a guest checkout ([ORDERS.md](ORDERS.md) §6). The list shows a "Guest"
+  badge (`GuestBadge`) beside the name. It can't sign in until it gets a
+  password; setting one in the Edit modal clears the flag. Creating a user
+  with a guest's email answers 409, like any taken email.
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
   the list and can't sign in; its email stays taken. It waits in Governance →
   Trash → Users, where it can be restored ([TRASH-AUDIT.md](TRASH-AUDIT.md)).
@@ -338,6 +343,39 @@ The rules, endpoints and the seed are in [CART.md](CART.md) §4 to §6. Seed the
 seven zones once per database; note that `npm run db:seed` also overwrites
 policies and the homepage and resets the seeded Admin's password
 ([CART.md](CART.md) §5).
+
+## Orders and Fulfilment
+
+Sales → **Orders** and **Fulfilment**. Permission keys `sales.orders`
+(`PERMISSIONS.orders`) and `sales.fulfilment` (`PERMISSIONS.fulfilment`), each
+with View and Edit ([PERMISSIONS.md](PERMISSIONS.md)). Each page checks its key
+with `hasPermission` and shows "Access denied" otherwise. All three routes are
+in `BUILT_ROUTES`. The rules, endpoints and hooks are in
+[ORDERS.md](ORDERS.md).
+
+1. **`/admin/orders`** (`OrderManagement`) lists every order, newest first,
+   with search by number, email or last name, a status filter, a payment
+   filter and pagination. A "Guest" badge marks orders placed as a guest.
+2. **`/admin/orders/[number]`** (`OrderDetailScreen`) shows the items and
+   totals, the history (oldest first; notes are shown to the customer), and
+   panels for Status, Payment, Delivery (tracking number and a staff note the
+   customer never sees) and Customer (with a Guest badge). Status and payment
+   buttons come from the order's `nextStatuses` and `paymentActions`, so only
+   allowed moves appear. Cancel and Refunded ask for confirmation.
+3. **`/admin/fulfilment`** (`FulfilmentQueue`) is the shipping queue: Confirmed,
+   Processing and Dispatched orders, oldest first, a status filter, a
+   tracking number field per row and one "Move to {next}" button.
+4. Every change here is written to the Change Log, and each status change
+   adds a history entry with the staff member's name.
+
+| File | Purpose |
+| --- | --- |
+| `src/app/admin/orders/page.tsx`, `[number]/page.tsx`, `src/app/admin/fulfilment/page.tsx` | Permission check, render the screen |
+| `src/components/admin/orders/`, `src/components/admin/fulfilment/` | List, detail and queue |
+| `src/components/admin/shared/guest-badge.tsx` | The Guest badge, shared with Users |
+| `src/hooks/use-order.ts` | Queries and mutations |
+| `src/app/api/v1/admin/orders/`, `src/app/api/v1/admin/fulfilment/` | The routes |
+| `src/services/order.service.ts` | Queries and rules |
 
 ## The shell
 
