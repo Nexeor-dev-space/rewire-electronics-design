@@ -39,7 +39,6 @@ export const PERMISSIONS = {
   categories: adminPermission("catalogue", "categories"),
   brands: adminPermission("catalogue", "brands"),
   products: adminPermission("catalogue", "products"),
-  inventory: adminPermission("catalogue", "inventory"),
   addOns: adminPermission("catalogue", "add-ons"),
   integrations: adminPermission("governance", "integrations"),
   coupons: adminPermission("marketing", "coupons"),
@@ -68,7 +67,6 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.products, label: "Products", actions: ALL_ACTIONS },
   { key: PERMISSIONS.categories, label: "Categories", actions: ALL_ACTIONS },
   { key: PERMISSIONS.brands, label: "Brands", actions: CRUD },
-  { key: PERMISSIONS.inventory, label: "Inventory", actions: VIEW_EDIT },
   { key: PERMISSIONS.addOns, label: "Add-ons", actions: CRUD },
   { key: PERMISSIONS.homepage, label: "Homepage Builder", actions: ALL_ACTIONS },
   { key: PERMISSIONS.content, label: "Content & Policies", actions: ["VIEW", "EDIT", "PUBLISH"] },
@@ -122,7 +120,7 @@ export function levelActions(module: AdminModule, level: AccessLevel): Permissio
 
 /**
  * The levels worth offering on a module: each one must grant more than the
- * one before, so Inventory offers no Full and Change Log only View.
+ * one before, so Delivery Zones offers no Full and Change Log only View.
  */
 export function availableLevels(module: AdminModule): AccessLevel[] {
   const levels: AccessLevel[] = ["NONE"];

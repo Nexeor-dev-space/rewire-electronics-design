@@ -18,7 +18,13 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DISCARD: "Discarded draft",
 };
 
-const MODULE_LABELS = new Map(ADMIN_MODULES.map((module) => [module.key, module.label]));
+/** Modules since removed, so entries recorded under them still read well. */
+const RETIRED_MODULE_LABELS: [string, string][] = [["catalogue.inventory", "Inventory"]];
+
+const MODULE_LABELS = new Map([
+  ...RETIRED_MODULE_LABELS,
+  ...ADMIN_MODULES.map((module): [string, string] => [module.key, module.label]),
+]);
 
 export function auditModuleLabel(key: string): string {
   return MODULE_LABELS.get(key) ?? key;

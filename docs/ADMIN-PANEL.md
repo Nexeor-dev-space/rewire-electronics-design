@@ -74,7 +74,7 @@ A declared route owns itself and everything beneath it. `/admin/orders` owns
 `/admin/orders/1042`, so the detail and form screens each module grows later
 resolve with the parent's navigation row active and a correct breadcrumb trail,
 without being declared. When two routes both match, the longer one wins, which
-is how `/admin/products/inventory` is its own module while living under
+is how `/admin/products/upload-products` is its own module while living under
 `/admin/products`.
 
 Three helpers cover everything:
@@ -294,20 +294,19 @@ delete sections), opens a staff only preview of the draft at
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.
 
-## Products, Add-ons and Inventory
+## Products and Add-ons
 
-Catalogue → **Products** (`/admin/products`), **Inventory**
-(`/admin/products/inventory`) and **Add-ons** (`/admin/add-ons`). Permission
-keys `catalogue.products`, `catalogue.inventory` and `catalogue.add-ons`. The
-upload route also accepts the products permission, so the product form can
-upload images.
+Catalogue → **Products** (`/admin/products`) and **Add-ons** (`/admin/add-ons`).
+Permission keys `catalogue.products` and `catalogue.add-ons`. The upload route
+also accepts the products permission, so the product form can upload images.
 
 1. **Products** lists, creates, edits, publishes, unpublishes, archives and
    deletes products. The form holds details, images (each with an optional
-   colour), specs and a variants editor.
-2. **Inventory** is a paged list of variants, filterable to low or out of
-   stock, with the stock count edited in place.
-3. **Add-ons** lists and edits the extras offered on the product page, and the
+   colour), specs and a variants editor. The list shows each product's total
+   stock; the variants editor is where stock is viewed and changed, one Stock
+   field per variant with the product total above the rows. There is no
+   separate Inventory screen.
+2. **Add-ons** lists and edits the extras offered on the product page, and the
    categories each one applies to.
 
 The rules, endpoints and data model are in [CATALOGUE.md](CATALOGUE.md).

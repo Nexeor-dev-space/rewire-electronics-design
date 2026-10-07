@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
 import { shopFiltersFromParams } from "@/lib/catalogue";
 import { SHOP_PAGE_SIZE } from "@/lib/constants";
+import { SEARCH_PAGE_PATH } from "@/lib/site";
 import { listShopProducts } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,14 @@ export default async function SearchPage({ searchParams }: PageProps) {
         <h1 className="mt-3 max-w-3xl text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">
           {filters.q ? <>Results for &ldquo;{filters.q}&rdquo;</> : "Every device we stock"}
         </h1>
+        {filters.q && (
+          <Link
+            href={SEARCH_PAGE_PATH}
+            className="mt-3 inline-block text-sm text-ink-secondary underline underline-offset-4 transition-colors duration-(--duration-fast) hover:text-ink"
+          >
+            Clear search
+          </Link>
+        )}
       </div>
       <ShopCatalogue
         key={JSON.stringify(filters)}

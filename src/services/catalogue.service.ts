@@ -8,6 +8,9 @@ import {
   MAX_PRODUCT_ADD_ONS,
   NAV_CATEGORY_LIMIT,
   RELATED_PRODUCTS_LIMIT,
+  SEARCH_MAX_WORDS,
+  SEARCH_MIN_QUERY_LENGTH,
+  SEARCH_SUGGESTION_LIMITS,
   SITEMAP_PRODUCT_LIMIT,
   STOREFRONT_CATEGORIES_REVALIDATE_SECONDS,
 } from "@/lib/constants";
@@ -16,6 +19,7 @@ import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import type { SpecGroup } from "@/types/commerce";
 import type {
+  SearchSuggestions,
   ShopAddOn,
   ShopCard,
   ShopCategoryRef,
@@ -150,18 +154,75 @@ function variantFilters(query: ShopQuery, except?: Axis): Prisma.ProductVariantW
   return and;
 }
 
+/* ---------- search ---------- */
+
+const searchWords = (q: string) =>
+  q.toLowerCase().split(/\s+/).filter(Boolean).slice(0, SEARCH_MAX_WORDS);
+
+const contains = (word: string) => ({ contains: word, mode: "insensitive" as const });
+
+/**
+ * The one product text search, used by `/search` and the suggestions API.
+ * Every word must appear somewhere on the product, so "iphone 128" finds an
+ * iPhone with a 128GB variant.
+ */
+function searchWhere(q: string): Prisma.ProductWhereInput {
+  return {
+    AND: searchWords(q).map((word) => ({
+      OR: [
+        { name: contains(word) },
+        { description: contains(word) },
+        { brand: { name: contains(word) } },
+        { category: { name: contains(word) } },
+        {
+          variants: {
+            some: { OR: [{ sku: contains(word) }, { storage: contains(word) }, { colour: contains(word) }] },
+          },
+        },
+      ],
+    })),
+  };
+}
+
+const NO_SUGGESTIONS: SearchSuggestions = { products: [], brands: [], categories: [] };
+
+export async function searchSuggestions(q: string): Promise<SearchSuggestions> {
+  const words = searchWords(q);
+  if (q.length < SEARCH_MIN_QUERY_LENGTH || words.length === 0) return NO_SUGGESTIONS;
+
+  // Brands and categories match on any word, so "apple iphone" still offers Apple.
+  const anyWord = words.map((word) => ({ name: contains(word) }));
+
+  const [products, brands, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { AND: [PUBLISHED, searchWhere(q)] },
+      select: cardSelect,
+      orderBy: ORDER_BY.newest,
+      take: SEARCH_SUGGESTION_LIMITS.products,
+    }),
+    prisma.brand.findMany({
+      where: { OR: anyWord, products: { some: PUBLISHED } },
+      select: { name: true },
+      orderBy: { name: "asc" },
+      take: SEARCH_SUGGESTION_LIMITS.brands,
+    }),
+    prisma.category.findMany({
+      where: { AND: [VISIBLE_CATEGORY, { OR: anyWord }] },
+      select: { name: true, slug: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      take: SEARCH_SUGGESTION_LIMITS.categories,
+    }),
+  ]);
+
+  return { products: products.map((row) => toCard(row)), brands, categories };
+}
+
+/* ---------- shop filters ---------- */
+
 function whereFor(query: ShopQuery, except?: Axis): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [PUBLISHED];
 
-  if (query.q) {
-    and.push({
-      OR: [
-        { name: { contains: query.q, mode: "insensitive" } },
-        { brand: { name: { contains: query.q, mode: "insensitive" } } },
-        { category: { name: { contains: query.q, mode: "insensitive" } } },
-      ],
-    });
-  }
+  if (query.q) and.push(searchWhere(query.q));
   if (except !== "category" && query.category.length > 0) {
     and.push({
       category: {
