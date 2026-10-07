@@ -12,9 +12,11 @@ import { useGetCategories } from "@/hooks/use-category";
 import { useCreateProduct, useGetProduct, useUpdateProduct } from "@/hooks/use-product";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PICKER_PAGE_SIZE, SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import { flattenCategoryRefs } from "@/lib/homepage-builder";
 import { fromMinorUnits, toMinorUnits } from "@/lib/money";
 import { clip } from "@/lib/seo";
 import { slugify } from "@/lib/utils";
+import type { CategoryNode } from "@/types/category";
 import type { ProductDetail } from "@/types/product";
 import { GRADED_CONDITIONS, productSchema } from "@/validators/product.validator";
 import { ProductImagesField, type DraftImage } from "./product-images-field";
@@ -31,6 +33,21 @@ const PICKER_FILTERS = { pageSize: PICKER_PAGE_SIZE } as const;
 const DEFAULT_WARRANTY_MONTHS = "12";
 
 type Errors = Record<string, string | undefined>;
+
+/**
+ * One flat list, children named "Parent › Child" so no name repeats. Archived
+ * categories are left out, except the one this product already uses, so an
+ * edit never silently drops it.
+ */
+function categoryOptions(nodes: CategoryNode[], currentId?: string) {
+  const archived = new Set(
+    nodes
+      .flatMap((parent) => [parent, ...parent.children])
+      .filter((category) => category.status === "ARCHIVED" && category.id !== currentId)
+      .map((category) => category.id),
+  );
+  return flattenCategoryRefs(nodes).filter((option) => !archived.has(option.id));
+}
 
 function issuesToErrors(issues: z.core.$ZodIssue[]): Errors {
   const errors: Errors = {};
@@ -287,15 +304,10 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
                 className="h-11"
               >
                 <option value="">{categories.isPending ? "Loading…" : "Choose a category"}</option>
-                {categories.data?.items.map((parent) => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    <option value={parent.id}>{parent.name}</option>
-                    {parent.children.map((child) => (
-                      <option key={child.id} value={child.id}>
-                        {child.name}
-                      </option>
-                    ))}
-                  </optgroup>
+                {categoryOptions(categories.data?.items ?? [], initial?.categoryId).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
                 ))}
               </Select>
             </Field>
