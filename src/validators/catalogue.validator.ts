@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { SHOP_MAX_FILTER_VALUES, SHOP_MAX_PAGE_SIZE, SHOP_PAGE_SIZE } from "@/lib/constants";
+import {
+  SEARCH_QUERY_MAX_LENGTH,
+  SEARCH_SUGGEST_MIN_LENGTH,
+  SHOP_MAX_FILTER_VALUES,
+  SHOP_MAX_PAGE_SIZE,
+  SHOP_PAGE_SIZE,
+} from "@/lib/constants";
 import {
   conditions,
   grades,
@@ -33,7 +39,7 @@ const csvOf = <T extends string>(allowed: readonly T[]) =>
 export const shopQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(SHOP_MAX_PAGE_SIZE).default(SHOP_PAGE_SIZE),
-  q: z.string().trim().max(100).optional(),
+  q: z.string().trim().max(SEARCH_QUERY_MAX_LENGTH).optional(),
   category: csv,
   condition: csvOf<Condition>(CONDITION_VALUES),
   grade: csvOf<Grade>(GRADE_VALUES),
@@ -46,4 +52,8 @@ export const shopQuerySchema = z.object({
     .transform((value): SortId =>
       SORT_IDS.includes(value as SortId) ? (value as SortId) : "newest",
     ),
+});
+
+export const searchSuggestQuerySchema = z.object({
+  q: z.string().trim().min(SEARCH_SUGGEST_MIN_LENGTH).max(SEARCH_QUERY_MAX_LENGTH),
 });
