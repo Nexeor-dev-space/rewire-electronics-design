@@ -282,6 +282,24 @@ panel (§7) links to it as `Track Order`, and the Support section's
 action "Track my order". How it matches orders is in
 [ORDERS.md](ORDERS.md) §8.
 
+Track Order shows no return links. On a returnable order it adds a notice
+telling the guest to create an account with the order email (or reset its
+password if one exists), verify it, and request the return from the account;
+see [RETURNS.md](RETURNS.md) §10.
+
+### Account returns and order detail links
+
+`/account/returns` sits under `/account`, so the account gate applies (§9).
+It reads two presets from the query: `?order=RW-…` selects that order's
+returnable lines in the request panel, and `&item=<orderItemId>` narrows it to
+one line. The preset only applies when the order is on the loaded page of
+eligible orders. `ACCOUNT_RETURNS_PATH` is the constant for the path. The
+links come from the account order detail (`/account/orders/[number]`):
+"Request a return" in the items header and "Return this item" on each line
+with something left to return, while the order is inside its window; "Return
+window closed" afterwards. Track Order never shows them. Rules and screens are
+in [RETURNS.md](RETURNS.md) §10.
+
 ### New routes
 
 `/terms` and `/privacy` did not exist. The footer had linked to both

@@ -584,7 +584,7 @@ In `src/lib/constants.ts`.
 | `COUPON_CODE_MIN_LENGTH`, `COUPON_CODE_MAX_LENGTH` | 3, 32 | Coupon code |
 | `COUPON_DESCRIPTION_MAX_LENGTH` | 160 | Coupon description |
 | `MAX_DELIVERY_DAYS` | 30 | Delivery zone days |
-| `RETURN_WINDOW_DAYS` | 30 | "30-day returns" copy on the cart summary, buy panel and home benefits |
+| `RETURN_WINDOW_DAYS` | 30 | "30-day returns" copy on the cart summary and home benefits. The product page buy panel reads the window from `getStoreSettings()` instead and hides the returns item when it is 0 |
 | `RATE_LIMITS.applyCoupon` | 10 per 10 minutes, per user | `POST cart/coupon` |
 | `RATE_LIMITS.guestCart` | 10 per hour, per IP | `POST cart/items` that creates a guest cart |
 | `RATE_LIMITS.placeOrder`, `trackOrder` | see [ORDERS.md](ORDERS.md) §12 | Checkout and Track Order |

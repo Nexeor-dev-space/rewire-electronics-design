@@ -118,6 +118,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
+| Returns | `service.returns` | View, Edit | No access, View, Edit |
 | Discount Codes | `marketing.coupons` | View, Create, Edit, Delete | all |
 | Orders | `sales.orders` | View, Edit | No access, View, Edit |
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
@@ -133,6 +134,13 @@ added in Phase 5. Staff roles that existed before have no row for them, so
 they hold No access until an Admin sets a level on the Roles screen. Edit on
 Fulfilment changes tracking and status only; payment status and the staff note
 need Edit on Orders. See [ORDERS.md](ORDERS.md) §13.
+
+Returns (`PERMISSIONS.returns`) was added in Phase 7 and follows the same
+rule: existing Staff roles hold No access until an Admin sets a level. View
+covers the Returns list and detail and reading the return window; Edit covers
+status changes, recording a refund and changing the return window (the
+`admin/store-settings` routes use this key while the window is the only
+setting). See [RETURNS.md](RETURNS.md) §12.
 
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.
@@ -223,6 +231,7 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Users → Staff | Admin only; the page answers Access denied to Staff |
 | Inventory | The stock field is locked and Save hidden without Edit |
 | Delivery Zones | Edit hidden |
+| Returns | Status buttons, the Record refund button and the Return window button are hidden (the window shows as plain text) without Edit; the list and detail need View, and the sidebar row needs View |
 | Orders detail | Status, payment, tracking and staff note controls hidden without Edit; the list and detail need View |
 | Fulfilment | Tracking field, Save and Move to buttons replaced by read only text without Edit; the order number links to the detail only with Orders View |
 | Homepage Builder | Add section row hidden without Create; edit, move and show or hide locked without Edit; Delete hidden; Publish and Discard draft hidden |
