@@ -25,6 +25,15 @@ export interface ShopCard {
   listedAt: string | null;
 }
 
+export interface SearchSuggestion {
+  slug: string;
+  name: string;
+  brand: string;
+  price: number;
+  imageUrl: string | null;
+  imageAlt: string;
+}
+
 export interface CategoryFacet {
   slug: string;
   name: string;

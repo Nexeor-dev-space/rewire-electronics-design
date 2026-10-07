@@ -30,7 +30,7 @@ export const accountNav: NavItem[] = [
   { label: "My Waitlists", href: "/account/waitlists" },
   { label: "Support Tickets", href: "/support#contact" },
   { label: "Returns", href: "/account/returns" },
-  { label: "Profile", href: "/account" },
+  { label: "Profile", href: "/account/settings" },
 ];
 
 export const searchSuggestions = [

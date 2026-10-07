@@ -6,6 +6,12 @@ export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
 export const SHOP_MAX_FILTER_VALUES = 50;
 export const RELATED_PRODUCTS_LIMIT = 5;
+export const SEARCH_SUGGEST_LIMIT = 5;
+export const SEARCH_SUGGEST_MIN_LENGTH = 2;
+export const SEARCH_QUERY_MAX_LENGTH = 100;
+export const SEARCH_MATCH_LIMIT = SHOP_MAX_PAGE_SIZE * 5;
+export const SEARCH_SUGGEST_CANDIDATES = SEARCH_SUGGEST_LIMIT * 4;
+export const SEARCH_WORD_SIMILARITY = 0.4;
 export const FEATURED_PRODUCTS_LIMIT = 4;
 export const SITEMAP_PRODUCT_LIMIT = 1000;
 export const MAX_PRODUCT_ADD_ONS = 4;
@@ -24,6 +30,7 @@ export const MAX_DELIVERY_DAYS = 30;
 export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+export const RETURN_WINDOW_DAYS = 30;
 
 export const SMTP_DEFAULT_HOST = "smtp.gmail.com";
 export const SMTP_DEFAULT_PORT = 587;
@@ -51,6 +58,7 @@ export const RATE_LIMITS = {
   resendVerification: { limit: 3, windowSeconds: 60 * 60 },
   applyCoupon: { limit: 10, windowSeconds: 60 * 10 },
   guestCart: { limit: 10, windowSeconds: 60 * 60 },
+  search: { limit: 60, windowSeconds: 60 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
