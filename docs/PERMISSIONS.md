@@ -119,12 +119,20 @@ only the levels that grant more than the one below (`availableLevels`):
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Discount Codes | `marketing.coupons` | View, Create, Edit, Delete | all |
+| Orders | `sales.orders` | View, Edit | No access, View, Edit |
+| Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
 | Staff accounts | `service.staff` | Admin only | |
 | API Credentials | `governance.integrations` | Admin only | |
 | Roles | `governance.roles` | Admin only | |
+
+Orders and Fulfilment (`PERMISSIONS.orders`, `PERMISSIONS.fulfilment`) were
+added in Phase 5. Staff roles that existed before have no row for them, so
+they hold No access until an Admin sets a level on the Roles screen. Edit on
+Fulfilment changes tracking and status only; payment status and the staff note
+need Edit on Orders. See [ORDERS.md](ORDERS.md) §13.
 
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.
@@ -201,7 +209,7 @@ a Customer and to Staff whose role opens no module (or who have no role).
 **Sidebar.** `visibleAdminNav(permissions)` hides a row that is a module the
 user can't view, and a section left empty. A row with children (Users) keeps
 only the children the user may see, and goes when none are left. Rows for
-modules not built yet (Orders, Releases and so on) stay visible, because they
+modules not built yet (Releases and so on) stay visible, because they
 hold nothing.
 
 **Buttons.** `AdminShell` puts the session's grid in `AdminAccessProvider`.
@@ -215,6 +223,8 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Users → Staff | Admin only; the page answers Access denied to Staff |
 | Inventory | The stock field is locked and Save hidden without Edit |
 | Delivery Zones | Edit hidden |
+| Orders detail | Status, payment, tracking and staff note controls hidden without Edit; the list and detail need View |
+| Fulfilment | Tracking field, Save and Move to buttons replaced by read only text without Edit; the order number links to the detail only with Orders View |
 | Homepage Builder | Add section row hidden without Create; edit, move and show or hide locked without Edit; Delete hidden; Publish and Discard draft hidden |
 | Content & Policies | Edit links hidden and the editor page refused without Edit; Published switch locked without Publish |
 | Trash | Restore and Delete permanently hidden; Restore on a Staff account needs Staff accounts |

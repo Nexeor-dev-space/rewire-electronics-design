@@ -22,7 +22,7 @@ covers what is specific to the cart.
 | Storefront | Header count, cart page, add to cart modal, product page buy panel, card Add to cart, checkout summary and the checkout steps |
 
 Checkout itself (orders, payment, stock deduction, redemption counting) is
-Phase 5. Section 13 lists what Phase 5 must do with this module.
+Phase 5 and lives in [ORDERS.md](ORDERS.md).
 
 ---
 
@@ -70,13 +70,13 @@ see from the columns alone:
    False means only the listed products and categories. The flag exists so a
    restricted coupon cannot silently become store wide when its last product
    is deleted and the join row cascades away.
-10. **`Coupon.redemptionCount`** is never written by the admin form. Phase 5
-    checkout increments it with a guarded `updateMany` (`where redemptionCount
-    < usageLimit`), so the usage limit cannot be overshot. Until then it stays
-    0.
-11. **The cart is emptied at checkout**, not marked converted. Phase 5 deletes
-    the items and clears `couponId` in the order transaction, which is what
-    lets `userId` stay unique with no status column.
+10. **`Coupon.redemptionCount`** is never written by the admin form. Checkout
+    increments it with a guarded `updateMany` (`where redemptionCount <
+    usageLimit`), so the usage limit cannot be overshot; a cancelled order
+    decrements it.
+11. **The cart is emptied at checkout**, not marked converted. The order
+    transaction deletes the items and clears `couponId`, which is what lets
+    `userId` stay unique with no status column.
 12. **`DeliveryZone`** is one row per `Emirate` (unique). Fees are fils; the
     four `*Days` columns are working days.
 13. **Indexes worth knowing:** `Cart.updatedAt` (stale guest sweep),
@@ -172,20 +172,27 @@ disabled code cannot be told apart from a made up one), and a guest is
 
 ### 4.3 Coupons on a cart
 
-1. **Signed in only.** Guests never have a coupon. `Cart.couponsAllowed` is
-   true only with a session, and the checkout hides the field otherwise.
+1. **Signed in only.** Guests are never priced with a coupon.
+   `Cart.couponsAllowed` is true only with a session. The checkout shows the
+   code field to guests too; Apply with `couponsAllowed` false shows "Sign in
+   to use a promo code." (`COUPON_MESSAGES.SIGN_IN_REQUIRED`) and a Sign in
+   link, and sends no request. The API answers 401 with that message. The
+   server prices a guest cart with no coupon even when a `couponId` is set,
+   and checkout never redeems for a guest.
 2. **Applying** (`POST cart/coupon`) prices the cart with the code and attaches
    it only when the result is ok. Any rejection answers 422 with the message
    on `fields.code`, and nothing is attached.
 3. **An attached coupon that stops qualifying** (expired, cart fell below the
    minimum, the eligible product was removed) stays attached. The cart
    returns `coupon.valid: false` with its message and a discount of 0. Reads
-   never detach it; the customer removes it, or it qualifies again.
-4. **Per customer limits count as 0** until Phase 5, because there are no
-   orders to count (`CUSTOMER_REDEMPTIONS_BEFORE_ORDERS` in
-   `cart.service.ts`). A `perCustomerLimit` is stored and validated but cannot
-   reject anyone yet.
-5. **Merge on sign-in** keeps the user cart's own coupon (section 8.2).
+   never detach it; the customer removes it, or it qualifies again. Checkout
+   refuses with 409 while it is invalid.
+4. **Per customer limits** count the customer's `CouponRedemption` rows with
+   `countRedemptions(db, couponId, userId)` in `cart.service.ts`, so a
+   `perCustomerLimit` now rejects.
+5. **Merge on sign-in** keeps the user cart's own coupon (section 8.2); the
+   guest cart merges on sign-in, so a guest who signs in at the Sign in link
+   keeps their lines.
 
 ### 4.4 Admin status badge
 
@@ -202,7 +209,8 @@ the API returns it as `AdminCoupon.status`.
    working day for each.
 2. **Methods** are the TypeScript constant `DELIVERY_METHODS` (`STANDARD`,
    `EXPRESS`) in `src/lib/delivery.ts`, with `DELIVERY_METHOD_LABELS`. There
-   is no database enum yet; it arrives with `Order` in Phase 5. "Collect in
+   is no database enum for the cart; `Order.deliveryMethod` has one with the same
+   values. "Collect in
    Dubai" from the old mock checkout was dropped until pickup is specified.
 3. **`formatEta(min, max)`** in `src/lib/delivery.ts` is the one formatter:
    "Same working day" when the latest day is 0, "Next working day" when both
@@ -258,8 +266,9 @@ Coupon form rules (`src/validators/coupon.validator.ts`):
 6. "Applies to every product" off needs at least one product or category, up
    to `MAX_COUPON_TARGETS` (50) of each. Targets are ignored when it is on.
    Join rows are replaced on every save.
-7. Deleting a coupon removes it from carts that held it. Phase 5 will refuse
-   to delete a coupon with redemptions ("Disable it instead").
+7. Deleting a coupon removes it from carts that held it. A coupon with
+   redemptions can't be deleted: 409 "This code has been used on orders.
+   Disable it instead."
 
 Delivery zone form rules (`src/validators/delivery-zone.validator.ts`): fees 0
 or more; days whole numbers from 0 to `MAX_DELIVERY_DAYS` (30); the latest day
@@ -394,7 +403,7 @@ The cart reuses the catalogue's exported rules instead of copying them:
    category visibility, images, chosen add-ons and coupon, plus one for the
    offered add-ons across all lines. Bounded by `CART_MAX_LINES`.
 3. A quote adds one lookup on `delivery_zones`.
-4. No stock is reserved. Stock is only taken at checkout (Phase 5).
+4. No stock is reserved. Stock is only taken at checkout ([ORDERS.md](ORDERS.md) §5).
 
 ---
 
@@ -482,11 +491,21 @@ Every mutation writes the returned cart straight into the cache
 | Product page | `components/product/detail/product-buy-panel.tsx` | The line for the selected variant; Add to cart sends the selected add-ons; the stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
 | Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy" |
 | Home setup kit, drop cards | `components/home/setup/setup.tsx`, `components/home/upcoming-drops/drop-card.tsx` | No cart call: they link to the product page |
-| Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, method)`, default Dubai and Standard. Emirates from `EMIRATES`. The coupon field shows only when `couponsAllowed`; Enter in it applies the code. VAT reads "Includes VAT 5%". The steps are in §9.1 |
+| Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, method)`, default Dubai and Standard. Emirates from `EMIRATES`. The coupon field shows for guests too; Enter in it applies the code. While `couponsAllowed` is false (a guest), Apply shows "Sign in to use a promo code." with a Sign in link and sends no request. VAT reads "Includes VAT 5%". The steps are in §9.1 |
 
-Placing an order is still the mock: it stores a `PlacedOrder` in localStorage
-(`src/lib/checkout.ts`) for the success page and **no longer empties the
-cart**. Real orders replace it in Phase 5.
+Place Order calls `usePlaceOrder` (`POST checkout.place`) with the
+information fields, the delivery and payment method, `expectedTotal` (the
+total on screen) and an `idempotencyKey`. The key lives in a ref
+(`crypto.randomUUID`): it is reused after a network error or a 5xx, so a retry
+returns the same order, and renewed after a 4xx or a success. A 409 refetches
+the cart and quote and shows the message under Place Order; field errors
+(`fields.email`, `fields.emirate`, …) reopen Information and show under their
+field. The registered email 409 adds a Sign in link under the email field.
+On success the order is cached under `checkoutKeys.placed(number)` and the
+browser goes to `/checkout/success?order=…`. The success page reads that cache,
+or `useGetAccountOrder(number)` when signed in; Track Order goes to
+`/account/orders/{number}` signed in, or `/order/track?number=…&email=…` for a
+guest. Without either (a guest reloading the page) it links to Track Order.
 
 ### 9.1 Checkout steps
 
@@ -532,8 +551,8 @@ email opt in. Continue runs it. Each message shows under its field through the
 checkout `Field`'s `error` prop, which sets `aria-invalid`, points
 `aria-describedby` at the message and hides the hint; focus moves to the
 first invalid field. After a failed Continue, a field checks itself again on
-blur. With a saved address selected only email and phone are checked; the
-saved address itself is still a hardcoded mock until Phase 3 addresses.
+blur. Saved addresses arrive with Phase 3; email and phone prefill from the
+signed in account.
 
 **UAE phone rule.** `uaePhoneValidator` in
 `src/validators/common/primitives.validator.ts` strips spaces, dashes, dots
@@ -543,11 +562,11 @@ followed by a mobile number (`5[024568]`) or a landline area code
 `050 123 4567` becomes `+971501234567`, `04 123 4567` becomes `+97141234567`.
 Anything else reads "Enter a valid UAE phone number, e.g. 050 123 4567."
 
-**Payment** card fields are checked only by the browser (`checkValidity`),
-since card entry is still the mock.
+**Payment** takes no card details. Card and Apple Pay show "Our team will
+send a secure payment link." (`PAYMENT_LINK_NOTICE`) on the payment step and
+the success page.
 
-These checks run in the browser only. No checkout endpoint exists yet; see
-§13.
+The server validates the same fields again with `placeOrderSchema`.
 
 ---
 
@@ -568,6 +587,7 @@ In `src/lib/constants.ts`.
 | `RETURN_WINDOW_DAYS` | 30 | "30-day returns" copy on the cart summary, buy panel and home benefits |
 | `RATE_LIMITS.applyCoupon` | 10 per 10 minutes, per user | `POST cart/coupon` |
 | `RATE_LIMITS.guestCart` | 10 per hour, per IP | `POST cart/items` that creates a guest cart |
+| `RATE_LIMITS.placeOrder`, `trackOrder` | see [ORDERS.md](ORDERS.md) §12 | Checkout and Track Order |
 
 Rate limits work as described in [AUTH.md](AUTH.md) §7.
 
@@ -583,18 +603,20 @@ added `src/lib/pricing/price-cart.test.ts`, `src/lib/pricing/coupon.test.ts`,
 `src/validators/checkout.validator.test.ts` and
 `src/validators/common/primitives.validator.test.ts` (the UAE phone rule).
 They cover the pure rules only; the routes, the service and the checkout
-steps have no automated tests.
+steps have no automated tests. Phase 5 tests are listed in
+[ORDERS.md](ORDERS.md) §14.
 
 ---
 
 ## 12. Known limits
 
-1. **Per customer coupon limits do nothing yet.** Redemptions count as 0
-   until orders exist (Phase 5).
-2. **`redemptionCount` is never incremented yet**, so a usage limit cannot be
-   reached until Phase 5 checkout counts redemptions.
-3. **Placing the mock order keeps the cart.** Emptying it belongs to the
-   Phase 5 order transaction.
+Items 1 to 3 of the Phase 4 list (per customer limits, `redemptionCount`,
+emptying the cart) were resolved by Phase 5 checkout; the numbering below is
+kept so references still hold.
+
+1. **Resolved in Phase 5:** per customer limits count real redemptions.
+2. **Resolved in Phase 5:** checkout increments `redemptionCount`.
+3. **Resolved in Phase 5:** placing an order empties the cart.
 4. **"Free delivery" copy is hardcoded** on the buy panel ("Free delivery, On
    every order"), the cart summary trust row and the home benefits. It is true
    only while every zone's standard fee is 0. If an admin sets a standard fee,
@@ -618,19 +640,7 @@ steps have no automated tests.
 
 ---
 
-## 13. For Phase 5 checkout
+## 13. Checkout
 
-1. Load the cart with the `cart.service` loader and price it with `priceCart`.
-   Any blocking issue, or an attached coupon that is not `valid`, answers 409,
-   so the charged total is the one the shopper saw.
-2. Count coupon usage with `updateMany where id and (usageLimit is null or
-   redemptionCount < usageLimit)` incrementing `redemptionCount`; a count of 0
-   means 409. Count the customer's `CouponRedemption` rows inside the
-   transaction and pass them to `evaluateCoupon`.
-3. Empty the cart (delete items, clear `couponId`) in the same transaction.
-4. Refuse to delete a coupon that has redemptions (409 "Disable it instead").
-5. Decide whether an `ADD_ON_UNAVAILABLE` add-on is dropped from the order or
-   blocks it; today it is simply not charged.
-6. Parse the contact and address with `checkoutInformationSchema` on the
-   server and store the normalised E.164 phone. The checkout's own check
-   (§9.1) runs only in the browser.
+Checkout, the order transaction, stock, coupon redemption and guest users are
+in [ORDERS.md](ORDERS.md).

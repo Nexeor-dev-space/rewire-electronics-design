@@ -69,6 +69,10 @@ const PRISMA_UNIQUE_VIOLATION = "P2002";
 const PRISMA_RECORD_NOT_FOUND = "P2025";
 const PRISMA_TOO_MANY_CONNECTIONS = "P2037";
 
+export function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === PRISMA_UNIQUE_VIOLATION;
+}
+
 const MESSAGE_NOT_FOUND = "That record no longer exists.";
 const MESSAGE_DATABASE_BUSY = "The database is busy. Please try again.";
 const MESSAGE_INTERNAL = "Something went wrong. Please try again.";

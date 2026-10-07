@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { DELIVERY_METHODS } from "@/lib/delivery";
 import { EMIRATE_VALUES } from "@/lib/emirates";
-import { emailValidator, uaePhoneValidator } from "./common/primitives.validator";
+import { PAYMENT_METHODS } from "@/lib/orders";
+import { emailValidator, minorUnitsValidator, uaePhoneValidator } from "./common/primitives.validator";
 
 export const checkoutInformationSchema = z.object({
   email: emailValidator,
@@ -13,6 +15,13 @@ export const checkoutInformationSchema = z.object({
   city: z.string().trim().min(1, "Enter the city.").max(100),
   emirate: z.enum(EMIRATE_VALUES, { error: "Choose an emirate." }),
   postalCode: z.string().trim().max(20).optional(),
+});
+
+export const placeOrderSchema = checkoutInformationSchema.extend({
+  deliveryMethod: z.enum(DELIVERY_METHODS, { error: "Choose a delivery method." }),
+  paymentMethod: z.enum(PAYMENT_METHODS, { error: "Choose a payment method." }),
+  expectedTotal: minorUnitsValidator.min(0),
+  idempotencyKey: z.uuid(),
 });
 
 export type CheckoutInformationInput = z.infer<typeof checkoutInformationSchema>;

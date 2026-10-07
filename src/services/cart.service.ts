@@ -62,7 +62,6 @@ type UpdateCartItemData = z.output<typeof updateCartItemSchema>;
 type CartQuoteData = z.output<typeof cartQuoteQuerySchema>;
 
 const MS_PER_SECOND = 1000;
-const CUSTOMER_REDEMPTIONS_BEFORE_ORDERS = 0;
 const OFFERED_ADD_ONS_QUERY_LIMIT = MAX_PRODUCT_ADD_ONS * CART_MAX_LINES;
 
 const MESSAGE_ITEM_UNAVAILABLE = "This item is no longer available.";
@@ -105,6 +104,7 @@ const cartSelect = {
       variant: {
         select: {
           id: true,
+          sku: true,
           storage: true,
           colour: true,
           condition: true,
@@ -119,6 +119,7 @@ const cartSelect = {
               name: true,
               status: true,
               categoryId: true,
+              warrantyMonths: true,
               brand: { select: { name: true } },
               category: {
                 select: { status: true, parentId: true, parent: { select: { status: true } } },
@@ -132,7 +133,10 @@ const cartSelect = {
         },
       },
       addOns: {
-        select: { seenPrice: true, addOn: { select: { id: true, name: true, price: true } } },
+        select: {
+          seenPrice: true,
+          addOn: { select: { id: true, name: true, kind: true, price: true } },
+        },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -142,7 +146,22 @@ const cartSelect = {
 } satisfies Prisma.CartSelect;
 
 type CartRow = Prisma.CartGetPayload<{ select: typeof cartSelect }>;
-type CartItemRow = CartRow["items"][number];
+export type CartItemRow = CartRow["items"][number];
+
+export interface PricedCartLine {
+  item: CartItemRow;
+  line: CartLine;
+  pricing: PricingLine;
+  imageId: string | null;
+}
+
+export interface PricedCart {
+  cartId: string;
+  coupon: { id: string; code: string } | null;
+  lines: PricedCartLine[];
+  pricing: CartPricing;
+  cart: Cart;
+}
 
 const offeredSelect = {
   ...shopAddOnSelect,
@@ -228,9 +247,9 @@ function offeredForLine(rows: OfferedRow[], categoryIds: string[]) {
     .map(toOfferedAddOn);
 }
 
-async function offeredAddOnsFor(categoryIds: string[]): Promise<OfferedRow[]> {
+async function offeredAddOnsFor(db: Tx, categoryIds: string[]): Promise<OfferedRow[]> {
   if (categoryIds.length === 0) return [];
-  return prisma.addOn.findMany({
+  return db.addOn.findMany({
     where: offeredAddOnWhere(categoryIds),
     select: {
       ...offeredSelect,
@@ -259,7 +278,7 @@ async function assertAddOnsOffered(addOnIds: string[], categoryIds: string[]) {
 
 /* ---------- mapping ---------- */
 
-function buildLine(item: CartItemRow, offeredRows: OfferedRow[]) {
+function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine {
   const { variant } = item;
   const { product } = variant;
   const categoryIds = categoryIdsOf(product);
@@ -319,7 +338,7 @@ function buildLine(item: CartItemRow, offeredRows: OfferedRow[]) {
     }),
   };
 
-  return { line, pricing };
+  return { item, line, pricing, imageId: image?.mediaId ?? null };
 }
 
 function totalsOf(pricing: CartPricing) {
@@ -350,20 +369,29 @@ function emptyCart(couponsAllowed: boolean, deliveryFee: number | null): Cart {
   };
 }
 
-function toCart(row: CartRow, owner: Owner, offeredRows: OfferedRow[], deliveryFee: number | null): Cart {
-  const built = row.items.map((item) => buildLine(item, offeredRows));
+interface PriceOptions {
+  deliveryFee: number | null;
+  now: Date;
+}
+
+function priceRow(
+  row: CartRow,
+  owner: Owner,
+  offeredRows: OfferedRow[],
+  customerRedemptions: number,
+  { deliveryFee, now }: PriceOptions,
+): PricedCart {
+  const lines = row.items.map((item) => buildLine(item, offeredRows));
   const couponRow = owner.kind === "user" ? row.coupon : null;
   const pricing = priceCart({
-    lines: built.map((entry) => entry.pricing),
-    coupon: couponRow
-      ? { rule: toCouponRule(couponRow), customerRedemptions: CUSTOMER_REDEMPTIONS_BEFORE_ORDERS }
-      : null,
+    lines: lines.map((entry) => entry.pricing),
+    coupon: couponRow ? { rule: toCouponRule(couponRow), customerRedemptions } : null,
     deliveryFee,
-    now: new Date(),
+    now,
   });
-  const items = built.map((entry) => entry.line);
+  const items = lines.map((entry) => entry.line);
 
-  return {
+  const cart: Cart = {
     id: row.id,
     items,
     itemCount: items.reduce((sum, line) => sum + line.quantity, 0),
@@ -374,14 +402,41 @@ function toCart(row: CartRow, owner: Owner, offeredRows: OfferedRow[], deliveryF
       items.every((line) => !line.issues.some((issue) => BLOCKING_CART_LINE_ISSUES.includes(issue))),
     couponsAllowed: owner.kind === "user",
   };
+
+  const coupon = couponRow ? { id: couponRow.id, code: couponRow.code } : null;
+  return { cartId: row.id, coupon, lines, pricing, cart };
 }
 
 function lineCategoryIds(row: CartRow) {
   return [...new Set(row.items.flatMap((item) => categoryIdsOf(item.variant.product)))];
 }
 
-async function loadCartRow(owner: Owner) {
-  return prisma.cart.findUnique({ where: ownerWhere(owner), select: cartSelect });
+async function loadCartRow(owner: Owner, db: Tx = prisma) {
+  return db.cart.findUnique({ where: ownerWhere(owner), select: cartSelect });
+}
+
+export function countRedemptions(db: Tx, couponId: string, userId: string): Promise<number> {
+  return db.couponRedemption.count({ where: { couponId, userId } });
+}
+
+export async function loadPricedCart(db: Tx, owner: Owner, options: PriceOptions): Promise<PricedCart | null> {
+  const row = await loadCartRow(owner, db);
+  if (!row) return null;
+
+  const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(db, lineCategoryIds(row)) : [];
+  const customerRedemptions =
+    owner.kind === "user" && row.coupon ? await countRedemptions(db, row.coupon.id, owner.userId) : 0;
+  return priceRow(row, owner, offeredRows, customerRedemptions, options);
+}
+
+export async function lockCart(tx: Tx, owner: Owner, now: Date): Promise<boolean> {
+  const { count } = await tx.cart.updateMany({ where: ownerWhere(owner), data: { updatedAt: now } });
+  return count > 0;
+}
+
+export async function clearCheckedOutCart(tx: Tx, cartId: string) {
+  await tx.cartItem.deleteMany({ where: { cartId } });
+  await tx.cart.update({ where: { id: cartId }, data: { couponId: null } });
 }
 
 /* ---------- writes ---------- */
@@ -476,11 +531,8 @@ function findOwnedLine(owner: Owner, itemId: string) {
 export async function getCart(owner: CartOwner, deliveryFee: number | null = null): Promise<Cart> {
   if (!owner) return emptyCart(false, deliveryFee);
 
-  const row = await loadCartRow(owner);
-  if (!row) return emptyCart(owner.kind === "user", deliveryFee);
-
-  const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(lineCategoryIds(row)) : [];
-  return toCart(row, owner, offeredRows, deliveryFee);
+  const priced = await loadPricedCart(prisma, owner, { deliveryFee, now: new Date() });
+  return priced ? priced.cart : emptyCart(owner.kind === "user", deliveryFee);
 }
 
 function deliveryOptions(zone: NonNullable<Awaited<ReturnType<typeof findDeliveryZone>>>): DeliveryOption[] {
@@ -653,10 +705,11 @@ export async function applyCartCoupon(userId: string, code: string) {
   const coupon = await prisma.coupon.findUnique({ where: { code }, select: couponSelect });
   if (!coupon) throw couponRejected(COUPON_MESSAGES.INVALID);
 
-  const offeredRows = await offeredAddOnsFor(lineCategoryIds(row));
+  const offeredRows = await offeredAddOnsFor(prisma, lineCategoryIds(row));
+  const customerRedemptions = await countRedemptions(prisma, coupon.id, userId);
   const pricing = priceCart({
     lines: row.items.map((item) => buildLine(item, offeredRows).pricing),
-    coupon: { rule: toCouponRule(coupon), customerRedemptions: CUSTOMER_REDEMPTIONS_BEFORE_ORDERS },
+    coupon: { rule: toCouponRule(coupon), customerRedemptions },
     deliveryFee: null,
     now: new Date(),
   });

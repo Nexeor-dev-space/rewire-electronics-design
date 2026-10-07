@@ -31,6 +31,21 @@ export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const RETURN_WINDOW_DAYS = 30;
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export const ORDER_NUMBER_PREFIX = "RW-";
+export const REFERENCE_NUMBER_DIGITS = 8;
+export const REFERENCE_NUMBER_ATTEMPTS = 3;
+export const ACCOUNT_LIST_PAGE_SIZE = 10;
+export const ORDER_NOTE_MAX_LENGTH = 500;
+export const STAFF_NOTE_MAX_LENGTH = 1000;
+export const TRACKING_NUMBER_MAX_LENGTH = 64;
+export const ORDER_EVENT_LIMIT = 50;
+export const ORDER_TRACK_PAGE_PATH = "/order/track";
+export const ACCOUNT_ORDERS_PATH = "/account/orders";
+export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
+export const CHECKOUT_PAGE_PATH = "/checkout";
+export const CHECKOUT_SUCCESS_PAGE_PATH = "/checkout/success";
 
 export const SMTP_DEFAULT_HOST = "smtp.gmail.com";
 export const SMTP_DEFAULT_PORT = 587;
@@ -59,6 +74,8 @@ export const RATE_LIMITS = {
   applyCoupon: { limit: 10, windowSeconds: 60 * 10 },
   guestCart: { limit: 10, windowSeconds: 60 * 60 },
   search: { limit: 60, windowSeconds: 60 },
+  placeOrder: { limit: 10, windowSeconds: 60 * 10 },
+  trackOrder: { limit: 10, windowSeconds: 60 * 15 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";

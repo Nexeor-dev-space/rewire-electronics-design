@@ -137,6 +137,10 @@ export async function updateCoupon(id: string, data: CouponData) {
 }
 
 export async function deleteCoupon(id: string) {
+  const redemptions = await prisma.couponRedemption.count({ where: { couponId: id } });
+  if (redemptions > 0) {
+    throw new ServiceError("CONFLICT", "This code has been used on orders. Disable it instead.", 409);
+  }
   const { count } = await prisma.coupon.deleteMany({ where: { id } });
   if (count === 0) throw notFound();
   return { id };
