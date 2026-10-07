@@ -66,6 +66,7 @@ export function AccountOrderDetail({ number }: { number: string }) {
     >
       <OrderDetailBody
         order={data}
+        returnLinks
         actions={
           <button
             type="button"

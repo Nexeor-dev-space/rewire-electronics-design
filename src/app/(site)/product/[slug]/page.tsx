@@ -21,6 +21,7 @@ import { TrustBlocks } from "@/components/product/detail/trust-blocks";
 import { RelatedProducts } from "@/components/product/detail/related-products";
 import { productJsonLd, productSeo } from "@/lib/seo";
 import { findShopProductPage } from "@/services/catalogue.service";
+import { getStoreSettings } from "@/services/store-settings.service";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Params) {
-  const product = await getProduct((await params).slug);
+  const { slug } = await params;
+  const [product, settings] = await Promise.all([getProduct(slug), getStoreSettings()]);
   if (!product) notFound();
 
   const { addOns, related, ...detail } = product;
@@ -83,7 +85,7 @@ export default async function ProductPage({ params }: Params) {
       </Container>
 
       <Container width="wide" className="pt-8 md:pt-12">
-        <ProductStage product={detail} addOns={addOns} />
+        <ProductStage product={detail} addOns={addOns} returnWindowDays={settings.returnWindowDays} />
       </Container>
 
       {/* ---------- Section tab strip ---------- */}
