@@ -2,40 +2,123 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { readLastOrder, type PlacedOrder } from "@/lib/checkout";
-import { cn, formatPrice } from "@/lib/utils";
+import type { ReactNode } from "react";
+import { useGetMe } from "@/hooks/use-auth";
+import { usePlacedOrder } from "@/hooks/use-checkout";
+import { useGetAccountOrder } from "@/hooks/use-order";
+import { ApiError } from "@/lib/api/api-client";
+import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
+import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
+import { emirateLabel } from "@/lib/emirates";
+import { LOCALE, formatMoney } from "@/lib/money";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_LINK_NOTICE,
+  PAYMENT_METHOD_LABELS,
+  awaitsPaymentLink,
+} from "@/lib/orders";
+import { CONDITION_META, GRADE_META } from "@/lib/shop";
+import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
+import type { OrderDetail } from "@/types/order";
 
-/**
- * OrderSuccess — the reassurance page after a placed order.
- *
- * Reads the persisted order out of localStorage (put there by
- * CheckoutView), rebuilds the confirmation on the client, and hands the
- * shopper three clear next steps: track this order, view all orders, or
- * carry on shopping. If the storage read fails (private mode, direct
- * link) the page still shows a graceful confirmation using the order
- * number from the query string.
- */
-export function OrderSuccess() {
-  const [order, setOrder] = useState<PlacedOrder | null>(null);
-  const [numberFromQuery, setNumberFromQuery] = useState<string | null>(null);
+const ACCOUNT_ORDERS_PATH = `${ACCOUNT_HOME_PATH}/orders`;
 
-  useEffect(() => {
-    const stored = readLastOrder();
-    if (stored) setOrder(stored);
-    try {
-      const query = new URLSearchParams(window.location.search);
-      setNumberFromQuery(query.get("order"));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+const PRIMARY_LINK = cn(
+  "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
+  "bg-accent text-white text-sm font-medium",
+  "transition-colors duration-(--duration-fast) hover:bg-accent-hover",
+);
+const SECONDARY_LINK =
+  "inline-flex h-12 items-center justify-center rounded-full border border-line-strong px-6 text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5";
+const TERTIARY_LINK =
+  "inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink";
 
-  const number = order?.number ?? numberFromQuery ?? "—";
+function trackHref(order: OrderDetail, signedIn: boolean): string {
+  if (signedIn) return `${ACCOUNT_ORDERS_PATH}/${encodeURIComponent(order.number)}`;
+  const query = new URLSearchParams({ number: order.number, email: order.contact.email });
+  return `${ORDER_TRACK_PAGE_PATH}?${query}`;
+}
+
+function trackLookupHref(number: string): string {
+  return number ? `${ORDER_TRACK_PAGE_PATH}?${new URLSearchParams({ number })}` : ORDER_TRACK_PAGE_PATH;
+}
+
+export function OrderSuccess({ number }: { number: string }) {
+  const me = useGetMe();
+  const placed = usePlacedOrder(number);
+  const signedIn = Boolean(me.data);
+  const needsAccountOrder = Boolean(number) && !placed.data && signedIn;
+  const accountOrder = useGetAccountOrder(needsAccountOrder ? number : "");
+  const order = placed.data ?? accountOrder.data;
+
+  if (order) return <Confirmation order={order} signedIn={signedIn} />;
+
+  if (number && (me.isPending || (needsAccountOrder && accountOrder.isPending))) {
+    return (
+      <StatusPanel>
+        <Spinner className="size-6 text-ink-secondary" />
+        <p className="text-sm text-ink-secondary">Loading your order…</p>
+      </StatusPanel>
+    );
+  }
+
+  const failed =
+    accountOrder.isError &&
+    !(accountOrder.error instanceof ApiError && accountOrder.error.body.code === "NOT_FOUND");
+
+  if (failed) {
+    return (
+      <StatusPanel>
+        <p role="alert" className="text-sm text-ink-secondary">
+          {accountOrder.error.message}
+        </p>
+        <button
+          type="button"
+          onClick={() => accountOrder.refetch()}
+          className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+        >
+          Try again
+        </button>
+      </StatusPanel>
+    );
+  }
+
+  return (
+    <StatusPanel>
+      <div>
+        <h1 className="text-display-sm font-light text-ink">We can&rsquo;t show this order here.</h1>
+        <p className="mt-3 text-base text-ink-secondary">
+          Look it up with your order number and the email you used at checkout.
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <Link href={trackLookupHref(number)} className={PRIMARY_LINK}>
+          Track your order
+        </Link>
+        {signedIn && (
+          <Link href={ACCOUNT_ORDERS_PATH} className={SECONDARY_LINK}>
+            View my orders
+          </Link>
+        )}
+      </div>
+    </StatusPanel>
+  );
+}
+
+function StatusPanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-6 px-(--spacing-gutter) py-16 text-center">
+      {children}
+    </div>
+  );
+}
+
+function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boolean }) {
+  const awaitingPayment = awaitsPaymentLink(order.paymentMethod) && order.paymentStatus === "UNPAID";
 
   return (
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">
-      {/* ---------- Confirmation ---------- */}
       <header className="flex flex-col items-center gap-6 text-center">
         <span
           aria-hidden
@@ -54,30 +137,26 @@ export function OrderSuccess() {
           </svg>
         </span>
         <div>
-          <p className="eyebrow">Order confirmed</p>
+          <p className="eyebrow">Order {ORDER_STATUS_LABELS[order.status].toLowerCase()}</p>
           <h1 className="mt-3 text-display-md font-light text-ink">
             Thank you for your order.
           </h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-secondary">
-            A confirmation is on its way to your inbox. You can track this
-            order at any time from your account.
+            A confirmation is on its way to {order.contact.email}.
           </p>
+          {awaitingPayment && (
+            <p className="mt-2 max-w-xl text-base leading-relaxed text-ink">
+              {PAYMENT_LINK_NOTICE}
+            </p>
+          )}
           <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink">
-            Order {number}
+            Order {order.number}
           </p>
         </div>
       </header>
 
-      {/* ---------- Actions ---------- */}
       <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <Link
-          href={`/account/orders/${encodeURIComponent(number.toLowerCase())}`}
-          className={cn(
-            "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
-            "bg-accent text-white text-sm font-medium",
-            "transition-colors duration-(--duration-fast) hover:bg-accent-hover",
-          )}
-        >
+        <Link href={trackHref(order, signedIn)} className={PRIMARY_LINK}>
           Track order
           <svg
             aria-hidden
@@ -92,48 +171,31 @@ export function OrderSuccess() {
             <path d="M3 8h10M9 4l4 4-4 4" />
           </svg>
         </Link>
-        <Link
-          href="/account/orders"
-          className="inline-flex h-12 items-center justify-center rounded-full border border-line-strong px-6 text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5"
-        >
-          View my orders
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
-        >
+        {signedIn && (
+          <Link href={ACCOUNT_ORDERS_PATH} className={SECONDARY_LINK}>
+            View my orders
+          </Link>
+        )}
+        <Link href="/" className={TERTIARY_LINK}>
           Continue shopping →
         </Link>
       </div>
 
-      {/* ---------- Details ---------- */}
-      {order && <OrderReceipt order={order} />}
+      <OrderReceipt order={order} awaitingPayment={awaitingPayment} />
     </div>
   );
 }
 
-/* ============================================================
-   Receipt panel — the order laid out below the confirmation
-   ============================================================ */
-
-function OrderReceipt({ order }: { order: PlacedOrder }) {
-  const money = (value: number) =>
-    formatPrice(value, order.currency, order.locale);
-  const placedLabel = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat(order.locale, {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(new Date(order.placedAt));
-    } catch {
-      return "";
-    }
-  }, [order.placedAt, order.locale]);
+function OrderReceipt({ order, awaitingPayment }: { order: OrderDetail; awaitingPayment: boolean }) {
+  const { address, contact, totals } = order;
+  const placedLabel = new Intl.DateTimeFormat(LOCALE, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(order.placedAt));
 
   return (
     <div className="mt-14 grid gap-6 lg:grid-cols-3">
-      {/* ---------- Lines ---------- */}
       <section
         aria-labelledby="receipt-items"
         className="rounded-2xl border border-line bg-surface p-6 sm:p-7 lg:col-span-2"
@@ -145,133 +207,142 @@ function OrderReceipt({ order }: { order: PlacedOrder }) {
           >
             What&rsquo;s in the box
           </h2>
-          {placedLabel && (
-            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-              Placed {placedLabel}
-            </span>
-          )}
+          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+            Placed {placedLabel}
+          </span>
         </div>
         <ul className="mt-5 divide-y divide-line border-y border-line">
-          {order.lines.map((line) => (
-            <li
-              key={`${line.slug}-${line.quantity}`}
-              className="flex items-start gap-4 py-4 first:pt-0 last:pb-0"
-            >
-              <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-line bg-void">
-                {line.imageUrl && (
-                  <Image
-                    src={line.imageUrl}
-                    alt=""
-                    fill
-                    sizes="64px"
-                    className={
-                      line.imageFit === "cover"
-                        ? "object-cover"
-                        : "object-contain p-1.5"
-                    }
-                  />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[0.9375rem] font-medium text-ink">
-                  {line.name}
-                </p>
-                <p className="mt-0.5 truncate text-[0.75rem] text-ink-secondary">
-                  {line.variantLabel}
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
-                  <span>{line.condition}</span>
-                  {line.grade && (
-                    <>
-                      <span aria-hidden className="text-ink-faint">
-                        ·
-                      </span>
-                      <span>Grade {line.grade}</span>
-                    </>
+          {order.lines.map((line) => {
+            const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
+            return (
+              <li key={line.id} className="flex items-start gap-4 py-4 first:pt-0 last:pb-0">
+                <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-line bg-void">
+                  {line.imageUrl && (
+                    <Image
+                      src={line.imageUrl}
+                      alt={line.imageAlt}
+                      fill
+                      sizes="64px"
+                      className="object-contain p-1.5"
+                    />
                   )}
-                  {line.quantity > 1 && (
-                    <>
-                      <span aria-hidden className="text-ink-faint">
-                        ·
-                      </span>
-                      <span>Qty {line.quantity}</span>
-                    </>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[0.9375rem] font-medium text-ink">
+                    {line.productName}
+                  </p>
+                  {variantLabel && (
+                    <p className="mt-0.5 truncate text-[0.75rem] text-ink-secondary">
+                      {variantLabel}
+                    </p>
                   )}
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
+                    <span>{CONDITION_META[line.condition].label}</span>
+                    {line.grade && (
+                      <>
+                        <span aria-hidden className="text-ink-faint">
+                          ·
+                        </span>
+                        <span>{GRADE_META[line.grade].label}</span>
+                      </>
+                    )}
+                    {line.quantity > 1 && (
+                      <>
+                        <span aria-hidden className="text-ink-faint">
+                          ·
+                        </span>
+                        <span>Qty {line.quantity}</span>
+                      </>
+                    )}
+                  </p>
+                  {line.addOns.length > 0 && (
+                    <ul className="mt-1.5 flex flex-col gap-0.5">
+                      {line.addOns.map((addOn) => (
+                        <li
+                          key={`${line.id}-${addOn.name}`}
+                          className="truncate text-[0.75rem] text-ink-secondary"
+                        >
+                          + {addOn.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <p className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-ink">
+                  {formatMoney(line.lineTotal)}
                 </p>
-              </div>
-              <p className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-ink">
-                {money(line.unitPrice * line.quantity)}
-              </p>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      {/* ---------- Meta ---------- */}
       <section
         aria-labelledby="receipt-meta"
         className="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-6 sm:p-7"
       >
-        <div>
-          <h2
-            id="receipt-meta"
-            className="text-[1rem] font-medium tracking-tight text-ink"
-          >
-            Order details
-          </h2>
-        </div>
+        <h2
+          id="receipt-meta"
+          className="text-[1rem] font-medium tracking-tight text-ink"
+        >
+          Order details
+        </h2>
 
         <Meta label="Deliver to">
-          <p className="text-[0.875rem] text-ink">{order.address.name}</p>
+          <p className="text-[0.875rem] text-ink">
+            {contact.firstName} {contact.lastName}
+          </p>
           <p className="text-[0.8125rem] text-ink-secondary">
-            {order.address.line1}
-            {order.address.line2 && (
+            {address.address1}
+            {address.address2 && (
               <>
                 <br />
-                {order.address.line2}
+                {address.address2}
               </>
             )}
             <br />
-            {order.address.city}, {order.address.emirate}
-            <br />
-            {order.address.country}
+            {address.city}, {emirateLabel(address.emirate)}
           </p>
+          <p className="mt-1 text-[0.75rem] text-ink-muted">{contact.phone}</p>
         </Meta>
 
         <Meta label="Delivery method">
-          <p className="text-[0.875rem] text-ink">{order.deliveryLabel}</p>
+          <p className="text-[0.875rem] text-ink">{DELIVERY_METHOD_LABELS[order.deliveryMethod]}</p>
           <p className="text-[0.75rem] text-ink-muted">
-            {order.deliveryEstimate}
+            {formatEta(order.etaMinDays, order.etaMaxDays)}
           </p>
         </Meta>
 
         <Meta label="Payment">
-          <p className="text-[0.875rem] text-ink">{order.paymentLabel}</p>
+          <p className="text-[0.875rem] text-ink">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
+          {awaitingPayment && (
+            <p className="text-[0.75rem] text-ink-muted">{PAYMENT_LINK_NOTICE}</p>
+          )}
         </Meta>
 
         <div className="mt-2 border-t border-line pt-4">
           <div className="grid gap-2 text-[0.8125rem] text-ink-secondary">
-            <Row label="Subtotal" value={money(order.subtotal)} />
-            {order.discount > 0 && (
+            <Row label="Subtotal" value={formatMoney(totals.subtotal)} />
+            {totals.discount > 0 && (
               <Row
-                label={
-                  order.promoCode
-                    ? `Discount · ${order.promoCode}`
-                    : "Discount"
-                }
-                value={`− ${money(order.discount)}`}
+                label={order.couponCode ? `Discount · ${order.couponCode}` : "Discount"}
+                value={`− ${formatMoney(totals.discount)}`}
                 accent
               />
             )}
             <Row
               label="Delivery"
-              value={order.deliveryPrice === 0 ? "Free" : money(order.deliveryPrice)}
+              value={totals.delivery === 0 ? "Free" : formatMoney(totals.delivery)}
+            />
+            <Row
+              label={`Includes VAT ${totals.vatRatePercent}%`}
+              value={formatMoney(totals.vatIncluded)}
             />
           </div>
           <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
-            <span className="text-[0.9375rem] font-medium text-ink">Total paid</span>
+            <span className="text-[0.9375rem] font-medium text-ink">Total</span>
             <span className="text-[1.25rem] font-medium tabular-nums text-ink">
-              {money(order.total)}
+              {formatMoney(totals.total)}
             </span>
           </div>
         </div>
@@ -280,13 +351,7 @@ function OrderReceipt({ order }: { order: PlacedOrder }) {
   );
 }
 
-function Meta({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Meta({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
