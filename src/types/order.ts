@@ -9,6 +9,7 @@ import type {
   PaymentMethod,
   PaymentStatus,
 } from "@/lib/orders";
+import type { ReturnStatus } from "@/lib/returns";
 import type { Condition, Grade } from "@/lib/shop";
 import type { AddOnKind } from "@/validators/add-on.validator";
 import type { placeOrderSchema } from "@/validators/checkout.validator";
@@ -42,6 +43,7 @@ export interface OrderLine {
   colour: string | null;
   warrantyMonths: number;
   quantity: number;
+  returnableQuantity: number;
   unitPrice: number;
   addOnUnitPrice: number;
   lineTotal: number;
@@ -151,6 +153,11 @@ export interface AdminOrderEvent {
   actorName: string | null;
 }
 
+export interface AdminOrderReturn {
+  number: string;
+  status: ReturnStatus;
+}
+
 export interface AdminOrderDetail extends OrderDetail {
   customer: AdminOrderCustomer | null;
   placedAsGuest: boolean;
@@ -158,6 +165,7 @@ export interface AdminOrderDetail extends OrderDetail {
   events: AdminOrderEvent[];
   nextStatuses: OrderStatus[];
   paymentActions: ManualPaymentStatus[];
+  returns: AdminOrderReturn[];
 }
 
 export type AdminOrderFilters = {

@@ -73,6 +73,13 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/fulfilment`,
       detail: (number: string) => `${V1}/admin/fulfilment/${number}`,
     },
+    returns: {
+      list: `${V1}/admin/returns`,
+      detail: (number: string) => `${V1}/admin/returns/${number}`,
+      status: (number: string) => `${V1}/admin/returns/${number}/status`,
+      refund: (number: string) => `${V1}/admin/returns/${number}/refund`,
+    },
+    storeSettings: `${V1}/admin/store-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
@@ -117,6 +124,8 @@ export const API_ENDPOINTS = {
   account: {
     orders: `${V1}/account/orders`,
     order: (number: string) => `${V1}/account/orders/${number}`,
+    returns: `${V1}/account/returns`,
+    returnsEligible: `${V1}/account/returns/eligible`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

@@ -4,7 +4,7 @@ import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, type Paginated } from "@/lib/api/api-response";
 import { toShopCondition, toShopGrade } from "@/lib/catalogue";
-import { ACCOUNT_LIST_PAGE_SIZE, ORDER_EVENT_LIMIT, RETURN_WINDOW_DAYS } from "@/lib/constants";
+import { ACCOUNT_LIST_PAGE_SIZE, ORDER_EVENT_LIMIT, ORDER_RETURNS_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import {
   FULFILMENT_QUEUE_STATUSES,
@@ -19,7 +19,10 @@ import {
   type ManualPaymentStatus,
   type OrderStatus,
 } from "@/lib/orders";
+import { returnableQuantity } from "@/lib/returns";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
+import { returnedQuantities } from "@/services/return.service";
+import { getStoreSettings } from "@/services/store-settings.service";
 import type {
   AdminOrderDetail,
   AdminOrderRow,
@@ -130,6 +133,11 @@ const adminDetailSelect = {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: ORDER_EVENT_LIMIT,
   },
+  returns: {
+    select: { number: true, status: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: ORDER_RETURNS_LIMIT,
+  },
 } satisfies Prisma.OrderSelect;
 
 const summarySelect = {
@@ -200,7 +208,9 @@ function isoOrNull(date: Date | null) {
   return date ? date.toISOString() : null;
 }
 
-function toLine(row: LineRow): OrderLine {
+type ReturnedQuantities = Map<string, number>;
+
+function toLine(row: LineRow, returned: ReturnedQuantities): OrderLine {
   return {
     id: row.id,
     variantId: row.variantId,
@@ -216,6 +226,7 @@ function toLine(row: LineRow): OrderLine {
     colour: row.colour,
     warrantyMonths: row.warrantyMonths,
     quantity: row.quantity,
+    returnableQuantity: returnableQuantity(row.quantity, returned.get(row.id) ?? 0),
     unitPrice: row.unitPrice,
     addOnUnitPrice: row.addOnUnitPrice,
     lineTotal: row.lineTotal,
@@ -228,7 +239,7 @@ function toLine(row: LineRow): OrderLine {
   };
 }
 
-function toDetail(row: DetailRow | AdminDetailRow): OrderDetail {
+function toDetail(row: DetailRow | AdminDetailRow, returned: ReturnedQuantities): OrderDetail {
   return {
     number: row.number,
     placedAt: row.createdAt.toISOString(),
@@ -249,7 +260,7 @@ function toDetail(row: DetailRow | AdminDetailRow): OrderDetail {
       postalCode: row.postalCode,
       emirate: row.emirate,
     },
-    lines: row.items.map(toLine),
+    lines: row.items.map((item) => toLine(item, returned)),
     totals: {
       subtotal: row.subtotal,
       discount: row.discount,
@@ -264,9 +275,9 @@ function toDetail(row: DetailRow | AdminDetailRow): OrderDetail {
   };
 }
 
-function toAdminDetail(row: AdminDetailRow): AdminOrderDetail {
+function toAdminDetail(row: AdminDetailRow, returned: ReturnedQuantities): AdminOrderDetail {
   return {
-    ...toDetail(row),
+    ...toDetail(row, returned),
     customer: row.user,
     placedAsGuest: row.placedAsGuest,
     staffNote: row.staffNote,
@@ -279,6 +290,7 @@ function toAdminDetail(row: AdminDetailRow): AdminOrderDetail {
     })),
     nextStatuses: nextStatuses(row),
     paymentActions: paymentActions(row),
+    returns: row.returns,
   };
 }
 
@@ -359,9 +371,14 @@ function statusLabel(status: OrderStatus) {
 
 /* ---------- storefront reads ---------- */
 
+function lineReturns(row: { items: { id: string }[] }) {
+  return returnedQuantities(prisma, row.items.map((item) => item.id));
+}
+
 export async function getOrderDetail(where: Prisma.OrderWhereInput): Promise<OrderDetail | null> {
   const row = await prisma.order.findFirst({ where, select: orderDetailSelect });
-  return row ? toDetail(row) : null;
+  if (!row) return null;
+  return toDetail(row, await lineReturns(row));
 }
 
 export async function listAccountOrders(viewer: Viewer, page: number): Promise<Paginated<OrderSummary>> {
@@ -443,7 +460,7 @@ export function listFulfilment({ page, pageSize, status }: FulfilmentQuery) {
 export async function getAdminOrder(number: string): Promise<AdminOrderDetail> {
   const row = await prisma.order.findUnique({ where: { number }, select: adminDetailSelect });
   if (!row) throw notFound();
-  return toAdminDetail(row);
+  return toAdminDetail(row, await lineReturns(row));
 }
 
 export async function getAdminOrderRow(number: string): Promise<AdminOrderRow> {
@@ -500,7 +517,9 @@ async function applyStatusChange(
 
   const now = new Date();
   const delivered =
-    to === "DELIVERED" ? { deliveredAt: now, returnableUntil: returnableUntil(now, RETURN_WINDOW_DAYS) } : {};
+    to === "DELIVERED"
+      ? { deliveredAt: now, returnableUntil: returnableUntil(now, (await getStoreSettings(tx)).returnWindowDays) }
+      : {};
   const { count } = await tx.order.updateMany({
     where: { id: order.id, status: order.status },
     data: { status: to, ...delivered },
