@@ -69,6 +69,7 @@ model Order {
   items            OrderItem[]
   events           OrderStatusEvent[]
   couponRedemption CouponRedemption?
+  returns          ReturnRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,7 +106,8 @@ model OrderItem {
   quantity       Int
   lineTotal      Int
 
-  addOns OrderItemAddOn[]
+  addOns      OrderItemAddOn[]
+  returnItems ReturnItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
