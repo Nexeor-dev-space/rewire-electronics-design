@@ -79,8 +79,9 @@ enum PermissionAction { VIEW CREATE EDIT DELETE PUBLISH RESTORE }
 
 1. `action` and `module` are strings checked in code, so a new action or
    module needs no migration.
-2. The actor's name and role are copied onto the entry, so it still reads
-   right after the person is renamed, changes role or is deleted.
+2. The actor's name and role are copied onto the entry as a record of who
+   they were at the time. The Change Log shows the actor's email instead,
+   read live through `actorId` (section 8).
 3. Entries are kept forever and are never edited or deleted from the
    console. Updates store only the fields that changed, so rows stay small.
 
@@ -211,7 +212,13 @@ All paths are in `API_ENDPOINTS.admin.auditLogs` and `API_ENDPOINTS.admin.trash`
 | `GET trash/users/[id]` | Trash View | 200 `UserDetail` | 401, 403, 404 |
 | `POST trash/users/[id]/restore` | Trash Restore | 200 `UserDetail` | 401, 403 (Admin account), 404 |
 
-`search` on the change log matches the record label or the person's name.
+`search` on the change log matches the record label, the person's name
+(the snapshot) or the person's current email.
+
+Each `AuditLogEntry` carries `actorEmail`: the email of the account in
+`actorId`, or `null` when that account was removed, and `actorRole`, the
+role snapshot. It replaced `actorName` in the response; the column is still
+stored.
 `module` must be a known module key and `action` one of `AUDIT_ACTIONS`.
 
 Hooks: `useGetAuditLogs`; `useGetTrashProducts`, `useGetTrashProduct`,
@@ -223,8 +230,11 @@ Hooks: `useGetAuditLogs`; `useGetTrashProducts`, `useGetTrashProduct`,
 
 ## 8. Screens
 
-1. **Change Log.** Columns: when, who (with role), action, module, record. A
-   search box and module and action selects; pagination. Clicking a row opens
+1. **Change Log.** Columns: when, who, action, module, record. Who is the
+   acting account's email with the role they held at the time, or
+   "Deleted user" (`DELETED_ACTOR_LABEL` in
+   `src/lib/audit.ts`) when the account was removed. A search box and module
+   and action selects; pagination. Clicking a row opens
    a dialog with each field's previous and new value.
 2. **Trash → Products** (`/admin/trash/products`). Deleted products, newest
    first, with View (a detail dialog), Restore and Delete permanently, each

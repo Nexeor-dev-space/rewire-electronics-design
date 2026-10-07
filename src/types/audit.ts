@@ -4,7 +4,9 @@ import type { Role } from "@/lib/auth/permissions";
 /** One row of `GET /api/v1/admin/audit-logs`. */
 export interface AuditLogEntry {
   id: string;
-  actorName: string;
+  /** The acting account's email; null when that account was removed. */
+  actorEmail: string | null;
+  /** The actor's role when the change was made. */
   actorRole: Role;
   action: AuditAction;
   module: string;

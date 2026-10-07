@@ -18,6 +18,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DISCARD: "Discarded draft",
 };
 
+/** Shown in Who when the account behind an entry was removed. */
+export const DELETED_ACTOR_LABEL = "Deleted user";
+
 /** Modules since removed, so entries recorded under them still read well. */
 const RETIRED_MODULE_LABELS: [string, string][] = [["catalogue.inventory", "Inventory"]];
 
