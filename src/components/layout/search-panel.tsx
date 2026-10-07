@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchSuggestions } from "@/hooks/use-search";
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_QUERY_LENGTH } from "@/lib/constants";
@@ -64,7 +63,6 @@ export function SearchPanel({
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
-  const categories = useStorefrontCategories();
   const searching = term.length >= SEARCH_MIN_QUERY_LENGTH;
   const suggestions = useSearchSuggestions(searching ? term : "");
 
@@ -120,23 +118,11 @@ export function SearchPanel({
     (showField ? inputRef.current : triggerRef.current)?.focus();
   }
 
+  // Nothing shows until a query is typed: the panel is for matches only.
   let results: ReactNode;
-  if (!searching) {
-    results = (
-      <div className="grid gap-10 py-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12 lg:py-12">
-        <Column title="Browse Categories">
-          <LinkList
-            items={categories.map((category) => ({
-              key: category.slug,
-              href: productHrefForCategory(category.slug),
-              label: category.name,
-            }))}
-            onSelect={onClose}
-          />
-        </Column>
-      </div>
-    );
-  } else if (suggestions.isPending) {
+  if (query.trim().length < SEARCH_MIN_QUERY_LENGTH) {
+    results = null;
+  } else if (!searching || suggestions.isPending) {
     results = <SuggestionsSkeleton />;
   } else if (suggestions.isError) {
     results = (

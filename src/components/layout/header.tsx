@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { searchCopy, searchHref, siteConfig } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
+import { SEARCH_MIN_QUERY_LENGTH } from "@/lib/constants";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { SearchPanel, SEARCH_PANEL_ID } from "./search-panel";
 import { MobileDrawer } from "./mobile-drawer";
@@ -45,7 +46,15 @@ export function Header() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchIconRef = useRef<HTMLButtonElement>(null);
 
-  const anyOverlayOpen = searchOpen || drawerOpen;
+  /**
+   * The panel only shows matches, so from the inline field it stays shut
+   * until a query is long enough. From the icon it opens at once: it holds
+   * the only field on small screens.
+   */
+  const panelOpen =
+    searchOpen && (searchFrom === "icon" || query.trim().length >= SEARCH_MIN_QUERY_LENGTH);
+
+  const anyOverlayOpen = panelOpen || drawerOpen;
 
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
@@ -99,7 +108,7 @@ export function Header() {
           className={cn(
             "transition-[background-color,border-color,backdrop-filter,box-shadow] duration-(--duration-base)",
             "border-b",
-            searchOpen
+            panelOpen
               ? "border-line bg-void"
               : scrolled && !drawerOpen
                 ? "border-line bg-[var(--glass-bg)] shadow-[0_8px_24px_rgb(0_0_0/0.24)] backdrop-blur-xl backdrop-saturate-150"
@@ -156,7 +165,7 @@ export function Header() {
                   router.push(searchHref(query));
                   closeSearch();
                 }}
-                ariaExpanded={searchOpen}
+                ariaExpanded={panelOpen}
                 ariaControls={SEARCH_PANEL_ID}
               />
             </div>
@@ -167,7 +176,7 @@ export function Header() {
               type="button"
               onClick={openSearch}
               aria-label={searchCopy.label}
-              aria-expanded={searchOpen}
+              aria-expanded={panelOpen}
               aria-controls={SEARCH_PANEL_ID}
               className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.05] hover:text-ink md:hidden"
             >
@@ -204,7 +213,7 @@ export function Header() {
               trigger, so it drops beneath the second row too — reading
               as an extension of the chrome, not a floating dialog. */}
           <SearchPanel
-            open={searchOpen}
+            open={panelOpen}
             onClose={closeSearch}
             triggerRef={searchFrom === "inline" ? searchInputRef : searchIconRef}
             query={query}
