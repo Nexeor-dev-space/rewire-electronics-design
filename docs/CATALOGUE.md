@@ -119,6 +119,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    every row, like the product list.
 3. A category with children or products can't be deleted. Archive it to hide it
    and keep the record.
+4. The product form's Category select is one flat list in storefront order:
+   each parent, then its children named "Parent › Child" (`flattenCategoryRefs`
+   in `src/lib/homepage-builder.ts`, shared with the homepage picker). Archived
+   categories are left out, except the one the product already uses.
 
 ### Product rules
 
