@@ -18,6 +18,7 @@ export interface UserListItem {
   email: string;
   phone: string | null;
   role: Role;
+  isGuest: boolean;
   /** Staff accounts only; null for a Staff account no role has been assigned to yet. */
   staffRole: NamedRef | null;
   /** ISO string — shown as "Last edited". */

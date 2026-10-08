@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutInformationSchema } from "./checkout.validator";
+import { checkoutInformationSchema, placeOrderSchema } from "./checkout.validator";
 
 const validData = {
   email: "customer@example.com",
@@ -104,5 +104,45 @@ describe("checkoutInformationSchema", () => {
     expect(result.firstName).toBe("John");
     expect(result.lastName).toBe("Doe");
     expect(result.city).toBe("Dubai");
+  });
+});
+
+describe("placeOrderSchema", () => {
+  const order = {
+    ...validData,
+    deliveryMethod: "STANDARD",
+    paymentMethod: "COD",
+    expectedTotal: 129900,
+    idempotencyKey: "3f1c2a9e-8b7d-4c6e-9a1f-2b3c4d5e6f70",
+  };
+
+  function orderErrors(input: unknown) {
+    const result = placeOrderSchema.safeParse(input);
+    if (result.success) return {};
+    return Object.fromEntries(result.error.issues.map((issue) => [issue.path.join("."), issue.message]));
+  }
+
+  it("accepts a complete order", () => {
+    expect(placeOrderSchema.safeParse(order).success).toBe(true);
+  });
+
+  it("requires an idempotency key", () => {
+    const withoutKey: Partial<typeof order> = { ...order };
+    delete withoutKey.idempotencyKey;
+    expect(orderErrors(withoutKey)).toHaveProperty("idempotencyKey");
+    expect(orderErrors({ ...order, idempotencyKey: "not-a-uuid" })).toHaveProperty("idempotencyKey");
+  });
+
+  it("rejects an unknown payment method", () => {
+    expect(orderErrors({ ...order, paymentMethod: "BITCOIN" })).toHaveProperty("paymentMethod");
+  });
+
+  it("rejects a negative or fractional expected total", () => {
+    expect(orderErrors({ ...order, expectedTotal: -1 })).toHaveProperty("expectedTotal");
+    expect(orderErrors({ ...order, expectedTotal: 10.5 })).toHaveProperty("expectedTotal");
+  });
+
+  it("rejects an unknown delivery method", () => {
+    expect(orderErrors({ ...order, deliveryMethod: "PICKUP" })).toHaveProperty("deliveryMethod");
   });
 });

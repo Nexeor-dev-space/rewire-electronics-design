@@ -24,6 +24,7 @@ const userSelect = {
   email: true,
   phone: true,
   role: true,
+  isGuest: true,
   staffRole: { select: { id: true, name: true } },
   updatedAt: true,
 } satisfies Prisma.UserSelect;
@@ -138,6 +139,7 @@ export async function updateUser(viewer: Actor, id: string, data: UserData) {
         role: data.role,
         staffRoleId: staffRoleIdFor(data),
         passwordHash,
+        ...(passwordHash || data.role !== "CUSTOMER" ? { isGuest: false } : {}),
         // Address-only edits still count as editing the account.
         updatedAt: new Date(),
       },
@@ -249,13 +251,15 @@ async function findManageable(tx: Tx, viewer: Actor, id: string) {
   return target;
 }
 
+export function emailTakenError() {
+  const message = "An account with this email already exists.";
+  return new ServiceError("CONFLICT", message, 409, { email: [message] });
+}
+
 export async function assertEmailFree(tx: Tx, email: string, exceptId?: string) {
   const owner = await tx.user.findUnique({ where: { email }, select: { id: true } });
-  if (owner && owner.id !== exceptId) {
-    // Deleted (INACTIVE) accounts keep their email too.
-    const message = "An account with this email already exists.";
-    throw new ServiceError("CONFLICT", message, 409, { email: [message] });
-  }
+  // Deleted (INACTIVE) accounts keep their email too.
+  if (owner && owner.id !== exceptId) throw emailTakenError();
 }
 
 async function assertAnotherAdmin(tx: Tx, id: string) {

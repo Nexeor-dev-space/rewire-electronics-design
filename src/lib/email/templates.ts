@@ -1,10 +1,18 @@
 import { RESET_TOKEN_TTL_SECONDS, VERIFY_TOKEN_TTL_SECONDS } from "@/lib/constants";
+import { formatMoney } from "@/lib/money";
+import { PAYMENT_LINK_NOTICE, PAYMENT_METHOD_LABELS, awaitsPaymentLink, type PaymentMethod } from "@/lib/orders";
 import { siteConfig } from "@/lib/site";
 import type { EmailContent } from "./email-outcome";
 
 interface LinkEmailInput {
   name: string;
   url: string;
+}
+
+interface OrderConfirmationInput extends LinkEmailInput {
+  number: string;
+  total: number;
+  paymentMethod: PaymentMethod;
 }
 
 const SECONDS_PER_HOUR = 60 * 60;
@@ -74,5 +82,18 @@ export function resetPasswordMessage(input: LinkEmailInput): EmailContent {
     "We received a request to reset the password for your account.",
     "Choose a new password",
     `This link expires in ${hoursLabel(RESET_TOKEN_TTL_SECONDS)} and can be used once. If you didn't ask to reset your password, you can ignore this email.`,
+  );
+}
+
+export function orderConfirmationMessage({ number, total, paymentMethod, ...link }: OrderConfirmationInput): EmailContent {
+  const payment = awaitsPaymentLink(paymentMethod)
+    ? `You chose ${PAYMENT_METHOD_LABELS[paymentMethod]}. ${PAYMENT_LINK_NOTICE}`
+    : `You chose ${PAYMENT_METHOD_LABELS[paymentMethod]}.`;
+  return linkEmail(
+    `Your ${siteConfig.name} order ${number}`,
+    link,
+    `Thanks for your order. Your order number is ${number} and the total is ${formatMoney(total)}, VAT included. ${payment}`,
+    "Track my order",
+    "Keep this email: the link above shows the latest status of your order.",
   );
 }
