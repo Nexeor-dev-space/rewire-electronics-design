@@ -28,6 +28,7 @@ model User {
   passwordHash    String?
   emailVerifiedAt DateTime?
   sessionVersion  Int       @default(0)
+  isGuest         Boolean   @default(false)
   /// STAFF only. Null means no access until an Admin assigns a role.
   staffRoleId     String?
   staffRole       StaffRole? @relation("StaffRoleUsers", fields: [staffRoleId], references: [id], onDelete: Restrict)
@@ -38,6 +39,10 @@ model User {
   authTokens    AuthToken[]
   oauthAccounts OAuthAccount[]
   cart          Cart?
+
+  orders            Order[]
+  orderEvents       OrderStatusEvent[]
+  couponRedemptions CouponRedemption[]
 
   integrationSettingsUpdates   IntegrationSettings[]
   integrationCredentialUpdates IntegrationCredential[]

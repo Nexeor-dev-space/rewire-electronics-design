@@ -62,6 +62,24 @@ export const optionalPhoneValidator = z
   .transform((value) => value || null)
   .pipe(phoneValidator.nullable());
 
+const UAE_PREFIXES = ["+971", "00971", "971", "0"];
+const UAE_NATIONAL_NUMBER = /^(5[024568]|[234679])\d{7}$/;
+
+function uaeNationalNumber(value: string): string | null {
+  const prefix = UAE_PREFIXES.find((candidate) => value.startsWith(candidate));
+  if (!prefix) return null;
+  const national = value.slice(prefix.length);
+  return UAE_NATIONAL_NUMBER.test(national) ? national : null;
+}
+
+export const uaePhoneValidator = z
+  .string()
+  .trim()
+  .min(1, "Enter a phone number.")
+  .transform((value) => uaeNationalNumber(value.replace(/[\s\-.()]/g, "")))
+  .refine((national) => national !== null, "Enter a valid UAE phone number, e.g. 050 123 4567.")
+  .transform((national) => `+971${national}`);
+
 export const authTokenValidator = z
   .string()
   .trim()

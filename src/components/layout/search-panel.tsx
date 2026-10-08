@@ -170,18 +170,6 @@ export function SearchPanel({
     <AnimatePresence>
       {open && (
         <>
-          {/* The page reads back a touch so the panel owns the foreground.
-              Inside the header's stacking context and behind the bar, so
-              the chrome itself is never dimmed. */}
-          <motion.div
-            aria-hidden
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: PANEL_DURATION, ease: EASE_OUT_EXPO }}
-            className="fixed inset-0 -z-10 bg-ink/[0.07]"
-          />
-
           <motion.div
             ref={panelRef}
             id={SEARCH_PANEL_ID}

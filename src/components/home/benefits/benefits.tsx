@@ -8,6 +8,7 @@ import {
   viewportOnce,
 } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { RETURN_WINDOW_DAYS } from "@/lib/constants";
 
 const rise = {
   hidden: { opacity: 0, y: 16 },
@@ -61,7 +62,7 @@ const BENEFITS: { label: string; detail: string; icon: string[] }[] = [
   },
   {
     label: "Easy returns",
-    detail: "14 days, no questions",
+    detail: `${RETURN_WINDOW_DAYS} days, no questions`,
     icon: [
       "M20.25 12a8.25 8.25 0 1 1-2.6-6",
       "M20.25 3.75v4.5h-4.5",

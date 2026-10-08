@@ -24,7 +24,7 @@ Six changes, each covered in its own section below.
 | 3 | Navbar stability | `src/hooks/use-scroll-state.ts`, `src/app/globals.css` |
 | 4 | About absorbed Support | `src/lib/navigation.ts` |
 | 5 | Support box reused in the About panel | `src/components/layout/mega-primitives.tsx` |
-| 6 | Mobile profile dropdown | `src/components/layout/mobile-tab-bar.tsx` |
+| 6 | Account icon links to `/account` | `src/components/layout/account-menu.tsx`, `src/components/layout/mobile-tab-bar.tsx` |
 
 ---
 
@@ -77,6 +77,10 @@ the panel:
    results found" with a Clear search button when nothing matches.
 4. Enter opens `/search?q=`. Clear empties the field; Escape or a click
    outside closes the panel.
+5. While the panel is open a backdrop (`bg-void/85`, blurred) covers the
+   page, so nothing behind shows through. `Header` renders it outside
+   `motion.header`, because the header's transform would otherwise confine a
+   `fixed` layer to the header box.
 
 The search rules and the API are in [CATALOGUE.md](CATALOGUE.md) §4 "Search".
 The old full screen `SearchOverlay`, its `searchSuggestions` list and the mock
@@ -298,9 +302,9 @@ and the menu says it in full, through `ABOUT_LABEL_OVERRIDES`.
 Track Order was an entry in the old Support menu. It is account
 navigation, not editorial, so it left the nav entirely and now sits
 behind the profile icon with the customer's other surfaces. Signed in
-it is reached as `My Orders`; signed out the profile dropdown names it
-`Track Order` explicitly, since that is the one account surface a guest
-still has a reason to want.
+it is reached as `My Orders` on the account pages; signed out the tab
+bar's account panel (§7) names it `Track Order` explicitly, since that
+is the one account surface a guest still has a reason to want.
 
 ### New routes
 
@@ -344,21 +348,31 @@ uses to pass `h-full` so the box matches the column height.
 
 ---
 
-## 7. Mobile profile dropdown
+## 7. Account icon
 
-**File: `src/components/layout/mobile-tab-bar.tsx`.**
+**Files: `src/components/layout/account-menu.tsx` (desktop),
+`src/components/layout/mobile-tab-bar.tsx` (phones).**
 
-The Account tab is no longer a link. It is a disclosure, and it owns the
-profile dropdown that rises above the bar.
+Signed in, the account icon is a plain link to `/account`
+(`ACCOUNT_HOME_PATH`), with no dropdown, on desktop and on the mobile tab
+bar alike. It shows as active on any `/account/*` page and carries
+`aria-current="page"` on `/account` itself. The account pages carry
+everything the old dropdown listed: the account nav, and the overview's
+quick actions, which now also link My Waitlists, Support and Profile.
 
-Everything account shaped on a phone now lives behind that one tap:
-orders and tracking, wishlist, waitlists, returns, the profile itself,
-and sign out. Before, those rows were dealt out across two surfaces,
-some in the hamburger drawer expanded on open whether or not the reader
-had asked for them, and some only reachable by navigating to `/account`
-first.
+**Sign out** is in three places: the account nav
+(`components/account/account-nav.tsx`), Account Settings
+(`components/account/account-settings.tsx`) and the mobile drawer's
+account block (below). The header and the tab bar no longer offer it.
 
-### Interaction contract
+`accountNav` in `src/lib/site.ts` now feeds only the drawer's account
+block. Its `Profile` entry points to `/account/settings`.
+
+Signed out, or while the session is loading, the desktop control is the
+`Sign in` pill (§4.3) and the mobile Account tab is a disclosure that
+owns a small panel rising above the bar.
+
+### Interaction contract (signed out panel)
 
 1. Hidden on load, always. No state, route or breakpoint opens it.
 2. Tapping the profile icon opens it. Tapping the icon again closes it.
@@ -388,10 +402,8 @@ disclosure under the reader's own name, closed on every open, following
 the same rule as the profile icon. Signed out there is nothing to
 disclose, so the block is absent entirely; the drawer's fixed foot
 already carries `Sign in`. That foot is a link: to `/account` when
-signed in, to `signInHref(pathname)` when signed out.
-
-Desktop navigation is untouched by all of this. `AccountMenu` in the
-header keeps its existing click to open behaviour.
+signed in, to `signInHref(pathname)` when signed out. The block lists
+`accountNav` and ends with Logout.
 
 ---
 
@@ -482,9 +494,11 @@ seconds. It answers `null` when signed out, never 401, so the header
 never triggers the sign-in redirect.
 
 1. Signed out or pending: a `Sign in` link to `signInHref(pathname)`.
-2. Signed in: the customer's name and email in the menu, and Logout.
-3. Logout calls `useSignOut()`, which clears the client cache, then does
-   a full load of `/`, so Back cannot show the previous account's data.
+2. Signed in: the header and the tab bar link to `/account` (§7); the
+   drawer shows the customer's name and email over its account block.
+3. Logout (account nav, Account Settings, drawer) calls `useSignOut()`,
+   which clears the client cache, then does a full load of `/`, so Back
+   cannot show the previous account's data.
 
 The `(site)` layout deliberately does not read the session on the
 server: that would add a database query to every storefront render,

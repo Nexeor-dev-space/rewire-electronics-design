@@ -11,6 +11,7 @@ model MediaAsset {
   productImages    ProductImage[]
   productOgImages  Product[]
   homepageSections HomepageSection[]
+  orderItems       OrderItem[]
 
   @@map("media_assets")
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { searchCopy, searchHref, siteConfig } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
@@ -222,6 +222,19 @@ export function Header() {
           />
         </div>
       </motion.header>
+
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
+            className="fixed inset-0 z-40 bg-void/85 backdrop-blur-md"
+          />
+        )}
+      </AnimatePresence>
 
       <MobileDrawer
         open={drawerOpen}
