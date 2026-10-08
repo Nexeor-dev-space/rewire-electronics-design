@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -136,7 +135,7 @@ export function CheckoutView({ payment }: Props) {
   const [informationErrors, setInformationErrors] = useState<InformationErrors>({});
   const [billingSame, setBillingSame] = useState(true);
   const [emailOptIn, setEmailOptIn] = useState(true);
-  const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -188,13 +187,8 @@ export function CheckoutView({ payment }: Props) {
     [me],
   );
 
-  const savedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
-
-  useEffect(() => {
-    if (savedAddresses.length && selectedAddressId === "new") {
-      setSelectedAddressId(savedAddresses[0].id);
-    }
-  }, [savedAddresses, selectedAddressId]);
+  const addressId = selectedAddressId ?? savedAddresses[0]?.id ?? "new";
+  const savedAddress = savedAddresses.find((a) => a.id === addressId);
 
   const stepState = (step: number): CheckoutSectionState =>
     step === openStep ? "active" : step < openStep ? "done" : "locked";
@@ -467,7 +461,7 @@ export function CheckoutView({ payment }: Props) {
                           className={cn(
                             "flex cursor-pointer flex-col gap-1 rounded-xl border p-4",
                             "transition-[border-color,background-color] duration-(--duration-fast)",
-                            selectedAddressId === addr.id
+                            addressId === addr.id
                               ? "border-accent bg-accent/5"
                               : "border-line hover:border-line-strong",
                           )}
@@ -476,7 +470,7 @@ export function CheckoutView({ payment }: Props) {
                             type="radio"
                             name="saved-address"
                             value={addr.id}
-                            checked={selectedAddressId === addr.id}
+                            checked={addressId === addr.id}
                             onChange={() => chooseAddress(addr.id)}
                             className="sr-only"
                           />
@@ -484,7 +478,7 @@ export function CheckoutView({ payment }: Props) {
                             <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-secondary">
                               {addr.label}
                             </span>
-                            {selectedAddressId === addr.id && (
+                            {addressId === addr.id && (
                               <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent">
                                 Selected
                               </span>
@@ -512,7 +506,7 @@ export function CheckoutView({ payment }: Props) {
                           "flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-4",
                           "text-[0.8125rem] font-medium",
                           "transition-[border-color,color] duration-(--duration-fast)",
-                          selectedAddressId === "new"
+                          addressId === "new"
                             ? "border-accent text-accent"
                             : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
                         )}
@@ -535,7 +529,7 @@ export function CheckoutView({ payment }: Props) {
                 </div>
               )}
 
-              {selectedAddressId === "new" && (
+              {addressId === "new" && (
                 <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
                   <Field
                     id="first-name"
