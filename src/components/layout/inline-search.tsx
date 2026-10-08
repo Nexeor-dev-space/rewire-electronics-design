@@ -6,20 +6,16 @@ import { cn } from "@/lib/utils";
 /**
  * InlineSearch — the persistent, centered search field in the top bar.
  *
- * Acts as the visible entry point for the site's real search overlay
- * (`SearchPanel`). The field itself does no work — focus, typing or
- * Enter open the overlay, which then owns the actual query, results
- * and navigation. Rendering the field inline (rather than a magnifier
- * icon) makes "search the catalogue" the primary interaction the top
- * bar advertises, exactly as premium e-commerce chrome should.
- *
- * The ref is passed up so the header can hand it to `SearchPanel` as
- * the anchor for outside-click detection and focus restoration.
+ * On desktop this is the only search field: focus opens `SearchPanel`
+ * beneath the bar, typing drives its results, Enter goes to `/search`.
+ * The header owns the query, so the panel shows no second field here.
  */
 
 interface InlineSearchProps {
+  value: string;
   onFocus: () => void;
   onQuery: (value: string) => void;
+  onSubmit: () => void;
   ariaExpanded: boolean;
   ariaControls: string;
   className?: string;
@@ -29,20 +25,16 @@ interface InlineSearchProps {
 
 export const InlineSearch = forwardRef<HTMLInputElement, InlineSearchProps>(
   function InlineSearch(
-    { onFocus, onQuery, ariaExpanded, ariaControls, className, size = "wide" },
+    { value, onFocus, onQuery, onSubmit, ariaExpanded, ariaControls, className, size = "wide" },
     ref,
   ) {
     function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-      // Enter, arrow-down and typed characters all funnel into the overlay,
-      // where the real input takes over and the header field just reads
-      // the last term for accessibility.
-      if (
-        event.key === "Enter" ||
-        event.key === "ArrowDown" ||
-        (event.key.length === 1 && !event.metaKey && !event.ctrlKey)
-      ) {
-        onFocus();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onSubmit();
+        return;
       }
+      if (event.key === "ArrowDown") onFocus();
     }
 
     return (
@@ -72,9 +64,9 @@ export const InlineSearch = forwardRef<HTMLInputElement, InlineSearchProps>(
           aria-autocomplete="list"
           autoComplete="off"
           placeholder="Search products, brands & devices"
+          value={value}
           onFocus={onFocus}
-          // The overlay owns the query. Keystrokes still bubble up so the
-          // shopper's first character isn't lost in the transition.
+          onClick={onFocus}
           onChange={(event) => onQuery(event.target.value)}
           onKeyDown={handleKeyDown}
           className={cn(

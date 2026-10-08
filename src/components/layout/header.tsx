@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { SEARCH_PAGE_PATH } from "@/lib/constants";
 import { siteConfig } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
@@ -35,10 +36,12 @@ export function Header() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [initialQuery, setInitialQuery] = useState("");
+  const [query, setQuery] = useState("");
+  const router = useRouter();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchIconRef = useRef<HTMLButtonElement>(null);
+  const searchAnchors = useMemo(() => [searchInputRef, searchIconRef], []);
 
   const anyOverlayOpen = searchOpen || drawerOpen;
 
@@ -61,6 +64,22 @@ export function Header() {
   const openSearch = useCallback(() => {
     setSearchOpen(true);
   }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setQuery("");
+  }, []);
+
+  const submitSearch = useCallback(
+    (term: string) => {
+      const trimmed = term.trim();
+      if (!trimmed) return;
+      closeSearch();
+      searchInputRef.current?.blur();
+      router.push(`${SEARCH_PAGE_PATH}?q=${encodeURIComponent(trimmed)}`);
+    },
+    [closeSearch, router],
+  );
 
   const isActive = useCallback(
     (href: string) =>
@@ -130,11 +149,13 @@ export function Header() {
             <div className="mx-auto hidden max-w-2xl flex-1 md:block">
               <InlineSearch
                 ref={searchInputRef}
+                value={query}
                 onFocus={openSearch}
                 onQuery={(value) => {
-                  setInitialQuery(value);
+                  setQuery(value);
                   openSearch();
                 }}
+                onSubmit={() => submitSearch(query)}
                 ariaExpanded={searchOpen}
                 ariaControls={SEARCH_PANEL_ID}
               />
@@ -184,15 +205,28 @@ export function Header() {
               as an extension of the chrome, not a floating dialog. */}
           <SearchPanel
             open={searchOpen}
-            onClose={() => {
-              setSearchOpen(false);
-              setInitialQuery("");
-            }}
-            triggerRef={searchInputRef.current ? searchInputRef : searchIconRef}
-            initialQuery={initialQuery}
+            onClose={closeSearch}
+            query={query}
+            onQueryChange={setQuery}
+            onSubmit={submitSearch}
+            anchorRefs={searchAnchors}
+            returnFocusRef={searchIconRef}
           />
         </div>
       </motion.header>
+
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE_OUT_EXPO }}
+            className="fixed inset-0 z-40 bg-void/85 backdrop-blur-md"
+          />
+        )}
+      </AnimatePresence>
 
       <MobileDrawer
         open={drawerOpen}

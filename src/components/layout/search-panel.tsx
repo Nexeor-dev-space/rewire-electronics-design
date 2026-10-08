@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import { useSearchSuggestions } from "@/hooks/use-catalogue";
@@ -17,23 +16,20 @@ import { cn } from "@/lib/utils";
 interface SearchPanelProps {
   open: boolean;
   onClose: () => void;
-  /** The bar control the panel is anchored to — can be a button icon
-   *  or the inline search input. Focus returns here on close; outside
-   *  clicks over it are ignored. */
-  triggerRef: RefObject<HTMLElement | null>;
-  /**
-   * Seed value from the inline search field. When the shopper starts
-   * typing in the header input, the first keystroke lands in the
-   * inline field and this prop lifts it into the overlay so nothing
-   * is dropped in the handoff.
-   */
-  initialQuery?: string;
+  query: string;
+  onQueryChange: (value: string) => void;
+  onSubmit: (term: string) => void;
+  /** Bar controls that open the panel; outside clicks over them are ignored. */
+  anchorRefs: RefObject<HTMLElement | null>[];
+  /** The mobile search icon; focus returns here on close. */
+  returnFocusRef: RefObject<HTMLElement | null>;
 }
 
 export const SEARCH_PANEL_ID = "site-search-panel";
 
 /** 250ms, opacity + translateY + a touch of blur. Never scale. */
 const PANEL_DURATION = 0.25;
+const PANEL_FOCUS_DELAY_MS = 80;
 
 /**
  * SearchPanel — the global search, attached to the navigation.
@@ -48,13 +44,14 @@ const PANEL_DURATION = 0.25;
 export function SearchPanel({
   open,
   onClose,
-  triggerRef,
-  initialQuery = "",
+  query,
+  onQueryChange,
+  onSubmit,
+  anchorRefs,
+  returnFocusRef,
 }: SearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState("");
-  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
   const categories = useStorefrontCategories();
@@ -73,27 +70,21 @@ export function SearchPanel({
   const searching = searchable && (trimmed !== debounced || suggestions.isFetching);
   const empty = results.empty && products.length === 0 && !searching;
 
-  /* Focus the field on open; hand focus back to the icon on close.
-     `initialQuery` seeds the overlay's field so the header's inline
-     input can hand off the first keystroke without dropping it. */
   useEffect(() => {
     if (!open) return;
-    const trigger = triggerRef.current;
-    setQuery(initialQuery);
+    const returnTo = returnFocusRef.current;
     const id = window.setTimeout(() => {
-      inputRef.current?.focus();
-      // Position the caret at the end of the seeded value.
       const el = inputRef.current;
-      if (el) el.setSelectionRange(el.value.length, el.value.length);
-    }, 80);
+      if (!el || el.offsetParent === null) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, PANEL_FOCUS_DELAY_MS);
     return () => {
       window.clearTimeout(id);
-      setQuery("");
-      trigger?.focus();
+      if (returnTo && returnTo.offsetParent !== null) returnTo.focus();
     };
-  }, [open, triggerRef, initialQuery]);
+  }, [open, returnFocusRef]);
 
-  /* Escape anywhere, and any pointer landing outside panel or trigger. */
   useEffect(() => {
     if (!open) return;
 
@@ -103,7 +94,7 @@ export function SearchPanel({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (panelRef.current?.contains(target)) return;
-      if (triggerRef.current?.contains(target)) return;
+      if (anchorRefs.some((ref) => ref.current?.contains(target))) return;
       onClose();
     };
 
@@ -113,14 +104,8 @@ export function SearchPanel({
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [open, onClose, triggerRef]);
+  }, [open, onClose, anchorRefs]);
 
-  function submit(term: string) {
-    const trimmed = term.trim();
-    if (!trimmed) return;
-    onClose();
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-  }
 
   // Opacity, translate and a touch of blur — never scale. Reduced motion
   // drops to a plain crossfade.
@@ -135,18 +120,6 @@ export function SearchPanel({
     <AnimatePresence>
       {open && (
         <>
-          {/* The page reads back a touch so the panel owns the foreground.
-              Inside the header's stacking context and behind the bar, so
-              the chrome itself is never dimmed. */}
-          <motion.div
-            aria-hidden
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: PANEL_DURATION, ease: EASE_OUT_EXPO }}
-            className="fixed inset-0 -z-10 bg-ink/[0.07]"
-          />
-
           <motion.div
             ref={panelRef}
             id={SEARCH_PANEL_ID}
@@ -165,9 +138,10 @@ export function SearchPanel({
               {/* ---------- The field: one line, one divider ---------- */}
               <form
                 role="search"
+                className="md:hidden"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  submit(query);
+                  onSubmit(query);
                 }}
               >
                 <label htmlFor="site-search" className="sr-only">
@@ -192,7 +166,7 @@ export function SearchPanel({
                     id="site-search"
                     type="search"
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => onQueryChange(event.target.value)}
                     placeholder="Search certified devices..."
                     autoComplete="off"
                     className={cn(
@@ -207,7 +181,7 @@ export function SearchPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        setQuery("");
+                        onQueryChange("");
                         inputRef.current?.focus();
                       }}
                       className="shrink-0 font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted transition-colors duration-(--duration-fast) hover:text-accent"
@@ -274,7 +248,7 @@ export function SearchPanel({
                           <li key={term}>
                             <button
                               type="button"
-                              onClick={() => submit(term)}
+                              onClick={() => onSubmit(term)}
                               className="-mx-2 block w-full rounded-md px-2 py-2 text-left text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:text-accent"
                             >
                               {term}

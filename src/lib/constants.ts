@@ -63,6 +63,7 @@ export const RATE_LIMITS = {
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
 export const FORGOT_PASSWORD_PAGE_PATH = "/forgot-password";
+export const SEARCH_PAGE_PATH = "/search";
 
 /** The Homepage Builder, the staff draft preview it opens, and the FAQ's editor. */
 export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";

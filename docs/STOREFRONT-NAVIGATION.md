@@ -57,6 +57,20 @@ products, its children included, and only appears when there is more than
 one brand. The cache and how admin writes refresh it are described in
 [CATALOGUE.md](CATALOGUE.md) §5.
 
+### Header search
+
+`Header` owns the search query. On desktop the header field
+(`inline-search.tsx`) is the only input: focus or typing opens
+`SearchPanel` beneath the bar, the panel shows results for the header's
+query, and Enter goes to `SEARCH_PAGE_PATH` (`/search?q=…`). The panel's
+own large field is mobile only (`md:hidden`), opened from the search icon.
+While the panel is open a backdrop (`bg-void/85`, blurred) covers the page.
+It is rendered outside the header, because the header's transform would
+otherwise confine a `fixed` layer to the header box. Escape, a click on
+the backdrop, a result link or a submit closes the panel. Closing never
+refocuses the header field, since focusing it reopens the panel; focus
+returns to the mobile icon only when that icon is visible.
+
 ### Hiding a family
 
 To take a family out of the menus but keep it browsable, untick "Show in
