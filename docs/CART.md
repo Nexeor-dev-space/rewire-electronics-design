@@ -4,7 +4,8 @@ How the server cart works, how it is priced, how discount codes and delivery
 zones are set up in the admin, and what the storefront reads. Built in Phase 4.
 
 Read this before you change the cart API, `src/lib/pricing/`, a coupon or
-delivery zone rule, or any screen that shows cart lines or totals.
+delivery zone rule, the checkout steps, or any screen that shows cart lines or
+totals.
 [DATA-LAYER.md](DATA-LAYER.md) covers the general conventions; this document
 covers what is specific to the cart.
 
@@ -18,7 +19,7 @@ covers what is specific to the cart.
 | Database | `Cart`, `CartItem`, `CartItemAddOn`, `Coupon`, `CouponProduct`, `CouponCategory`, `DeliveryZone` |
 | Admin | Marketing → **Discount Codes** (`/admin/marketing/coupons`) and Governance → **Delivery Zones** (`/admin/settings/delivery`) |
 | Cart API | `/api/v1/cart`, `cart/items`, `cart/items/[id]`, `cart/coupon`, `cart/acknowledge`, `cart/quote` |
-| Storefront | Header count, cart page, add to cart modal, product page buy panel, card Add to cart, checkout summary |
+| Storefront | Header count, cart page, add to cart modal, product page buy panel, card Add to cart, checkout summary and the checkout steps |
 
 Checkout itself (orders, payment, stock deduction, redemption counting) is
 Phase 5. Section 13 lists what Phase 5 must do with this module.
@@ -481,11 +482,72 @@ Every mutation writes the returned cart straight into the cache
 | Product page | `components/product/detail/product-buy-panel.tsx` | The line for the selected variant; Add to cart sends the selected add-ons; the stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
 | Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy" |
 | Home setup kit, drop cards | `components/home/setup/setup.tsx`, `components/home/upcoming-drops/drop-card.tsx` | No cart call: they link to the product page |
-| Checkout | `components/checkout/checkout-view.tsx`, `order-summary.tsx` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, method)`, default Dubai and Standard. Emirates from `EMIRATES`. The coupon field shows only when `couponsAllowed`. VAT reads "Includes VAT 5%" |
+| Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, method)`, default Dubai and Standard. Emirates from `EMIRATES`. The coupon field shows only when `couponsAllowed`; Enter in it applies the code. VAT reads "Includes VAT 5%". The steps are in §9.1 |
 
 Placing an order is still the mock: it stores a `PlacedOrder` in localStorage
 (`src/lib/checkout.ts`) for the success page and **no longer empties the
 cart**. Real orders replace it in Phase 5.
+
+### 9.1 Checkout steps
+
+`/checkout` is a four step accordion: **01 Information** (contact and
+address), **02 Delivery** (method), **03 Payment**, **04 Review**. The order
+summary sits beside it from `lg`, and above it on smaller screens.
+
+1. **Strictly linear.** One step is open at a time (`openStep` in
+   `checkout-view.tsx`). Steps before it are done, steps after it are locked
+   and show only their title. A step opens only through the Continue button
+   of the step before it.
+2. **Done steps collapse to a summary with Edit.** Information shows email,
+   phone and "city, emirate"; Delivery shows method, ETA and fee; Payment shows
+   the method. Edit reopens that step and locks every step after it again, so
+   the shopper continues through each once more. Edit does nothing while an
+   order is being placed.
+3. **Bodies stay mounted.** `CheckoutSection` collapses a closed body to zero
+   height with the shared `collapsePanel` / `collapsePanelBody` variants and
+   marks it `inert`, so it cannot be tabbed into. The inputs keep their values,
+   and Place Order reads the whole form with `FormData`.
+4. **Focus and scroll.** Opening a step moves focus to its heading. When the
+   open animation ends, the section scrolls to the top of the viewport
+   (instantly under reduced motion); its `scroll-mt-*` clears the header and
+   the progress bar.
+5. **Enter** in a field continues the open step, or places the order on
+   Review.
+6. **Progress bar.** `CheckoutProgress` sits in a sticky bar just below the
+   checkout header (`top-16`, `md:top-20`). From `sm` it shows four pills: the
+   open one carries `aria-current="step"`, and done pills are buttons that
+   reopen their step, the same as Edit. Below `sm` it compacts to "Step X of
+   4" and the step name, with no buttons; Edit on each section does the job.
+7. **Place Order waits for every step.** `OrderSummary` takes `stepsComplete`
+   (true only while Review is open) and keeps Place Order disabled until then,
+   with "Complete each step to place your order." under it. The mobile sticky
+   bar is disabled on the same condition, and `handlePlaceOrder` checks it
+   again.
+
+**Information is validated with `checkoutInformationSchema`**
+(`src/validators/checkout.validator.ts`): email (`emailValidator`), phone
+(`uaePhoneValidator`), first and last name, address line 1 and city required;
+address line 2 and postal code optional; emirate one of `EMIRATE_VALUES`; the
+email opt in. Continue runs it. Each message shows under its field through the
+checkout `Field`'s `error` prop, which sets `aria-invalid`, points
+`aria-describedby` at the message and hides the hint; focus moves to the
+first invalid field. After a failed Continue, a field checks itself again on
+blur. With a saved address selected only email and phone are checked; the
+saved address itself is still a hardcoded mock until Phase 3 addresses.
+
+**UAE phone rule.** `uaePhoneValidator` in
+`src/validators/common/primitives.validator.ts` strips spaces, dashes, dots
+and parentheses, then accepts a `+971`, `00971`, `971` or leading `0` prefix
+followed by a mobile number (`5[024568]`) or a landline area code
+(`[234679]`), plus seven digits. The value is normalised to E.164:
+`050 123 4567` becomes `+971501234567`, `04 123 4567` becomes `+97141234567`.
+Anything else reads "Enter a valid UAE phone number, e.g. 050 123 4567."
+
+**Payment** card fields are checked only by the browser (`checkValidity`),
+since card entry is still the mock.
+
+These checks run in the browser only. No checkout endpoint exists yet; see
+§13.
 
 ---
 
@@ -503,6 +565,7 @@ In `src/lib/constants.ts`.
 | `COUPON_CODE_MIN_LENGTH`, `COUPON_CODE_MAX_LENGTH` | 3, 32 | Coupon code |
 | `COUPON_DESCRIPTION_MAX_LENGTH` | 160 | Coupon description |
 | `MAX_DELIVERY_DAYS` | 30 | Delivery zone days |
+| `RETURN_WINDOW_DAYS` | 30 | "30-day returns" copy on the cart summary, buy panel and home benefits |
 | `RATE_LIMITS.applyCoupon` | 10 per 10 minutes, per user | `POST cart/coupon` |
 | `RATE_LIMITS.guestCart` | 10 per hour, per IP | `POST cart/items` that creates a guest cart |
 
@@ -516,8 +579,11 @@ Rate limits work as described in [AUTH.md](AUTH.md) §7.
 added `src/lib/pricing/price-cart.test.ts`, `src/lib/pricing/coupon.test.ts`,
 `src/lib/cart-rules.test.ts`, `src/lib/delivery.test.ts`,
 `src/lib/auth/sign.test.ts`, `src/validators/coupon.validator.test.ts` and
-`src/validators/delivery-zone.validator.test.ts`. They cover the pure rules
-only; the routes and the service have no automated tests.
+`src/validators/delivery-zone.validator.test.ts`. The checkout steps added
+`src/validators/checkout.validator.test.ts` and
+`src/validators/common/primitives.validator.test.ts` (the UAE phone rule).
+They cover the pure rules only; the routes, the service and the checkout
+steps have no automated tests.
 
 ---
 
@@ -565,3 +631,6 @@ only; the routes and the service have no automated tests.
 4. Refuse to delete a coupon that has redemptions (409 "Disable it instead").
 5. Decide whether an `ADD_ON_UNAVAILABLE` add-on is dropped from the order or
    blocks it; today it is simply not charged.
+6. Parse the contact and address with `checkoutInformationSchema` on the
+   server and store the normalised E.164 phone. The checkout's own check
+   (§9.1) runs only in the browser.

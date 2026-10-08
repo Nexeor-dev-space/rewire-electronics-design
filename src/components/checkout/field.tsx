@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldError, Label } from "@/components/ui/label";
 
 /**
  * Field — label + input in one place. The label is the mono eyebrow the
@@ -13,6 +13,7 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   id: string;
   label: string;
   hint?: string;
+  error?: string;
   /** How many columns of the 6-col form grid this field spans on sm+. */
   span?: 2 | 3 | 4 | 6;
   trailing?: ReactNode;
@@ -29,11 +30,16 @@ export function Field({
   id,
   label,
   hint,
+  error,
   span = 6,
   className,
   trailing,
   ...inputProps
 }: FieldProps) {
+  const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
   return (
     <div className={cn("col-span-6", SPAN_CLASS[span], className)}>
       <div className="flex items-baseline justify-between gap-2">
@@ -42,9 +48,24 @@ export function Field({
           <span className="text-[0.75rem] text-ink-muted">{trailing}</span>
         )}
       </div>
-      <Input id={id} name={id} className="mt-2" {...inputProps} />
-      {hint && (
-        <p className="mt-1.5 text-[0.75rem] text-ink-muted">{hint}</p>
+      <Input
+        id={id}
+        name={id}
+        className="mt-2"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        {...inputProps}
+      />
+      {error ? (
+        <FieldError id={errorId} className="mt-1.5 text-[0.75rem]">
+          {error}
+        </FieldError>
+      ) : (
+        hint && (
+          <p id={hintId} className="mt-1.5 text-[0.75rem] text-ink-muted">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );

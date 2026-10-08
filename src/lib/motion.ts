@@ -87,5 +87,35 @@ export const overlayFade: Variants = {
   exit: { opacity: 0, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
 };
 
+/** Disclosure panel: height and opacity collapse. Pair with an overflow-hidden element. */
+export const collapsePanel: Variants = {
+  hidden: {
+    height: 0,
+    opacity: 0,
+    transition: {
+      height: { duration: DURATION.base, ease: EASE_OUT_EXPO },
+      opacity: { duration: 0.18 },
+    },
+  },
+  visible: {
+    height: "auto",
+    opacity: 1,
+    transition: {
+      height: { duration: 0.62, ease: EASE_OUT_EXPO },
+      opacity: { duration: 0.34, delay: 0.06 },
+    },
+  },
+};
+
+/** Disclosure panel content: settles down into the opening panel. */
+export const collapsePanelBody: Variants = {
+  hidden: { y: -10, opacity: 0, transition: { duration: 0.18 } },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: { duration: 0.7, ease: EASE_OUT_EXPO, delay: 0.08 },
+  },
+};
+
 /** Standard viewport trigger: fire once, slightly before fully in view. */
 export const viewportOnce = { once: true, margin: "0px 0px -12% 0px" } as const;

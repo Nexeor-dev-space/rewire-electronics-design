@@ -234,6 +234,21 @@ function QuickActions({
       label: "Saved Addresses",
       hint: "Delivery & billing",
     },
+    {
+      href: "/account/waitlists",
+      label: "My Waitlists",
+      hint: "Restock alerts",
+    },
+    {
+      href: "/support#contact",
+      label: "Support",
+      hint: "Get help with an order",
+    },
+    {
+      href: "/account/settings",
+      label: "Profile",
+      hint: "Your details",
+    },
   ];
 
   return (

@@ -15,7 +15,7 @@ general conventions; this document covers what is specific to the catalogue.
 | --- | --- |
 | Database | Categories, products, variants, images, specs, add-ons |
 | Admin | Categories, Products and Add-ons screens under Catalogue. Stock is managed on the product edit form |
-| Product API | `GET /api/v1/products` and `GET /api/v1/products/[slug]` |
+| Product API | `GET /api/v1/products`, `GET /api/v1/products/[slug]` and the search suggestions `GET /api/v1/search` |
 | Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]`, and the header, mega menus, mobile drawer, home category strip and search panel |
 | SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, canonical URLs |
 
@@ -288,8 +288,11 @@ suggestion and the full results never disagree.
    variant's SKU, storage or colour. "iphone 128" finds an iPhone with a 128GB
    variant; "A2848" finds the variant with that SKU.
 3. Only `PUBLISHED` products in visible categories are searched, as everywhere
-   else on the storefront. There is no separate search table or index; the
-   matches are `ILIKE` queries on the catalogue tables.
+   else on the storefront. There is no separate search table; the matches are
+   `ILIKE` queries on the catalogue tables. GIN trigram indexes on product
+   name and slug, brand name, category name and variant SKU (migration
+   `add_search_trigram_indexes`, which also installs `pg_trgm`) let Postgres
+   answer `ILIKE '%word%'` without a full scan once the catalogue is large.
 
 ### `GET /api/v1/search?q=`
 
@@ -301,6 +304,7 @@ Public, no session. Feeds the header search panel while the shopper types.
 | `products` | Up to `SEARCH_SUGGESTION_LIMITS.products` (5) `ShopCard`s matching `searchWhere`, newest first |
 | `brands` | Up to 4 brands with at least one published product whose name contains any word, as `{ name }` |
 | `categories` | Up to 4 visible categories whose name contains any word, as `{ name, slug }` |
+| Rate limit | `RATE_LIMITS.search`, 60 per minute per IP, shared with `GET /api/v1/products` when `q` is set; 429 with `Retry-After` past it |
 
 Three small bounded queries per request. The panel links a product to
 `/product/[slug]`, a brand to `/collection?brand=<name>` and a category to
@@ -341,6 +345,12 @@ in `src/hooks/use-catalogue.ts` fetches every later filter change and every
 "Load more" page from `/api/v1/products`. The server page is keyed by its
 filters, so following a menu link to the same route with other filters starts
 fresh.
+
+**The header search panel** (`src/components/layout/search-panel.tsx`) shows
+suggestions as the shopper types. `useSearchSuggestions(q)` in
+`src/hooks/use-search.ts` calls `GET /api/v1/search` and stays idle below
+`SEARCH_MIN_QUERY_LENGTH` (2) characters. How the panel opens and closes is in
+[STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md).
 
 **Category segments** go through `resolveCategory` in `src/lib/shop.ts` first,
 so older links keep working: `phones` becomes `smartphones`, `wearables`
@@ -488,6 +498,7 @@ All in `src/lib/constants.ts`.
 | `SHOP_MAX_PAGE_SIZE` | 48 | Largest page the API serves |
 | `SHOP_MAX_FILTER_VALUES` | 50 | Values kept per filter |
 | `RELATED_PRODUCTS_LIMIT` | 5 | Related products |
+| `RATE_LIMITS.search` | 60 per minute, per IP | `GET /api/v1/search`, and `GET /api/v1/products` when `q` is set |
 | `MAX_PRODUCT_ADD_ONS` | 4 | Add-ons on the product page |
 | `FEATURED_PRODUCTS_LIMIT` | 4 | Homepage shelf |
 | `SITEMAP_PRODUCT_LIMIT` | 1000 | Products in the sitemap |
@@ -528,3 +539,11 @@ All in `src/lib/constants.ts`.
 8. **`src/lib/categories.ts` is no longer read.** It held the old hardcoded
    menu categories and their studio photos; category images now come from the
    admin.
+9. **Search is not typo tolerant.** Every word must appear as typed, so
+   "ipone" finds nothing. The trigram indexes are in place if fuzzy matching is
+   added later.
+10. **The trigram indexes do not show up on a small table.** With a few dozen
+    products Postgres prefers a sequential scan, and a word under three
+    characters has no usable trigram and always scans.
+11. **The search rate limit is per IP.** Shoppers behind one address (an office
+    or a mobile carrier) share 60 searches a minute.

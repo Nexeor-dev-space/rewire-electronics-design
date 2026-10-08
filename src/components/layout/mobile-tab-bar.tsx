@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "@/components/providers/account-provider";
-import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { useGetMe } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
-import { accountNav } from "@/lib/site";
+import { ACCOUNT_HOME_PATH } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -33,19 +33,12 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
  *
  * ── The profile tab ─────────────────────────────────────────────────
  *
- * Account is the one tab that is **not** a link. It is a disclosure,
- * and it owns the profile dropdown that rises above the bar.
+ * Signed in, Account is a link to the account home. Signed out it is a
+ * disclosure that owns a small panel rising above the bar, offering
+ * sign in and order tracking.
  *
- * Everything account-shaped on a phone now lives behind that one tap:
- * orders and tracking, wishlist, waitlists, returns, the profile
- * itself, and sign out. Before, those rows were dealt out across two
- * surfaces — some in the hamburger drawer, expanded on open whether or
- * not the reader had asked for them, and some only reachable by
- * navigating to `/account` first. A shopper had no single place that
- * meant "me".
- *
- * The interaction is deliberately tap-only, and deliberately nothing
- * like the desktop nav's hover disclosures:
+ * The signed-out panel is deliberately tap-only, and deliberately
+ * nothing like the desktop nav's hover disclosures:
  *
  *   - hidden on load, always. There is no state, route or breakpoint in
  *     which this opens by itself;
@@ -72,7 +65,7 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const { wishlistSlugs } = useAccount();
   const me = useGetMe();
-  const signOut = useSignOut();
+  const signedIn = !me.isPending && Boolean(me.data);
   const [profileOpen, setProfileOpen] = useState(false);
 
   /* A route change closes the panel — the reader has arrived. */
@@ -88,7 +81,8 @@ export function MobileTabBar() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [profileOpen]);
 
-  const profileActive = pathname.startsWith("/account");
+  const profileActive = pathname.startsWith(ACCOUNT_HOME_PATH);
+  const menuOpen = profileOpen && !signedIn;
 
   return (
     <>
@@ -98,7 +92,7 @@ export function MobileTabBar() {
           `aria-hidden` + no label: Escape and the trigger are the
           accessible ways out. */}
       <AnimatePresence>
-        {profileOpen && (
+        {menuOpen && (
           <motion.div
             aria-hidden
             onClick={() => setProfileOpen(false)}
@@ -124,7 +118,7 @@ export function MobileTabBar() {
             it reads as belonging to the icon that opened it rather than
             as a sheet that arrived from somewhere else. */}
         <AnimatePresence>
-          {profileOpen && (
+          {menuOpen && (
             <motion.div
               id={PROFILE_MENU_ID}
               role="menu"
@@ -138,62 +132,12 @@ export function MobileTabBar() {
                 "border border-line bg-surface shadow-(--shadow-float)",
               )}
             >
-              {!me.isPending && me.data ? (
-                <>
-                  <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
-                    <span
-                      aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-[0.6875rem] text-surface"
-                    >
-                      {initialsOf(me.data.fullName)}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-ink">
-                        {me.data.fullName}
-                      </span>
-                      <span className="block truncate text-xs text-ink-muted">
-                        {me.data.email}
-                      </span>
-                    </span>
-                  </div>
-
-                  <ul className="py-1.5">
-                    {accountNav.map((item) => (
-                      <li key={item.href + item.label}>
-                        <Link
-                          href={item.href}
-                          role="menuitem"
-                          onClick={() => setProfileOpen(false)}
-                          className="block px-4 py-2.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="border-t border-line py-1.5">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={signOut.isPending}
-                      onClick={() => {
-                        setProfileOpen(false);
-                        signOut.mutate(undefined, { onSuccess: () => window.location.assign("/") });
-                      }}
-                      className="block w-full px-4 py-2.5 text-left text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink disabled:opacity-60"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </>
-              ) : (
-                /* Signed out, the panel is two things: the way in, and
-                   the one account surface a guest still has a reason to
-                   reach. Order tracking is behind the account's auth
-                   gate either way, but naming it here is what stops a
-                   shopper hunting for "Track Order" in a company menu
-                   where it never belonged. */
+                {/* The panel is two things: the way in, and the one
+                   account surface a guest still has a reason to reach.
+                   Order tracking is behind the account's auth gate either
+                   way, but naming it here is what stops a shopper hunting
+                   for "Track Order" in a company menu where it never
+                   belonged. */}
                 <div className="p-4">
                   <p className="text-sm font-medium text-ink">Your account</p>
                   <p className="mt-1 text-xs leading-relaxed text-ink-muted">
@@ -221,7 +165,6 @@ export function MobileTabBar() {
                     Track Order
                   </Link>
                 </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -275,41 +218,49 @@ export function MobileTabBar() {
             );
           })}
 
-          {/* ---------- Account — a disclosure, not a link ---------- */}
           <li className="flex-1">
-            <button
-              type="button"
-              onClick={() => setProfileOpen((cur) => !cur)}
-              aria-expanded={profileOpen}
-              aria-haspopup="menu"
-              aria-controls={PROFILE_MENU_ID}
-              aria-label={profileOpen ? "Close account menu" : "Open account menu"}
-              className={cn(
-                "relative flex h-full w-full flex-col items-center justify-center gap-1",
-                "transition-colors duration-(--duration-fast)",
-                profileActive || profileOpen ? "text-ink" : "text-ink-muted",
-              )}
-            >
-              <ActiveDot active={profileActive || profileOpen} />
-              <PersonIcon className="size-[1.35rem]" />
-              <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
-                Account
-              </span>
-            </button>
+            {signedIn ? (
+              <Link
+                href={ACCOUNT_HOME_PATH}
+                aria-current={pathname === ACCOUNT_HOME_PATH ? "page" : undefined}
+                className={cn(
+                  "relative flex h-full w-full flex-col items-center justify-center gap-1",
+                  "transition-colors duration-(--duration-fast)",
+                  profileActive ? "text-ink" : "text-ink-muted",
+                )}
+              >
+                <ActiveDot active={profileActive} />
+                <PersonIcon className="size-[1.35rem]" />
+                <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+                  Account
+                </span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setProfileOpen((cur) => !cur)}
+                aria-expanded={profileOpen}
+                aria-haspopup="menu"
+                aria-controls={PROFILE_MENU_ID}
+                aria-label={profileOpen ? "Close account menu" : "Open account menu"}
+                className={cn(
+                  "relative flex h-full w-full flex-col items-center justify-center gap-1",
+                  "transition-colors duration-(--duration-fast)",
+                  profileActive || profileOpen ? "text-ink" : "text-ink-muted",
+                )}
+              >
+                <ActiveDot active={profileActive || profileOpen} />
+                <PersonIcon className="size-[1.35rem]" />
+                <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+                  Account
+                </span>
+              </button>
+            )}
           </li>
         </ul>
       </nav>
     </>
   );
-}
-
-/** Two initials, the same shape the drawer and the desktop menu use. */
-function initialsOf(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("");
 }
 
 /** The accent dot above an active tab's icon. */
