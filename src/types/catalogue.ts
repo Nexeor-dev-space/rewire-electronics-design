@@ -134,6 +134,13 @@ export interface StorefrontCategory {
   brands: NamedCount[];
 }
 
+/** `GET /api/v1/search`: what the search panel suggests while typing. */
+export interface SearchSuggestions {
+  products: ShopCard[];
+  brands: { name: string }[];
+  categories: { name: string; slug: string }[];
+}
+
 export interface ShopProductPage extends ShopProductDetail {
   addOns: ShopAddOn[];
   related: ShopCard[];

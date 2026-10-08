@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   SEARCH_QUERY_MAX_LENGTH,
-  SEARCH_SUGGEST_MIN_LENGTH,
   SHOP_MAX_FILTER_VALUES,
   SHOP_MAX_PAGE_SIZE,
   SHOP_PAGE_SIZE,
@@ -54,6 +53,7 @@ export const shopQuerySchema = z.object({
     ),
 });
 
-export const searchSuggestQuerySchema = z.object({
-  q: z.string().trim().min(SEARCH_SUGGEST_MIN_LENGTH).max(SEARCH_QUERY_MAX_LENGTH),
+/** A missing, blank or too long query becomes "", which answers with no suggestions. */
+export const searchSuggestionsQuerySchema = z.object({
+  q: z.string().trim().max(SEARCH_QUERY_MAX_LENGTH).catch(""),
 });

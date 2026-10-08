@@ -1,21 +1,18 @@
 import type { NextRequest } from "next/server";
-import { z } from "zod";
-import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
+import { apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { limitByIp } from "@/lib/rate-limit";
-import { listSearchSuggestions } from "@/services/catalogue.service";
-import { searchSuggestQuerySchema } from "@/validators/catalogue.validator";
+import { searchSuggestions } from "@/services/catalogue.service";
+import { searchSuggestionsQuerySchema } from "@/validators/catalogue.validator";
 
+/** Public. Products, brands and categories matching `q`, for the search panel. */
 export async function GET(req: NextRequest) {
   const limited = limitByIp(req, "search");
   if (limited) return limited;
 
-  const query = searchSuggestQuerySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams));
-  if (!query.success) {
-    return apiError("VALIDATION", "Invalid search.", 422, z.flattenError(query.error).fieldErrors);
-  }
+  const { q } = searchSuggestionsQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
 
   try {
-    return apiSuccess(await listSearchSuggestions(query.data.q));
+    return apiSuccess(await searchSuggestions(q));
   } catch (error) {
     return apiErrorFrom(error, "GET /search");
   }

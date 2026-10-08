@@ -48,7 +48,6 @@ an admin change reaches all of them at once, with no code change:
 | Shop and Categories menus | `components/layout/mega-panels.tsx` | `shopBrowseLinks()` and the list itself |
 | Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories)` |
 | Homepage strip | `components/home/hero/category-strip.tsx` | The first `HOME_CATEGORY_LIMIT` (4) |
-| Search panel | `components/layout/search-panel.tsx` | `searchCatalogue(query, categories)` |
 | About page | `components/about/what.tsx` | The list, with descriptions |
 | Just listed | `components/home/featured/featured.tsx` | Not the family list: the newest in stock products from the database, see [CATALOGUE.md](CATALOGUE.md) |
 
@@ -57,19 +56,36 @@ products, its children included, and only appears when there is more than
 one brand. The cache and how admin writes refresh it are described in
 [CATALOGUE.md](CATALOGUE.md) §5.
 
-### Header search
+**Search has one component and one field on screen.** The header owns the
+query and shares it with `SearchPanel`. From `md` the header field
+(`inline-search.tsx`) is the input itself: typing there opens the panel
+beneath the bar with suggestions only (`showField={false}`), and Enter goes to
+`/search?q=`. Below `md` the search icon and the mobile drawer's search button
+open the panel with its own field (`showField={true}`), since the bar has no
+field there. Label and placeholder come from `searchCopy` in
+`src/lib/site.ts`, and every "see all" path is built by `searchHref(q)`. In
+the panel:
 
-`Header` owns the search query. On desktop the header field
-(`inline-search.tsx`) is the only input: focus or typing opens
-`SearchPanel` beneath the bar, the panel shows results for the header's
-query, and Enter goes to `SEARCH_PAGE_PATH` (`/search?q=…`). The panel's
-own large field is mobile only (`md:hidden`), opened from the search icon.
-While the panel is open a backdrop (`bg-void/85`, blurred) covers the page.
-It is rendered outside the header, because the header's transform would
-otherwise confine a `fixed` layer to the header box. Escape, a click on
-the backdrop, a result link or a submit closes the panel. Closing never
-refocuses the header field, since focusing it reopens the panel; focus
-returns to the mobile icon only when that icon is visible.
+1. Tapping search never opens a list on its own. From the inline field the
+   panel stays shut until `SEARCH_MIN_QUERY_LENGTH` (2) characters are typed
+   (`panelOpen` in `header.tsx`); from the icon it shows only its field until
+   then.
+2. While typing, `useSearchSuggestions` (`src/hooks/use-search.ts`) calls
+   `GET /api/v1/search` after `SEARCH_DEBOUNCE_MS`, and shows Products, Brands
+   and Categories, each linking to its page, plus "See all results".
+3. It shows a skeleton while loading, a message if the request fails, and "No
+   results found" with a Clear search button when nothing matches.
+4. Enter opens `/search?q=`. Clear empties the field; Escape or a click
+   outside closes the panel.
+5. While the panel is open a backdrop (`bg-void/85`, blurred) covers the
+   page, so nothing behind shows through. `Header` renders it outside
+   `motion.header`, because the header's transform would otherwise confine a
+   `fixed` layer to the header box.
+
+The search rules and the API are in [CATALOGUE.md](CATALOGUE.md) §4 "Search".
+The old full screen `SearchOverlay`, its `searchSuggestions` list and the mock
+`src/lib/search.ts` adapter (hardcoded quick searches and sample drops) were
+removed, so the storefront keeps no search data of its own.
 
 ### Hiding a family
 

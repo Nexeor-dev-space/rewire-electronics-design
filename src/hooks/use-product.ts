@@ -18,17 +18,11 @@ const productKeys = {
   detail: (id: string) => ["products", "detail", id] as const,
 };
 
-const inventoryKey = ["inventory"] as const;
-
 const endpoints = API_ENDPOINTS.admin.products;
 
 function useInvalidateProducts() {
   const queryClient = useQueryClient();
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: productKeys.all }),
-      queryClient.invalidateQueries({ queryKey: inventoryKey }),
-    ]);
+  return () => queryClient.invalidateQueries({ queryKey: productKeys.all });
 }
 
 /* ---------- queries ---------- */
