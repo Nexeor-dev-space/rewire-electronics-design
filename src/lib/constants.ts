@@ -6,12 +6,6 @@ export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
 export const SHOP_MAX_FILTER_VALUES = 50;
 export const RELATED_PRODUCTS_LIMIT = 5;
-export const SEARCH_SUGGEST_LIMIT = 5;
-export const SEARCH_SUGGEST_MIN_LENGTH = 2;
-export const SEARCH_QUERY_MAX_LENGTH = 100;
-export const SEARCH_MATCH_LIMIT = SHOP_MAX_PAGE_SIZE * 5;
-export const SEARCH_SUGGEST_CANDIDATES = SEARCH_SUGGEST_LIMIT * 4;
-export const SEARCH_WORD_SIMILARITY = 0.4;
 export const FEATURED_PRODUCTS_LIMIT = 4;
 export const SITEMAP_PRODUCT_LIMIT = 1000;
 export const MAX_PRODUCT_ADD_ONS = 4;
@@ -69,7 +63,6 @@ export const RATE_LIMITS = {
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
 export const FORGOT_PASSWORD_PAGE_PATH = "/forgot-password";
-export const SEARCH_PAGE_PATH = "/search";
 
 /** The Homepage Builder, the staff draft preview it opens, and the FAQ's editor. */
 export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";
