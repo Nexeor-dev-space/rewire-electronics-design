@@ -5,6 +5,8 @@ import { Input, Select } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
 import { conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { CURRENCY } from "@/lib/money";
+import { cn } from "@/lib/utils";
+import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import {
   GRADED_CONDITIONS,
   MAX_VARIANTS,
@@ -75,9 +77,20 @@ export function ProductVariantsEditor({
     onChange(variants.map((variant) => (variant.key === key ? { ...variant, ...patch } : variant)));
   }
 
+  const totalStock = variants.reduce((sum, variant) => sum + (Number(variant.stock) || 0), 0);
+  const availability = availabilityFromStock(totalStock);
+
   return (
     <fieldset>
       <legend className="eyebrow">Variants</legend>
+      <p
+        className={cn(
+          "mt-1 text-xs tabular-nums",
+          availability === "sold-out" ? "text-danger" : "text-ink-muted",
+        )}
+      >
+        Total stock {totalStock} · {AVAILABILITY_LABELS[availability]}
+      </p>
 
       <ul className="mt-4 flex flex-col gap-3">
         {variants.map((variant, index) => {

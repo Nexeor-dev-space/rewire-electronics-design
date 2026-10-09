@@ -1,26 +1,14 @@
 "use client";
 
-import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
-import { SEARCH_SUGGEST_MIN_LENGTH } from "@/lib/constants";
-import type { SearchSuggestion, ShopFilterState, ShopListing } from "@/types/catalogue";
+import type { ShopFilterState, ShopListing } from "@/types/catalogue";
 
 const catalogueKeys = {
   all: ["catalogue"] as const,
   list: (filters: ShopFilterState) => ["catalogue", "list", filters] as const,
-  suggestions: (q: string) => ["catalogue", "suggestions", q] as const,
 };
-
-export function useSearchSuggestions(q: string) {
-  return useQuery({
-    queryKey: catalogueKeys.suggestions(q),
-    queryFn: ({ signal }) =>
-      apiRequest<SearchSuggestion[]>(API_ENDPOINTS.search.suggest, { query: { q }, signal }),
-    enabled: q.length >= SEARCH_SUGGEST_MIN_LENGTH,
-    placeholderData: keepPreviousData,
-  });
-}
 
 const toQuery = (filters: ShopFilterState) =>
   Object.fromEntries(

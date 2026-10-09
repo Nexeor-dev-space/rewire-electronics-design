@@ -113,7 +113,6 @@ only the levels that grant more than the one below (`availableLevels`):
 | Products | `catalogue.products` | View, Create, Edit, Delete, Publish | all |
 | Categories | `catalogue.categories` | View, Create, Edit, Delete, Publish | all |
 | Brands | `catalogue.brands` | View, Create, Edit, Delete | all |
-| Inventory | `catalogue.inventory` | View, Edit | No access, View, Edit |
 | Add-ons | `catalogue.add-ons` | View, Create, Edit, Delete | all |
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
@@ -145,6 +144,11 @@ setting). See [RETURNS.md](RETURNS.md) §12.
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.
 
+The Inventory module (`catalogue.inventory`) was removed: stock is now edited
+on the product form under Products Edit. A role saved before the removal may
+still hold a `catalogue.inventory` row; `gridFromLevels` skips keys that are
+not in `STAFF_MODULES`, so it grants nothing.
+
 ---
 
 ## 5. What each action covers
@@ -153,7 +157,7 @@ module doesn't offer, and an unknown module key.
 | --- | --- | --- |
 | View | every `GET` | Also the page itself and the sidebar row |
 | Create | `POST` that creates | Homepage: add section |
-| Edit | `PUT` / `PATCH` | Homepage: edit, show or hide, reorder. Inventory: stock |
+| Edit | `PUT` / `PATCH` | Homepage: edit, show or hide, reorder. Products: variant stock, saved with the product |
 | Delete | `DELETE` | |
 | Publish | `PATCH …/status` (products, categories), `POST homepage/publish`, `POST homepage/discard` | See below for status set from a form |
 | Restore | `POST trash/…/restore` | Trash only; see [TRASH-AUDIT.md](TRASH-AUDIT.md) |
@@ -229,7 +233,6 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Products, Categories, Brands, Add-ons, Discount Codes | Add button, row Edit and row Delete are hidden; the status select is locked without Publish |
 | Users → Customers | Add, Edit and Delete hidden |
 | Users → Staff | Admin only; the page answers Access denied to Staff |
-| Inventory | The stock field is locked and Save hidden without Edit |
 | Delivery Zones | Edit hidden |
 | Returns | Status buttons, the Record refund button and the Return window button are hidden (the window shows as plain text) without Edit; the list and detail need View, and the sidebar row needs View |
 | Orders detail | Status, payment, tracking and staff note controls hidden without Edit; the list and detail need View |

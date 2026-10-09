@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { z } from "zod";
 import { cartKeys, useApplyCoupon, useGetCartQuote, useRemoveCoupon } from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
@@ -32,6 +37,16 @@ export interface PaymentOption extends OptionListItem {
 
 interface Props {
   payment: PaymentOption[];
+}
+
+interface SavedAddress {
+  id: string;
+  label: string;
+  name: string;
+  line1: string;
+  city: string;
+  emirate: string;
+  phone: string;
 }
 
 const STEPS: ProgressStep[] = [
@@ -123,6 +138,7 @@ export function CheckoutView({ payment }: Props) {
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [emailNeedsSignIn, setEmailNeedsSignIn] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -155,8 +171,34 @@ export function CheckoutView({ payment }: Props) {
     ? apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message
     : null;
 
+  const savedAddresses = useMemo<SavedAddress[]>(
+    () =>
+      me
+        ? [
+            {
+              id: "home",
+              label: "Home",
+              name: me.fullName,
+              line1: "18 Al Wasl Villas, Villa 12",
+              city: "Dubai",
+              emirate: "Dubai",
+              phone: "+971 50 123 4567",
+            },
+          ]
+        : [],
+    [me],
+  );
+
+  const addressId = selectedAddressId ?? savedAddresses[0]?.id ?? "new";
+  const savedAddress = savedAddresses.find((a) => a.id === addressId);
+
   const stepState = (step: number): CheckoutSectionState =>
     step === openStep ? "active" : step < openStep ? "done" : "locked";
+
+  const chooseAddress = (id: string) => {
+    setSelectedAddressId(id);
+    setInformationErrors({});
+  };
 
   const editStep = (step: number) => {
     if (step < openStep && !placing) setOpenStep(step);
@@ -487,6 +529,182 @@ export function CheckoutView({ payment }: Props) {
                     {informationErrors.emirate}
                   </FieldError>
                 </div>
+
+                {savedAddresses.length > 0 && (
+                  <div className="mt-5">
+                    <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
+                      Saved addresses
+                    </p>
+                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                      {savedAddresses.map((addr) => (
+                        <li key={addr.id}>
+                          <label
+                            className={cn(
+                              "flex cursor-pointer flex-col gap-1 rounded-xl border p-4",
+                              "transition-[border-color,background-color] duration-(--duration-fast)",
+                              addressId === addr.id
+                                ? "border-accent bg-accent/5"
+                                : "border-line hover:border-line-strong",
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name="saved-address"
+                              value={addr.id}
+                              checked={addressId === addr.id}
+                              onChange={() => chooseAddress(addr.id)}
+                              className="sr-only"
+                            />
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-secondary">
+                                {addr.label}
+                              </span>
+                              {addressId === addr.id && (
+                                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent">
+                                  Selected
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[0.9375rem] font-medium text-ink">
+                              {addr.name}
+                            </p>
+                            <p className="text-[0.8125rem] text-ink-secondary">
+                              {addr.line1}
+                              <br />
+                              {addr.city}, {addr.emirate}
+                            </p>
+                            <p className="text-[0.75rem] text-ink-muted">
+                              {addr.phone}
+                            </p>
+                          </label>
+                        </li>
+                      ))}
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => chooseAddress("new")}
+                          className={cn(
+                            "flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-4",
+                            "text-[0.8125rem] font-medium",
+                            "transition-[border-color,color] duration-(--duration-fast)",
+                            addressId === "new"
+                              ? "border-accent text-accent"
+                              : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
+                          )}
+                        >
+                          <svg
+                            aria-hidden
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            className="size-3.5"
+                          >
+                            <path d="M8 3v10M3 8h10" />
+                          </svg>
+                          Add new address
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+
+                {addressId === "new" && (
+                  <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
+                    <Field
+                      id="first-name"
+                      label="First name *"
+                      autoComplete="given-name"
+                      required
+                      span={3}
+                      error={informationErrors.firstName}
+                      onBlur={() => revalidateInformation("firstName")}
+                    />
+                    <Field
+                      id="last-name"
+                      label="Last name *"
+                      autoComplete="family-name"
+                      required
+                      span={3}
+                      error={informationErrors.lastName}
+                      onBlur={() => revalidateInformation("lastName")}
+                    />
+                    <Field
+                      id="address-1"
+                      label="Address *"
+                      autoComplete="address-line1"
+                      required
+                      placeholder="Villa / apartment, building, street"
+                      error={informationErrors.address1}
+                      onBlur={() => revalidateInformation("address1")}
+                    />
+                    <Field
+                      id="address-2"
+                      label="Apartment, suite, floor"
+                      autoComplete="address-line2"
+                      trailing="Optional"
+                      error={informationErrors.address2}
+                      onBlur={() => revalidateInformation("address2")}
+                    />
+                    <Field
+                      id="city"
+                      label="City *"
+                      autoComplete="address-level2"
+                      required
+                      span={3}
+                      error={informationErrors.city}
+                      onBlur={() => revalidateInformation("city")}
+                    />
+                    <div className="col-span-6 sm:col-span-3">
+                      <label
+                        htmlFor="emirate"
+                        className="eyebrow block cursor-pointer"
+                      >
+                        Emirate *
+                      </label>
+                      <div className="relative mt-2">
+                        <select
+                          id="emirate"
+                          name="emirate"
+                          required
+                          value={emirate}
+                          onChange={(event) => setEmirate(event.target.value as Emirate)}
+                          autoComplete="address-level1"
+                          aria-invalid={informationErrors.emirate ? true : undefined}
+                          aria-describedby={informationErrors.emirate ? "emirate-error" : undefined}
+                          className={cn(
+                            "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
+                            "border border-line transition-colors duration-(--duration-fast)",
+                            "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
+                          )}
+                        >
+                          {EMIRATES.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
+                        >
+                          <path d="m4 6 4 4 4-4" />
+                        </svg>
+                      </div>
+                      <FieldError id="emirate-error" className="mt-1.5 text-[0.75rem]">
+                        {informationErrors.emirate}
+                      </FieldError>
+                    </div>
+                  </div>
+                )}
+
                 <Field
                   id="postal"
                   label="Postal code"

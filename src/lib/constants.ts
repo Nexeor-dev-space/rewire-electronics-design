@@ -6,18 +6,18 @@ export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
 export const SHOP_MAX_FILTER_VALUES = 50;
 export const RELATED_PRODUCTS_LIMIT = 5;
-export const SEARCH_SUGGEST_LIMIT = 5;
-export const SEARCH_SUGGEST_MIN_LENGTH = 2;
-export const SEARCH_QUERY_MAX_LENGTH = 100;
-export const SEARCH_MATCH_LIMIT = SHOP_MAX_PAGE_SIZE * 5;
-export const SEARCH_SUGGEST_CANDIDATES = SEARCH_SUGGEST_LIMIT * 4;
-export const SEARCH_WORD_SIMILARITY = 0.4;
 export const FEATURED_PRODUCTS_LIMIT = 4;
 export const SITEMAP_PRODUCT_LIMIT = 1000;
 export const MAX_PRODUCT_ADD_ONS = 4;
 export const NAV_CATEGORY_LIMIT = 8;
 export const HOME_CATEGORY_LIMIT = 4;
 export const STOREFRONT_CATEGORIES_REVALIDATE_SECONDS = 300;
+
+/** Storefront search: shared by the suggestions API and the `/search` page. */
+export const SEARCH_QUERY_MAX_LENGTH = 100;
+export const SEARCH_MIN_QUERY_LENGTH = 2;
+export const SEARCH_MAX_WORDS = 5;
+export const SEARCH_SUGGESTION_LIMITS = { products: 5, brands: 4, categories: 4 } as const;
 
 export const DB_POOL_MAX = 5;
 
