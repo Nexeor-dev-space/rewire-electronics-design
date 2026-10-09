@@ -307,7 +307,7 @@ function EmptyState({
 
   return (
     <div className="flex flex-col items-start gap-5 py-24 lg:py-32">
-      <p className="eyebrow">Nothing matches</p>
+      <p className="eyebrow">{query && !filtered ? "No results found" : "Nothing matches"}</p>
       <p className="max-w-md text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">
         {title}
       </p>

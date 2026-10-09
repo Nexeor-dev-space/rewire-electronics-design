@@ -25,6 +25,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | The cart and its API, `src/lib/pricing/`, VAT, discount codes, delivery zones, the guest cart cookie and merge, the checkout summary | [docs/CART.md](docs/CART.md) |
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate | [docs/AUTH.md](docs/AUTH.md) |
 | Email (SMTP), the site address, the DEV / LIVE mode, the API Credentials screen, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |
+| The `Dockerfile`, `.dockerignore`, standalone output, the Node version, Coolify build settings | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Installing, `.env`, database commands, tests and checks, deploying | [docs/COMMANDS.md](docs/COMMANDS.md) |
 
 If a task spans several areas, read each matching doc.

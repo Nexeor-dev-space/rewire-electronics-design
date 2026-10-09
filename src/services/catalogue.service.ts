@@ -8,20 +8,18 @@ import {
   MAX_PRODUCT_ADD_ONS,
   NAV_CATEGORY_LIMIT,
   RELATED_PRODUCTS_LIMIT,
-  SEARCH_MATCH_LIMIT,
-  SEARCH_SUGGEST_CANDIDATES,
-  SEARCH_SUGGEST_LIMIT,
-  SEARCH_WORD_SIMILARITY,
+  SEARCH_MAX_WORDS,
+  SEARCH_MIN_QUERY_LENGTH,
+  SEARCH_SUGGESTION_LIMITS,
   SITEMAP_PRODUCT_LIMIT,
   STOREFRONT_CATEGORIES_REVALIDATE_SECONDS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { inIdOrder, likePattern } from "@/lib/search-match";
 import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import type { SpecGroup } from "@/types/commerce";
 import type {
-  SearchSuggestion,
+  SearchSuggestions,
   ShopAddOn,
   ShopCard,
   ShopCategoryRef,
@@ -156,63 +154,75 @@ function variantFilters(query: ShopQuery, except?: Axis): Prisma.ProductVariantW
   return and;
 }
 
-async function searchMatchIds(q: string, limit: number): Promise<string[]> {
-  const pattern = likePattern(q);
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
-    WITH hits AS (
-      SELECT p.id AS id,
-             (p.name ILIKE ${pattern} OR p.slug ILIKE ${pattern}) AS exact,
-             GREATEST(word_similarity(${q}, p.name), word_similarity(${q}, p.slug)) AS score,
-             p."publishedAt" AS published_at
-      FROM products p
-      WHERE p.status = 'PUBLISHED'
-        AND (p.name ILIKE ${pattern} OR p.slug ILIKE ${pattern}
-             OR (${q} <% p.name AND word_similarity(${q}, p.name) >= ${SEARCH_WORD_SIMILARITY})
-             OR (${q} <% p.slug AND word_similarity(${q}, p.slug) >= ${SEARCH_WORD_SIMILARITY}))
-      UNION ALL
-      SELECT p.id, b.name ILIKE ${pattern}, word_similarity(${q}, b.name), p."publishedAt"
-      FROM brands b
-      JOIN products p ON p."brandId" = b.id
-      WHERE p.status = 'PUBLISHED'
-        AND (b.name ILIKE ${pattern}
-             OR (${q} <% b.name AND word_similarity(${q}, b.name) >= ${SEARCH_WORD_SIMILARITY}))
-      UNION ALL
-      SELECT p.id, c.name ILIKE ${pattern}, word_similarity(${q}, c.name), p."publishedAt"
-      FROM categories c
-      JOIN products p ON p."categoryId" = c.id
-      WHERE p.status = 'PUBLISHED'
-        AND (c.name ILIKE ${pattern}
-             OR (${q} <% c.name AND word_similarity(${q}, c.name) >= ${SEARCH_WORD_SIMILARITY}))
-      UNION ALL
-      SELECT p.id, v.sku ILIKE ${pattern}, word_similarity(${q}, v.sku), p."publishedAt"
-      FROM product_variants v
-      JOIN products p ON p.id = v."productId"
-      WHERE p.status = 'PUBLISHED'
-        AND (v.sku ILIKE ${pattern}
-             OR (${q} <% v.sku AND word_similarity(${q}, v.sku) >= ${SEARCH_WORD_SIMILARITY}))
-    )
-    SELECT id
-    FROM hits
-    GROUP BY id
-    ORDER BY bool_or(exact) DESC, MAX(score) DESC, MAX(published_at) DESC NULLS LAST, id ASC
-    LIMIT ${limit}`;
-  return rows.map((row) => row.id);
+/* ---------- search ---------- */
+
+const searchWords = (q: string) =>
+  q.toLowerCase().split(/\s+/).filter(Boolean).slice(0, SEARCH_MAX_WORDS);
+
+const contains = (word: string) => ({ contains: word, mode: "insensitive" as const });
+
+/**
+ * The one product text search, used by `/search` and the suggestions API.
+ * Every word must appear somewhere on the product, so "iphone 128" finds an
+ * iPhone with a 128GB variant.
+ */
+function searchWhere(q: string): Prisma.ProductWhereInput {
+  return {
+    AND: searchWords(q).map((word) => ({
+      OR: [
+        { name: contains(word) },
+        { description: contains(word) },
+        { brand: { name: contains(word) } },
+        { category: { name: contains(word) } },
+        {
+          variants: {
+            some: { OR: [{ sku: contains(word) }, { storage: contains(word) }, { colour: contains(word) }] },
+          },
+        },
+      ],
+    })),
+  };
 }
 
-function searchWhere(ids: string[]): Prisma.ProductWhereInput {
-  return { id: { in: ids } };
+const NO_SUGGESTIONS: SearchSuggestions = { products: [], brands: [], categories: [] };
+
+export async function searchSuggestions(q: string): Promise<SearchSuggestions> {
+  const words = searchWords(q);
+  if (q.length < SEARCH_MIN_QUERY_LENGTH || words.length === 0) return NO_SUGGESTIONS;
+
+  // Brands and categories match on any word, so "apple iphone" still offers Apple.
+  const anyWord = words.map((word) => ({ name: contains(word) }));
+
+  const [products, brands, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { AND: [PUBLISHED, searchWhere(q)] },
+      select: cardSelect,
+      orderBy: ORDER_BY.newest,
+      take: SEARCH_SUGGESTION_LIMITS.products,
+    }),
+    prisma.brand.findMany({
+      where: { OR: anyWord, products: { some: PUBLISHED } },
+      select: { name: true },
+      orderBy: { name: "asc" },
+      take: SEARCH_SUGGESTION_LIMITS.brands,
+    }),
+    prisma.category.findMany({
+      where: { AND: [VISIBLE_CATEGORY, { OR: anyWord }] },
+      select: { name: true, slug: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      take: SEARCH_SUGGESTION_LIMITS.categories,
+    }),
+  ]);
+
+  return { products: products.map((row) => toCard(row)), brands, categories };
 }
 
-function whereFor(
-  query: ShopQuery,
-  match: string[] | null,
-  except?: Axis,
-): Prisma.ProductWhereInput {
+/* ---------- shop filters ---------- */
+
+function whereFor(query: ShopQuery, except?: Axis): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [PUBLISHED];
 
-  if (match !== null) {
-    and.push(searchWhere(match));
-  }
+  if (query.q) and.push(searchWhere(query.q));
   if (except !== "category" && query.category.length > 0) {
     and.push({
       category: {
@@ -342,16 +352,12 @@ function tally<K>(values: (K | null)[]): Map<K, number> {
   return counts;
 }
 
-const variantFacetWhere = (
-  query: ShopQuery,
-  match: string[] | null,
-  axis: Axis,
-): Prisma.ProductVariantWhereInput => ({
+const variantFacetWhere = (query: ShopQuery, axis: Axis): Prisma.ProductVariantWhereInput => ({
   AND: variantFilters(query, axis),
-  product: whereFor(query, match, axis),
+  product: whereFor(query, axis),
 });
 
-async function facetsFor(query: ShopQuery, match: string[] | null): Promise<ShopFacets> {
+async function facetsFor(query: ShopQuery): Promise<ShopFacets> {
   const [categories, conditionPairs, gradePairs, brands, storagePairs, bandCounts] =
     await Promise.all([
       prisma.category.findMany({
@@ -360,35 +366,33 @@ async function facetsFor(query: ShopQuery, match: string[] | null): Promise<Shop
           name: true,
           slug: true,
           parent: { select: { slug: true } },
-          _count: { select: { products: { where: whereFor(query, match, "category") } } },
+          _count: { select: { products: { where: whereFor(query, "category") } } },
         },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       }),
       prisma.productVariant.groupBy({
         by: ["condition", "productId"],
-        where: variantFacetWhere(query, match, "condition"),
+        where: variantFacetWhere(query, "condition"),
       }),
       prisma.productVariant.groupBy({
         by: ["grade", "productId"],
-        where: { ...variantFacetWhere(query, match, "grade"), grade: { not: null } },
+        where: { ...variantFacetWhere(query, "grade"), grade: { not: null } },
       }),
       prisma.brand.findMany({
         where: { products: { some: PUBLISHED } },
         select: {
           name: true,
-          _count: { select: { products: { where: whereFor(query, match, "brand") } } },
+          _count: { select: { products: { where: whereFor(query, "brand") } } },
         },
         orderBy: { name: "asc" },
       }),
       prisma.productVariant.groupBy({
         by: ["storage", "productId"],
-        where: { ...variantFacetWhere(query, match, "storage"), storage: { not: null } },
+        where: { ...variantFacetWhere(query, "storage"), storage: { not: null } },
       }),
       Promise.all(
         priceBands.map((band) =>
-          prisma.product.count({
-            where: { AND: [whereFor(query, match, "price"), bandWhere(band)] },
-          }),
+          prisma.product.count({ where: { AND: [whereFor(query, "price"), bandWhere(band)] } }),
         ),
       ),
     ]);
@@ -426,8 +430,7 @@ async function facetsFor(query: ShopQuery, match: string[] | null): Promise<Shop
 
 export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
   const { page, pageSize, sort } = query;
-  const match = query.q ? await searchMatchIds(query.q, SEARCH_MATCH_LIMIT) : null;
-  const where = whereFor(query, match);
+  const where = whereFor(query);
 
   const [rows, total, facets] = await Promise.all([
     prisma.product.findMany({
@@ -438,7 +441,7 @@ export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
       take: pageSize,
     }),
     prisma.product.count({ where }),
-    facetsFor(query, match),
+    facetsFor(query),
   ]);
 
   return { items: rows.map((row) => toCard(row, query)), page, pageSize, total, facets };
@@ -470,39 +473,6 @@ export async function listNewestShopProducts(limit: number) {
     take: limit,
   });
   return rows.map((row) => toCard(row));
-}
-
-const suggestionSelect = {
-  id: true,
-  slug: true,
-  name: true,
-  minPrice: true,
-  brand: { select: { name: true } },
-  images: { select: { mediaId: true, alt: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-} satisfies Prisma.ProductSelect;
-
-export async function listSearchSuggestions(q: string): Promise<SearchSuggestion[]> {
-  const ids = await searchMatchIds(q, SEARCH_SUGGEST_CANDIDATES);
-  if (ids.length === 0) return [];
-
-  const rows = await prisma.product.findMany({
-    where: { AND: [PUBLISHED, searchWhere(ids)] },
-    select: suggestionSelect,
-  });
-
-  return inIdOrder(ids, rows, (row) => row.id)
-    .slice(0, SEARCH_SUGGEST_LIMIT)
-    .map((row) => {
-      const image = row.images[0];
-      return {
-        slug: row.slug,
-        name: row.name,
-        brand: row.brand.name,
-        price: row.minPrice,
-        imageUrl: imageUrlOrNull(image?.mediaId ?? null),
-        imageAlt: image?.alt || `${row.brand.name} ${row.name}`,
-      };
-    });
 }
 
 export function offeredAddOnWhere(categoryIds: string[]): Prisma.AddOnWhereInput {
