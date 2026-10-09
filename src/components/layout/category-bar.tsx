@@ -55,7 +55,7 @@ export function CategoryBar() {
       aria-label="Product categories"
       className="relative hidden border-y border-line lg:block"
     >
-      <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center gap-1 px-(--spacing-gutter)">
+      <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center-safe gap-1 px-(--spacing-gutter)">
 
         <MegaMenuItem
           menuId="drops"
