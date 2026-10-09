@@ -21,8 +21,12 @@ import { CategoryBar } from "./category-bar";
  *
  * Row 1 (all widths): logo · centered search · account · cart
  *   Below `md` the mobile bar folds: hamburger · logo · search icon · cart.
- * Row 2 (from `md`): the category rail (`CategoryBar`) — real e-commerce
- *   navigation into `/collection/*` with brand-filtered submenus.
+ *   The hamburger itself stays to `lg`, because the category rail only
+ *   appears from `lg` — tablets reach navigation through `MobileDrawer`.
+ * Row 2 (from `lg`): the category rail (`CategoryBar`) — real e-commerce
+ *   navigation into `/collection/*` with brand-filtered submenus. It starts
+ *   at `lg` to match its mega panels, which are `lg:block`; at `md` the rail
+ *   overflowed its centred flex row and clipped the first item off-screen.
  *
  * Both rows share one hairline surface and one scroll-hide behaviour, so
  * they read as a single chrome, not two competing bars. The search field
@@ -124,7 +128,7 @@ export function Header() {
               aria-label="Open menu"
               aria-haspopup="dialog"
               aria-expanded={drawerOpen}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink transition-colors duration-(--duration-fast) hover:bg-white/[0.05] md:hidden"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink transition-colors duration-(--duration-fast) hover:bg-white/[0.05] lg:hidden"
             >
               <span aria-hidden className="relative block h-2.5 w-5">
                 <span className="absolute left-0 top-0 h-px w-full bg-current" />
