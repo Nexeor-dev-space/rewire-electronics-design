@@ -13,6 +13,7 @@ import {
   AUDIT_ACTION_LABELS,
   auditFieldLabel,
   auditModuleLabel,
+  DELETED_ACTOR_LABEL,
   type AuditAction,
   type AuditValues,
 } from "@/lib/audit";
@@ -22,6 +23,8 @@ import { cn } from "@/lib/utils";
 import type { AuditLogEntry } from "@/types/audit";
 
 const COLUMNS = "lg:grid-cols-[10rem_minmax(0,1.2fr)_9rem_minmax(0,1fr)_minmax(0,1.4fr)]";
+
+const actorLabel = (entry: AuditLogEntry) => entry.actorEmail ?? DELETED_ACTOR_LABEL;
 
 /**
  * Governance → Change Log: every recorded admin change, newest first, with
@@ -96,7 +99,7 @@ export function ChangeLog() {
                     {formatWhen(entry.createdAt)}
                   </time>
                   <p className="min-w-0 truncate text-sm text-ink">
-                    {entry.actorName}
+                    {actorLabel(entry)}
                     <span className="ml-2 text-xs text-ink-muted">{ROLE_LABELS[entry.actorRole]}</span>
                   </p>
                   <div>
@@ -139,7 +142,7 @@ export function ChangeLog() {
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search by record or person"
+          placeholder="Search by record, name or email"
           aria-label="Search the change log"
           className="h-10 sm:w-80"
         />
@@ -185,7 +188,7 @@ export function ChangeLog() {
         title={open ? `${AUDIT_ACTION_LABELS[open.action]}: ${open.recordLabel}` : ""}
         description={
           open &&
-          `${auditModuleLabel(open.module)} · ${open.actorName} (${ROLE_LABELS[open.actorRole]}) · ${formatWhen(open.createdAt)}`
+          `${auditModuleLabel(open.module)} · ${actorLabel(open)} (${ROLE_LABELS[open.actorRole]}) · ${formatWhen(open.createdAt)}`
         }
       >
         <DialogBody>{open && <ChangeDetail entry={open} />}</DialogBody>

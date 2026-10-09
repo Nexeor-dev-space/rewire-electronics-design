@@ -33,13 +33,15 @@ export const accountNav: NavItem[] = [
   { label: "Profile", href: "/account/settings" },
 ];
 
-export const searchSuggestions = [
-  "iPhone",
-  "MacBook",
-  "AirPods",
-  "Samsung",
-  "Apple Watch",
-] as const;
+/** The one wording for every search entry point: header, panel, mobile drawer. */
+export const searchCopy = {
+  label: "Search products, brands and devices",
+  placeholder: "Search products, brands & devices",
+} as const;
+
+export const SEARCH_PAGE_PATH = "/search";
+
+export const searchHref = (q: string) => `${SEARCH_PAGE_PATH}?q=${encodeURIComponent(q.trim())}`;
 
 export const footerNav: { title: string; items: NavItem[] }[] = [
   {

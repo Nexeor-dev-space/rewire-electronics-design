@@ -14,7 +14,7 @@ general conventions; this document covers what is specific to the catalogue.
 | Area | What exists |
 | --- | --- |
 | Database | Categories, products, variants, images, specs, add-ons |
-| Admin | Categories, Products, Add-ons and Inventory screens under Catalogue |
+| Admin | Categories, Products and Add-ons screens under Catalogue. Stock is managed on the product edit form |
 | Product API | `GET /api/v1/products`, `GET /api/v1/products/[slug]` and the search suggestions `GET /api/v1/search` |
 | Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]`, and the header, mega menus, mobile drawer, home category strip and search panel |
 | SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, canonical URLs |
@@ -92,7 +92,6 @@ permission, and every route starts with `authorizeApi`.
 | --- | --- | --- |
 | Categories | `/admin/categories` | `catalogue.categories` |
 | Products | `/admin/products` | `catalogue.products` |
-| Inventory | `/admin/products/inventory` | `catalogue.inventory` |
 | Add-ons | `/admin/add-ons` | `catalogue.add-ons` |
 
 | Endpoint | Methods |
@@ -103,15 +102,13 @@ permission, and every route starts with `authorizeApi`.
 | `/api/v1/admin/products` | `GET` list, `POST` create |
 | `/api/v1/admin/products/[id]` | `GET`, `PUT`, `DELETE` |
 | `/api/v1/admin/products/[id]/status` | `PATCH` publish, unpublish or archive |
-| `/api/v1/admin/inventory` | `GET` a paged list of variants, filter `stock=all,low,out` |
-| `/api/v1/admin/inventory/[variantId]` | `PATCH` one variant's stock |
 | `/api/v1/admin/add-ons` | `GET` list, `POST` create |
 | `/api/v1/admin/add-ons/[id]` | `GET`, `PUT`, `DELETE` |
 
-Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{products,add-ons,inventory}`,
-`src/hooks/use-{product,add-on,inventory}.ts`, the routes above,
-`src/services/{product,add-on,inventory}.service.ts` and
-`src/validators/{product,add-on,inventory}.validator.ts`.
+Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{products,add-ons}`,
+`src/hooks/use-{product,add-on}.ts`, the routes above,
+`src/services/{product,add-on}.service.ts` and
+`src/validators/{product,add-on}.validator.ts`.
 
 ### Category rules
 
@@ -122,6 +119,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    every row, like the product list.
 3. A category with children or products can't be deleted. Archive it to hide it
    and keep the record.
+4. The product form's Category select is one flat list in storefront order:
+   each parent, then its children named "Parent › Child" (`flattenCategoryRefs`
+   in `src/lib/homepage-builder.ts`, shared with the homepage picker). Archived
+   categories are left out, except the one the product already uses.
 
 ### Product rules
 
@@ -151,8 +152,24 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    count, products in Trash included.
 9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
    closing the modal drops the cached product and the next open fetches it
-   again. Without this, stock changed from Inventory was shown stale and the
-   next save wrote the old stock back.
+   again, and a save never writes back stock older than the database.
+10. **Stock is managed on the product edit form only.** Each variant row has a
+    Stock field, and `ProductVariant.stock` is the single stock record; there
+    is no separate inventory table or screen. Saving the product
+    (`PUT /api/v1/admin/products/[id]`, Products Edit permission) updates each
+    variant by its id, records the change under Products in the change log and
+    calls `refreshStorefrontCatalogue()`, so the Products list total, the
+    product page and storefront availability all read the new count. Above
+    the variant rows the form shows the product's total stock and its
+    availability label (`availabilityFromStock`), worked out from the values
+    being edited.
+
+    The separate Inventory screen (`/admin/products/inventory`), its API
+    (`/api/v1/admin/inventory`), its `catalogue.inventory` permission and the
+    `["inventory"]` query key were removed. Staff roles may still hold a saved
+    `catalogue.inventory` row; `gridFromLevels` ignores keys it does not know,
+    so the row does nothing. Change log entries recorded under it keep the
+    "Inventory" label through `RETIRED_MODULE_LABELS` in `src/lib/audit.ts`.
 
 ### Add-on rules
 
@@ -194,7 +211,7 @@ Query parameters, validated by `shopQuerySchema` in
 | Parameter | Meaning |
 | --- | --- |
 | `page`, `pageSize` | Default page size `SHOP_PAGE_SIZE` (12), maximum `SHOP_MAX_PAGE_SIZE` (48) |
-| `q` | Text search, without case, on product name, slug, brand name, category name and variant SKU, up to `SEARCH_QUERY_MAX_LENGTH` (100) characters. Typo tolerant through `pg_trgm`, so "ipone" finds "iPhone" (see "Search" below). Rate limited when set |
+| `q` | Text search, up to `SEARCH_QUERY_MAX_LENGTH` (100) characters; see "Search" below |
 | `category` | Comma separated category slugs. A parent slug also matches its children |
 | `condition` | `new`, `open-box`, `pre-owned`, `refurbished` |
 | `grade` | `premium`, `excellent`, `very-good`, `good` |
@@ -259,95 +276,47 @@ page and the API cannot disagree.
 
 ### Search
 
-**One match rule.** `searchMatchIds(q, limit)` in `catalogue.service.ts` is the
-only text match. It is one raw query, the only SQL in the catalogue, and it
-returns product ids in match order. A product comes back two ways:
+There is one search, end to end. `searchWhere(q)` in
+`src/services/catalogue.service.ts` is the only product text filter: both
+`/search` (through `listShopProducts`) and the suggestions API use it, so a
+suggestion and the full results never disagree.
 
-1. `q` reads as a substring of the product name, the slug, the brand name, the
-   category name or any variant's SKU (`ILIKE '%q%'`, without case). This is
-   what answers a two letter query, since two characters have no trigram.
-2. `pg_trgm` finds one of those five close enough to `q`, which is how "ipone"
-   finds "iPhone" and "samsng" finds "Samsung".
-
-The closeness measure is `word_similarity`, not `similarity`: `similarity`
-compares whole strings, so a longer product name dilutes the score until a real
-typo falls below any usable cut ("ipone" against "iPhone 15 Pro Max" scores
-0.20), while `word_similarity` scores the best matching run of words and stays
-stable regardless of name length (0.44 for the same pair).
-
-Two numbers control it, and the authoritative one is in the repo:
-
-- `SEARCH_WORD_SIMILARITY` (0.4) in `src/lib/constants.ts` is the real cut.
-- `pg_trgm.word_similarity_threshold`, set to 0.3 per database with
-  `ALTER DATABASE … SET`, is a looser first pass so the `<%` operator can use
-  the trigram indexes. It must stay at or below `SEARCH_WORD_SIMILARITY`;
-  left at its 0.6 default it filters before the 0.4 cut is ever reached and
-  typo tolerance quietly disappears while search still works.
-
-The query is four `UNION ALL` arms, one per table, because Postgres cannot use
-an index for a condition spanning more than one relation — a single OR across
-products, brands, categories and variants would scan. Ids are ordered substring
-matches first, then by `word_similarity`, then newest, then by id, and cut at
-the caller's limit. The pattern given to `ILIKE` escapes `\`, `%` and `_`
-(`likePattern` in `src/lib/search-match.ts`), so a query of "%" looks for a
-percent sign rather than matching everything; it relies on `LIKE`'s default
-backslash escape character, with no `ESCAPE` clause.
-
-The SQL checks `status = 'PUBLISHED'` only. That is a subset of what the
-storefront requires, so it can only narrow, never widen; category visibility
-stays with Prisma, which ands `PUBLISHED` with `{ id: { in: ids } }` in
-`whereFor`. `listShopProducts` resolves the ids **once per request** at
-`SEARCH_MATCH_LIMIT` and threads them through the page query, the total and
-every facet count, so no two counts can be drawn from different match sets.
-`listSearchSuggestions` resolves them for the suggestions below. The
-suggestions and the full results page always agree.
-
-An empty id list is a filter, not an absence: a query that matched nothing
-answers no items, `total` 0, and every facet count 0.
+1. The query is lowercased and split on spaces, keeping the first
+   `SEARCH_MAX_WORDS` (5) words.
+2. **Every word must match somewhere** on the product, partially and without
+   case: product name, description, brand name, category name, or any
+   variant's SKU, storage or colour. "iphone 128" finds an iPhone with a 128GB
+   variant; "A2848" finds the variant with that SKU.
+3. Only `PUBLISHED` products in visible categories are searched, as everywhere
+   else on the storefront. There is no separate search table; the matches are
+   `ILIKE` queries on the catalogue tables. GIN trigram indexes on product
+   name and slug, brand name, category name and variant SKU (migration
+   `add_search_trigram_indexes`, which also installs `pg_trgm`) let Postgres
+   answer `ILIKE '%word%'` without a full scan once the catalogue is large.
 
 ### `GET /api/v1/search?q=`
 
-Product suggestions for the header search panel. It reads through
-`catalogue.service.ts` like the routes above, so it is not a second product
-source.
+Public, no session. Feeds the header search panel while the shopper types.
 
-1. **Query.** `searchSuggestQuerySchema` in
-   `src/validators/catalogue.validator.ts`: `q` is trimmed, then must be
-   `SEARCH_SUGGEST_MIN_LENGTH` (2) to `SEARCH_QUERY_MAX_LENGTH` (100)
-   characters. Anything else answers 422.
-2. **Result.** Up to `SEARCH_SUGGEST_LIMIT` (5) `PUBLISHED` products in match
-   order, from `listSearchSuggestions(q)`. It ranks `SEARCH_SUGGEST_CANDIDATES`
-   (20) ids, drops the ones Prisma will not show and keeps the first five, so
-   the SQL rank survives the `{ id: { in: … } }` fetch, which does not preserve
-   order. Hidden categories and drafts never appear.
-3. **Response.** An array of `SearchSuggestion` (`src/types/catalogue.ts`):
+| Part | Rule |
+| --- | --- |
+| `q` | Validated by `searchSuggestionsQuerySchema`. Missing, blank, shorter than `SEARCH_MIN_QUERY_LENGTH` (2) or longer than `SEARCH_QUERY_MAX_LENGTH` (100) answers 200 with empty lists, never an error |
+| `products` | Up to `SEARCH_SUGGESTION_LIMITS.products` (5) `ShopCard`s matching `searchWhere`, newest first |
+| `brands` | Up to 4 brands with at least one published product whose name contains any word, as `{ name }` |
+| `categories` | Up to 4 visible categories whose name contains any word, as `{ name, slug }` |
+| Rate limit | `RATE_LIMITS.search`, 60 per minute per IP, shared with `GET /api/v1/products` when `q` is set; 429 with `Retry-After` past it |
+
+Three small bounded queries per request. The panel links a product to
+`/product/[slug]`, a brand to `/collection?brand=<name>` and a category to
+`/collection/[slug]`.
 
 ```json
-[
-  {
-    "slug": "iphone-15-pro",
-    "name": "iPhone 15 Pro",
-    "brand": "Apple",
-    "price": 329900,
-    "imageUrl": "/api/v1/media/<mediaId>",
-    "imageAlt": "Apple iPhone 15 Pro"
-  }
-]
+{
+  "products": [ShopCard],
+  "brands": [{ "name": "Apple" }],
+  "categories": [{ "name": "Smartphones", "slug": "smartphones" }]
+}
 ```
-
-`price` is the product's `minPrice` in fils. `imageUrl` is the first image or
-`null`; `imageAlt` falls back to brand and name.
-
-**Rate limit.** `RATE_LIMITS.search` allows 60 requests per minute per IP, and
-answers 429 with `Retry-After` past that (see [AUTH.md](AUTH.md) §7). The
-bucket is shared: `GET /api/v1/search` always counts, and
-`GET /api/v1/products` counts only when `q` is set, so a shopper typing in the
-panel and then paging the results draws on one budget. Unfiltered browsing and
-the server render of `/search` (which calls the service directly) do not
-count.
-
-The path is `API_ENDPOINTS.search.suggest`. `src/validators/catalogue.validator.test.ts`
-covers the query rules.
 
 ---
 
@@ -359,7 +328,7 @@ covers the query rules.
 | `/collection` | Every published product |
 | `/collection/[category]` | The same page, with the category filter set |
 | `/category/[slug]` | Permanent redirect to `/collection/[slug]` (`next.config.ts`) |
-| `/search?q=` | The same page, with the text search set. Not indexed |
+| `/search?q=` | The same page, with the text search set, a "Clear search" link and a "No results found" empty state. Not indexed |
 | `/product/[slug]` | `findShopProductPage` |
 
 All of these render per request (`force-dynamic`), because they read the
@@ -378,13 +347,10 @@ filters, so following a menu link to the same route with other filters starts
 fresh.
 
 **The header search panel** (`src/components/layout/search-panel.tsx`) shows
-product suggestions as the shopper types. `useSearchSuggestions(q)` in
-`src/hooks/use-catalogue.ts` calls `GET /api/v1/search`, stays idle below
-`SEARCH_SUGGEST_MIN_LENGTH` (2) characters, and keeps the previous suggestions
-on screen while the next ones load. The panel waits `SEARCH_DEBOUNCE_MS`
-(300ms) after the last keystroke before asking, and shows "No matches" only
-once that request has finished and every column is empty. Submitting the
-field goes to `/search?q=`.
+suggestions as the shopper types. `useSearchSuggestions(q)` in
+`src/hooks/use-search.ts` calls `GET /api/v1/search` and stays idle below
+`SEARCH_MIN_QUERY_LENGTH` (2) characters. How the panel opens and closes is in
+[STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md).
 
 **Category segments** go through `resolveCategory` in `src/lib/shop.ts` first,
 so older links keep working: `phones` becomes `smartphones`, `wearables`
@@ -394,8 +360,8 @@ database answers 404.
 **Categories in the chrome.** The `(site)` layout loads
 `listStorefrontCategories()` once and hands it to `StorefrontCategoriesProvider`
 (`src/components/providers/storefront-categories-provider.tsx`). The category
-bar, mega menus, Shop menu, mobile drawer, home category strip, search panel
-and the About page read it with `useStorefrontCategories()`. It returns the
+bar, mega menus, Shop menu, mobile drawer, home category strip and the About
+page read it with `useStorefrontCategories()`. It returns the
 published, `showInNav` top level categories in order, up to
 `NAV_CATEGORY_LIMIT` (8), each with its description, image, in stock product
 count and brand counts (children included). The home strip shows the first
@@ -532,12 +498,6 @@ All in `src/lib/constants.ts`.
 | `SHOP_MAX_PAGE_SIZE` | 48 | Largest page the API serves |
 | `SHOP_MAX_FILTER_VALUES` | 50 | Values kept per filter |
 | `RELATED_PRODUCTS_LIMIT` | 5 | Related products |
-| `SEARCH_SUGGEST_LIMIT` | 5 | Products per search suggestion response |
-| `SEARCH_SUGGEST_MIN_LENGTH` | 2 | Shortest suggestion query; the hook stays idle below it |
-| `SEARCH_QUERY_MAX_LENGTH` | 100 | Longest `q`, on both the shop listing and the suggestions |
-| `SEARCH_MATCH_LIMIT` | 240 | Most product ids one text search resolves, five full pages at `SHOP_MAX_PAGE_SIZE` |
-| `SEARCH_SUGGEST_CANDIDATES` | 20 | Ids the suggestions rank before category visibility trims them to `SEARCH_SUGGEST_LIMIT` |
-| `SEARCH_WORD_SIMILARITY` | 0.4 | How close `pg_trgm` must get for a typo to match |
 | `RATE_LIMITS.search` | 60 per minute, per IP | `GET /api/v1/search`, and `GET /api/v1/products` when `q` is set |
 | `MAX_PRODUCT_ADD_ONS` | 4 | Add-ons on the product page |
 | `FEATURED_PRODUCTS_LIMIT` | 4 | Homepage shelf |
@@ -545,6 +505,11 @@ All in `src/lib/constants.ts`.
 | `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
 | `HOME_CATEGORY_LIMIT` | 4 | Categories in the home strip |
 | `STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` | 300 | Longest the cached menu categories live |
+| `SEARCH_QUERY_MAX_LENGTH` | 100 | Longest search query (`q`) |
+| `SEARCH_MIN_QUERY_LENGTH` | 2 | Shortest query that gets suggestions |
+| `SEARCH_MAX_WORDS` | 5 | Words of a query that are matched |
+| `SEARCH_SUGGESTION_LIMITS` | 5, 4, 4 | Products, brands and categories in the search panel |
+| `SEARCH_DEBOUNCE_MS` | 300 | Pause in typing before the panel asks for suggestions |
 | `SEO_TITLE_MAX_LENGTH`, `SEO_DESCRIPTION_MAX_LENGTH`, `OG_TITLE_MAX_LENGTH`, `OG_DESCRIPTION_MAX_LENGTH`, `SEO_KEYWORDS_MAX`, `SEO_KEYWORD_MAX_LENGTH`, `CANONICAL_URL_MAX_LENGTH` | 70, 160, 95, 200, 10, 40, 512 | Product SEO fields (section 7) |
 
 ---
@@ -574,31 +539,11 @@ All in `src/lib/constants.ts`.
 8. **`src/lib/categories.ts` is no longer read.** It held the old hardcoded
    menu categories and their studio photos; category images now come from the
    admin.
-9. **Text search is capped, and its facets with it.** `searchMatchIds` returns
-   at most `SEARCH_MATCH_LIMIT` (240) ranked ids, and the page query, the count
-   and every facet count then run against that id set. Past 240 matches a search
-   cannot page further, `total` reads 240, the facet counts describe those 240,
-   and `price-asc` sorts the 240 most relevant rather than every match.
-   Unreachable at today's catalogue size, and the fix is raising one number.
-10. **Searching costs one extra round trip.** The ids have to resolve before the
-    page query, the count and the facet counts can start, so a searched listing
-    is one query deeper than an unsearched one. Each of those queries is cheaper
-    than it used to be, though: they filter on `id IN (…)` against the primary
-    key instead of a five column `ILIKE '%q%'` OR with a subquery over every
-    variant's SKU.
-11. **Suggestions can come back short.** The panel ranks
-    `SEARCH_SUGGEST_CANDIDATES` (20) ids and then drops the ones in hidden
-    categories, so a query whose top matches are mostly hidden shows fewer than
-    `SEARCH_SUGGEST_LIMIT` (5) even when more matches exist.
-12. **The trigram indexes do not show up on a small table.** Each arm of the
-    search query touches one table and can use the GIN index on its own column,
-    but with 35 products Postgres prefers a sequential scan. `EXPLAIN` only
-    shows the index with `SET enable_seqscan = off`, and a query under three
+9. **Search is not typo tolerant.** Every word must appear as typed, so
+   "ipone" finds nothing. The trigram indexes are in place if fuzzy matching is
+   added later.
+10. **The trigram indexes do not show up on a small table.** With a few dozen
+    products Postgres prefers a sequential scan, and a word under three
     characters has no usable trigram and always scans.
-13. **`pg_trgm.word_similarity_threshold` lives in the database.** Nothing sets
-    it per request, because a `SET` would leak to the next caller on the pooled
-    connection, so it is `ALTER DATABASE … SET` per database and has to be
-    applied to every environment separately. See "Search" for what happens when
-    it is missed.
-14. **The search rate limit is per IP.** Shoppers behind one address (an office
+11. **The search rate limit is per IP.** Shoppers behind one address (an office
     or a mobile carrier) share 60 searches a minute.

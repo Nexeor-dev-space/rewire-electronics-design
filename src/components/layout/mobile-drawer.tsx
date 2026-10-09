@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { accountNav, siteConfig } from "@/lib/site";
+import { accountNav, searchCopy, siteConfig } from "@/lib/site";
 import { getDrawerSections } from "@/lib/navigation";
 import { useGetMe, useSignOut } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
@@ -170,7 +170,7 @@ export function MobileDrawer({
                   <path d="M16.5 16.5L21 21" />
                 </svg>
                 <span className="text-sm text-ink-muted">
-                  Search certified devices...
+                  {searchCopy.placeholder}
                 </span>
               </button>
             </div>

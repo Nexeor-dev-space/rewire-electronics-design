@@ -53,7 +53,7 @@ export const adminMetrics: AdminMetric[] = [
     key: "low-stock",
     label: "Low Stock",
     hint: "Variants below their stock threshold",
-    href: "/admin/products/inventory",
+    href: "/admin/products",
   },
 ];
 
