@@ -53,7 +53,7 @@ export function CategoryBar() {
   return (
     <nav
       aria-label="Product categories"
-      className="relative hidden border-y border-line md:block"
+      className="relative hidden border-y border-line lg:block"
     >
       <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center gap-1 px-(--spacing-gutter)">
 
