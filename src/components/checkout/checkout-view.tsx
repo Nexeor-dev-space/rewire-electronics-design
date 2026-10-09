@@ -5,16 +5,33 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { cartKeys, useApplyCoupon, useGetCartQuote, useRemoveCoupon } from "@/hooks/use-cart";
+import {
+  cartKeys,
+  useApplyCoupon,
+  useGetCartQuote,
+  useRemoveCoupon,
+} from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
 import { usePlaceOrder } from "@/hooks/use-checkout";
 import { ApiError, apiFieldErrors } from "@/lib/api/api-client";
 import { signInHref } from "@/lib/auth/next-path";
-import { CHECKOUT_PAGE_PATH, CHECKOUT_SUCCESS_PAGE_PATH } from "@/lib/constants";
-import { DELIVERY_METHOD_LABELS, DELIVERY_METHODS, formatEta, type DeliveryMethod } from "@/lib/delivery";
+import {
+  CHECKOUT_PAGE_PATH,
+  CHECKOUT_SUCCESS_PAGE_PATH,
+} from "@/lib/constants";
+import {
+  DELIVERY_METHOD_LABELS,
+  DELIVERY_METHODS,
+  formatEta,
+  type DeliveryMethod,
+} from "@/lib/delivery";
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
-import { PAYMENT_LINK_NOTICE, awaitsPaymentLink, type PaymentMethod } from "@/lib/orders";
+import {
+  PAYMENT_LINK_NOTICE,
+  awaitsPaymentLink,
+  type PaymentMethod,
+} from "@/lib/orders";
 import { cn } from "@/lib/utils";
 import { checkoutInformationSchema } from "@/validators/checkout.validator";
 import { Button } from "@/components/ui/button";
@@ -58,7 +75,11 @@ const INFORMATION_FIELDS = {
   postalCode: "postal",
 } as const;
 
-const RETRYABLE_ERROR_CODES: readonly string[] = ["NETWORK", "INTERNAL", "NOT_CONFIGURED"];
+const RETRYABLE_ERROR_CODES: readonly string[] = [
+  "NETWORK",
+  "INTERNAL",
+  "NOT_CONFIGURED",
+];
 
 type InformationField = keyof typeof INFORMATION_FIELDS;
 type InformationErrors = Partial<Record<InformationField, string>>;
@@ -72,7 +93,9 @@ function readInformation(form: HTMLFormElement, emailOptIn: boolean) {
   return values;
 }
 
-function pickInformationErrors(fieldErrors: Partial<Record<string, string[]>>): InformationErrors {
+function pickInformationErrors(
+  fieldErrors: Partial<Record<string, string[]>>,
+): InformationErrors {
   const errors: InformationErrors = {};
   for (const field of Object.keys(INFORMATION_FIELDS) as InformationField[]) {
     const message = fieldErrors[field]?.[0];
@@ -81,14 +104,20 @@ function pickInformationErrors(fieldErrors: Partial<Record<string, string[]>>): 
   return errors;
 }
 
-function firstInformationError(errors: InformationErrors): InformationField | undefined {
-  return (Object.keys(INFORMATION_FIELDS) as InformationField[]).find((field) => errors[field]);
+function firstInformationError(
+  errors: InformationErrors,
+): InformationField | undefined {
+  return (Object.keys(INFORMATION_FIELDS) as InformationField[]).find(
+    (field) => errors[field],
+  );
 }
 
 function checkInformation(values: Record<string, unknown>) {
   const result = checkoutInformationSchema.safeParse(values);
   if (!result.success) {
-    return { errors: pickInformationErrors(z.flattenError(result.error).fieldErrors) };
+    return {
+      errors: pickInformationErrors(z.flattenError(result.error).fieldErrors),
+    };
   }
   const { email, phone, city, emirate } = result.data;
   return {
@@ -98,7 +127,10 @@ function checkInformation(values: Record<string, unknown>) {
 }
 
 function isRetryable(error: Error): boolean {
-  return !(error instanceof ApiError) || RETRYABLE_ERROR_CODES.includes(error.body.code);
+  return (
+    !(error instanceof ApiError) ||
+    RETRYABLE_ERROR_CODES.includes(error.body.code)
+  );
 }
 
 function formatFee(fee: number): string {
@@ -116,10 +148,14 @@ export function CheckoutView({ payment }: Props) {
   const placeOrder = usePlaceOrder();
   const queryClient = useQueryClient();
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(payment[0]?.value ?? "COD");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    payment[0]?.value ?? "COD",
+  );
   const [openStep, setOpenStep] = useState(INFORMATION_STEP);
   const [informationSummary, setInformationSummary] = useState("");
-  const [informationErrors, setInformationErrors] = useState<InformationErrors>({});
+  const [informationErrors, setInformationErrors] = useState<InformationErrors>(
+    {},
+  );
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [emailNeedsSignIn, setEmailNeedsSignIn] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
@@ -134,14 +170,18 @@ export function CheckoutView({ payment }: Props) {
   const lines = cart?.items ?? [];
   const stepsComplete = openStep === REVIEW_STEP;
 
-  const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map((option) => ({
-    value: option.method,
-    label: DELIVERY_METHOD_LABELS[option.method],
-    supporting: formatEta(option.etaMinDays, option.etaMaxDays),
-    trailing: formatFee(option.fee),
-  }));
+  const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map(
+    (option) => ({
+      value: option.method,
+      label: DELIVERY_METHOD_LABELS[option.method],
+      supporting: formatEta(option.etaMinDays, option.etaMaxDays),
+      trailing: formatFee(option.fee),
+    }),
+  );
 
-  const activeDeliveryOption = quote.data?.options.find((option) => option.method === method);
+  const activeDeliveryOption = quote.data?.options.find(
+    (option) => option.method === method,
+  );
   const deliveryLabel = activeDeliveryOption
     ? `${DELIVERY_METHOD_LABELS[method]} · ${formatEta(activeDeliveryOption.etaMinDays, activeDeliveryOption.etaMaxDays)}`
     : DELIVERY_METHOD_LABELS[method];
@@ -149,10 +189,12 @@ export function CheckoutView({ payment }: Props) {
     ? `${deliveryLabel} · ${formatFee(activeDeliveryOption.fee)}`
     : deliveryLabel;
 
-  const activePayment = payment.find((option) => option.value === paymentMethod);
+  const activePayment = payment.find(
+    (option) => option.value === paymentMethod,
+  );
 
   const couponFieldError = applyCoupon.isError
-    ? apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message
+    ? (apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message)
     : null;
 
   const stepState = (step: number): CheckoutSectionState =>
@@ -173,7 +215,10 @@ export function CheckoutView({ payment }: Props) {
     const form = formRef.current;
     if (!form || !informationErrors[field]) return;
     const check = checkInformation(readInformation(form, emailOptIn));
-    setInformationErrors((current) => ({ ...current, [field]: check.errors?.[field] }));
+    setInformationErrors((current) => ({
+      ...current,
+      [field]: check.errors?.[field],
+    }));
   };
 
   const continueInformation = () => {
@@ -199,7 +244,8 @@ export function CheckoutView({ payment }: Props) {
     if (!isRetryable(error)) idempotencyKey.current = null;
 
     const errors = pickInformationErrors(apiFieldErrors(error));
-    const conflict = error instanceof ApiError && error.body.code === "CONFLICT";
+    const conflict =
+      error instanceof ApiError && error.body.code === "CONFLICT";
     if (conflict) queryClient.invalidateQueries({ queryKey: cartKeys.all });
 
     if (firstInformationError(errors)) {
@@ -211,7 +257,14 @@ export function CheckoutView({ payment }: Props) {
   };
 
   const handlePlaceOrder = () => {
-    if (placing || !cart || lines.length === 0 || !cart.canCheckout || !stepsComplete) return;
+    if (
+      placing ||
+      !cart ||
+      lines.length === 0 ||
+      !cart.canCheckout ||
+      !stepsComplete
+    )
+      return;
     const form = formRef.current;
     if (!form) return;
 
@@ -239,7 +292,9 @@ export function CheckoutView({ payment }: Props) {
       {
         onSuccess: (order) => {
           idempotencyKey.current = null;
-          router.push(`${CHECKOUT_SUCCESS_PAGE_PATH}?order=${encodeURIComponent(order.number)}`);
+          router.push(
+            `${CHECKOUT_SUCCESS_PAGE_PATH}?order=${encodeURIComponent(order.number)}`,
+          );
         },
         onError: handlePlaceError,
       },
@@ -299,7 +354,11 @@ export function CheckoutView({ payment }: Props) {
       className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 pb-40 md:py-12 lg:pb-14"
     >
       <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-20 md:mb-12">
-        <CheckoutProgress steps={STEPS} activeIndex={openStep} onSelect={editStep} />
+        <CheckoutProgress
+          steps={STEPS}
+          activeIndex={openStep}
+          onSelect={editStep}
+        />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-16">
@@ -310,8 +369,8 @@ export function CheckoutView({ payment }: Props) {
               Just a few details away.
             </h1>
             <p className="mt-3 max-w-lg text-base leading-relaxed text-ink-secondary">
-              Every field marked with an asterisk is required. Your details
-              are used only to complete this order.
+              Every field marked with an asterisk is required. Your details are
+              used only to complete this order.
             </p>
           </header>
 
@@ -454,10 +513,16 @@ export function CheckoutView({ payment }: Props) {
                       name="emirate"
                       required
                       value={emirate}
-                      onChange={(event) => setEmirate(event.target.value as Emirate)}
+                      onChange={(event) =>
+                        setEmirate(event.target.value as Emirate)
+                      }
                       autoComplete="address-level1"
-                      aria-invalid={informationErrors.emirate ? true : undefined}
-                      aria-describedby={informationErrors.emirate ? "emirate-error" : undefined}
+                      aria-invalid={
+                        informationErrors.emirate ? true : undefined
+                      }
+                      aria-describedby={
+                        informationErrors.emirate ? "emirate-error" : undefined
+                      }
                       className={cn(
                         "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
                         "border border-line transition-colors duration-(--duration-fast)",
@@ -483,7 +548,10 @@ export function CheckoutView({ payment }: Props) {
                       <path d="m4 6 4 4 4-4" />
                     </svg>
                   </div>
-                  <FieldError id="emirate-error" className="mt-1.5 text-[0.75rem]">
+                  <FieldError
+                    id="emirate-error"
+                    className="mt-1.5 text-[0.75rem]"
+                  >
                     {informationErrors.emirate}
                   </FieldError>
                 </div>
@@ -506,7 +574,10 @@ export function CheckoutView({ payment }: Props) {
               </div>
             </div>
 
-            <ContinueButton label="Continue to delivery" onClick={continueInformation} />
+            <ContinueButton
+              label="Continue to delivery"
+              onClick={continueInformation}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -536,7 +607,10 @@ export function CheckoutView({ payment }: Props) {
               tracking link the moment it leaves the workshop.
             </p>
 
-            <ContinueButton label="Continue to payment" onClick={continueDelivery} />
+            <ContinueButton
+              label="Continue to payment"
+              onClick={continueDelivery}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -578,7 +652,10 @@ export function CheckoutView({ payment }: Props) {
               Secure payment · encrypted end-to-end
             </div>
 
-            <ContinueButton label="Continue to review" onClick={continuePayment} />
+            <ContinueButton
+              label="Continue to review"
+              onClick={continuePayment}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -590,10 +667,7 @@ export function CheckoutView({ payment }: Props) {
           >
             <dl className="grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
               <ReviewRow label="Delivery" value={deliveryLabel} />
-              <ReviewRow
-                label="Payment"
-                value={activePayment?.label ?? "—"}
-              />
+              <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
               <ReviewRow
                 label="Order total"
                 value={formatMoney(cart!.totals.total)}
@@ -601,7 +675,10 @@ export function CheckoutView({ payment }: Props) {
               />
             </dl>
             {placeError && (
-              <p role="alert" className="mt-5 text-[0.8125rem] text-danger lg:hidden">
+              <p
+                role="alert"
+                className="mt-5 text-[0.8125rem] text-danger lg:hidden"
+              >
                 {placeError}
               </p>
             )}
@@ -637,7 +714,13 @@ export function CheckoutView({ payment }: Props) {
   );
 }
 
-function ContinueButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ContinueButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <div className="mt-8 flex justify-end">
       <Button type="button" onClick={onClick} className="w-full sm:w-auto">
@@ -727,7 +810,9 @@ function ReviewRow({
       <dd
         className={cn(
           "tabular-nums",
-          strong ? "text-[0.9375rem] font-medium text-ink" : "text-ink-secondary",
+          strong
+            ? "text-[0.9375rem] font-medium text-ink"
+            : "text-ink-secondary",
         )}
       >
         {value}
