@@ -70,6 +70,7 @@ export async function listAuditLogs({ page, pageSize, module, action, search }: 
           OR: [
             { recordLabel: { contains: search, mode: "insensitive" } },
             { actorName: { contains: search, mode: "insensitive" } },
+            { actor: { email: { contains: search, mode: "insensitive" } } },
           ],
         }
       : {}),
@@ -80,8 +81,8 @@ export async function listAuditLogs({ page, pageSize, module, action, search }: 
       where,
       select: {
         id: true,
-        actorName: true,
         actorRole: true,
+        actor: { select: { email: true } },
         action: true,
         module: true,
         recordId: true,
@@ -97,5 +98,8 @@ export async function listAuditLogs({ page, pageSize, module, action, search }: 
     prisma.auditLog.count({ where }),
   ]);
 
-  return { items: rows, page, pageSize, total };
+  // The email is read live through `actorId`, so it names the account that
+  // acted; null means that account was removed.
+  const items = rows.map(({ actor, ...row }) => ({ ...row, actorEmail: actor?.email ?? null }));
+  return { items, page, pageSize, total };
 }

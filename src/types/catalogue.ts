@@ -25,15 +25,6 @@ export interface ShopCard {
   listedAt: string | null;
 }
 
-export interface SearchSuggestion {
-  slug: string;
-  name: string;
-  brand: string;
-  price: number;
-  imageUrl: string | null;
-  imageAlt: string;
-}
-
 export interface CategoryFacet {
   slug: string;
   name: string;
@@ -132,6 +123,13 @@ export interface StorefrontCategory {
   imageUrl: string | null;
   productCount: number;
   brands: NamedCount[];
+}
+
+/** `GET /api/v1/search`: what the search panel suggests while typing. */
+export interface SearchSuggestions {
+  products: ShopCard[];
+  brands: { name: string }[];
+  categories: { name: string; slug: string }[];
 }
 
 export interface ShopProductPage extends ShopProductDetail {

@@ -65,21 +65,6 @@ npm run dev          # Next dev server with Turbopack, http://localhost:3000
 Commit a new migration folder in the same commit as its model change, and never
 edit a merged migration ([DATA-LAYER.md](DATA-LAYER.md)).
 
-**One setting per database, outside the migrations.** Catalogue search needs
-`pg_trgm`, which the migrations install, and one threshold that `ALTER DATABASE`
-owns rather than the schema, because setting it per request would leak across
-the connection pool:
-
-```sql
-ALTER DATABASE <database> SET pg_trgm.word_similarity_threshold = 0.3;
-```
-
-Run it once per database, including every new one, and restart the app so new
-connections pick it up. Check it with `SHOW pg_trgm.word_similarity_threshold`
-after a `SELECT similarity('x','x')` to load the module. Miss it and search
-still works but stops tolerating typos — see
-[CATALOGUE.md](CATALOGUE.md) "Search".
-
 **Never on a shared database** (staging, production, anyone else's):
 
 1. `prisma db push`. It changes the schema without a migration, so the

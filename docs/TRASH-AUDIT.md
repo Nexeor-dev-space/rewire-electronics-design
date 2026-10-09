@@ -43,7 +43,6 @@ Orders don't exist yet. When they do, an order status change is one
 | `src/services/product.service.ts` | Soft `deleteProduct`, `listDeletedProducts`, `restoreProduct`, `purgeProduct`, `getProduct(id, { inTrash })` |
 | `src/services/user.service.ts` | `listDeletedUsers`, `restoreUser`, `getUser(id, { inTrash })` |
 | `src/services/homepage.service.ts` | `findDraftSection` (the previous value of a section) |
-| `src/services/inventory.service.ts` | `getInventoryItem` (the previous stock) |
 | `src/validators/audit.validator.ts`, `trash.validator.ts` | Query schemas |
 | `src/types/audit.ts`, `trash.ts` | `AuditLogEntry`, `AuditFilters`, `TrashProduct`, `TrashFilters` |
 | `src/app/api/v1/admin/audit-logs/route.ts` | The change log API |
@@ -80,8 +79,9 @@ enum PermissionAction { VIEW CREATE EDIT DELETE PUBLISH RESTORE }
 
 1. `action` and `module` are strings checked in code, so a new action or
    module needs no migration.
-2. The actor's name and role are copied onto the entry, so it still reads
-   right after the person is renamed, changes role or is deleted.
+2. The actor's name and role are copied onto the entry as a record of who
+   they were at the time. The Change Log shows the actor's email instead,
+   read live through `actorId` (section 8).
 3. Entries are kept forever and are never edited or deleted from the
    console. Updates store only the fields that changed, so rows stay small.
 
@@ -136,16 +136,19 @@ What is recorded today:
 
 | Module | Actions |
 | --- | --- |
-| Products | create, update, status change, delete (to Trash), restore, delete permanently |
+| Products | create, update (variant stock included), status change, delete (to Trash), restore, delete permanently |
 | Categories | create, update, status change, delete |
 | Brands, Add-ons, Discount Codes | create, update, delete |
-| Inventory | stock change |
 | Delivery Zones | update |
 | Homepage Builder | add, edit (including show or hide), delete, reorder, publish, discard |
 | Content & Policies | save (title, text, published, draft notice, blocks) |
 | Customers, Staff accounts | create, update (including a Staff role change), delete, restore; logged under the account's module |
 | Roles | create, update, delete a Staff role |
 | API Credentials | credential set or removed (no values), mode change |
+
+Older stock changes were recorded under the removed Inventory module
+(`catalogue.inventory`). `RETIRED_MODULE_LABELS` in `src/lib/audit.ts` keeps
+their "Inventory" label; the module filter no longer lists it.
 
 ---
 
@@ -156,14 +159,14 @@ What is recorded today:
 1. **Delete** (`DELETE /admin/products/[id]`, Products Delete) sets
    `deletedAt` and the status to Draft. Variants, images and specs stay.
 2. **Hidden everywhere.** Admin product queries filter `deletedAt: null`
-   (`LIVE` in `product.service.ts`, inventory, coupon targets), and the
+   (`LIVE` in `product.service.ts`, coupon targets), and the
    storefront's `PUBLISHED` filter includes it. Because a deleted product is
    also a Draft, the storefront could not show it even if a query missed the
    filter.
 3. **Slug and SKUs stay taken** until the product is deleted permanently. The
    409 for a clash says the owner is in Trash.
 4. **Restore** clears `deletedAt` and keeps the product a **Draft**, so it never
-   goes live by surprise. It reappears in Products, Inventory and the pickers.
+   goes live by surprise. It reappears in Products and the pickers.
 5. **Delete permanently** is the old hard delete: variants, images and specs
    are removed and unused images released.
 6. Brands and categories still count products in Trash when refusing a
@@ -209,20 +212,29 @@ All paths are in `API_ENDPOINTS.admin.auditLogs` and `API_ENDPOINTS.admin.trash`
 | `GET trash/users/[id]` | Trash View | 200 `UserDetail` | 401, 403, 404 |
 | `POST trash/users/[id]/restore` | Trash Restore | 200 `UserDetail` | 401, 403 (Admin account), 404 |
 
-`search` on the change log matches the record label or the person's name.
+`search` on the change log matches the record label, the person's name
+(the snapshot) or the person's current email.
+
+Each `AuditLogEntry` carries `actorEmail`: the email of the account in
+`actorId`, or `null` when that account was removed, and `actorRole`, the
+role snapshot. It replaced `actorName` in the response; the column is still
+stored.
 `module` must be a known module key and `action` one of `AUDIT_ACTIONS`.
 
 Hooks: `useGetAuditLogs`; `useGetTrashProducts`, `useGetTrashProduct`,
 `useGetTrashUsers`, `useGetTrashUser`, `useRestoreProduct`, `usePurgeProduct`,
 `useRestoreUser`. Trash mutations invalidate `["trash"]`, `["products"]`,
-`["inventory"]`, `["users"]` and `["audit-logs"]`.
+`["users"]` and `["audit-logs"]`.
 
 ---
 
 ## 8. Screens
 
-1. **Change Log.** Columns: when, who (with role), action, module, record. A
-   search box and module and action selects; pagination. Clicking a row opens
+1. **Change Log.** Columns: when, who, action, module, record. Who is the
+   acting account's email with the role they held at the time, or
+   "Deleted user" (`DELETED_ACTOR_LABEL` in
+   `src/lib/audit.ts`) when the account was removed. A search box and module
+   and action selects; pagination. Clicking a row opens
    a dialog with each field's previous and new value.
 2. **Trash → Products** (`/admin/trash/products`). Deleted products, newest
    first, with View (a detail dialog), Restore and Delete permanently, each

@@ -17,7 +17,7 @@ const trashKeys = {
 };
 
 /** A restore or purge changes the record's own lists and adds a change log entry. */
-const AFFECTED_KEYS = [["trash"], ["products"], ["inventory"], ["users"], ["audit-logs"]];
+const AFFECTED_KEYS = [["trash"], ["products"],["users"], ["audit-logs"]];
 
 const endpoints = API_ENDPOINTS.admin.trash;
 

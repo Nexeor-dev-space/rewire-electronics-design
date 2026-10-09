@@ -1,25 +1,26 @@
 "use client";
 
-import { forwardRef, type KeyboardEvent } from "react";
+import { forwardRef } from "react";
+import { searchCopy } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 /**
  * InlineSearch — the persistent, centered search field in the top bar.
  *
- * Acts as the visible entry point for the site's real search overlay
- * (`SearchPanel`). The field itself does no work — focus, typing or
- * Enter open the overlay, which then owns the actual query, results
- * and navigation. Rendering the field inline (rather than a magnifier
- * icon) makes "search the catalogue" the primary interaction the top
- * bar advertises, exactly as premium e-commerce chrome should.
+ * From `md` this is the site's search input: the shopper types here and
+ * `SearchPanel` opens beneath the bar with the suggestions only, so there
+ * is never a second field. The query lives in the header, shared with the
+ * panel. Enter submits to the full results page.
  *
  * The ref is passed up so the header can hand it to `SearchPanel` as
  * the anchor for outside-click detection and focus restoration.
  */
 
 interface InlineSearchProps {
+  value: string;
+  onChange: (value: string) => void;
   onFocus: () => void;
-  onQuery: (value: string) => void;
+  onSubmit: () => void;
   ariaExpanded: boolean;
   ariaControls: string;
   className?: string;
@@ -29,24 +30,18 @@ interface InlineSearchProps {
 
 export const InlineSearch = forwardRef<HTMLInputElement, InlineSearchProps>(
   function InlineSearch(
-    { onFocus, onQuery, ariaExpanded, ariaControls, className, size = "wide" },
+    { value, onChange, onFocus, onSubmit, ariaExpanded, ariaControls, className, size = "wide" },
     ref,
   ) {
-    function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-      // Enter, arrow-down and typed characters all funnel into the overlay,
-      // where the real input takes over and the header field just reads
-      // the last term for accessibility.
-      if (
-        event.key === "Enter" ||
-        event.key === "ArrowDown" ||
-        (event.key.length === 1 && !event.metaKey && !event.ctrlKey)
-      ) {
-        onFocus();
-      }
-    }
-
     return (
-      <div className={cn("relative w-full", className)}>
+      <form
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+        className={cn("relative w-full", className)}
+      >
         {/* Magnifier — decorative, the label lives on the input. */}
         <svg
           aria-hidden
@@ -66,26 +61,35 @@ export const InlineSearch = forwardRef<HTMLInputElement, InlineSearchProps>(
           ref={ref}
           type="search"
           role="combobox"
-          aria-label="Search products, brands and devices"
+          aria-label={searchCopy.label}
           aria-expanded={ariaExpanded}
           aria-controls={ariaControls}
           aria-autocomplete="list"
           autoComplete="off"
-          placeholder="Search products, brands & devices"
+          placeholder={searchCopy.placeholder}
+          value={value}
           onFocus={onFocus}
-          // The overlay owns the query. Keystrokes still bubble up so the
-          // shopper's first character isn't lost in the transition.
-          onChange={(event) => onQuery(event.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={(event) => onChange(event.target.value)}
           className={cn(
-            "block w-full rounded-full border border-line-strong bg-surface pl-11 pr-4 text-ink",
+            "block w-full rounded-full border border-line-strong bg-surface pl-11 pr-16 text-ink",
             "placeholder:text-ink-muted",
             "transition-[background-color,border-color] duration-(--duration-fast)",
             "hover:border-ink-muted focus:border-[#94b2f3] focus:outline-none",
+            "[&::-webkit-search-cancel-button]:appearance-none",
             size === "wide" ? "h-11 text-[0.9375rem]" : "h-10 text-[0.875rem]",
           )}
         />
-      </div>
+
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted transition-colors duration-(--duration-fast) hover:text-accent"
+          >
+            Clear
+          </button>
+        )}
+      </form>
     );
   },
 );
