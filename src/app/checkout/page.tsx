@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CheckoutHeader } from "@/components/checkout/checkout-header";
 import { CheckoutView } from "@/components/checkout/checkout-view";
 import { TrustFooter } from "@/components/checkout/trust-footer";
+import type { PaymentOption } from "@/components/checkout/checkout-view";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -10,19 +11,19 @@ export const metadata: Metadata = {
 };
 
 /** Payment methods — categories, no invented provider brand marks. */
-const PAYMENT = [
+const PAYMENT: PaymentOption[] = [
   {
-    value: "card",
+    value: "CARD",
     label: "Credit or debit card",
     supporting: "Visa, Mastercard, Amex",
   },
   {
-    value: "apple-pay",
+    value: "APPLE_PAY",
     label: "Apple Pay",
     supporting: "One-tap on supported devices",
   },
   {
-    value: "cod",
+    value: "COD",
     label: "Cash on delivery",
     supporting: "Pay when the parcel arrives, UAE only",
   },

@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
+import { signInHref } from "@/lib/auth/next-path";
+import { CHECKOUT_PAGE_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
+import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { Spinner } from "@/components/ui/spinner";
 import type { AppliedCoupon, Cart, CartLine } from "@/types/cart";
@@ -18,6 +21,7 @@ interface Props {
   couponFieldError?: string | null;
   onPlaceOrder?: () => void;
   placing?: boolean;
+  placeError?: string | null;
   stepsComplete?: boolean;
   className?: string;
   compact?: boolean;
@@ -34,6 +38,7 @@ export function OrderSummary({
   couponFieldError,
   onPlaceOrder,
   placing,
+  placeError,
   stepsComplete = true,
   className,
   compact,
@@ -64,9 +69,10 @@ export function OrderSummary({
         ))}
       </ul>
 
-      {!compact && couponsAllowed && (
+      {!compact && (
         <CouponField
           coupon={coupon}
+          allowed={couponsAllowed}
           onApply={onApplyCoupon}
           onRemove={onRemoveCoupon}
           pending={couponPending}
@@ -158,6 +164,12 @@ export function OrderSummary({
               )}
             </span>
           </button>
+
+          {placeError && (
+            <p role="alert" className="text-[0.8125rem] text-danger">
+              {placeError}
+            </p>
+          )}
 
           {!canCheckout && (
             <p role="alert" className="text-[0.8125rem] text-danger">
@@ -279,12 +291,14 @@ function LineRow({ line }: { line: CartLine }) {
 
 function CouponField({
   coupon,
+  allowed,
   onApply,
   onRemove,
   pending,
   fieldError,
 }: {
   coupon: AppliedCoupon | null;
+  allowed: boolean;
   onApply?: (code: string) => void;
   onRemove?: () => void;
   pending?: boolean;
@@ -292,6 +306,18 @@ function CouponField({
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  const [signInRequired, setSignInRequired] = useState(false);
+
+  const apply = () => {
+    if (pending || !value.trim()) return;
+    if (!allowed) {
+      setSignInRequired(true);
+      return;
+    }
+    onApply?.(value);
+  };
+
+  const error = signInRequired ? COUPON_MESSAGES.SIGN_IN_REQUIRED : fieldError;
 
   if (coupon) {
     return (
@@ -376,23 +402,23 @@ function CouponField({
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                if (!pending && value.trim()) onApply?.(value);
+                apply();
               }}
               placeholder="Enter code"
               aria-label="Promo code"
-              aria-invalid={Boolean(fieldError) || undefined}
-              aria-describedby={fieldError ? "promo-error" : undefined}
+              aria-invalid={Boolean(error) || undefined}
+              aria-describedby={error ? "promo-error" : undefined}
               className={cn(
                 "h-11 flex-1 rounded-lg bg-void px-3 text-sm text-ink placeholder:text-ink-muted",
                 "border transition-colors duration-(--duration-fast)",
-                fieldError
+                error
                   ? "border-danger"
                   : "border-line hover:border-line-strong focus:border-accent focus:outline-none",
               )}
             />
             <button
               type="button"
-              onClick={() => onApply?.(value)}
+              onClick={apply}
               disabled={pending || value.trim().length === 0}
               aria-busy={pending || undefined}
               className="inline-flex h-11 items-center justify-center rounded-lg border border-line-strong px-4 text-[0.8125rem] font-medium text-ink transition-colors hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
@@ -400,9 +426,20 @@ function CouponField({
               Apply
             </button>
           </div>
-          {fieldError && (
+          {error && (
             <p id="promo-error" role="alert" className="mt-2 text-[0.75rem] text-danger">
-              {fieldError}
+              {error}
+              {signInRequired && (
+                <>
+                  {" "}
+                  <a
+                    href={signInHref(CHECKOUT_PAGE_PATH)}
+                    className="font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+                  >
+                    Sign in
+                  </a>
+                </>
+              )}
             </p>
           )}
         </div>

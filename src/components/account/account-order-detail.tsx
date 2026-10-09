@@ -1,427 +1,81 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import type { Order } from "@/types";
-import { ORDER_STATUS_LABELS } from "@/types";
-import { cn, formatPrice } from "@/lib/utils";
+import { useGetAccountOrder } from "@/hooks/use-order";
+import { ApiError } from "@/lib/api/api-client";
+import { ACCOUNT_ORDERS_PATH } from "@/lib/constants";
+import { formatOrderDate } from "@/lib/dates";
+import { Button } from "@/components/ui/button";
 import {
-  conditionLabelFor,
-  formatOrderDate,
-  formatOrderStamp,
-  orderStatusTone,
-} from "@/lib/account-data";
+  OrderDetailBody,
+  OrderDetailSkeleton,
+  OrderStatusPill,
+  orderEtaLabel,
+} from "@/components/order/order-detail-body";
 import { AccountShell } from "./account-shell";
-import { StatusPill } from "./status-pill";
 
-/**
- * AccountOrderDetail — /account/orders/[id].
- *
- * Kept editorial rather than tabular: a wide two-column layout on
- * desktop with the tracker/items on the left and the ledger (address,
- * payment, breakdown, invoice) on the right. Below `lg` the ledger
- * stacks below.
- */
+export function AccountOrderDetail({ number }: { number: string }) {
+  const order = useGetAccountOrder(number);
+  const title = `Order ${number.toUpperCase()}`;
 
-const PROGRESS_STEPS = [
-  "Confirmed",
-  "Processing",
-  "Shipped",
-  "Out for delivery",
-  "Delivered",
-] as const;
+  if (order.isPending) {
+    return (
+      <AccountShell title={title}>
+        <OrderDetailSkeleton />
+      </AccountShell>
+    );
+  }
 
-export function AccountOrderDetail({ order }: { order: Order }) {
-  const currentStep = progressIndexFor(order);
-  const hasAnyReturnable = order.items.some((item) => item.returnable);
+  if (order.isError) {
+    const notFound = order.error instanceof ApiError && order.error.body.code === "NOT_FOUND";
+    return (
+      <AccountShell title={notFound ? "Order not found" : title}>
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-[0.9375rem] text-ink-secondary">{order.error.message}</p>
+          {notFound ? (
+            <Link
+              href={ACCOUNT_ORDERS_PATH}
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[0.8125rem] font-medium text-ink hover:border-accent hover:text-accent"
+            >
+              See all orders
+            </Link>
+          ) : (
+            <Button variant="outline" size="sm" className="mt-5" onClick={() => order.refetch()}>
+              Try again
+            </Button>
+          )}
+        </div>
+      </AccountShell>
+    );
+  }
+
+  const data = order.data;
 
   return (
     <AccountShell
-      title={`Order ${order.number}`}
-      subtitle={`Placed ${formatOrderDate(order.placedAt)} · ${order.estimatedDelivery}`}
+      title={`Order ${data.number}`}
+      subtitle={`Placed ${formatOrderDate(data.placedAt)} · ${orderEtaLabel(data)}`}
       aside={
         <div className="flex flex-wrap items-center gap-3">
-          <StatusPill tone={orderStatusTone(order.status)}>
-            {ORDER_STATUS_LABELS[order.status]}
-          </StatusPill>
-          <Link
-            href="/account/orders"
-            className="text-[0.8125rem] font-medium text-ink-secondary hover:text-ink"
-          >
+          <OrderStatusPill status={data.status} />
+          <Link href={ACCOUNT_ORDERS_PATH} className="text-[0.8125rem] font-medium text-ink-secondary hover:text-ink">
             ← All orders
           </Link>
         </div>
       }
     >
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:gap-10">
-        <div className="flex flex-col gap-8">
-          <ProgressTracker order={order} currentStep={currentStep} />
-          <OrderItems order={order} />
-        </div>
-
-        <div className="flex flex-col gap-8">
-          <AddressCard order={order} />
-          <PaymentCard order={order} />
-          <PriceBreakdown order={order} />
-
-          {/* Track shipment lives under the delivery-progress card itself
-              — see ProgressTracker. Only the invoice and Request-a-return
-              actions belong to the ledger rail. */}
-          <div className="flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
-            >
-              Download / view invoice
-            </button>
-            {hasAnyReturnable && (
-              <Link
-                href={`/account/returns?order=${order.id}`}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-accent text-[0.875rem] font-medium text-white hover:bg-accent-hover"
-              >
-                Request a return
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-    </AccountShell>
-  );
-}
-
-/* ============================================================
-   Progress tracker — a 5-step rail
-   ============================================================ */
-
-function progressIndexFor(order: Order): number {
-  // Cancelled / returned bail out early — the rail shows the last
-  // step actually reached rather than pretending progress happened.
-  if (order.status === "cancelled" || order.status === "returned") {
-    return order.tracking.findIndex((s) => !s.at) - 1;
-  }
-  const inOrder: Record<Order["status"], number> = {
-    processing: 1,
-    shipped: 2,
-    delivered: 4,
-    cancelled: 0,
-    returned: 4,
-  };
-  return inOrder[order.status] ?? 0;
-}
-
-function ProgressTracker({ order, currentStep }: { order: Order; currentStep: number }) {
-  const isCancelled = order.status === "cancelled";
-  const isReturned = order.status === "returned";
-
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-6 md:p-7">
-      <div className="mb-6 flex items-baseline justify-between">
-        <h2 className="text-[1.125rem] font-medium text-ink">
-          {isCancelled ? "Order timeline" : isReturned ? "Order timeline" : "Delivery progress"}
-        </h2>
-        {order.trackingNumber && !isCancelled && (
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-            Ref {order.trackingNumber}
-          </p>
-        )}
-      </div>
-
-      {isCancelled ? (
-        <p className="rounded-xl border border-danger/20 bg-danger/5 p-4 text-[0.9375rem] text-ink">
-          This order was cancelled. Your original payment method has been
-          refunded in full.
-        </p>
-      ) : (
-        <ol className="grid gap-4 sm:grid-cols-5">
-          {PROGRESS_STEPS.map((label, index) => {
-            const reached = index <= currentStep;
-            const active = index === currentStep;
-            return (
-              <li key={label} className="relative">
-                <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2.5">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-full border",
-                      reached
-                        ? active
-                          ? "border-accent bg-accent/15 text-accent"
-                          : "border-live/60 bg-live/15 text-live"
-                        : "border-line-strong text-ink-muted",
-                    )}
-                  >
-                    {reached ? (
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
-                        <path d="m3 8 3.5 3.5L13 4.5" />
-                      </svg>
-                    ) : (
-                      <span className="text-[0.6875rem] font-medium tabular-nums">{index + 1}</span>
-                    )}
-                  </span>
-                  <div>
-                    <p className={cn("text-[0.9375rem] font-medium", reached ? "text-ink" : "text-ink-muted")}>
-                      {label}
-                    </p>
-                    {order.tracking[index]?.at && (
-                      <p className="mt-0.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
-                        {formatOrderStamp(order.tracking[index].at!)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {index < PROGRESS_STEPS.length - 1 && (
-                  <div
-                    aria-hidden
-                    className={cn(
-                      "hidden sm:block absolute top-3 left-6 right-[-1rem] h-px",
-                      reached ? "bg-live/40" : "bg-line",
-                    )}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {/* Full timeline notes, expanded below the rail — only when a
-          step has a note attached. */}
-      {order.tracking.some((s) => s.note) && (
-        <ul className="mt-6 space-y-3 border-t border-line pt-6">
-          {order.tracking
-            .filter((s) => s.at && s.note)
-            .map((step, i) => (
-              <li key={`${step.label}-${i}`} className="flex items-start gap-4 text-[0.875rem]">
-                <span className="mt-1 size-1.5 shrink-0 rounded-full bg-live" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-medium text-ink">{step.label}</p>
-                    <p className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
-                      {formatOrderStamp(step.at!)}
-                    </p>
-                  </div>
-                  <p className="mt-0.5 text-ink-secondary">{step.note}</p>
-                </div>
-              </li>
-            ))}
-        </ul>
-      )}
-
-      {/* Track-shipment lives here, immediately under the progress rail
-          it acts on. It was previously stacked in the right-hand ledger
-          rail where it read as unrelated to the tracker. */}
-      {order.trackingNumber && !isCancelled && (
-        <a
-          href="#"
-          className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
-        >
-          Track shipment · {order.trackingNumber}
-          <svg
-            aria-hidden
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-3.5"
+      <OrderDetailBody
+        order={data}
+        actions={
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex h-11 items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
           >
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </a>
-      )}
-    </section>
-  );
-}
-
-/* ============================================================
-   Items list
-   ============================================================ */
-
-function OrderItems({ order }: { order: Order }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface">
-      <header className="border-b border-line px-6 py-5">
-        <h2 className="text-[1.125rem] font-medium text-ink">
-          {order.items.length} item{order.items.length === 1 ? "" : "s"} in this order
-        </h2>
-      </header>
-      <ul>
-        {order.items.map((item, i) => {
-          const cond = conditionLabelFor(item);
-          return (
-            <li
-              key={item.id}
-              className={cn(
-                "flex flex-wrap items-start gap-5 p-6 sm:flex-nowrap sm:gap-6",
-                i > 0 && "border-t border-line",
-              )}
-            >
-              <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-plate">
-                <Image
-                  src={item.image.url}
-                  alt={item.image.alt}
-                  fill
-                  sizes="96px"
-                  className={item.image.fit === "cover" ? "object-cover" : "object-contain p-2"}
-                />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-[1rem] font-medium text-ink">{item.name}</p>
-                <p className="mt-1 text-[0.8125rem] text-ink-secondary">{item.variant}</p>
-                <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted sm:grid-cols-3">
-                  <div>
-                    <dt>Condition</dt>
-                    <dd className="mt-0.5 text-ink">{cond.condition}</dd>
-                  </div>
-                  <div>
-                    <dt>Grade</dt>
-                    <dd className="mt-0.5 text-ink">{cond.grade}</dd>
-                  </div>
-                  <div>
-                    <dt>Qty</dt>
-                    <dd className="mt-0.5 text-ink">{item.quantity}</dd>
-                  </div>
-                </dl>
-
-                {/* Add-ons captured at checkout. Priced once per line —
-                    the running "+ AED …" figure on each row makes the
-                    ledger's subtotal add up without a separate footnote. */}
-                {item.addOns && item.addOns.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-line bg-surface-2/60 p-3.5">
-                    <p className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
-                      Add-ons purchased
-                    </p>
-                    <ul className="mt-2 flex flex-col gap-1.5">
-                      {item.addOns.map((addOn) => (
-                        <li
-                          key={addOn.id}
-                          className="flex items-baseline justify-between gap-4 text-[0.8125rem]"
-                        >
-                          <span className="text-ink">{addOn.label}</span>
-                          <span className="shrink-0 font-mono tabular-nums text-ink-secondary">
-                            + {formatPrice(addOn.price, order.currency, order.locale)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="w-full shrink-0 text-left sm:w-auto sm:text-right">
-                <p className="text-[1rem] font-medium tabular-nums text-ink">
-                  {formatPrice(item.price * item.quantity, order.currency, order.locale)}
-                </p>
-                <p className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
-                  {formatPrice(item.price, order.currency, order.locale)} each
-                </p>
-                {item.returnable ? (
-                  <Link
-                    href={`/account/returns?order=${order.id}&item=${item.id}`}
-                    className="mt-3 inline-flex items-center gap-1.5 text-[0.75rem] font-medium text-ink hover:text-accent"
-                  >
-                    Return this item
-                  </Link>
-                ) : (
-                  <p className="mt-3 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
-                    Return window closed
-                  </p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-/* ============================================================
-   Ledger — address, payment, breakdown
-   ============================================================ */
-
-function AddressCard({ order }: { order: Order }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-6">
-      <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-        Shipping to
-      </p>
-      <address className="mt-3 not-italic text-[0.9375rem] leading-relaxed text-ink">
-        <p className="font-medium">{order.address.name}</p>
-        <p className="text-ink-secondary">
-          {order.address.line1}
-          {order.address.line2 ? `, ${order.address.line2}` : ""}
-        </p>
-        <p className="text-ink-secondary">
-          {order.address.city}, {order.address.emirate}
-          {order.address.postalCode ? ` · ${order.address.postalCode}` : ""}
-        </p>
-        <p className="mt-2 text-ink-secondary">{order.address.phone}</p>
-      </address>
-      <p className="mt-4 border-t border-line pt-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-        {order.deliveryMethod}
-      </p>
-    </section>
-  );
-}
-
-function PaymentCard({ order }: { order: Order }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-6">
-      <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-        Paid with
-      </p>
-      {/* Brand alone — the card number and expiry belong on the
-          Payment Methods surface under Settings, not on an order card
-          a customer already trusts and a support agent should not
-          need to see. */}
-      <p className="mt-3 text-[0.9375rem] text-ink">{order.payment.brand}</p>
-    </section>
-  );
-}
-
-function PriceBreakdown({ order }: { order: Order }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-6">
-      <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-        Order total
-      </p>
-      <dl className="mt-4 space-y-3 text-[0.9375rem]">
-        <Row label="Subtotal" value={formatPrice(order.subtotal, order.currency, order.locale)} />
-        <Row
-          label="Delivery"
-          value={order.delivery === 0 ? "Free" : formatPrice(order.delivery, order.currency, order.locale)}
-        />
-        {order.discount > 0 && (
-          <Row
-            label="Discount"
-            value={`− ${formatPrice(order.discount, order.currency, order.locale)}`}
-            tone="accent"
-          />
-        )}
-      </dl>
-      <div className="mt-5 flex items-baseline justify-between border-t border-line pt-4">
-        <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
-          Total
-        </p>
-        <p className="text-[1.25rem] font-medium tabular-nums text-ink">
-          {formatPrice(order.total, order.currency, order.locale)}
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function Row({ label, value, tone }: { label: string; value: string; tone?: "accent" }) {
-  return (
-    <div className="flex items-baseline justify-between">
-      <dt className="text-ink-secondary">{label}</dt>
-      <dd className={cn("tabular-nums", tone === "accent" ? "text-accent" : "text-ink")}>
-        {value}
-      </dd>
-    </div>
+            Download / view invoice
+          </button>
+        }
+      />
+    </AccountShell>
   );
 }

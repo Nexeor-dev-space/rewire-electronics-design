@@ -1,4 +1,5 @@
 import { policyLink, type PolicySlug } from "./policy-types";
+import { ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
 
 export type SupportChannelIcon = "mail" | "chat" | "track";
 
@@ -50,8 +51,8 @@ const channels: SupportChannel[] = [
     id: "orders",
     icon: "track",
     label: "Track an order",
-    action: "Open my orders",
-    href: "/account/orders",
+    action: "Track my order",
+    href: ORDER_TRACK_PAGE_PATH,
     note: "Tracking goes live the moment a device leaves us — usually the fastest answer to where is it.",
   },
 ];

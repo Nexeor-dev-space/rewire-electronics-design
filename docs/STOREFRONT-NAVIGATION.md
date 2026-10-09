@@ -302,9 +302,15 @@ and the menu says it in full, through `ABOUT_LABEL_OVERRIDES`.
 Track Order was an entry in the old Support menu. It is account
 navigation, not editorial, so it left the nav entirely and now sits
 behind the profile icon with the customer's other surfaces. Signed in
-it is reached as `My Orders` on the account pages; signed out the tab
-bar's account panel (§7) names it `Track Order` explicitly, since that
-is the one account surface a guest still has a reason to want.
+it is reached as `My Orders` on the account pages. Signed out, it is
+the public page `/order/track` (`ORDER_TRACK_PAGE_PATH`): the customer
+enters an order number and the email on the order, or follows the link
+in the confirmation email, which fills both in. It is not behind the
+account gate. The page is `noindex`. The tab bar's signed out account
+panel (§7) links to it as `Track Order`, and the Support section's
+"Track an order" box (`src/lib/support.ts`) points at it with the
+action "Track my order". How it matches orders is in
+[ORDERS.md](ORDERS.md) §8.
 
 ### New routes
 
@@ -390,9 +396,10 @@ can never trap a reader away from Home.
 
 The panel is the way in plus one link: a `Sign in` link (to
 `signInHref(pathname)`, so the shopper comes back to the same page) and
-`Track Order`. Order tracking sits behind the account gate (§9.3) either
-way, but naming it here is what stops a shopper hunting for it in a
-company menu where it never belonged.
+`Track Order`, a link to `/order/track` (`ORDER_TRACK_PAGE_PATH`). It is a
+public page, so a guest can use it without signing in, and naming it here
+is what stops a shopper hunting for it in a company menu where it never
+belonged.
 
 ### Drawer account block
 
@@ -476,7 +483,9 @@ auth page. The header, drawer and tab bar all do this.
 `src/app/(site)/account/layout.tsx` guards every `/account/*` page on
 the server. Signed out, it renders `SignInRedirect`, which sends the
 visitor to `/sign-in?next=<the page>` (deep links such as
-`/account/orders/123` survive). The page itself never renders, so no
+`/account/orders/RW-12345678` survive; the order detail route is
+`/account/orders/[number]`, by order number, not an id). `/order/track`
+lives outside `/account`, so it is not gated. The page itself never renders, so no
 account content reaches a signed out visitor. Signed in with an
 unverified email, a `VerifyEmailBanner` with a resend button sits above
 the page.
@@ -527,12 +536,14 @@ Three rules for anything that shows cart data:
    5%"), never added.
 2. **Delivery is only known at checkout.** The cart page shows "Calculated at
    checkout"; the quote needs an emirate and a method.
-3. **Coupons need a session.** The checkout shows the code field only when
-   `cart.couponsAllowed` is true.
+3. **Coupons need a session.** The checkout shows the code field to guests
+   too, but without `cart.couponsAllowed` Apply shows "Sign in to use a promo
+   code." with a Sign in link and sends no request.
 
 `src/app/checkout/page.tsx` passes only the payment options to the view; the
-old `DELIVERY` and `VAT_RATE` constants are gone. Placing an order is still
-the Phase 4 mock and leaves the cart as it is.
+old `DELIVERY` and `VAT_RATE` constants are gone. Place Order creates a real
+order and empties the cart; the success page is `/checkout/success?order=…`
+([ORDERS.md](ORDERS.md) §11).
 
 ---
 
