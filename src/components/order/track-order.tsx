@@ -6,8 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { useGetTrackedOrder } from "@/hooks/use-order";
 import { ApiError, apiFieldErrors } from "@/lib/api/api-client";
-import { ACCOUNT_ORDERS_PATH } from "@/lib/constants";
+import { ACCOUNT_ORDERS_PATH, FORGOT_PASSWORD_PAGE_PATH, REGISTER_PAGE_PATH } from "@/lib/constants";
 import { formatOrderDate } from "@/lib/dates";
+import { isReturnable } from "@/lib/returns";
 import type { OrderDetail, TrackOrderInput } from "@/types/order";
 import { trackOrderSchema } from "@/validators/order.validator";
 import { Container } from "@/components/layout/container";
@@ -147,6 +148,9 @@ function TrackResult({ tracked }: { tracked: ReturnType<typeof useGetTrackedOrde
 }
 
 function TrackedOrder({ order }: { order: OrderDetail }) {
+  const returnable =
+    isReturnable(order, new Date()) && order.lines.some((line) => line.returnableQuantity > 0);
+
   return (
     <section aria-labelledby="tracked-order-heading">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -158,6 +162,20 @@ function TrackedOrder({ order }: { order: OrderDetail }) {
         </div>
         <OrderStatusPill status={order.status} />
       </div>
+      {returnable && (
+        <p className="mb-8 rounded-xl border border-line bg-surface-2 px-5 py-4 text-[0.875rem] text-ink-secondary">
+          Returns are requested from an account.{" "}
+          <Link href={REGISTER_PAGE_PATH} className="font-medium text-ink hover:text-accent">
+            Create an account
+          </Link>{" "}
+          with {order.contact.email} (or{" "}
+          <Link href={FORGOT_PASSWORD_PAGE_PATH} className="font-medium text-ink hover:text-accent">
+            reset its password
+          </Link>{" "}
+          if you already have one) and verify the email. This order then appears in your account, where you can
+          request a return.
+        </p>
+      )}
       <OrderDetailBody order={order} />
     </section>
   );

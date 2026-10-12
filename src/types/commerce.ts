@@ -2,10 +2,9 @@
  * Commerce domain types — the storefront half of the model.
  *
  * `@/types` describes what Rewire *sells* (products, drops, media). This
- * file describes what happens **after** someone wants one: the cart, the
- * order, the return. Kept in its own module because the catalogue types
- * are read by the marketing pages too, and those pages should not have to
- * know what a refund looks like.
+ * file describes what happens **after** someone wants one: the cart and
+ * the delivery address. Kept in its own module because the catalogue types
+ * are read by the marketing pages too.
  *
  * Same contract as the rest of the data layer: every shape here mirrors a
  * future Payload collection, so the mock adapters in `@/lib/commerce` can
@@ -139,36 +138,8 @@ export interface CartTotals {
 }
 
 /* ============================================================
-   Orders
+   Addresses
    ============================================================ */
-
-export interface OrderItem {
-  id: string;
-  slug: string;
-  name: string;
-  variant: string;
-  condition: ConditionGrade;
-  image: Media;
-  price: number;
-  quantity: number;
-  /** False once a return window closes — drives the Return Item action. */
-  returnable: boolean;
-  /**
-   * Add-ons purchased on this line (extended warranty, sleeve, hub, etc.),
-   * captured at checkout so the order detail can print exactly what the
-   * shopper committed to — independent of later catalogue changes.
-   * Priced once per line, not per device quantity, matching the
-   * `CartItem.addOnIds` semantics in the account provider.
-   */
-  addOns?: { id: string; label: string; price: number }[];
-}
-
-/** One node of the tracking rail. `at` is absent for steps not yet reached. */
-export interface TrackingStep {
-  label: string;
-  note: string;
-  at?: string;
-}
 
 export interface Address {
   id: string;
@@ -181,69 +152,4 @@ export interface Address {
   postalCode?: string;
   phone: string;
   isDefault?: boolean;
-}
-
-/* ============================================================
-   Returns
-   ============================================================ */
-
-export type ReturnStatus =
-  | "requested"
-  | "approved"
-  | "in-transit"
-  | "inspecting"
-  | "refunded"
-  | "declined";
-
-export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
-  requested: "Requested",
-  approved: "Approved",
-  "in-transit": "In transit",
-  inspecting: "Inspecting",
-  refunded: "Refunded",
-  declined: "Declined",
-};
-
-/** Everything but `refunded` and `declined` is still in motion. */
-export const ACTIVE_RETURN_STATUSES: ReturnStatus[] = [
-  "requested",
-  "approved",
-  "in-transit",
-  "inspecting",
-];
-
-export interface ReturnReason {
-  id: string;
-  label: string;
-  /** Shown under the label once selected — sets expectations early. */
-  note: string;
-  /** Reasons that need the shopper to say more before we can act. */
-  requiresDetail?: boolean;
-}
-
-export interface ReturnMethod {
-  id: string;
-  label: string;
-  note: string;
-  price: number;
-  estimate: string;
-}
-
-export interface ReturnRecord {
-  id: string;
-  /** Human-facing reference, e.g. "RT-3092". */
-  number: string;
-  orderNumber: string;
-  orderId: string;
-  item: OrderItem;
-  reason: string;
-  status: ReturnStatus;
-  requestedAt: string;
-  /** Human phrasing, e.g. "Refund by 2 September". */
-  expectedResolution: string;
-  method: string;
-  refundAmount: number;
-  currency: string;
-  locale: string;
-  timeline: TrackingStep[];
 }

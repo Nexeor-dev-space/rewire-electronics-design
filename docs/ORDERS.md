@@ -102,7 +102,10 @@ All in `src/lib/orders.ts`.
 3. **Cancel after Dispatched is refused** by the table. A cancel restocks and
    releases the coupon (section 7).
 4. **`DELIVERED`** sets `deliveredAt` to now and `returnableUntil` to
-   `returnableUntil(now, RETURN_WINDOW_DAYS)`.
+   `returnableUntil(now, days)`, where `days` is
+   `(await getStoreSettings(tx)).returnWindowDays`, the admin set return
+   window ([RETURNS.md](RETURNS.md) §6). It falls back to `RETURN_WINDOW_DAYS`
+   when no settings row exists.
 5. **`orderStatusTone(status)`** gives the badge tone. **`orderTimeline(status,
    events, placedAt)`** builds the customer steps Placed, Confirmed,
    Processing, Dispatched, Delivered: `at` and `note` come from the first
@@ -121,8 +124,13 @@ Staff set the payment status by hand, in the admin order detail.
 2. `PAID` to `UNPAID`, only while `refundedAmount` is 0.
 3. `PAID` to `REFUNDED`, only on a `CANCELLED` order. It sets
    `refundedAmount = total`.
-4. `PARTIALLY_REFUNDED` exists in the enum but nothing sets it until Phase 7
-   refunds.
+4. `PARTIALLY_REFUNDED` and `REFUNDED` are also set by recording a refund on
+   a return (`recordRefund`, [RETURNS.md](RETURNS.md) §5). Each refund adds to
+   `refundedAmount`; the status is `REFUNDED` when `refundedAmount` equals
+   `total`, else `PARTIALLY_REFUNDED`. A refund needs the order to be `PAID`
+   or `PARTIALLY_REFUNDED`, and `paymentActions` is unchanged. The refund
+   adds an `OrderStatusEvent` on the current status with the note "Refund of
+   {amount} recorded for {RT number}" (staff view only).
 
 Marking `PAID` on a `PENDING_PAYMENT` order also moves it to `CONFIRMED` with
 the note "Payment received". Any other payment-only change records an
@@ -325,7 +333,10 @@ returnableUntil, trackingNumber, contact, address, `lines`, `totals`
 couponCode, `timeline`), `OrderSummary` (list card with the first line),
 `AdminOrderRow`, and `AdminOrderDetail` (adds `customer` { id, fullName,
 email, isGuest } or null, `placedAsGuest`, `staffNote`, `events` oldest first
-up to `ORDER_EVENT_LIMIT`, `nextStatuses`, `paymentActions`).
+up to `ORDER_EVENT_LIMIT`, `nextStatuses`, `paymentActions`, `returns`
+{ number, status }[] oldest first up to `ORDER_RETURNS_LIMIT`). Each line in
+`OrderLine` carries `returnableQuantity`: the bought quantity minus what sits
+on returns that are not Declined ([RETURNS.md](RETURNS.md) §3).
 
 **Audit.** Every admin mutation (`PATCH` order, status, payment, and
 fulfilment) calls `recordAudit` with action `UPDATE`, the order number as the
@@ -402,7 +413,14 @@ count can be low.
 
 **Account order detail** (`/account/orders/[number]`, `AccountOrderDetail`).
 `OrderDetailBody` shared with Track Order. A number the account can't see is
-the "Order not found" state. There are no return links yet (Phase 7).
+the "Order not found" state. The account view passes `returnLinks`: while the
+order is returnable (`isReturnable`) and a line has `returnableQuantity > 0`,
+the items header shows "Request a return" and each such line "Return this
+item", both linking to `/account/returns?order=…` (plus `&item=<orderItemId>`
+for a line). A delivered order past `returnableUntil` shows "Return window
+closed". Track Order shows no return links; on a returnable order it tells the
+guest to create an account with the order email (or reset its password) and
+verify it, then request the return from the account.
 
 ---
 
@@ -421,7 +439,7 @@ In `src/lib/constants.ts`.
 | `STAFF_NOTE_MAX_LENGTH` | 1000 | Staff note |
 | `TRACKING_NUMBER_MAX_LENGTH` | 64 | Tracking number |
 | `ORDER_EVENT_LIMIT` | 50 | Events read per order |
-| `RETURN_WINDOW_DAYS` | 30 | `returnableUntil` at delivery |
+| `RETURN_WINDOW_DAYS` | 30 | Default window when no store settings row exists; the live value is `StoreSettings.returnWindowDays` |
 | `MS_PER_DAY` | 86 400 000 | `returnableUntil` |
 | `ORDER_TRACK_PAGE_PATH`, `ACCOUNT_ORDERS_PATH` | `/order/track`, `/account/orders` | Links |
 | `RATE_LIMITS.placeOrder` | 10 per 10 minutes, per user, else per IP | `POST checkout` |
@@ -480,6 +498,6 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 7. **A guest can't use a promo code.** The field shows, but Apply asks them to
    sign in; the guest cart merges on sign-in.
 8. **The account overview "active" count reads page 1 only.**
-9. **No saved address prefill and no return links** until Phases 3 and 7.
+9. **No saved address prefill** until Phase 3.
 10. **Staff can't edit the contact or address** on an order; only tracking,
     status, payment and the staff note change.

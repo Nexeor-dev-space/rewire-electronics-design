@@ -343,6 +343,27 @@ seven zones once per database; note that `npm run db:seed` also overwrites
 policies and the homepage and resets the seeded Admin's password
 ([CART.md](CART.md) §5).
 
+## Returns
+
+Service → **Returns** (`/admin/returns` and `/admin/returns/[number]`).
+Permission key `service.returns` (`PERMISSIONS.returns`). Both pages check it
+with `hasPermission` and show "Access denied" otherwise, and `/admin/returns`
+is in `BUILT_ROUTES`.
+
+1. **The list** has search by return number, order number or email, a status
+   filter and pagination. Each row links to the detail.
+2. **The detail** shows the items, the reason, the customer, the order payment
+   figures, the history, status buttons from the server's `nextStatuses` with
+   a note the customer sees, and a Record refund dialog prefilled with the
+   suggested amount.
+3. **The Return window dialog** opens from the "Return window: {n} days"
+   button in the list header and sets how many days after delivery a customer
+   can request a return (0 to 365). It applies to orders delivered afterwards.
+   Without Edit the button is plain text.
+
+The Returns panel on the admin order detail is not built yet. The rules,
+endpoints and data model are in [RETURNS.md](RETURNS.md).
+
 ## Orders and Fulfilment
 
 Sales → **Orders** and **Fulfilment**. Permission keys `sales.orders`

@@ -7,6 +7,7 @@ import { useGetAccountOrders } from "@/hooks/use-order";
 import { ACCOUNT_RECENT_ORDERS_LIMIT } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AccountPagination } from "./account-pagination";
 import { AccountShell } from "./account-shell";
 import { OrderSummaryCard, OrderSummaryCardSkeleton } from "./order-summary-card";
 
@@ -60,7 +61,6 @@ function OrdersBody({
   }
 
   const { items, total, pageSize } = orders.data;
-  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   if (items.length === 0) {
     return (
@@ -93,19 +93,7 @@ function OrdersBody({
         ))}
       </div>
 
-      {pages > 1 && (
-        <nav aria-label="Pagination" className="mt-6 flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-            Previous
-          </Button>
-          <span className="px-1 font-mono text-xs tabular-nums text-ink-secondary">
-            {page} / {pages}
-          </span>
-          <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-            Next
-          </Button>
-        </nav>
-      )}
+      <AccountPagination page={page} total={total} pageSize={pageSize} onPage={onPage} />
     </>
   );
 }

@@ -1,0 +1,73 @@
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  IN_TRANSIT
+  RECEIVED
+  INSPECTING
+  REFUNDED
+}
+
+enum ReturnReason {
+  CHANGED_MIND
+  NOT_AS_DESCRIBED
+  ARRIVED_DAMAGED
+  WRONG_ITEM
+  BATTERY_ISSUE
+}
+
+model ReturnRequest {
+  id              String       @id @default(cuid())
+  number          String       @unique
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  status          ReturnStatus @default(REQUESTED)
+  reason          ReturnReason
+  detail          String       @default("")
+  refundAmount    Int?
+  refundReference String       @default("")
+  refundedAt      DateTime?
+
+  items  ReturnItem[]
+  events ReturnStatusEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("return_requests")
+}
+
+model ReturnItem {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItemId     String
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  quantity        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([returnRequestId, orderItemId])
+  @@index([orderItemId])
+  @@map("return_items")
+}
+
+model ReturnStatusEvent {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  status          ReturnStatus
+  note            String        @default("")
+  actorId         String?
+  actor           User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([returnRequestId, createdAt])
+  @@map("return_status_events")
+}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { OrderDetail, OrderLine } from "@/types/order";
 import { StatusPill } from "@/components/account/status-pill";
+import { ACCOUNT_RETURNS_PATH } from "@/lib/constants";
 import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
@@ -16,6 +17,7 @@ import {
   orderStatusTone,
   type OrderStatus,
 } from "@/lib/orders";
+import { isReturnable } from "@/lib/returns";
 import { CONDITION_META, GRADE_META, productHref } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 
@@ -31,12 +33,25 @@ export function orderEtaLabel(
   return formatEta(order.etaMinDays, order.etaMaxDays);
 }
 
-export function OrderDetailBody({ order, actions }: { order: OrderDetail; actions?: ReactNode }) {
+function returnRequestHref(orderNumber: string, itemId?: string) {
+  const query = new URLSearchParams(itemId ? { order: orderNumber, item: itemId } : { order: orderNumber });
+  return `${ACCOUNT_RETURNS_PATH}?${query}`;
+}
+
+export function OrderDetailBody({
+  order,
+  actions,
+  returnLinks = false,
+}: {
+  order: OrderDetail;
+  actions?: ReactNode;
+  returnLinks?: boolean;
+}) {
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] xl:gap-10">
       <div className="flex flex-col gap-8">
         <OrderTimeline order={order} />
-        <OrderLines order={order} />
+        <OrderLines order={order} returnLinks={returnLinks} />
       </div>
 
       <div className="flex flex-col gap-8">
@@ -146,8 +161,10 @@ function OrderTimeline({ order }: { order: OrderDetail }) {
   );
 }
 
-function OrderLines({ order }: { order: OrderDetail }) {
+function OrderLines({ order, returnLinks }: { order: OrderDetail; returnLinks: boolean }) {
   const count = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const returnOpen = isReturnable(order, new Date());
+  const canReturn = (line: OrderLine) => returnLinks && returnOpen && line.returnableQuantity > 0;
 
   return (
     <section className="rounded-2xl border border-line bg-surface">
@@ -155,22 +172,50 @@ function OrderLines({ order }: { order: OrderDetail }) {
         <h2 className="text-[1.125rem] font-medium text-ink">
           {count} item{count === 1 ? "" : "s"} in this order
         </h2>
-        {order.returnableUntil && (
+        {returnOpen && order.returnableUntil && (
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+              Returnable until {formatOrderDate(order.returnableUntil)}
+            </p>
+            {order.lines.some(canReturn) && (
+              <Link
+                href={returnRequestHref(order.number)}
+                className="text-[0.8125rem] font-medium text-ink hover:text-accent"
+              >
+                Request a return
+              </Link>
+            )}
+          </div>
+        )}
+        {order.status === "DELIVERED" && !returnOpen && (
           <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-            Returnable until {formatOrderDate(order.returnableUntil)}
+            Return window closed
           </p>
         )}
       </header>
       <ul>
         {order.lines.map((line, index) => (
-          <OrderLineRow key={line.id} line={line} first={index === 0} />
+          <OrderLineRow
+            key={line.id}
+            line={line}
+            first={index === 0}
+            returnHref={canReturn(line) ? returnRequestHref(order.number, line.id) : null}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-function OrderLineRow({ line, first }: { line: OrderLine; first: boolean }) {
+function OrderLineRow({
+  line,
+  first,
+  returnHref,
+}: {
+  line: OrderLine;
+  first: boolean;
+  returnHref: string | null;
+}) {
   const details = [line.brand, line.storage, line.colour].filter(Boolean).join(" · ");
 
   return (
@@ -233,6 +278,14 @@ function OrderLineRow({ line, first }: { line: OrderLine; first: boolean }) {
         <p className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
           {formatMoney(line.unitPrice)} each
         </p>
+        {returnHref && (
+          <Link
+            href={returnHref}
+            className="mt-3 inline-flex text-[0.8125rem] font-medium text-ink hover:text-accent"
+          >
+            Return this item
+          </Link>
+        )}
       </div>
     </li>
   );

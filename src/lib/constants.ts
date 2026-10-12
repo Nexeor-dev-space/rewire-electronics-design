@@ -31,6 +31,7 @@ export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const RETURN_WINDOW_DAYS = 30;
+export const RETURN_WINDOW_MAX_DAYS = 365;
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export const ORDER_NUMBER_PREFIX = "RW-";
@@ -41,8 +42,14 @@ export const ORDER_NOTE_MAX_LENGTH = 500;
 export const STAFF_NOTE_MAX_LENGTH = 1000;
 export const TRACKING_NUMBER_MAX_LENGTH = 64;
 export const ORDER_EVENT_LIMIT = 50;
+export const ORDER_RETURNS_LIMIT = 50;
+export const RETURN_NUMBER_PREFIX = "RT-";
+export const RETURN_DETAIL_MIN_LENGTH = 4;
+export const RETURN_DETAIL_MAX_LENGTH = 1000;
+export const REFUND_REFERENCE_MAX_LENGTH = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
+export const ACCOUNT_RETURNS_PATH = "/account/returns";
 export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
 export const CHECKOUT_PAGE_PATH = "/checkout";
 export const CHECKOUT_SUCCESS_PAGE_PATH = "/checkout/success";
@@ -76,6 +83,7 @@ export const RATE_LIMITS = {
   search: { limit: 60, windowSeconds: 60 },
   placeOrder: { limit: 10, windowSeconds: 60 * 10 },
   trackOrder: { limit: 10, windowSeconds: 60 * 15 },
+  returnRequest: { limit: 10, windowSeconds: 60 * 60 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
@@ -87,6 +95,7 @@ export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 /** Where staff accounts and their roles are managed, linked from the Roles screen. */
 export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
+export const ADMIN_RETURNS_PATH = "/admin/returns";
 /** The console's light / dark choice, per browser. No cookie means follow the OS. */
 export const ADMIN_THEME_COOKIE = "rewire_admin_theme";
 export const ADMIN_THEME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;

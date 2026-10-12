@@ -21,6 +21,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Homepage sections, the homepage CMS API, publishing | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
 | Products, the Product API, shop and product pages, catalogue admin, product SEO and Open Graph | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
+| Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | The cart and its API, `src/lib/pricing/`, VAT, discount codes, delivery zones, the guest cart cookie and merge, the checkout summary | [docs/CART.md](docs/CART.md) |
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate | [docs/AUTH.md](docs/AUTH.md) |
