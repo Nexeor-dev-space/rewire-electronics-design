@@ -107,7 +107,8 @@ API and the known limits are in [PERMISSIONS.md](PERMISSIONS.md).
 
 **Checks.**
 
-* `src/app/admin/layout.tsx`: signed out → `/sign-in`; a Customer, or Staff
+* `src/app/admin/layout.tsx`: signed out → `/sign-in?next=<the screen>` through
+  `SignInRedirect` (pages return `null` without a session); a Customer, or Staff
   whose grid grants no module → the access-denied screen instead of the console.
 * A built module's page checks View with
   `hasPermission(session.user.permissions, PERMISSIONS.<module>)`.

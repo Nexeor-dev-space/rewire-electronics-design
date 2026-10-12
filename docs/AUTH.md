@@ -265,11 +265,15 @@ tab bar, on storefront tokens. Every page sets `robots: noindex, nofollow`.
 
 1. `/sign-in?next=`: `SignInForm`, links to register and forgot password. On success it goes to
    `safeNextPath(next)` or the returned `redirectTo`. A signed-in visitor is
-   not redirected away, so "Use a different account" keeps working.
+   not redirected away, so "Use a different account" keeps working. With
+   `?expired=1` (`SESSION_EXPIRED_PARAM`) it shows "Your session has ended.
+   Sign in again to continue." above the fields. Only the exact value `1`
+   shows it; nothing from the URL is rendered.
 2. `/register?next=`: name, email, password, confirm (client only), optional
    phone. Success goes to `next` or `/account`.
 3. `/forgot-password`: always ends on "If an account exists for that email,
-   we've sent a link."
+   we've sent a link." A "Send again" button posts the same email again; the
+   new link replaces the old one, and the `forgotPassword` rate limit applies.
 4. `/reset-password?token=`: new password and confirm; success links to
    sign-in; no token links to forgot password.
 5. `/verify-email?token=`: a "Confirm my email" button, not an auto submit, so
@@ -284,7 +288,8 @@ the token in the URL never leaks through the `Referer` header.
 path: it must start with `/`, not `//` or `/\`, contain no whitespace or
 control characters, stay on our origin when resolved, be at most
 `NEXT_PATH_MAX_LENGTH` (512) characters, and not be an auth page. Anything else
-is `null`. `signInHref(next)` builds `/sign-in?next=<encoded>` from it. Use
+is `null`. `signInHref(next, { expired })` builds `/sign-in?next=<encoded>`
+from it, adding `expired=1` when `expired` is true. Use
 these two everywhere a sign-in link or post sign-in redirect is built; never
 redirect to a raw `next`.
 
@@ -296,6 +301,13 @@ so no account content is ever rendered for a visitor. `SignInRedirect` calls
 `router.replace(signInHref(pathname + search))` on the client, because a
 layout cannot read the request path and a server `redirect()` would lose deep
 links such as `/account/orders/123`.
+
+The layout passes `expired={await hasSessionCookie()}` to `SignInRedirect`.
+A cookie that no longer resolves (expired, signed out elsewhere by a reset,
+deleted user) means the session ended, so the sign-in page shows the notice;
+no cookie means a plain guest, who gets no notice. Presence of the cookie
+only picks the wording; access is still decided by `getSession()`. The stale
+cookie is removed by the next `GET auth/me`, which the header calls.
 
 Signed in with an unverified email, the layout renders `VerifyEmailBanner`
 (a resend button on `useResendVerification`) above the page. Unverified
@@ -309,7 +321,10 @@ pages, so a session that expires mid-visit is caught by the next API 401
 
 `src/components/providers/query-provider.tsx` gives the `QueryClient` a
 `QueryCache` and `MutationCache` whose `onError` sends the browser to
-`signInHref(current path)` when an `ApiError` has code `UNAUTHENTICATED`. It
+`signInHref(current path, { expired: true })` when an `ApiError` has code
+`UNAUTHENTICATED`, so the sign-in page shows the session ended notice. A
+guest never sees it from here in practice: the storefront only calls
+session only endpoints from signed in screens. It
 applies to every API, admin included. It skips when already on `/sign-in`,
 and when the query or mutation sets `meta: { authRedirect: false }`.
 `useSignIn` sets it, because a wrong password is not an expired session. Use
@@ -345,6 +360,11 @@ the client through `auth.me` instead.
 4. Accounts created in the console are marked verified.
 5. An expired session on an admin screen now lands on `/sign-in?next=` through
    the 401 rule instead of showing an error.
+6. Opening an admin page signed out works like the account gate (§9.3):
+   `src/app/admin/layout.tsx` renders `SignInRedirect` with `expired`, so the
+   sign-in page returns to that admin page afterwards. Each admin page returns
+   `null` when there is no session instead of redirecting, so the layout's
+   redirect is the only one.
 
 ---
 
