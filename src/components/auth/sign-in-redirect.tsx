@@ -10,12 +10,12 @@ import { signInHref } from "@/lib/auth/next-path";
  * `/account/orders/123`). A server `redirect()` can't do this from a
  * layout — a layout has no access to the request's pathname.
  */
-export function SignInRedirect() {
+export function SignInRedirect({ expired }: { expired: boolean }) {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(signInHref(window.location.pathname + window.location.search));
-  }, [router]);
+    router.replace(signInHref(window.location.pathname + window.location.search, { expired }));
+  }, [router, expired]);
 
   return null;
 }

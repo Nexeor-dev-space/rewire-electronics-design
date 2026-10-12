@@ -53,3 +53,18 @@ describe("signInHref", () => {
     expect(signInHref(null)).toBe("/sign-in");
   });
 });
+
+describe("signInHref with expired", () => {
+  it("adds expired=1 after a safe next path", () => {
+    expect(signInHref("/account", { expired: true })).toBe("/sign-in?next=%2Faccount&expired=1");
+  });
+
+  it("adds expired=1 alone when next is missing or unsafe", () => {
+    expect(signInHref(null, { expired: true })).toBe("/sign-in?expired=1");
+    expect(signInHref("//evil.example", { expired: true })).toBe("/sign-in?expired=1");
+  });
+
+  it("leaves the link unchanged without the option", () => {
+    expect(signInHref("/account")).toBe("/sign-in?next=%2Faccount");
+  });
+});

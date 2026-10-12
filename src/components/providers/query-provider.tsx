@@ -29,7 +29,7 @@ function handleAuthError(error: unknown, meta: Record<string, unknown> | undefin
   if (typeof window === "undefined") return;
   if (window.location.pathname === SIGN_IN_PAGE_PATH) return;
 
-  window.location.assign(signInHref(window.location.pathname + window.location.search));
+  window.location.assign(signInHref(window.location.pathname + window.location.search, { expired: true }));
 }
 
 export function QueryProvider({ children }: { children: ReactNode }) {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SignInForm } from "@/components/auth/sign-in-form";
+import { SESSION_EXPIRED_PARAM } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -7,11 +8,11 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; [SESSION_EXPIRED_PARAM]?: string }>;
 }
 
 export default async function SignInPage({ searchParams }: Props) {
-  const { next } = await searchParams;
+  const params = await searchParams;
 
-  return <SignInForm next={next} />;
+  return <SignInForm next={params.next} expired={params[SESSION_EXPIRED_PARAM] === "1"} />;
 }
