@@ -13,9 +13,11 @@ function imagesForColour(images: ShopImage[], colour: string | null) {
 export function ProductStage({
   product,
   addOns,
+  returnWindowDays,
 }: {
   product: ShopProductDetail;
   addOns: ShopAddOn[];
+  returnWindowDays: number;
 }) {
   const { variant, select } = useSelectedVariant();
 
@@ -27,7 +29,13 @@ export function ProductStage({
           images={imagesForColour(product.images, variant.colour)}
         />
       </div>
-      <ProductBuyPanel product={product} addOns={addOns} variant={variant} onVariantChange={select} />
+      <ProductBuyPanel
+        product={product}
+        addOns={addOns}
+        variant={variant}
+        returnWindowDays={returnWindowDays}
+        onVariantChange={select}
+      />
     </div>
   );
 }

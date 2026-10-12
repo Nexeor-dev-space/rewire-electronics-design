@@ -9,12 +9,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function CheckoutSuccessPage() {
+interface Props {
+  searchParams: Promise<{ order?: string | string[] }>;
+}
+
+export default async function CheckoutSuccessPage({ searchParams }: Props) {
+  const { order } = await searchParams;
+  const number = typeof order === "string" ? order.trim().toUpperCase() : "";
+
   return (
     <>
       <CheckoutHeader />
       <div className="flex-1">
-        <OrderSuccess />
+        <OrderSuccess number={number} />
       </div>
       <TrustFooter />
     </>

@@ -1,20 +1,16 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useMemo } from "react";
 import { useAccount } from "@/components/providers/account-provider";
 import { useGetMe } from "@/hooks/use-auth";
-import {
-  formatOrderDate,
-  getRecentOrderedProducts,
-  getRecentOrders,
-} from "@/lib/account-data";
-import { getProductBySlug } from "@/lib/catalog";
+import { useGetAccountOrders } from "@/hooks/use-order";
+import { ACCOUNT_ORDERS_PATH, ACCOUNT_RECENT_ORDERS_LIMIT } from "@/lib/constants";
+import { formatOrderDate } from "@/lib/dates";
+import { ORDER_TRANSITIONS } from "@/lib/orders";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AccountShell } from "./account-shell";
-import { OrderSummaryCard } from "./order-summary-card";
+import { OrderSummaryCard, OrderSummaryCardSkeleton } from "./order-summary-card";
 
 /**
  * AccountOverview — the /account landing surface.
@@ -30,15 +26,9 @@ export function AccountOverview() {
   const { wishlistSlugs } = useAccount();
   const me = useGetMe();
 
-  const recentOrders = useMemo(() => getRecentOrders(3), []);
-  const recentProducts = useMemo(() => getRecentOrderedProducts(4), []);
-  const activeOrders = useMemo(
-    () =>
-      recentOrders.filter(
-        (o) => o.status === "processing" || o.status === "shipped",
-      ).length,
-    [recentOrders],
-  );
+  const orders = useGetAccountOrders();
+  const activeOrders =
+    orders.data?.items.filter((order) => ORDER_TRANSITIONS[order.status].length > 0).length ?? 0;
 
   if (me.isPending) return <AccountShell title="Account" />;
 
@@ -77,7 +67,7 @@ export function AccountOverview() {
           <div className="mb-4 flex items-baseline justify-between gap-4">
             <h2 className="text-[1.25rem] font-medium text-ink">Recent orders</h2>
             <Link
-              href="/account/orders"
+              href={ACCOUNT_ORDERS_PATH}
               className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-ink-secondary hover:text-ink"
             >
               See all
@@ -93,40 +83,8 @@ export function AccountOverview() {
               </svg>
             </Link>
           </div>
-          <div className="flex flex-col gap-3">
-            {recentOrders.map((order) => (
-              <OrderSummaryCard key={order.id} order={order} />
-            ))}
-            {recentOrders.length === 0 && (
-              <EmptyState
-                title="No orders yet"
-                body="Anything you buy will land here — with tracking, invoices and one-click returns."
-                cta={{ href: "/", label: "Explore the shop" }}
-              />
-            )}
-          </div>
+          <RecentOrders orders={orders} />
         </section>
-
-        {/* ---------- Recently ordered ---------- */}
-        {recentProducts.length > 0 && (
-          <section className="mt-6">
-            <div className="mb-4 flex items-baseline justify-between gap-4">
-              <h2 className="text-[1.25rem] font-medium text-ink">
-                Recently ordered
-              </h2>
-              <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-                From your last {recentProducts.length} unique buys
-              </p>
-            </div>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {recentProducts.map((item) => (
-                <li key={item.slug}>
-                  <RecentProductCard slug={item.slug} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </div>
     </AccountShell>
   );
@@ -212,7 +170,7 @@ function QuickActions({
 }) {
   const actions = [
     {
-      href: "/account/orders",
+      href: ACCOUNT_ORDERS_PATH,
       label: "My Orders",
       hint: activeOrders > 0 ? `${activeOrders} active` : "Track past purchases",
     },
@@ -290,41 +248,46 @@ function QuickActions({
   );
 }
 
-/* ============================================================
-   Recently ordered — small product tile
-   ============================================================ */
-
-function RecentProductCard({ slug }: { slug: string }) {
-  const product = getProductBySlug(slug);
-  if (!product) return null;
-  const image = product.images[0];
-  return (
-    <Link
-      href={`/product/${product.slug}`}
-      className={cn(
-        "group/tile block rounded-xl border border-line bg-surface p-3",
-        "transition-[border-color,transform] duration-(--duration-fast)",
-        "hover:-translate-y-0.5 hover:border-line-strong",
-      )}
-    >
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-plate">
-        {image && (
-          <Image
-            src={image.url}
-            alt={image.alt}
-            fill
-            sizes="(max-width: 640px) 45vw, 22vw"
-            className={image.fit === "cover" ? "object-cover" : "object-contain p-3"}
-          />
-        )}
+function RecentOrders({ orders }: { orders: ReturnType<typeof useGetAccountOrders> }) {
+  if (orders.isPending) {
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: ACCOUNT_RECENT_ORDERS_LIMIT }, (_, index) => (
+          <OrderSummaryCardSkeleton key={index} />
+        ))}
       </div>
-      <p className="mt-3 truncate text-[0.875rem] font-medium text-ink">
-        {product.name}
-      </p>
-      <p className="mt-0.5 truncate text-[0.75rem] text-ink-muted">
-        {product.variant}
-      </p>
-    </Link>
+    );
+  }
+
+  if (orders.isError) {
+    return (
+      <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+        <p className="text-sm text-ink-secondary">{orders.error.message}</p>
+        <Button variant="outline" size="sm" className="mt-5" onClick={() => orders.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  const recent = orders.data.items.slice(0, ACCOUNT_RECENT_ORDERS_LIMIT);
+
+  if (recent.length === 0) {
+    return (
+      <EmptyState
+        title="No orders yet"
+        body="Anything you buy will land here, with its delivery progress and tracking."
+        cta={{ href: "/", label: "Explore the shop" }}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {recent.map((order) => (
+        <OrderSummaryCard key={order.number} order={order} />
+      ))}
+    </div>
   );
 }
 

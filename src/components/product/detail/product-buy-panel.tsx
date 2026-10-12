@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
-import { CART_MAX_LINE_QUANTITY, RETURN_WINDOW_DAYS } from "@/lib/constants";
+import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
@@ -30,6 +30,7 @@ interface Props {
   product: ShopProductDetail;
   addOns: ShopAddOn[];
   variant: ShopVariant;
+  returnWindowDays: number;
   onVariantChange: (id: string) => void;
 }
 
@@ -88,7 +89,7 @@ function closestVariant(variants: ShopVariant[], selected: ShopVariant, axis: Ax
     .sort((a, b) => compareRanks(rank(b), rank(a)))[0];
 }
 
-export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: Props) {
+export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, onVariantChange }: Props) {
   const variants = product.variants;
   const stateOptions = optionsFor(variants, variant, "state");
   const storageOptions = optionsFor(variants, variant, "storage");
@@ -185,9 +186,13 @@ export function ProductBuyPanel({ product, addOns, variant, onVariantChange }: P
 
   const maxQuantity = line?.maxQuantity ?? Math.min(variant.stock || 0, CART_MAX_LINE_QUANTITY);
 
-  const trustItems = TRUST_ITEMS.map((item) =>
-    item.icon === ShieldIcon ? { ...item, title: `${product.warrantyMonths}-mo warranty` } : item,
-  );
+  const trustItems = TRUST_ITEMS.flatMap((item) => {
+    if (item.icon === ShieldIcon) return [{ ...item, title: `${product.warrantyMonths}-mo warranty` }];
+    if (item.icon === ReturnIcon) {
+      return returnWindowDays > 0 ? [{ ...item, title: `${returnWindowDays}-day returns` }] : [];
+    }
+    return [item];
+  });
 
   const stepperBusy = updateCartItem.isPending || removeCartItem.isPending;
 
@@ -600,6 +605,6 @@ function LockIcon() {
 const TRUST_ITEMS: { title: string; sub: string; icon: () => React.JSX.Element }[] = [
   { title: "Free delivery", sub: "On every order", icon: TruckIcon },
   { title: "Warranty", sub: "Rewire-backed", icon: ShieldIcon },
-  { title: `${RETURN_WINDOW_DAYS}-day returns`, sub: "No questions asked", icon: ReturnIcon },
+  { title: "Returns", sub: "No questions asked", icon: ReturnIcon },
   { title: "Secure checkout", sub: "Encrypted payment", icon: LockIcon },
 ];

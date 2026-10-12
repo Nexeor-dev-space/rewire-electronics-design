@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "@/components/providers/account-provider";
 import { useGetMe } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
-import { ACCOUNT_HOME_PATH } from "@/lib/constants";
+import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -132,12 +132,6 @@ export function MobileTabBar() {
                 "border border-line bg-surface shadow-(--shadow-float)",
               )}
             >
-                {/* The panel is two things: the way in, and the one
-                   account surface a guest still has a reason to reach.
-                   Order tracking is behind the account's auth gate either
-                   way, but naming it here is what stops a shopper hunting
-                   for "Track Order" in a company menu where it never
-                   belonged. */}
                 <div className="p-4">
                   <p className="text-sm font-medium text-ink">Your account</p>
                   <p className="mt-1 text-xs leading-relaxed text-ink-muted">
@@ -157,7 +151,7 @@ export function MobileTabBar() {
                     Sign in
                   </Link>
                   <Link
-                    href="/account/orders"
+                    href={ORDER_TRACK_PAGE_PATH}
                     role="menuitem"
                     onClick={() => setProfileOpen(false)}
                     className="mt-3 flex h-11 w-full items-center justify-center rounded-full border border-line text-sm font-medium tracking-tight text-ink transition-colors duration-(--duration-fast) hover:border-ink"
