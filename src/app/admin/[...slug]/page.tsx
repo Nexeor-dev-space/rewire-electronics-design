@@ -25,6 +25,8 @@ const BUILT_ROUTES = new Set([
   "/admin/coupons",
   "/admin/settings/delivery",
   "/admin/returns",
+  "/admin/orders",
+  "/admin/fulfilment",
   "/admin/roles",
   "/admin/change-log",
   "/admin/trash",

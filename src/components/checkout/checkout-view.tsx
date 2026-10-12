@@ -2,24 +2,36 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
 import { z } from "zod";
-import { cartKeys, useApplyCoupon, useGetCartQuote, useRemoveCoupon } from "@/hooks/use-cart";
+import {
+  cartKeys,
+  useApplyCoupon,
+  useGetCartQuote,
+  useRemoveCoupon,
+} from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
 import { usePlaceOrder } from "@/hooks/use-checkout";
 import { ApiError, apiFieldErrors } from "@/lib/api/api-client";
 import { signInHref } from "@/lib/auth/next-path";
-import { CHECKOUT_PAGE_PATH, CHECKOUT_SUCCESS_PAGE_PATH } from "@/lib/constants";
-import { DELIVERY_METHOD_LABELS, DELIVERY_METHODS, formatEta, type DeliveryMethod } from "@/lib/delivery";
+import {
+  CHECKOUT_PAGE_PATH,
+  CHECKOUT_SUCCESS_PAGE_PATH,
+} from "@/lib/constants";
+import {
+  DELIVERY_METHOD_LABELS,
+  DELIVERY_METHODS,
+  formatEta,
+  type DeliveryMethod,
+} from "@/lib/delivery";
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
-import { PAYMENT_LINK_NOTICE, awaitsPaymentLink, type PaymentMethod } from "@/lib/orders";
+import {
+  PAYMENT_LINK_NOTICE,
+  awaitsPaymentLink,
+  type PaymentMethod,
+} from "@/lib/orders";
 import { cn } from "@/lib/utils";
 import { checkoutInformationSchema } from "@/validators/checkout.validator";
 import { Button } from "@/components/ui/button";
@@ -37,16 +49,6 @@ export interface PaymentOption extends OptionListItem {
 
 interface Props {
   payment: PaymentOption[];
-}
-
-interface SavedAddress {
-  id: string;
-  label: string;
-  name: string;
-  line1: string;
-  city: string;
-  emirate: string;
-  phone: string;
 }
 
 const STEPS: ProgressStep[] = [
@@ -73,7 +75,11 @@ const INFORMATION_FIELDS = {
   postalCode: "postal",
 } as const;
 
-const RETRYABLE_ERROR_CODES: readonly string[] = ["NETWORK", "INTERNAL", "NOT_CONFIGURED"];
+const RETRYABLE_ERROR_CODES: readonly string[] = [
+  "NETWORK",
+  "INTERNAL",
+  "NOT_CONFIGURED",
+];
 
 type InformationField = keyof typeof INFORMATION_FIELDS;
 type InformationErrors = Partial<Record<InformationField, string>>;
@@ -87,7 +93,9 @@ function readInformation(form: HTMLFormElement, emailOptIn: boolean) {
   return values;
 }
 
-function pickInformationErrors(fieldErrors: Partial<Record<string, string[]>>): InformationErrors {
+function pickInformationErrors(
+  fieldErrors: Partial<Record<string, string[]>>,
+): InformationErrors {
   const errors: InformationErrors = {};
   for (const field of Object.keys(INFORMATION_FIELDS) as InformationField[]) {
     const message = fieldErrors[field]?.[0];
@@ -96,14 +104,20 @@ function pickInformationErrors(fieldErrors: Partial<Record<string, string[]>>): 
   return errors;
 }
 
-function firstInformationError(errors: InformationErrors): InformationField | undefined {
-  return (Object.keys(INFORMATION_FIELDS) as InformationField[]).find((field) => errors[field]);
+function firstInformationError(
+  errors: InformationErrors,
+): InformationField | undefined {
+  return (Object.keys(INFORMATION_FIELDS) as InformationField[]).find(
+    (field) => errors[field],
+  );
 }
 
 function checkInformation(values: Record<string, unknown>) {
   const result = checkoutInformationSchema.safeParse(values);
   if (!result.success) {
-    return { errors: pickInformationErrors(z.flattenError(result.error).fieldErrors) };
+    return {
+      errors: pickInformationErrors(z.flattenError(result.error).fieldErrors),
+    };
   }
   const { email, phone, city, emirate } = result.data;
   return {
@@ -113,7 +127,10 @@ function checkInformation(values: Record<string, unknown>) {
 }
 
 function isRetryable(error: Error): boolean {
-  return !(error instanceof ApiError) || RETRYABLE_ERROR_CODES.includes(error.body.code);
+  return (
+    !(error instanceof ApiError) ||
+    RETRYABLE_ERROR_CODES.includes(error.body.code)
+  );
 }
 
 function formatFee(fee: number): string {
@@ -131,14 +148,17 @@ export function CheckoutView({ payment }: Props) {
   const placeOrder = usePlaceOrder();
   const queryClient = useQueryClient();
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(payment[0]?.value ?? "COD");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    payment[0]?.value ?? "COD",
+  );
   const [openStep, setOpenStep] = useState(INFORMATION_STEP);
   const [informationSummary, setInformationSummary] = useState("");
-  const [informationErrors, setInformationErrors] = useState<InformationErrors>({});
+  const [informationErrors, setInformationErrors] = useState<InformationErrors>(
+    {},
+  );
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [emailNeedsSignIn, setEmailNeedsSignIn] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -150,14 +170,18 @@ export function CheckoutView({ payment }: Props) {
   const lines = cart?.items ?? [];
   const stepsComplete = openStep === REVIEW_STEP;
 
-  const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map((option) => ({
-    value: option.method,
-    label: DELIVERY_METHOD_LABELS[option.method],
-    supporting: formatEta(option.etaMinDays, option.etaMaxDays),
-    trailing: formatFee(option.fee),
-  }));
+  const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map(
+    (option) => ({
+      value: option.method,
+      label: DELIVERY_METHOD_LABELS[option.method],
+      supporting: formatEta(option.etaMinDays, option.etaMaxDays),
+      trailing: formatFee(option.fee),
+    }),
+  );
 
-  const activeDeliveryOption = quote.data?.options.find((option) => option.method === method);
+  const activeDeliveryOption = quote.data?.options.find(
+    (option) => option.method === method,
+  );
   const deliveryLabel = activeDeliveryOption
     ? `${DELIVERY_METHOD_LABELS[method]} · ${formatEta(activeDeliveryOption.etaMinDays, activeDeliveryOption.etaMaxDays)}`
     : DELIVERY_METHOD_LABELS[method];
@@ -165,40 +189,16 @@ export function CheckoutView({ payment }: Props) {
     ? `${deliveryLabel} · ${formatFee(activeDeliveryOption.fee)}`
     : deliveryLabel;
 
-  const activePayment = payment.find((option) => option.value === paymentMethod);
-
-  const couponFieldError = applyCoupon.isError
-    ? apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message
-    : null;
-
-  const savedAddresses = useMemo<SavedAddress[]>(
-    () =>
-      me
-        ? [
-            {
-              id: "home",
-              label: "Home",
-              name: me.fullName,
-              line1: "18 Al Wasl Villas, Villa 12",
-              city: "Dubai",
-              emirate: "Dubai",
-              phone: "+971 50 123 4567",
-            },
-          ]
-        : [],
-    [me],
+  const activePayment = payment.find(
+    (option) => option.value === paymentMethod,
   );
 
-  const addressId = selectedAddressId ?? savedAddresses[0]?.id ?? "new";
-  const savedAddress = savedAddresses.find((a) => a.id === addressId);
+  const couponFieldError = applyCoupon.isError
+    ? (apiFieldErrors(applyCoupon.error).code?.[0] ?? applyCoupon.error.message)
+    : null;
 
   const stepState = (step: number): CheckoutSectionState =>
     step === openStep ? "active" : step < openStep ? "done" : "locked";
-
-  const chooseAddress = (id: string) => {
-    setSelectedAddressId(id);
-    setInformationErrors({});
-  };
 
   const editStep = (step: number) => {
     if (step < openStep && !placing) setOpenStep(step);
@@ -215,7 +215,10 @@ export function CheckoutView({ payment }: Props) {
     const form = formRef.current;
     if (!form || !informationErrors[field]) return;
     const check = checkInformation(readInformation(form, emailOptIn));
-    setInformationErrors((current) => ({ ...current, [field]: check.errors?.[field] }));
+    setInformationErrors((current) => ({
+      ...current,
+      [field]: check.errors?.[field],
+    }));
   };
 
   const continueInformation = () => {
@@ -241,7 +244,8 @@ export function CheckoutView({ payment }: Props) {
     if (!isRetryable(error)) idempotencyKey.current = null;
 
     const errors = pickInformationErrors(apiFieldErrors(error));
-    const conflict = error instanceof ApiError && error.body.code === "CONFLICT";
+    const conflict =
+      error instanceof ApiError && error.body.code === "CONFLICT";
     if (conflict) queryClient.invalidateQueries({ queryKey: cartKeys.all });
 
     if (firstInformationError(errors)) {
@@ -253,7 +257,14 @@ export function CheckoutView({ payment }: Props) {
   };
 
   const handlePlaceOrder = () => {
-    if (placing || !cart || lines.length === 0 || !cart.canCheckout || !stepsComplete) return;
+    if (
+      placing ||
+      !cart ||
+      lines.length === 0 ||
+      !cart.canCheckout ||
+      !stepsComplete
+    )
+      return;
     const form = formRef.current;
     if (!form) return;
 
@@ -281,7 +292,9 @@ export function CheckoutView({ payment }: Props) {
       {
         onSuccess: (order) => {
           idempotencyKey.current = null;
-          router.push(`${CHECKOUT_SUCCESS_PAGE_PATH}?order=${encodeURIComponent(order.number)}`);
+          router.push(
+            `${CHECKOUT_SUCCESS_PAGE_PATH}?order=${encodeURIComponent(order.number)}`,
+          );
         },
         onError: handlePlaceError,
       },
@@ -341,7 +354,11 @@ export function CheckoutView({ payment }: Props) {
       className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 pb-40 md:py-12 lg:pb-14"
     >
       <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-20 md:mb-12">
-        <CheckoutProgress steps={STEPS} activeIndex={openStep} onSelect={editStep} />
+        <CheckoutProgress
+          steps={STEPS}
+          activeIndex={openStep}
+          onSelect={editStep}
+        />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-16">
@@ -352,8 +369,8 @@ export function CheckoutView({ payment }: Props) {
               Just a few details away.
             </h1>
             <p className="mt-3 max-w-lg text-base leading-relaxed text-ink-secondary">
-              Every field marked with an asterisk is required. Your details
-              are used only to complete this order.
+              Every field marked with an asterisk is required. Your details are
+              used only to complete this order.
             </p>
           </header>
 
@@ -496,10 +513,16 @@ export function CheckoutView({ payment }: Props) {
                       name="emirate"
                       required
                       value={emirate}
-                      onChange={(event) => setEmirate(event.target.value as Emirate)}
+                      onChange={(event) =>
+                        setEmirate(event.target.value as Emirate)
+                      }
                       autoComplete="address-level1"
-                      aria-invalid={informationErrors.emirate ? true : undefined}
-                      aria-describedby={informationErrors.emirate ? "emirate-error" : undefined}
+                      aria-invalid={
+                        informationErrors.emirate ? true : undefined
+                      }
+                      aria-describedby={
+                        informationErrors.emirate ? "emirate-error" : undefined
+                      }
                       className={cn(
                         "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
                         "border border-line transition-colors duration-(--duration-fast)",
@@ -525,186 +548,13 @@ export function CheckoutView({ payment }: Props) {
                       <path d="m4 6 4 4 4-4" />
                     </svg>
                   </div>
-                  <FieldError id="emirate-error" className="mt-1.5 text-[0.75rem]">
+                  <FieldError
+                    id="emirate-error"
+                    className="mt-1.5 text-[0.75rem]"
+                  >
                     {informationErrors.emirate}
                   </FieldError>
                 </div>
-
-                {savedAddresses.length > 0 && (
-                  <div className="mt-5">
-                    <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-                      Saved addresses
-                    </p>
-                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                      {savedAddresses.map((addr) => (
-                        <li key={addr.id}>
-                          <label
-                            className={cn(
-                              "flex cursor-pointer flex-col gap-1 rounded-xl border p-4",
-                              "transition-[border-color,background-color] duration-(--duration-fast)",
-                              addressId === addr.id
-                                ? "border-accent bg-accent/5"
-                                : "border-line hover:border-line-strong",
-                            )}
-                          >
-                            <input
-                              type="radio"
-                              name="saved-address"
-                              value={addr.id}
-                              checked={addressId === addr.id}
-                              onChange={() => chooseAddress(addr.id)}
-                              className="sr-only"
-                            />
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-secondary">
-                                {addr.label}
-                              </span>
-                              {addressId === addr.id && (
-                                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent">
-                                  Selected
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[0.9375rem] font-medium text-ink">
-                              {addr.name}
-                            </p>
-                            <p className="text-[0.8125rem] text-ink-secondary">
-                              {addr.line1}
-                              <br />
-                              {addr.city}, {addr.emirate}
-                            </p>
-                            <p className="text-[0.75rem] text-ink-muted">
-                              {addr.phone}
-                            </p>
-                          </label>
-                        </li>
-                      ))}
-                      <li>
-                        <button
-                          type="button"
-                          onClick={() => chooseAddress("new")}
-                          className={cn(
-                            "flex h-full w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-4",
-                            "text-[0.8125rem] font-medium",
-                            "transition-[border-color,color] duration-(--duration-fast)",
-                            addressId === "new"
-                              ? "border-accent text-accent"
-                              : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
-                          )}
-                        >
-                          <svg
-                            aria-hidden
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            className="size-3.5"
-                          >
-                            <path d="M8 3v10M3 8h10" />
-                          </svg>
-                          Add new address
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                )}
-
-                {addressId === "new" && (
-                  <div className="mt-5 grid grid-cols-6 gap-4 sm:gap-5">
-                    <Field
-                      id="first-name"
-                      label="First name *"
-                      autoComplete="given-name"
-                      required
-                      span={3}
-                      error={informationErrors.firstName}
-                      onBlur={() => revalidateInformation("firstName")}
-                    />
-                    <Field
-                      id="last-name"
-                      label="Last name *"
-                      autoComplete="family-name"
-                      required
-                      span={3}
-                      error={informationErrors.lastName}
-                      onBlur={() => revalidateInformation("lastName")}
-                    />
-                    <Field
-                      id="address-1"
-                      label="Address *"
-                      autoComplete="address-line1"
-                      required
-                      placeholder="Villa / apartment, building, street"
-                      error={informationErrors.address1}
-                      onBlur={() => revalidateInformation("address1")}
-                    />
-                    <Field
-                      id="address-2"
-                      label="Apartment, suite, floor"
-                      autoComplete="address-line2"
-                      trailing="Optional"
-                      error={informationErrors.address2}
-                      onBlur={() => revalidateInformation("address2")}
-                    />
-                    <Field
-                      id="city"
-                      label="City *"
-                      autoComplete="address-level2"
-                      required
-                      span={3}
-                      error={informationErrors.city}
-                      onBlur={() => revalidateInformation("city")}
-                    />
-                    <div className="col-span-6 sm:col-span-3">
-                      <label
-                        htmlFor="emirate"
-                        className="eyebrow block cursor-pointer"
-                      >
-                        Emirate *
-                      </label>
-                      <div className="relative mt-2">
-                        <select
-                          id="emirate"
-                          name="emirate"
-                          required
-                          value={emirate}
-                          onChange={(event) => setEmirate(event.target.value as Emirate)}
-                          autoComplete="address-level1"
-                          aria-invalid={informationErrors.emirate ? true : undefined}
-                          aria-describedby={informationErrors.emirate ? "emirate-error" : undefined}
-                          className={cn(
-                            "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
-                            "border border-line transition-colors duration-(--duration-fast)",
-                            "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
-                          )}
-                        >
-                          {EMIRATES.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          aria-hidden
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
-                        >
-                          <path d="m4 6 4 4 4-4" />
-                        </svg>
-                      </div>
-                      <FieldError id="emirate-error" className="mt-1.5 text-[0.75rem]">
-                        {informationErrors.emirate}
-                      </FieldError>
-                    </div>
-                  </div>
-                )}
-
                 <Field
                   id="postal"
                   label="Postal code"
@@ -724,7 +574,10 @@ export function CheckoutView({ payment }: Props) {
               </div>
             </div>
 
-            <ContinueButton label="Continue to delivery" onClick={continueInformation} />
+            <ContinueButton
+              label="Continue to delivery"
+              onClick={continueInformation}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -754,7 +607,10 @@ export function CheckoutView({ payment }: Props) {
               tracking link the moment it leaves the workshop.
             </p>
 
-            <ContinueButton label="Continue to payment" onClick={continueDelivery} />
+            <ContinueButton
+              label="Continue to payment"
+              onClick={continueDelivery}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -796,7 +652,10 @@ export function CheckoutView({ payment }: Props) {
               Secure payment · encrypted end-to-end
             </div>
 
-            <ContinueButton label="Continue to review" onClick={continuePayment} />
+            <ContinueButton
+              label="Continue to review"
+              onClick={continuePayment}
+            />
           </CheckoutSection>
 
           <CheckoutSection
@@ -808,10 +667,7 @@ export function CheckoutView({ payment }: Props) {
           >
             <dl className="grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
               <ReviewRow label="Delivery" value={deliveryLabel} />
-              <ReviewRow
-                label="Payment"
-                value={activePayment?.label ?? "—"}
-              />
+              <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
               <ReviewRow
                 label="Order total"
                 value={formatMoney(cart!.totals.total)}
@@ -819,7 +675,10 @@ export function CheckoutView({ payment }: Props) {
               />
             </dl>
             {placeError && (
-              <p role="alert" className="mt-5 text-[0.8125rem] text-danger lg:hidden">
+              <p
+                role="alert"
+                className="mt-5 text-[0.8125rem] text-danger lg:hidden"
+              >
                 {placeError}
               </p>
             )}
@@ -855,7 +714,13 @@ export function CheckoutView({ payment }: Props) {
   );
 }
 
-function ContinueButton({ label, onClick }: { label: string; onClick: () => void }) {
+function ContinueButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <div className="mt-8 flex justify-end">
       <Button type="button" onClick={onClick} className="w-full sm:w-auto">
@@ -945,7 +810,9 @@ function ReviewRow({
       <dd
         className={cn(
           "tabular-nums",
-          strong ? "text-[0.9375rem] font-medium text-ink" : "text-ink-secondary",
+          strong
+            ? "text-[0.9375rem] font-medium text-ink"
+            : "text-ink-secondary",
         )}
       >
         {value}
