@@ -64,6 +64,7 @@ export async function releaseImage(tx: Prisma.TransactionClient, imageId: string
       productImages: { none: {} },
       productOgImages: { none: {} },
       homepageSections: { none: {} },
+      orderItems: { none: {} },
     },
   });
 }

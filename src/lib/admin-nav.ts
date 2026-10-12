@@ -226,8 +226,7 @@ export const adminNav: AdminNavSection[] = [
         key: "fulfilment",
         label: "Fulfilment",
         href: "/admin/fulfilment",
-        description:
-          "The dispatch pipeline: Processing, COD Call, Ready, Dispatched, Delivered. Dispatch binds the device serial or IMEI to the order.",
+        description: "Processing, Dispatched, Delivered",
       },
     ],
   },

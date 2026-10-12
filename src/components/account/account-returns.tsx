@@ -6,9 +6,8 @@ import { useSearchParams } from "next/navigation";
 import type { OrderItem, ReturnRecord } from "@/types";
 import { RETURN_STATUS_LABELS, ACTIVE_RETURN_STATUSES } from "@/types";
 import { cn, formatPrice } from "@/lib/utils";
+import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import {
-  formatOrderDate,
-  formatOrderStamp,
   getReturnEligibleItems,
   getReturnReasons,
   getReturns,

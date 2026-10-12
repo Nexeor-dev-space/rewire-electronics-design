@@ -62,6 +62,7 @@ const prismaImageStorage: ImageStorage = {
         productImages: { none: {} },
         productOgImages: { none: {} },
         homepageSections: { none: {} },
+        orderItems: { none: {} },
       },
     });
     return count;

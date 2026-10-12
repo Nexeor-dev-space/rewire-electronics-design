@@ -1,13 +1,4 @@
-import type {
-  Address,
-  Order,
-  OrderItem,
-  OrderStatus,
-  PaymentMethod,
-  ReturnRecord,
-  ReturnReason,
-  ReturnStatus,
-} from "@/types";
+import type { Address, OrderItem, ReturnRecord, ReturnReason, ReturnStatus } from "@/types";
 import { getProductBySlug } from "./catalog";
 import { addOnsFor } from "./add-ons";
 
@@ -18,163 +9,29 @@ import { addOnsFor } from "./add-ons";
  * reads through the getters below, and the real API adapter later
  * replaces the bodies without touching a page component.
  *
- * Orders and returns are seeded from real catalogue slugs so images,
- * conditions and prices agree with the shop. Addresses persist to
- * localStorage so the CRUD flow is reviewable end-to-end (add, edit,
- * delete, set default) without a backend.
+ * Returns are seeded from real catalogue slugs so images, conditions
+ * and prices agree with the shop; orders come from the order API.
+ * Addresses persist to localStorage so the CRUD flow is reviewable
+ * end-to-end (add, edit, delete, set default) without a backend.
  */
 
 const CURRENCY = "AED";
 const LOCALE = "en-AE";
 const ADDRESSES_KEY = "rewire.account.addresses.v1";
 
-/* ============================================================
-   Orders — one shape, five states
-   ============================================================ */
-
-interface OrderSeed {
-  id: string;
-  number: string;
-  placedAt: string;
-  status: OrderStatus;
-  estimatedDelivery: string;
-  delivery: number;
-  discount: number;
-  deliveryMethod: string;
-  trackingNumber?: string;
-  addressId: string;
-  paymentId: string;
-  items: {
-    slug: string;
-    quantity: number;
-    returnable?: boolean;
-    /** Add-on ids ticked on this line at checkout, resolved from `add-ons`. */
-    addOnIds?: string[];
-  }[];
-  tracking: { label: string; note: string; at?: string }[];
+interface ReturnEligibleSeed {
+  orderNumber: string;
+  items: { slug: string; quantity: number; addOnIds?: string[] }[];
 }
 
-const orderSeeds: OrderSeed[] = [
+const returnEligibleSeeds: ReturnEligibleSeed[] = [
   {
-    id: "RW-24817",
-    number: "RW-24817",
-    placedAt: "2026-08-14T09:12:00Z",
-    status: "shipped",
-    estimatedDelivery: "Wednesday, 26 August",
-    delivery: 0,
-    discount: 0,
-    deliveryMethod: "Free standard delivery",
-    trackingNumber: "AR-8817-DX",
-    addressId: "addr-1",
-    paymentId: "pay-1",
-    items: [
-      {
-        slug: "iphone-15-pro-max",
-        quantity: 1,
-        addOnIds: ["screen-fitted", "phone-case", "warranty-24"],
-      },
-      { slug: "airpods-pro-2", quantity: 1 },
-    ],
-    tracking: [
-      { label: "Order confirmed", note: "Payment authorised, unit reserved.", at: "2026-08-14T09:12:00Z" },
-      { label: "Processing", note: "Final QA and packaging.", at: "2026-08-14T13:40:00Z" },
-      { label: "Shipped", note: "With Emirates Post Express.", at: "2026-08-24T08:04:00Z" },
-      { label: "Out for delivery", note: "" },
-      { label: "Delivered", note: "" },
-    ],
-  },
-  {
-    id: "RW-24603",
-    number: "RW-24603",
-    placedAt: "2026-07-28T14:44:00Z",
-    status: "delivered",
-    estimatedDelivery: "Delivered Monday, 3 August",
-    delivery: 0,
-    discount: 0,
-    deliveryMethod: "Free standard delivery",
-    trackingNumber: "AR-8603-DX",
-    addressId: "addr-1",
-    paymentId: "pay-1",
-    items: [
-      {
-        slug: "macbook-air-13-m2",
-        quantity: 1,
-        addOnIds: ["sleeve", "charger-96w", "warranty-24"],
-      },
-    ],
-    tracking: [
-      { label: "Order confirmed", note: "Payment authorised, unit reserved.", at: "2026-07-28T14:44:00Z" },
-      { label: "Processing", note: "Final QA and packaging.", at: "2026-07-29T09:12:00Z" },
-      { label: "Shipped", note: "With Emirates Post Express.", at: "2026-07-31T08:04:00Z" },
-      { label: "Out for delivery", note: "Aramex courier assigned.", at: "2026-08-03T07:52:00Z" },
-      { label: "Delivered", note: "Signed for at reception.", at: "2026-08-03T14:19:00Z" },
-    ],
-  },
-  {
-    id: "RW-24412",
-    number: "RW-24412",
-    placedAt: "2026-07-04T11:20:00Z",
-    status: "delivered",
-    estimatedDelivery: "Delivered Wednesday, 8 July",
-    delivery: 0,
-    discount: 0,
-    deliveryMethod: "Free standard delivery",
-    trackingNumber: "AR-8412-DX",
-    addressId: "addr-2",
-    paymentId: "pay-1",
-    items: [
-      { slug: "wh-1000xm4", quantity: 1, returnable: false },
-      { slug: "96w-usb-c-adapter", quantity: 2, returnable: false },
-    ],
-    tracking: [
-      { label: "Order confirmed", note: "Payment authorised, unit reserved.", at: "2026-07-04T11:20:00Z" },
-      { label: "Processing", note: "Final QA and packaging.", at: "2026-07-04T18:10:00Z" },
-      { label: "Shipped", note: "With Emirates Post Express.", at: "2026-07-06T07:44:00Z" },
-      { label: "Out for delivery", note: "Aramex courier assigned.", at: "2026-07-08T08:12:00Z" },
-      { label: "Delivered", note: "Left with concierge.", at: "2026-07-08T15:03:00Z" },
-    ],
-  },
-  {
-    id: "RW-24199",
-    number: "RW-24199",
-    placedAt: "2026-06-11T16:02:00Z",
-    status: "returned",
-    estimatedDelivery: "Delivered Monday, 15 June",
-    delivery: 0,
-    discount: 150_00,
-    deliveryMethod: "Free standard delivery",
-    trackingNumber: "AR-8199-DX",
-    addressId: "addr-1",
-    paymentId: "pay-2",
-    items: [{ slug: "pixel-7-pro", quantity: 1, returnable: false }],
-    tracking: [
-      { label: "Order confirmed", note: "", at: "2026-06-11T16:02:00Z" },
-      { label: "Processing", note: "", at: "2026-06-12T09:00:00Z" },
-      { label: "Shipped", note: "", at: "2026-06-13T07:11:00Z" },
-      { label: "Out for delivery", note: "", at: "2026-06-15T08:22:00Z" },
-      { label: "Delivered", note: "", at: "2026-06-15T14:41:00Z" },
-    ],
-  },
-  {
-    id: "RW-24051",
-    number: "RW-24051",
-    placedAt: "2026-05-19T12:34:00Z",
-    status: "cancelled",
-    estimatedDelivery: "Cancelled 20 May",
-    delivery: 0,
-    discount: 0,
-    deliveryMethod: "Free standard delivery",
-    addressId: "addr-1",
-    paymentId: "pay-1",
-    items: [{ slug: "apple-watch-series-8", quantity: 1, returnable: false }],
-    tracking: [
-      { label: "Order confirmed", note: "Payment authorised.", at: "2026-05-19T12:34:00Z" },
-      { label: "Cancelled", note: "Cancelled at the customer's request.", at: "2026-05-20T09:15:00Z" },
-    ],
+    orderNumber: "RW-24603",
+    items: [{ slug: "macbook-air-13-m2", quantity: 1, addOnIds: ["sleeve", "charger-96w", "warranty-24"] }],
   },
 ];
 
-/* ---------- Fixed addresses & payment methods for the seed ---------- */
+/* ---------- Fixed addresses for the seed ---------- */
 
 const seededAddresses: Address[] = [
   {
@@ -200,19 +57,6 @@ const seededAddresses: Address[] = [
     phone: "+971 50 214 8837",
   },
 ];
-
-const paymentMethods: PaymentMethod[] = [
-  { id: "pay-1", brand: "Visa", last4: "6411", expiry: "09/29", isDefault: true },
-  { id: "pay-2", brand: "Mastercard", last4: "0284", expiry: "02/28" },
-];
-
-/* ---------- Grade + condition helpers ---------- */
-
-const GRADE_LABELS = {
-  pristine: "A — Pristine",
-  excellent: "B — Excellent",
-  good: "C — Good",
-} as const;
 
 function resolveItems(
   entries: {
@@ -250,48 +94,6 @@ function resolveItems(
     })
     .filter((line): line is OrderItem => Boolean(line));
 }
-
-/**
- * Line subtotal — device (unit × qty) + add-ons (priced once per line,
- * matching the checkout's `extrasPrice` semantics).
- */
-function subtotalFor(items: OrderItem[]): number {
-  return items.reduce((sum, item) => {
-    const addOnTotal =
-      item.addOns?.reduce((s, addOn) => s + addOn.price, 0) ?? 0;
-    return sum + item.price * item.quantity + addOnTotal;
-  }, 0);
-}
-
-function buildOrder(seed: OrderSeed): Order {
-  const items = resolveItems(seed.items, seed.id);
-  const subtotal = subtotalFor(items);
-  const address =
-    seededAddresses.find((a) => a.id === seed.addressId) ?? seededAddresses[0];
-  const payment =
-    paymentMethods.find((p) => p.id === seed.paymentId) ?? paymentMethods[0];
-  return {
-    id: seed.id,
-    number: seed.number,
-    placedAt: seed.placedAt,
-    status: seed.status,
-    items,
-    subtotal,
-    delivery: seed.delivery,
-    discount: seed.discount,
-    total: subtotal + seed.delivery - seed.discount,
-    currency: CURRENCY,
-    locale: LOCALE,
-    estimatedDelivery: seed.estimatedDelivery,
-    address,
-    payment,
-    deliveryMethod: seed.deliveryMethod,
-    trackingNumber: seed.trackingNumber,
-    tracking: seed.tracking,
-  };
-}
-
-const orders: Order[] = orderSeeds.map(buildOrder);
 
 /* ============================================================
    Returns
@@ -383,36 +185,6 @@ const returnSeeds: ReturnRecord[] = [
    Public getters
    ============================================================ */
 
-export function getOrders(): Order[] {
-  return [...orders].sort(
-    (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime(),
-  );
-}
-
-export function getOrderById(id: string): Order | undefined {
-  return orders.find((order) => order.id === id);
-}
-
-/** Latest N orders — used on the account overview. */
-export function getRecentOrders(limit = 3): Order[] {
-  return getOrders().slice(0, limit);
-}
-
-/** Products the user has actually ordered, most recent first, deduped by slug. */
-export function getRecentOrderedProducts(limit = 4): OrderItem[] {
-  const seen = new Set<string>();
-  const out: OrderItem[] = [];
-  for (const order of getOrders()) {
-    for (const item of order.items) {
-      if (seen.has(item.slug)) continue;
-      seen.add(item.slug);
-      out.push(item);
-      if (out.length >= limit) return out;
-    }
-  }
-  return out;
-}
-
 export function getReturns(): ReturnRecord[] {
   return [...returnSeeds].sort(
     (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime(),
@@ -423,21 +195,14 @@ export function getReturnReasons(): ReturnReason[] {
   return returnReasons;
 }
 
-export function getPaymentMethods(): PaymentMethod[] {
-  return paymentMethods;
-}
-
-/** Delivered orders whose items still qualify for the return window. */
 export function getReturnEligibleItems(): { orderId: string; orderNumber: string; item: OrderItem }[] {
-  const out: { orderId: string; orderNumber: string; item: OrderItem }[] = [];
-  for (const order of getOrders()) {
-    if (order.status !== "delivered") continue;
-    for (const item of order.items) {
-      if (!item.returnable) continue;
-      out.push({ orderId: order.id, orderNumber: order.number, item });
-    }
-  }
-  return out;
+  return returnEligibleSeeds.flatMap((seed) =>
+    resolveItems(seed.items, seed.orderNumber).map((item) => ({
+      orderId: seed.orderNumber,
+      orderNumber: seed.orderNumber,
+      item,
+    })),
+  );
 }
 
 /* ============================================================
@@ -478,52 +243,10 @@ export function saveAddresses(next: Address[]) {
   writeAddresses(next);
 }
 
-/* ============================================================
-   Label helpers — shared between list and detail
-   ============================================================ */
-
-export function conditionLabelFor(item: OrderItem): { condition: string; grade: string } {
-  return {
-    condition: "Refurbished",
-    grade: GRADE_LABELS[item.condition],
-  };
-}
-
-/** ISO → "Aug 14, 2026". Kept UTC to match server render. */
-export function formatOrderDate(iso: string): string {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(d);
-}
-
-/** ISO → "14 Aug, 09:12" for tracking rail. */
-export function formatOrderStamp(iso: string): string {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat(LOCALE, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-  }).format(d);
-}
-
 /** Return-status labels — mirror ORDER_STATUS_LABELS but for returns. */
 export function returnStatusTone(status: ReturnStatus): "live" | "warn" | "muted" | "danger" {
   if (status === "refunded") return "live";
   if (status === "declined") return "danger";
   if (status === "inspecting" || status === "in-transit") return "warn";
-  return "muted";
-}
-
-/** Order-status → tone token for the pill. */
-export function orderStatusTone(status: OrderStatus): "live" | "warn" | "muted" | "danger" {
-  if (status === "delivered") return "live";
-  if (status === "cancelled" || status === "returned") return "danger";
-  if (status === "shipped") return "warn";
   return "muted";
 }

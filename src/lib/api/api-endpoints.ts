@@ -59,6 +59,16 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/coupons`,
       detail: (id: string) => `${V1}/admin/coupons/${id}`,
     },
+    orders: {
+      list: `${V1}/admin/orders`,
+      detail: (number: string) => `${V1}/admin/orders/${number}`,
+      status: (number: string) => `${V1}/admin/orders/${number}/status`,
+      payment: (number: string) => `${V1}/admin/orders/${number}/payment`,
+    },
+    fulfilment: {
+      list: `${V1}/admin/fulfilment`,
+      detail: (number: string) => `${V1}/admin/fulfilment/${number}`,
+    },
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
@@ -91,6 +101,16 @@ export const API_ENDPOINTS = {
     coupon: `${V1}/cart/coupon`,
     acknowledge: `${V1}/cart/acknowledge`,
     quote: `${V1}/cart/quote`,
+  },
+  checkout: {
+    place: `${V1}/checkout`,
+  },
+  orders: {
+    track: `${V1}/orders/track`,
+  },
+  account: {
+    orders: `${V1}/account/orders`,
+    order: (number: string) => `${V1}/account/orders/${number}`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

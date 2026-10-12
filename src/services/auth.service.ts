@@ -3,6 +3,7 @@ import "server-only";
 import type { z } from "zod";
 import { ServiceError } from "@/lib/api/api-response";
 import { appUrl } from "@/lib/app-url";
+import { accountForSignUp, SHADOW_USER_WHERE, upgradeData } from "@/lib/auth/guest-user";
 import { hashPassword } from "@/lib/auth/password";
 import { consumeAuthToken, hashToken, issueAuthToken } from "@/lib/auth/tokens";
 import { RESET_PASSWORD_PAGE_PATH, VERIFY_EMAIL_PAGE_PATH } from "@/lib/constants";
@@ -11,7 +12,7 @@ import { sendEmail, type SendEmailResult } from "@/lib/email/send-email";
 import { resetPasswordMessage, verifyEmailMessage } from "@/lib/email/templates";
 import type { SessionUser } from "@/types/auth";
 import type { signUpSchema } from "@/validators/auth.validator";
-import { assertEmailFree } from "./user.service";
+import { emailTakenError } from "./user.service";
 
 type SignUpData = z.output<typeof signUpSchema>;
 
@@ -40,16 +41,38 @@ export async function registerCustomer(data: SignUpData) {
   const passwordHash = await hashPassword(data.password);
 
   return prisma.$transaction(async (tx) => {
-    await assertEmailFree(tx, data.email);
-    const user = await tx.user.create({
-      data: {
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        role: "CUSTOMER",
-        passwordHash,
-        emailVerifiedAt: null,
-      },
+    const existing = await tx.user.findUnique({
+      where: { email: data.email },
+      select: { id: true, isGuest: true, state: true, role: true },
+    });
+    const plan = accountForSignUp(existing);
+    if (plan === "conflict") throw emailTakenError();
+
+    let userId: string;
+    if (existing && plan === "upgrade") {
+      const { count } = await tx.user.updateMany({
+        where: { id: existing.id, ...SHADOW_USER_WHERE },
+        data: upgradeData(data, passwordHash),
+      });
+      if (count === 0) throw emailTakenError();
+      userId = existing.id;
+    } else {
+      const created = await tx.user.create({
+        data: {
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          role: "CUSTOMER",
+          passwordHash,
+          emailVerifiedAt: null,
+        },
+        select: { id: true },
+      });
+      userId = created.id;
+    }
+
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
       select: { id: true, fullName: true, email: true, sessionVersion: true },
     });
     const token = await issueAuthToken(tx, user.id, "VERIFY");
@@ -135,6 +158,7 @@ export async function resetPassword(raw: string, password: string): Promise<void
       where: { id: userId },
       data: {
         passwordHash,
+        isGuest: false,
         sessionVersion: { increment: 1 },
         emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
       },

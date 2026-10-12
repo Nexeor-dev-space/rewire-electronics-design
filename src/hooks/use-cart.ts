@@ -13,7 +13,7 @@ import type {
   UpdateCartItemInput,
 } from "@/types/cart";
 
-const cartKeys = {
+export const cartKeys = {
   all: ["cart"] as const,
   detail: ["cart", "detail"] as const,
   quotes: ["cart", "quote"] as const,

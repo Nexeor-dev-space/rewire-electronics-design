@@ -142,21 +142,6 @@ export interface CartTotals {
    Orders
    ============================================================ */
 
-export type OrderStatus =
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled"
-  | "returned";
-
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  processing: "Processing",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-  returned: "Returned",
-};
-
 export interface OrderItem {
   id: string;
   slug: string;
@@ -196,36 +181,6 @@ export interface Address {
   postalCode?: string;
   phone: string;
   isDefault?: boolean;
-}
-
-export interface PaymentMethod {
-  id: string;
-  brand: string;
-  last4: string;
-  expiry: string;
-  isDefault?: boolean;
-}
-
-export interface Order {
-  id: string;
-  /** Human-facing reference, e.g. "RW-24817". */
-  number: string;
-  placedAt: string;
-  status: OrderStatus;
-  items: OrderItem[];
-  subtotal: number;
-  delivery: number;
-  discount: number;
-  total: number;
-  currency: string;
-  locale: string;
-  /** Human phrasing — "Tuesday, 26 August" — not an ISO stamp. */
-  estimatedDelivery: string;
-  address: Address;
-  payment: PaymentMethod;
-  deliveryMethod: string;
-  trackingNumber?: string;
-  tracking: TrackingStep[];
 }
 
 /* ============================================================

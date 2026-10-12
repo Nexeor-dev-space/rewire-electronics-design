@@ -21,7 +21,7 @@ export const COUPON_MESSAGES: Record<CouponRejection | "INVALID" | "SIGN_IN_REQU
   CUSTOMER_LIMIT_REACHED: "You've already used this code.",
   NOT_APPLICABLE: "This code doesn't apply to the items in your cart.",
   MINIMUM_NOT_MET: `Spend at least ${COUPON_MINIMUM_TOKEN} to use this code.`,
-  SIGN_IN_REQUIRED: "Sign in to use a discount code.",
+  SIGN_IN_REQUIRED: "Sign in to use a promo code.",
 };
 
 const STATUS_REJECTION: Partial<Record<CouponStatus, CouponRejection>> = {

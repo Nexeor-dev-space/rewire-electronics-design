@@ -71,7 +71,11 @@ paths) are in `src/lib/constants.ts`.
    signs the user out everywhere.
 4. `AuthToken` holds `VERIFY` and `RESET` tokens: SHA-256 hash only, at most
    one row per user and type, `usedAt` marks a spent token.
-5. `OAuthAccount` (`provider` enum `GOOGLE | APPLE`) is left over from the
+5. `User.isGuest` (default false) marks a **shadow user**: the owner row
+   checkout creates for a guest order. It has no password, no verified email
+   and role `CUSTOMER`. Every path that sets a password also sets `isGuest`
+   false. See [ORDERS.md](ORDERS.md) §6.
+6. `OAuthAccount` (`provider` enum `GOOGLE | APPLE`) is left over from the
    removed social sign-in. No code reads or writes it (section 8).
 
 ---
@@ -139,7 +143,8 @@ them may answer `500 INTERNAL`.
 Route by route:
 
 1. **sign-in.** The rate limit runs before anything else. An unknown email, an
-   inactive account, an account with no password and a wrong
+   inactive account, an account with no password (including every shadow
+   user, which is refused without any change here) and a wrong
    password all answer the same 401 "That email and password don't match an
    account.", and all run one scrypt verify: an unknown email is checked
    against a dummy hash made once per process, so response time does not
@@ -151,8 +156,14 @@ Route by route:
    session and adopts the guest cart, then sends the email in `after()` so the
    response does not wait on SMTP. A failed send is logged only; the account
    exists either way. A taken email (including inactive accounts and
-   accounts with no password) is 409. This does reveal that an email has an account; accepted,
+   other accounts with no password, but not shadow users) is 409. This does reveal that an email has an account; accepted,
    because sign-up signs in at once and the `signUp` limit bounds probing.
+   **A shadow user's email is not taken:** sign-up upgrades that row instead
+   (`accountForSignUp`): it sets the name, password and `isGuest: false`,
+   clears the phone, sets `emailVerifiedAt: null`, increments
+   `sessionVersion`, then issues the VERIFY token as usual. The new account
+   sees the guest orders on that email only after it verifies
+   (`accountOrdersWhere`).
 4. **me.** Never 401, so the header can call it without tripping the 401
    redirect. If a cookie is present but no longer resolves (expired, version
    bumped, deleted user), the route deletes it.
@@ -172,7 +183,9 @@ Route by route:
    exists, and failures (including email being off) are logged only.
 8. **reset-password.** One transaction: consume the `RESET` token, set the new
    password hash, increment `sessionVersion`, set `emailVerifiedAt` if null
-   (the link proves the inbox). A token belonging to a non customer or an
+   (the link proves the inbox), and set `isGuest` false, so a reset claims a
+   shadow row left by a guest checkout; the `sessionVersion` bump also signs
+   out anyone who signed up on that email first. A token belonging to a non customer or an
    inactive user answers the same 422 as an invalid one. It does not start a
    session; the page links to sign-in.
 
@@ -354,7 +367,9 @@ the client through `auth.me` instead.
 5. **Console password changes keep sessions.** Setting a password in the admin
    Users screen does not bump `sessionVersion`.
 6. **Sign-up reveals registered emails** through its 409; forgot password and
-   sign-in do not.
+   sign-in do not. Guest checkout reveals them too: a registered email answers
+   409 "An account with this email already exists. Sign in to continue." on
+   the email field.
 7. **Email in DEV mode.** With no SMTP set, verify and reset emails print to
    the server log. In production (`NODE_ENV=production`) the body, which holds
    the link, is withheld; only `to` and `subject` are logged.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
+import { GuestBadge } from "@/components/admin/shared/guest-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -212,9 +213,10 @@ function UserRow({
   return (
     <li className={cn("border-b border-line last:border-b-0", deleting && "opacity-50")}>
       <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS)}>
-        <p className="truncate text-sm font-medium text-ink">
-          {user.fullName}
-          {user.id === viewer.id && <span className="ml-2 text-xs text-ink-muted">(you)</span>}
+        <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-ink">
+          <span className="truncate">{user.fullName}</span>
+          {user.id === viewer.id && <span className="text-xs text-ink-muted">(you)</span>}
+          {user.isGuest && <GuestBadge />}
         </p>
         <p className="truncate text-sm text-ink-secondary">{user.email}</p>
         <div>
