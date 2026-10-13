@@ -14,20 +14,24 @@ import { initialStatus } from "@/lib/orders";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { generateReference } from "@/lib/reference-number";
 import { clearCheckedOutCart, loadPricedCart, lockCart, type PricedCart } from "@/services/cart.service";
-import { findDeliveryZone } from "@/services/delivery-zone.service";
+import { DELIVERY_MESSAGES } from "@/lib/delivery";
+import { resolveDelivery } from "@/services/delivery-zone.service";
 import { getOrderDetail } from "@/services/order.service";
 import type { SessionUser } from "@/types/auth";
 import type { OrderDetail } from "@/types/order";
-import type { placeOrderSchema } from "@/validators/checkout.validator";
+import { CITY_REQUIRED_MESSAGE, type placeOrderSchema } from "@/validators/checkout.validator";
 
 type Tx = Prisma.TransactionClient;
 type Owner = NonNullable<CartOwner>;
 type PlaceOrderData = z.output<typeof placeOrderSchema>;
 
+/** Server-chosen delivery: what the client sent never sets the fee or days. */
 interface DeliveryChoice {
   fee: number;
   etaMinDays: number;
   etaMaxDays: number;
+  city: string;
+  areaId: string | null;
 }
 
 interface PlaceOrderResult {
@@ -40,11 +44,14 @@ type TransactionOutcome = { kind: "created"; number: string } | { kind: "replay"
 const MESSAGE_EMPTY_CART = "Your cart is empty.";
 const MESSAGE_CART_CHANGED = "Some items in your cart changed. Review your cart.";
 const MESSAGE_PRICE_CHANGED = "Prices changed since you opened checkout. Check the new total.";
-const MESSAGE_NO_DELIVERY = "We don't deliver to that emirate yet.";
 const MESSAGE_KEY_USED = "This checkout was already used. Refresh the page and try again.";
 
 function conflict(message: string, field?: string) {
   return new ServiceError("CONFLICT", message, 409, field ? { [field]: [message] } : undefined);
+}
+
+function invalid(field: string, message: string) {
+  return new ServiceError("VALIDATION", message, 422, { [field]: [message] });
 }
 
 function stockMessage(productName: string, stock: number) {
@@ -190,12 +197,13 @@ async function placeInTransaction(
       emailOptIn: input.emailOptIn ?? false,
       address1: input.address1,
       address2: input.address2 ?? "",
-      city: input.city,
+      city: delivery.city,
       postalCode: input.postalCode ?? "",
       emirate: input.emirate,
       deliveryMethod: input.deliveryMethod,
       deliveryEtaMinDays: delivery.etaMinDays,
       deliveryEtaMaxDays: delivery.etaMaxDays,
+      ...(delivery.areaId ? { deliveryArea: { connect: { id: delivery.areaId } } } : {}),
       subtotal: pricing.subtotal,
       discount: pricing.discount,
       deliveryFee: pricing.delivery ?? 0,
@@ -226,14 +234,25 @@ async function placeInTransaction(
 
 /* ---------- entry points ---------- */
 
+/** A picked area is snapshotted as the order's city, so later renames don't change the order. */
 async function deliveryChoice(input: PlaceOrderData): Promise<DeliveryChoice> {
-  const zone = await findDeliveryZone(input.emirate);
-  if (!zone) {
-    throw new ServiceError("VALIDATION", MESSAGE_NO_DELIVERY, 422, { emirate: [MESSAGE_NO_DELIVERY] });
-  }
-  return input.deliveryMethod === "EXPRESS"
-    ? { fee: zone.expressFee, etaMinDays: zone.expressMinDays, etaMaxDays: zone.expressMaxDays }
-    : { fee: zone.standardFee, etaMinDays: zone.standardMinDays, etaMaxDays: zone.standardMaxDays };
+  const delivery = await resolveDelivery(input.emirate, input.areaId);
+  if (delivery.kind === "needs-area") throw invalid("areaId", DELIVERY_MESSAGES.CHOOSE_AREA);
+  if (delivery.kind === "unavailable") throw invalid(delivery.field, delivery.message);
+
+  const city = delivery.area?.area ?? input.city;
+  if (!city) throw invalid("city", CITY_REQUIRED_MESSAGE);
+
+  const option = delivery.options.find((candidate) => candidate.method === input.deliveryMethod);
+  if (!option) throw invalid("deliveryMethod", "Choose a delivery method.");
+
+  return {
+    fee: option.fee,
+    etaMinDays: option.etaMinDays,
+    etaMaxDays: option.etaMaxDays,
+    city,
+    areaId: delivery.area?.id ?? null,
+  };
 }
 
 async function loadPlaced(number: string): Promise<OrderDetail> {

@@ -16,6 +16,7 @@ import type { Emirate } from "@/lib/emirates";
 import { formatMoney, fromMinorUnits, toMinorUnits } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { DeliveryZoneRow } from "@/types/delivery";
+import { DeliveryAreaManagement } from "./delivery-area-management";
 
 const COLUMNS = "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.4fr)_6rem_5rem]";
 
@@ -23,6 +24,7 @@ export function DeliveryZoneManagement() {
   const { edit: canEdit } = useModuleAccess(PERMISSIONS.deliveryZones);
   const zones = useGetDeliveryZones();
   const [editing, setEditing] = useState<DeliveryZoneRow | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
 
   let content: ReactNode;
   if (zones.isPending) {
@@ -56,9 +58,23 @@ export function DeliveryZoneManagement() {
       title="Delivery Zones"
       description="Delivery zones, their rates and the areas they cover."
     >
+      {saved && (
+        <p role="status" className="mb-4 rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-live">
+          {saved}
+        </p>
+      )}
+
       {content}
 
-      {editing && <DeliveryZoneEditDialog zone={editing} onClose={() => setEditing(null)} />}
+      <DeliveryAreaManagement canEdit={canEdit} onSaved={setSaved} />
+
+      {editing && (
+        <DeliveryZoneEditDialog
+          zone={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => setSaved(`${editing.label} saved.`)}
+        />
+      )}
     </AdminPage>
   );
 }
@@ -89,10 +105,10 @@ function ZoneRow({ zone, onEdit }: { zone: DeliveryZoneRow; onEdit?: () => void 
         <span
           className={cn(
             "inline-flex items-center rounded-full px-2 py-1 font-mono text-[0.625rem] uppercase tracking-[0.14em]",
-            zone.configured ? "bg-live/10 text-live" : "bg-surface-2 text-ink-muted",
+            zone.enabled ? "bg-live/10 text-live" : "bg-surface-2 text-ink-muted",
           )}
         >
-          {zone.configured ? "Configured" : "Not set"}
+          {zone.configured ? (zone.enabled ? "Delivering" : "Disabled") : "Not set"}
         </span>
       </div>
       <div className="lg:justify-self-end">
@@ -159,8 +175,17 @@ function TableSkeleton() {
   );
 }
 
-function DeliveryZoneEditDialog({ zone, onClose }: { zone: DeliveryZoneRow; onClose: () => void }) {
+function DeliveryZoneEditDialog({
+  zone,
+  onClose,
+  onSaved,
+}: {
+  zone: DeliveryZoneRow;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const id = useId();
+  const [enabled, setEnabled] = useState(zone.configured ? zone.enabled : true);
   const [standardFee, setStandardFee] = useState(fromMinorUnits(zone.standardFee));
   const [standardMinDays, setStandardMinDays] = useState(zone.standardMinDays?.toString() ?? "");
   const [standardMaxDays, setStandardMaxDays] = useState(zone.standardMaxDays?.toString() ?? "");
@@ -197,6 +222,7 @@ function DeliveryZoneEditDialog({ zone, onClose }: { zone: DeliveryZoneRow; onCl
     updateZone.mutate(
       {
         emirate: zone.emirate as Emirate,
+        enabled,
         standardFee: standardFeeMinor as number,
         expressFee: expressFeeMinor as number,
         standardMinDays: standardMinDaysNum,
@@ -205,7 +231,10 @@ function DeliveryZoneEditDialog({ zone, onClose }: { zone: DeliveryZoneRow; onCl
         expressMaxDays: expressMaxDaysNum,
       },
       {
-        onSuccess: () => onClose(),
+        onSuccess: () => {
+          onSaved();
+          onClose();
+        },
         onError: (error) => setErrors(apiFieldErrors(error)),
       },
     );
@@ -282,6 +311,15 @@ function DeliveryZoneEditDialog({ zone, onClose }: { zone: DeliveryZoneRow; onCl
               />
             </Field>
           </div>
+
+          <label className="mt-5 inline-flex items-center gap-2 text-sm text-ink-secondary">
+            <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+            Deliver to this emirate
+          </label>
+          <p className="mt-1 text-xs text-ink-muted">
+            Off stops checkout for the whole emirate, whatever its areas say. These rates are the default for
+            every area that doesn&apos;t set its own.
+          </p>
 
           <div className="mt-5 flex flex-col gap-1 rounded-lg border border-line bg-surface-2 px-4 py-3 text-xs text-ink-muted">
             {Number.isInteger(previewMinDays) && Number.isInteger(previewMaxDays) && (

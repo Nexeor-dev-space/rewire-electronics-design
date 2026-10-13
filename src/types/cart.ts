@@ -96,7 +96,9 @@ export interface DeliveryOption {
 export interface CartQuote {
   cart: Cart;
   emirate: Emirate;
+  areaId: string | null;
   method: DeliveryMethod;
+  /** Empty until an area is picked, when the emirate has areas. */
   options: DeliveryOption[];
 }
 

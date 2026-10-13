@@ -80,6 +80,10 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
     },
+    deliveryAreas: {
+      list: `${V1}/admin/delivery-areas`,
+      detail: (id: string) => `${V1}/admin/delivery-areas/${id}`,
+    },
     roles: {
       list: `${V1}/admin/roles`,
       detail: (id: string) => `${V1}/admin/roles/${id}`,
@@ -112,6 +116,7 @@ export const API_ENDPOINTS = {
   checkout: {
     place: `${V1}/checkout`,
   },
+  deliveryAreas: `${V1}/delivery-areas`,
   orders: {
     track: `${V1}/orders/track`,
   },
