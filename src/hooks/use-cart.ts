@@ -17,8 +17,8 @@ export const cartKeys = {
   all: ["cart"] as const,
   detail: ["cart", "detail"] as const,
   quotes: ["cart", "quote"] as const,
-  quote: (emirate: Emirate | undefined, method: DeliveryMethod) =>
-    ["cart", "quote", emirate, method] as const,
+  quote: (emirate: Emirate | undefined, areaId: string | undefined, method: DeliveryMethod) =>
+    ["cart", "quote", emirate, areaId, method] as const,
 };
 
 const endpoints = API_ENDPOINTS.cart;
@@ -32,11 +32,15 @@ export function useGetCart() {
   });
 }
 
-export function useGetCartQuote(emirate: Emirate | undefined, method: DeliveryMethod) {
+export function useGetCartQuote(
+  emirate: Emirate | undefined,
+  areaId: string | undefined,
+  method: DeliveryMethod,
+) {
   return useQuery({
-    queryKey: cartKeys.quote(emirate, method),
+    queryKey: cartKeys.quote(emirate, areaId, method),
     queryFn: ({ signal }) =>
-      apiRequest<CartQuote>(endpoints.quote, { query: { emirate, method }, signal }),
+      apiRequest<CartQuote>(endpoints.quote, { query: { emirate, areaId, method }, signal }),
     enabled: Boolean(emirate),
     // Keep the current quote on screen while emirate/method changes re-price it.
     placeholderData: keepPreviousData,
