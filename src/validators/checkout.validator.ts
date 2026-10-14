@@ -4,6 +4,13 @@ import { EMIRATE_VALUES } from "@/lib/emirates";
 import { PAYMENT_METHODS } from "@/lib/orders";
 import { emailValidator, minorUnitsValidator, uaePhoneValidator } from "./common/primitives.validator";
 
+/**
+ * The city is required only when no area is picked: a picked area becomes the
+ * order's city. The checkout form and `placeOrder` both enforce it, because
+ * which one applies depends on the emirate's configured areas.
+ */
+export const CITY_REQUIRED_MESSAGE = "Enter the city.";
+
 export const checkoutInformationSchema = z.object({
   email: emailValidator,
   phone: uaePhoneValidator,
@@ -12,7 +19,18 @@ export const checkoutInformationSchema = z.object({
   lastName: z.string().trim().min(1, "Enter the last name.").max(100),
   address1: z.string().trim().min(1, "Enter the address.").max(200),
   address2: z.string().trim().max(200).optional(),
-  city: z.string().trim().min(1, "Enter the city.").max(100),
+  city: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((value) => value || undefined),
+  areaId: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .transform((value) => value || undefined),
   emirate: z.enum(EMIRATE_VALUES, { error: "Choose an emirate." }),
   postalCode: z.string().trim().max(20).optional(),
 });

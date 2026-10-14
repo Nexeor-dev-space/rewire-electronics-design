@@ -47,7 +47,8 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    matches), `phone` (`+971…`), `firstName`, `lastName`, `emailOptIn`.
    Address snapshot: `address1`, `address2`, `city`, `postalCode`, `emirate`.
    Delivery snapshot: `deliveryMethod`, `deliveryEtaMinDays`,
-   `deliveryEtaMaxDays`. Money: `subtotal`, `discount`, `deliveryFee`,
+   `deliveryEtaMaxDays`, and `deliveryAreaId` (nullable, `onDelete: SetNull`,
+   indexed; the area's name is snapshotted in `city`). Money: `subtotal`, `discount`, `deliveryFee`,
    `total`, `vatIncluded`, `vatRatePercent`, `refundedAmount`, `couponCode`.
 2. **`OrderItem`** (`order_items`), cascade from the order. `variantId` and
    `imageId` are nullable and `SetNull`. Everything shown is a snapshot:
@@ -77,6 +78,9 @@ Why it is shaped this way:
    prefill will map street to `address1` and landmark to `address2`.
 5. `returnableUntil` is stored at delivery and never recomputed, so a later
    change of the return window affects later deliveries only.
+6. Delivery fee, ETA and area name are copied onto the order, so editing,
+   renaming or disabling a zone or area never changes an order already placed.
+   `deliveryAreaId` is only a link for reporting.
 6. Order item images are kept: `sweepOrphans` and `releaseImage` only delete
    an image that no order item uses (`orderItems: { none: {} }`).
 
@@ -155,8 +159,19 @@ Before the transaction:
    owns it, or the caller is a guest and the order is `placedAsGuest`.
    Otherwise 409 "This checkout was already used. Refresh the page and try
    again."
-3. `findDeliveryZone(emirate)` gives the fee and ETA for the method, or 422
-   "We don't deliver to that emirate yet." on `fields.emirate`.
+3. `resolveDelivery(emirate, areaId)` (in `delivery-zone.service.ts`, see
+   [CART.md](CART.md) §5) gives the fee and ETA for the method. The client
+   never sends a fee: a mismatch only shows up as the `expectedTotal` 409
+   below. Failures are 422 with a field:
+   1. "We don't deliver to that emirate yet." on `fields.emirate` (no zone,
+      or the zone is switched off).
+   2. "Choose an area." on `fields.areaId` (the emirate has areas and none
+      was sent).
+   3. "We don't deliver to that area yet." on `fields.areaId` (unknown area,
+      an area of another emirate, or one switched off).
+   4. "Enter the city." on `fields.city` (no area and no city).
+   A picked area's name is stored as `Order.city` and its id as
+   `Order.deliveryAreaId`; otherwise `city` is what the customer typed.
 
 The interactive transaction (retried whole up to `REFERENCE_NUMBER_ATTEMPTS`
 on a unique violation when no order holds the key, which means the generated

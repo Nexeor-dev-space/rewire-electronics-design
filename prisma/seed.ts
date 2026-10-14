@@ -9,6 +9,7 @@ import type { PolicySlug, RichTextDoc } from "../src/lib/policy-types";
 import { databaseUrl } from "../src/lib/db-url";
 import { hashPassword } from "../src/lib/auth/password";
 import { seedCatalogue } from "./seed-catalogue";
+import { seedDeliveryAreas } from "./seed-delivery-areas";
 import { seedDeliveryZones } from "./seed-delivery-zones";
 import type { HomepageSectionType } from "../src/lib/homepage-sections";
 import { SHOP_INDEX_HREF } from "../src/lib/route-map";
@@ -589,6 +590,8 @@ async function main() {
   await seedCatalogue(prisma);
   console.log("Delivery zones:");
   await seedDeliveryZones(prisma);
+  console.log("Delivery areas:");
+  await seedDeliveryAreas(prisma);
 }
 
 main()

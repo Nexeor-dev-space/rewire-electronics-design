@@ -56,6 +56,8 @@ model Order {
   deliveryMethod     DeliveryMethod
   deliveryEtaMinDays Int
   deliveryEtaMaxDays Int
+  deliveryAreaId     String?
+  deliveryArea       DeliveryArea?  @relation(fields: [deliveryAreaId], references: [id], onDelete: SetNull)
 
   subtotal       Int
   discount       Int     @default(0)
@@ -78,6 +80,7 @@ model Order {
   @@index([status, createdAt])
   @@index([paymentStatus, createdAt])
   @@index([createdAt])
+  @@index([deliveryAreaId])
   @@map("orders")
 }
 

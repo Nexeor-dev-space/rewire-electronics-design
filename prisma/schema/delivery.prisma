@@ -1,6 +1,7 @@
 model DeliveryZone {
   id              String   @id @default(cuid())
   emirate         Emirate  @unique
+  enabled         Boolean  @default(true)
   standardFee     Int
   expressFee      Int
   standardMinDays Int
@@ -11,4 +12,25 @@ model DeliveryZone {
   updatedAt       DateTime @updatedAt
 
   @@map("delivery_zones")
+}
+
+/// A suburb or area inside an emirate. A null fee or day pair inherits the
+/// emirate's `DeliveryZone` value; see docs/CART.md section 5.
+model DeliveryArea {
+  id              String   @id @default(cuid())
+  emirate         Emirate
+  area            String
+  enabled         Boolean  @default(true)
+  standardFee     Int?
+  expressFee      Int?
+  standardMinDays Int?
+  standardMaxDays Int?
+  expressMinDays  Int?
+  expressMaxDays  Int?
+  orders          Order[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([emirate, area])
+  @@map("delivery_areas")
 }

@@ -27,6 +27,9 @@ export const COUPON_CODE_MIN_LENGTH = 3;
 export const COUPON_CODE_MAX_LENGTH = 32;
 export const COUPON_DESCRIPTION_MAX_LENGTH = 160;
 export const MAX_DELIVERY_DAYS = 30;
+export const DELIVERY_AREA_MAX_LENGTH = 100;
+/** Caps one emirate's areas so the checkout dropdown stays one bounded query. */
+export const MAX_DELIVERY_AREAS_PER_EMIRATE = 300;
 export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;

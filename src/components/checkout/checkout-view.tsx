@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
 import { usePlaceOrder } from "@/hooks/use-checkout";
+import { useGetDeliveryAreaOptions } from "@/hooks/use-delivery-zone";
 import { ApiError, apiFieldErrors } from "@/lib/api/api-client";
 import { signInHref } from "@/lib/auth/next-path";
 import {
@@ -20,6 +21,7 @@ import {
   CHECKOUT_SUCCESS_PAGE_PATH,
 } from "@/lib/constants";
 import {
+  DELIVERY_MESSAGES,
   DELIVERY_METHOD_LABELS,
   DELIVERY_METHODS,
   formatEta,
@@ -33,7 +35,11 @@ import {
   type PaymentMethod,
 } from "@/lib/orders";
 import { cn } from "@/lib/utils";
-import { checkoutInformationSchema } from "@/validators/checkout.validator";
+import type { DeliveryAreaOptions } from "@/types/delivery";
+import {
+  CITY_REQUIRED_MESSAGE,
+  checkoutInformationSchema,
+} from "@/validators/checkout.validator";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -71,9 +77,12 @@ const INFORMATION_FIELDS = {
   address1: "address-1",
   address2: "address-2",
   city: "city",
+  areaId: "area",
   emirate: "emirate",
   postalCode: "postal",
 } as const;
+
+const MESSAGE_AREAS_LOADING = "Areas are still loading. Try again in a moment.";
 
 const RETRYABLE_ERROR_CODES: readonly string[] = [
   "NETWORK",
@@ -112,17 +121,32 @@ function firstInformationError(
   );
 }
 
-function checkInformation(values: Record<string, unknown>) {
+/**
+ * The schema leaves city and area optional; which one is required depends on
+ * the emirate's areas, so it is checked here (and again by the server).
+ */
+function checkInformation(
+  values: Record<string, unknown>,
+  areaOptions: DeliveryAreaOptions | undefined,
+) {
   const result = checkoutInformationSchema.safeParse(values);
-  if (!result.success) {
-    return {
-      errors: pickInformationErrors(z.flattenError(result.error).fieldErrors),
-    };
-  }
-  const { email, phone, city, emirate } = result.data;
+  const errors: InformationErrors = result.success
+    ? {}
+    : pickInformationErrors(z.flattenError(result.error).fieldErrors);
+
+  const areaId = typeof values.areaId === "string" ? values.areaId : "";
+  const city = typeof values.city === "string" ? values.city.trim() : "";
+  const areaName = areaOptions?.areas.find((option) => option.id === areaId)?.area;
+  if (!areaOptions) errors.areaId = MESSAGE_AREAS_LOADING;
+  else if (areaOptions.required && !areaName) errors.areaId = DELIVERY_MESSAGES.CHOOSE_AREA;
+  else if (!areaOptions.required && !city) errors.city = CITY_REQUIRED_MESSAGE;
+
+  if (!result.success || firstInformationError(errors)) return { errors };
+
+  const { email, phone, emirate } = result.data;
   return {
     data: result.data,
-    summary: [email, phone, `${city}, ${emirateLabel(emirate)}`].join(" · "),
+    summary: [email, phone, `${areaName ?? city}, ${emirateLabel(emirate)}`].join(" · "),
   };
 }
 
@@ -141,8 +165,10 @@ export function CheckoutView({ payment }: Props) {
   const { data: me } = useGetMe();
 
   const [emirate, setEmirate] = useState<Emirate>("DUBAI");
+  const [areaId, setAreaId] = useState("");
   const [method, setMethod] = useState<DeliveryMethod>("STANDARD");
-  const quote = useGetCartQuote(emirate, method);
+  const areaOptions = useGetDeliveryAreaOptions(emirate);
+  const quote = useGetCartQuote(emirate, areaId || undefined, method);
   const applyCoupon = useApplyCoupon();
   const removeCoupon = useRemoveCoupon();
   const placeOrder = usePlaceOrder();
@@ -214,7 +240,7 @@ export function CheckoutView({ payment }: Props) {
   const revalidateInformation = (field: InformationField) => {
     const form = formRef.current;
     if (!form || !informationErrors[field]) return;
-    const check = checkInformation(readInformation(form, emailOptIn));
+    const check = checkInformation(readInformation(form, emailOptIn), areaOptions.data);
     setInformationErrors((current) => ({
       ...current,
       [field]: check.errors?.[field],
@@ -224,7 +250,7 @@ export function CheckoutView({ payment }: Props) {
   const continueInformation = () => {
     const form = formRef.current;
     if (!form) return;
-    const check = checkInformation(readInformation(form, emailOptIn));
+    const check = checkInformation(readInformation(form, emailOptIn), areaOptions.data);
     if (check.errors) {
       showInformationErrors(check.errors);
       return;
@@ -268,7 +294,7 @@ export function CheckoutView({ payment }: Props) {
     const form = formRef.current;
     if (!form) return;
 
-    const check = checkInformation(readInformation(form, emailOptIn));
+    const check = checkInformation(readInformation(form, emailOptIn), areaOptions.data);
     if (check.errors) {
       showInformationErrors(check.errors);
       return;
@@ -276,7 +302,7 @@ export function CheckoutView({ payment }: Props) {
 
     setPlaceError(null);
     setEmailNeedsSignIn(false);
-    const choices = [paymentMethod, method, emirate].join("|");
+    const choices = [paymentMethod, method, emirate, areaId].join("|");
     if (keyChoices.current !== choices) idempotencyKey.current = null;
     keyChoices.current = choices;
     idempotencyKey.current ??= crypto.randomUUID();
@@ -333,7 +359,8 @@ export function CheckoutView({ payment }: Props) {
         </p>
         <button
           type="button"
-          onClick={() => quote.refetch()}
+          // An area switched off mid-checkout fails every retry; drop it and re-quote.
+          onClick={() => (areaId ? setAreaId("") : quote.refetch())}
           className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
         >
           Try again
@@ -491,70 +518,74 @@ export function CheckoutView({ payment }: Props) {
                   error={informationErrors.address2}
                   onBlur={() => revalidateInformation("address2")}
                 />
-                <Field
-                  id="city"
-                  label="City *"
-                  autoComplete="address-level2"
-                  required
-                  span={3}
-                  error={informationErrors.city}
-                  onBlur={() => revalidateInformation("city")}
-                />
-                <div className="col-span-6 sm:col-span-3">
-                  <label
-                    htmlFor="emirate"
-                    className="eyebrow block cursor-pointer"
+                <SelectField
+                  id="emirate"
+                  label="Emirate *"
+                  value={emirate}
+                  onChange={(value) => {
+                    setEmirate(value as Emirate);
+                    setAreaId("");
+                  }}
+                  autoComplete="address-level1"
+                  error={informationErrors.emirate}
+                >
+                  {EMIRATES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </SelectField>
+                {areaOptions.data?.required ? (
+                  <SelectField
+                    id="area"
+                    label="Area *"
+                    value={areaId}
+                    onChange={setAreaId}
+                    onBlur={() => revalidateInformation("areaId")}
+                    autoComplete="address-level2"
+                    disabled={areaOptions.data.areas.length === 0}
+                    error={
+                      informationErrors.areaId ??
+                      (areaOptions.data.areas.length === 0
+                        ? DELIVERY_MESSAGES.NO_EMIRATE
+                        : undefined)
+                    }
                   >
-                    Emirate *
-                  </label>
-                  <div className="relative mt-2">
-                    <select
-                      id="emirate"
-                      name="emirate"
-                      required
-                      value={emirate}
-                      onChange={(event) =>
-                        setEmirate(event.target.value as Emirate)
-                      }
-                      autoComplete="address-level1"
-                      aria-invalid={
-                        informationErrors.emirate ? true : undefined
-                      }
-                      aria-describedby={
-                        informationErrors.emirate ? "emirate-error" : undefined
-                      }
-                      className={cn(
-                        "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
-                        "border border-line transition-colors duration-(--duration-fast)",
-                        "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
-                      )}
-                    >
-                      {EMIRATES.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <svg
-                      aria-hidden
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
-                    >
-                      <path d="m4 6 4 4 4-4" />
-                    </svg>
-                  </div>
-                  <FieldError
-                    id="emirate-error"
-                    className="mt-1.5 text-[0.75rem]"
+                    <option value="">Choose an area</option>
+                    {areaOptions.data.areas.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.area}
+                      </option>
+                    ))}
+                  </SelectField>
+                ) : areaOptions.data ? (
+                  <Field
+                    id="city"
+                    label="City *"
+                    autoComplete="address-level2"
+                    required
+                    span={3}
+                    error={informationErrors.city}
+                    onBlur={() => revalidateInformation("city")}
+                  />
+                ) : (
+                  <SelectField
+                    id="area"
+                    label="Area *"
+                    value=""
+                    onChange={setAreaId}
+                    disabled
+                    error={
+                      areaOptions.isError
+                        ? areaOptions.error.message
+                        : informationErrors.areaId
+                    }
                   >
-                    {informationErrors.emirate}
-                  </FieldError>
-                </div>
+                    <option value="">
+                      {areaOptions.isError ? "Areas unavailable" : "Loading areas…"}
+                    </option>
+                  </SelectField>
+                )}
                 <Field
                   id="postal"
                   label="Postal code"
@@ -733,6 +764,75 @@ function ContinueButton({
 /* ============================================================
    Bits
    ============================================================ */
+
+/** A native select styled like `Field`, half width on sm+. */
+function SelectField({
+  id,
+  label,
+  value,
+  onChange,
+  onBlur,
+  autoComplete,
+  disabled,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+  autoComplete?: string;
+  disabled?: boolean;
+  error?: string;
+  children: ReactNode;
+}) {
+  const errorId = `${id}-error`;
+  return (
+    <div className="col-span-6 sm:col-span-3">
+      <label htmlFor={id} className="eyebrow block cursor-pointer">
+        {label}
+      </label>
+      <div className="relative mt-2">
+        <select
+          id={id}
+          name={id}
+          required
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+          autoComplete={autoComplete}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          className={cn(
+            "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
+            "border border-line transition-colors duration-(--duration-fast)",
+            "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
+            "disabled:cursor-not-allowed disabled:text-ink-muted",
+          )}
+        >
+          {children}
+        </select>
+        <svg
+          aria-hidden
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="pointer-events-none absolute right-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </div>
+      <FieldError id={errorId} className="mt-1.5 text-[0.75rem]">
+        {error}
+      </FieldError>
+    </div>
+  );
+}
 
 function Checkbox({
   id,

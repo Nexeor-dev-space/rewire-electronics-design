@@ -60,6 +60,7 @@ npm run dev          # Next dev server with Turbopack, http://localhost:3000
 | `npm run db:deploy` | `prisma migrate deploy`: applies the committed migrations that are pending. Never creates one | Any, including production |
 | `npm run db:migrate -- --name <snake_case>` | `prisma migrate dev`: creates a migration from schema changes and applies it | Local development database only, after the change is approved |
 | `npm run db:seed` | `prisma db seed`, which runs `tsx prisma/seed.ts` | See the warning below |
+| `npm run db:seed:areas` | `tsx prisma/seed-areas-only.ts`: loads `prisma/data/delivery-areas.xlsx` into `delivery_areas`, adding only missing areas ([CART.md](CART.md) §5.1) | Any, after the `add_delivery_areas` migration; touches no other data |
 | `npm run db:studio` | Prisma Studio, a browser view of the data | Local |
 
 Commit a new migration folder in the same commit as its model change, and never

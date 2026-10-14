@@ -16,9 +16,9 @@ covers what is specific to the cart.
 | Area | What exists |
 | --- | --- |
 | Pricing | `priceCart` and `evaluateCoupon` in `src/lib/pricing/`: pure, client safe, tested with Vitest |
-| Database | `Cart`, `CartItem`, `CartItemAddOn`, `Coupon`, `CouponProduct`, `CouponCategory`, `DeliveryZone` |
-| Admin | Marketing → **Discount Codes** (`/admin/marketing/coupons`) and Governance → **Delivery Zones** (`/admin/settings/delivery`) |
-| Cart API | `/api/v1/cart`, `cart/items`, `cart/items/[id]`, `cart/coupon`, `cart/acknowledge`, `cart/quote` |
+| Database | `Cart`, `CartItem`, `CartItemAddOn`, `Coupon`, `CouponProduct`, `CouponCategory`, `DeliveryZone`, `DeliveryArea` |
+| Admin | Marketing → **Discount Codes** (`/admin/marketing/coupons`) and Governance → **Delivery Zones** (`/admin/settings/delivery`, emirates and their areas) |
+| Cart API | `/api/v1/cart`, `cart/items`, `cart/items/[id]`, `cart/coupon`, `cart/acknowledge`, `cart/quote`; plus the public `/api/v1/delivery-areas` for the checkout's area dropdown |
 | Storefront | Header count, cart page, add to cart modal, product page buy panel, card Add to cart, checkout summary and the checkout steps |
 
 Checkout itself (orders, payment, stock deduction, redemption counting) is
@@ -34,7 +34,11 @@ Three schema files, one migration: `add_cart_coupon_delivery_zone`.
 | --- | --- |
 | `prisma/schema/cart.prisma` | `Cart`, `CartItem`, `CartItemAddOn` |
 | `prisma/schema/coupon.prisma` | `CouponType` enum (`PERCENT`, `FIXED`), `Coupon`, `CouponProduct`, `CouponCategory` |
-| `prisma/schema/delivery.prisma` | `DeliveryZone` |
+| `prisma/schema/delivery.prisma` | `DeliveryZone`, `DeliveryArea` |
+
+Delivery areas came later, in their own migration (`add_delivery_areas`):
+the `delivery_areas` table, `DeliveryZone.enabled` (default true, so existing
+zones keep delivering) and `Order.deliveryAreaId`.
 
 Back relations only (no column changes) were added to `User` (`cart`),
 `ProductVariant` (`cartItems`), `AddOn` (`cartItems`), `Product` (`coupons`)
@@ -78,8 +82,16 @@ see from the columns alone:
     transaction deletes the items and clears `couponId`, which is what lets
     `userId` stay unique with no status column.
 12. **`DeliveryZone`** is one row per `Emirate` (unique). Fees are fils; the
-    four `*Days` columns are working days.
-13. **Indexes worth knowing:** `Cart.updatedAt` (stale guest sweep),
+    four `*Days` columns are working days. `enabled` switches the whole
+    emirate off.
+13. **`DeliveryArea`** is a suburb or area of one emirate: `emirate`, `area`
+    (the place itself, e.g. "Al Barsha"), `enabled`, and the same six rate
+    columns as the zone, all nullable. Null means "use the emirate's value".
+    `@@unique([emirate, area])`; the service also refuses an area that
+    differs only in case. There is no foreign key to
+    `DeliveryZone`: an area is tied to the emirate by the `Emirate` enum, so
+    the zone row and its areas can be edited in any order.
+14. **Indexes worth knowing:** `Cart.updatedAt` (stale guest sweep),
     `Cart.couponId` (an extra index so the `SetNull` on coupon delete does not
     scan carts), `CartItem.variantId` and `CartItemAddOn.addOnId` (cascades),
     `Coupon(active, endsAt)` and `Coupon.updatedAt` (admin list).
@@ -216,13 +228,63 @@ the API returns it as `AdminCoupon.status`.
    "Same working day" when the latest day is 0, "Next working day" when both
    are 1, "3 working days" when both are equal, otherwise "2 to 4 working
    days". The admin preview and the checkout use it.
-4. **A missing row** means the emirate is not delivered to: the quote answers
-   404 "We don't deliver to that emirate yet." The admin list still shows all
-   seven, the missing ones as "Not set".
+4. **A missing row, or one with `enabled` off,** means the emirate is not
+   delivered to: the quote answers 404 "We don't deliver to that emirate yet."
+   The admin list still shows all seven, the missing ones as "Not set" and the
+   switched off ones as "Disabled".
 5. **Seed.** `prisma/seed-delivery-zones.ts` (`seedDeliveryZones`, called from
    `prisma/seed.ts`) creates only the missing emirates, with `update: {}`, so
    rerunning it never overwrites an admin edit. Defaults: standard free, 2 to 4
    working days; express AED 35 (3500 fils), 1 to 2 working days.
+
+### 5.1 Areas
+
+1. **An emirate without areas** delivers anywhere in it at the zone's rates,
+   and the checkout asks for a free text city, exactly as before areas
+   existed.
+2. **Once an emirate has at least one area** (enabled or not), the customer
+   must pick one of its enabled areas. If every area is switched off, nobody
+   can order to that emirate; switching areas off never falls back to the
+   zone.
+3. **Overrides.** Each fee, and each method's pair of days, either holds the
+   area's own value or is null and inherits the zone's. Days are set as a pair
+   or not at all, so an area never mixes its own earliest day with the zone's
+   latest. `effectiveRates(zone, area)` in `src/lib/delivery.ts` merges them
+   and `deliveryOptions(rates)` builds the two `DeliveryOption`s. Both are
+   pure and tested.
+4. **One resolver.** `resolveDelivery(emirate, areaId)` in
+   `src/services/delivery-zone.service.ts` is the only place a rule is chosen.
+   The cart quote and `placeOrder` both call it. It answers one of:
+
+   | Kind | When |
+   | --- | --- |
+   | `ok` | Options for the emirate (no areas) or for the given enabled area, plus `area: { id, area }` or null |
+   | `needs-area` | The emirate has areas and no `areaId` was given |
+   | `unavailable` | No or disabled zone (`field: "emirate"`), or an unknown, other emirate's or disabled area (`field: "areaId"`) |
+
+   The messages are `DELIVERY_MESSAGES` in `src/lib/delivery.ts` (client
+   safe, so the checkout shows the same wording).
+5. **The server sets the fee.** The client sends only emirate, area and
+   method. The order's fee and days come from `resolveDelivery`, and a total
+   that differs from the client's `expectedTotal` is refused (ORDERS.md §5).
+6. **Orders keep their rates.** The fee, days and area name are copied onto
+   the order, so editing or disabling an area changes only later orders.
+7. **Bounded.** `MAX_DELIVERY_AREAS_PER_EMIRATE` (300) caps the areas of one
+   emirate (409 on create or move), which keeps the checkout dropdown a single
+   bounded query.
+8. **Seed.** `prisma/seed-delivery-areas.ts` (`seedDeliveryAreas`, called from
+   `prisma/seed.ts` after the zones) reads the first sheet of
+   `prisma/data/delivery-areas.xlsx` with `read-excel-file` (a dev
+   dependency). Column A is the emirate as written in `EMIRATES` (for example
+   "Dubai", "Ras Al Khaimah", any case), column B the place. Any row where
+   either cell isn't text, or the emirate doesn't match, is skipped, so a
+   header row is fine. Areas are created enabled and inheriting every rate,
+   with `createMany({ skipDuplicates: true })`, so rerunning it only adds new
+   places and never touches an admin edit. With no file it logs "skipped".
+
+To load the list without the rest of the seed (see the warning below), run
+`npm run db:seed:areas` (`prisma/seed-areas-only.ts`). It runs only
+`seedDeliveryAreas` and is safe on a database with real edits.
 
 **Warning:** `npm run db:seed` runs every seed, not just this one. It also
 rewrites every policy page and the whole homepage (draft and live), resets the
@@ -237,7 +299,7 @@ zones; set them on the Delivery Zones screen instead.
 | Screen | Route | Permission | Component |
 | --- | --- | --- | --- |
 | Discount Codes | `/admin/marketing/coupons` | `PERMISSIONS.coupons` (`marketing.coupons`) | `src/components/admin/coupons/coupon-management.tsx`, `coupon-form-modal.tsx` |
-| Delivery Zones | `/admin/settings/delivery` | `PERMISSIONS.deliveryZones` (`governance.delivery`) | `src/components/admin/delivery-zones/delivery-zone-management.tsx` |
+| Delivery Zones | `/admin/settings/delivery` | `PERMISSIONS.deliveryZones` (`governance.delivery`) | `src/components/admin/delivery-zones/delivery-zone-management.tsx` (emirates), `delivery-area-management.tsx` and `delivery-area-form-modal.tsx` (areas, on the same page) |
 
 Admins hold both; Staff hold them through their Staff role
 ([PERMISSIONS.md](PERMISSIONS.md)). Every route starts with
@@ -252,7 +314,16 @@ Admins hold both; Staff hold them through their Staff role
 | `/api/v1/admin/coupons/[id]` | `PUT` | `couponSchema` | 200 `AdminCoupon` | 404, 409 on `code`, 422 |
 | `/api/v1/admin/coupons/[id]` | `DELETE` | | 200 `{ id }` | 404 |
 | `/api/v1/admin/delivery-zones` | `GET` | | 200 `DeliveryZoneRow[]`, always 7, in `EMIRATES` order | |
-| `/api/v1/admin/delivery-zones/[emirate]` | `PUT` | `deliveryZoneSchema` | 200 `DeliveryZoneRow` (upsert) | 404 unknown emirate, 422 |
+| `/api/v1/admin/delivery-zones/[emirate]` | `PUT` | `deliveryZoneSchema` (now with `enabled`) | 200 `DeliveryZoneRow` (upsert) | 404 unknown emirate, 422 |
+| `/api/v1/admin/delivery-areas` | `GET` | `deliveryAreaListQuerySchema`: `page`, `pageSize`, `emirate`, `search` (`area`, contains, any case) | 200 `Paginated<AdminDeliveryArea>`, by emirate then area | 422 |
+| `/api/v1/admin/delivery-areas` | `POST` | `deliveryAreaSchema` | 201 `AdminDeliveryArea` | 409 on `area` (duplicate in that emirate, any case) or `emirate` (area cap); 422 |
+| `/api/v1/admin/delivery-areas/[id]` | `GET` | | 200 `AdminDeliveryArea` | 404 |
+| `/api/v1/admin/delivery-areas/[id]` | `PUT` | `deliveryAreaSchema` | 200 `AdminDeliveryArea` | 404, 409 as above, 422 |
+
+Delivery Zones has only View and Edit, so adding an area needs **Edit**, the
+same as changing a rate; no new permission was added. Areas have no delete:
+switch one off instead, which keeps the link from past orders. Every write is
+recorded in the change log under the Delivery Zones module.
 
 Coupon form rules (`src/validators/coupon.validator.ts`):
 
@@ -272,14 +343,34 @@ Coupon form rules (`src/validators/coupon.validator.ts`):
 
 Delivery zone form rules (`src/validators/delivery-zone.validator.ts`): fees 0
 or more; days whole numbers from 0 to `MAX_DELIVERY_DAYS` (30); the latest day
-not before the earliest, reported on the `*MaxDays` field. There is no create
-or delete: the seven rows are fixed.
+not before the earliest, reported on the `*MaxDays` field; `enabled`
+required. There is no create or delete: the seven rows are fixed.
 
-Files: `src/services/coupon.service.ts`, `delivery-zone.service.ts`;
-`src/types/coupon.ts` (`AdminCoupon`, `CouponFilters`, `CouponInput`),
-`src/types/delivery.ts` (`DeliveryZoneRow`, `DeliveryZoneInput`);
-`src/hooks/use-coupon.ts`, `use-delivery-zone.ts`. `useGetCoupon` uses
-`gcTime: 0`, like `useGetProduct`.
+Delivery area form rules (same file, `deliveryAreaSchema`): emirate one of
+`EMIRATE_VALUES`; `area` trimmed, 1 to `DELIVERY_AREA_MAX_LENGTH` (100);
+`enabled` required; each fee null or 0 or more; each day null or as for
+zones; a method's two days both set or both null ("Set both days, or leave
+both empty to use the emirate's."), and the latest not before the earliest.
+In the form an empty box means null, shown with the placeholder "Emirate
+rate".
+
+Screen behaviour: the emirates table and the areas table both have loading
+skeletons, an error state with Try again, and (areas) an empty state; Edit
+and Add area show only with the Edit permission. Saving closes the dialog,
+shows a "… saved." status line above the tables, and the hooks invalidate
+`delivery-zones` or `delivery-areas` so the tables refetch. Field errors from
+the server, such as the duplicate area 409, show under their field.
+
+Files: `src/services/coupon.service.ts`, `delivery-zone.service.ts`,
+`delivery-area.service.ts` (`listDeliveryAreas`, `getDeliveryArea`,
+`findDeliveryArea`, `listDeliveryAreaOptions`, `createDeliveryArea`,
+`updateDeliveryArea`); `src/types/coupon.ts` (`AdminCoupon`, `CouponFilters`,
+`CouponInput`), `src/types/delivery.ts` (`DeliveryZoneRow`,
+`DeliveryZoneInput`, `AdminDeliveryArea`, `DeliveryAreaInput`,
+`DeliveryAreaFilters`, `DeliveryAreaOption`, `DeliveryAreaOptions`);
+`src/hooks/use-coupon.ts`, `use-delivery-zone.ts` (adds `useGetDeliveryAreas`,
+`useCreateDeliveryArea`, `useUpdateDeliveryArea`, `useGetDeliveryAreaOptions`).
+`useGetCoupon` uses `gcTime: 0`, like `useGetProduct`.
 
 ---
 
@@ -300,7 +391,8 @@ coupon. Mutations answer with the whole fresh `Cart`.
 | `/api/v1/cart/coupon` | `POST` | **required** | `applyCouponSchema`: `code` | 200 `Cart` |
 | `/api/v1/cart/coupon` | `DELETE` | **required** | | 200 `Cart` |
 | `/api/v1/cart/acknowledge` | `POST` | optional | | 200 `Cart` |
-| `/api/v1/cart/quote` | `GET` | optional | `cartQuoteQuerySchema`: `emirate`, `method` (default `STANDARD`) | 200 `CartQuote` |
+| `/api/v1/cart/quote` | `GET` | optional | `cartQuoteQuerySchema`: `emirate`, `areaId` (optional), `method` (default `STANDARD`) | 200 `CartQuote` |
+| `/api/v1/delivery-areas` | `GET` | optional | `deliveryAreaOptionsQuerySchema`: `emirate` | 200 `DeliveryAreaOptions`: `required`, `areas` (`{ id, area }[]`, enabled only, by area, at most `MAX_DELIVERY_AREAS_PER_EMIRATE`) |
 
 Errors by route:
 
@@ -338,9 +430,14 @@ Errors by route:
 6. **DELETE cart/coupon.** 401 as above.
 7. **POST cart/acknowledge.** None. Sets every seen price to the current one,
    clearing `PRICE_CHANGED` on all lines.
-8. **GET cart/quote.** 422 on `emirate` / `method`; 404 "We don't deliver to
-   that emirate yet." when the zone row is missing. `options` holds both
-   methods for the emirate; `cart.totals.delivery` is the chosen method's fee.
+8. **GET cart/quote.** 422 on `emirate` / `method`; 404 with the
+   `resolveDelivery` message (§5.1) when the emirate or the area is not
+   delivered to. `options` holds both methods for the emirate or area;
+   `cart.totals.delivery` is the chosen method's fee. When the emirate has
+   areas and no `areaId` was sent, `options` is empty and
+   `cart.totals.delivery` is null.
+9. **GET delivery-areas.** 422 "Choose an emirate." on a missing or unknown
+   emirate. `required` is true once the emirate has any area, enabled or not.
 
 ### 7.1 Response shape
 
@@ -360,8 +457,9 @@ Types in `src/types/cart.ts`.
 3. `AppliedCoupon`: `code`, `description`, `valid`, `message`.
 4. `CartTotals`: `subtotal`, `discount`, `delivery` (null outside a quote),
    `total`, `vatIncluded`, `vatRatePercent`.
-5. `CartQuote`: `cart`, `emirate`, `method`, `options` (`DeliveryOption[]`:
-   `method`, `label`, `fee`, `etaMinDays`, `etaMaxDays`).
+5. `CartQuote`: `cart`, `emirate`, `areaId` (null without one), `method`,
+   `options` (`DeliveryOption[]`: `method`, `label`, `fee`, `etaMinDays`,
+   `etaMaxDays`).
 
 ### 7.2 Line issues
 
@@ -402,8 +500,11 @@ The cart reuses the catalogue's exported rules instead of copying them:
 2. A cart read is one query for the cart with lines, variants, products,
    category visibility, images, chosen add-ons and coupon, plus one for the
    offered add-ons across all lines. Bounded by `CART_MAX_LINES`.
-3. A quote adds one lookup on `delivery_zones`.
-4. No stock is reserved. Stock is only taken at checkout ([ORDERS.md](ORDERS.md) §5).
+3. A quote adds one lookup on `delivery_zones`, plus one on `delivery_areas`
+   (a count without an area, a find by id with one).
+4. The area dropdown is one count and one bounded `findMany`, fetched once per
+   emirate and cached by React Query, not on every quote.
+5. No stock is reserved. Stock is only taken at checkout ([ORDERS.md](ORDERS.md) §5).
 
 ---
 
@@ -471,7 +572,8 @@ old mock are abandoned: they held mock slugs with no database variant.
 | Hook | Calls |
 | --- | --- |
 | `useGetCart()` | `GET cart` |
-| `useGetCartQuote(emirate, method)` | `GET cart/quote`, enabled once an emirate is set |
+| `useGetCartQuote(emirate, areaId, method)` | `GET cart/quote`, enabled once an emirate is set |
+| `useGetDeliveryAreaOptions(emirate)` (in `use-delivery-zone.ts`) | `GET delivery-areas` |
 | `useAddCartItem()` | `POST cart/items` |
 | `useUpdateCartItem()` | `PATCH cart/items/[id]` |
 | `useRemoveCartItem()` | `DELETE cart/items/[id]` |
@@ -491,7 +593,7 @@ Every mutation writes the returned cart straight into the cache
 | Product page | `components/product/detail/product-buy-panel.tsx` | The line for the selected variant; Add to cart sends the selected add-ons; the stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
 | Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy" |
 | Home setup kit, drop cards | `components/home/setup/setup.tsx`, `components/home/upcoming-drops/drop-card.tsx` | No cart call: they link to the product page |
-| Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, method)`, default Dubai and Standard. Emirates from `EMIRATES`. The coupon field shows for guests too; Enter in it applies the code. While `couponsAllowed` is false (a guest), Apply shows "Sign in to use a promo code." with a Sign in link and sends no request. VAT reads "Includes VAT 5%". The steps are in §9.1 |
+| Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, areaId, method)`, default Dubai, no area and Standard. Emirates from `EMIRATES`. The field after Emirate is an **Area** dropdown when `useGetDeliveryAreaOptions(emirate).required`, otherwise the free text **City**; changing the emirate clears the area. While the areas load the dropdown is disabled ("Loading areas…"); an emirate whose areas are all off shows "We don't deliver to that emirate yet." under it. If a quote fails while an area is picked (for example it was switched off mid checkout), Try again clears the area and quotes again. The coupon field shows for guests too; Enter in it applies the code. While `couponsAllowed` is false (a guest), Apply shows "Sign in to use a promo code." with a Sign in link and sends no request. VAT reads "Includes VAT 5%". The steps are in §9.1 |
 
 Place Order calls `usePlaceOrder` (`POST checkout.place`) with the
 information fields, the delivery and payment method, `expectedTotal` (the
@@ -545,9 +647,15 @@ summary sits beside it from `lg`, and above it on smaller screens.
 
 **Information is validated with `checkoutInformationSchema`**
 (`src/validators/checkout.validator.ts`): email (`emailValidator`), phone
-(`uaePhoneValidator`), first and last name, address line 1 and city required;
+(`uaePhoneValidator`), first and last name and address line 1 required;
 address line 2 and postal code optional; emirate one of `EMIRATE_VALUES`; the
-email opt in. Continue runs it. Each message shows under its field through the
+email opt in. `city` and `areaId` are optional in the schema (blank becomes
+undefined) because which one is required depends on the emirate's areas:
+`checkInformation` in `checkout-view.tsx` requires the area ("Choose an
+area.") when the emirate has areas and the city (`CITY_REQUIRED_MESSAGE`,
+"Enter the city.") when it doesn't, and `placeOrder` checks the same on the
+server. The Information summary shows the area name in place of the city.
+Continue runs it. Each message shows under its field through the
 checkout `Field`'s `error` prop, which sets `aria-invalid`, points
 `aria-describedby` at the message and hides the hint; focus moves to the
 first invalid field. After a failed Continue, a field checks itself again on
@@ -583,7 +691,9 @@ In `src/lib/constants.ts`.
 | `MAX_COUPON_TARGETS` | 50 | Products and categories per coupon |
 | `COUPON_CODE_MIN_LENGTH`, `COUPON_CODE_MAX_LENGTH` | 3, 32 | Coupon code |
 | `COUPON_DESCRIPTION_MAX_LENGTH` | 160 | Coupon description |
-| `MAX_DELIVERY_DAYS` | 30 | Delivery zone days |
+| `MAX_DELIVERY_DAYS` | 30 | Delivery zone and area days |
+| `DELIVERY_AREA_MAX_LENGTH` | 100 | `DeliveryArea.area` |
+| `MAX_DELIVERY_AREAS_PER_EMIRATE` | 300 | Areas per emirate; the checkout dropdown's limit |
 | `RETURN_WINDOW_DAYS` | 30 | "30-day returns" copy on the cart summary and home benefits. The product page buy panel reads the window from `getStoreSettings()` instead and hides the returns item when it is 0 |
 | `RATE_LIMITS.applyCoupon` | 10 per 10 minutes, per user | `POST cart/coupon` |
 | `RATE_LIMITS.guestCart` | 10 per hour, per IP | `POST cart/items` that creates a guest cart |
@@ -602,6 +712,9 @@ added `src/lib/pricing/price-cart.test.ts`, `src/lib/pricing/coupon.test.ts`,
 `src/validators/delivery-zone.validator.test.ts`. The checkout steps added
 `src/validators/checkout.validator.test.ts` and
 `src/validators/common/primitives.validator.test.ts` (the UAE phone rule).
+Delivery areas extended `delivery.test.ts` (`effectiveRates`,
+`deliveryOptions`) and `delivery-zone.validator.test.ts` (`deliveryAreaSchema`,
+`deliveryAreaListQuerySchema`, the zone's `enabled`).
 They cover the pure rules only; the routes, the service and the checkout
 steps have no automated tests. Phase 5 tests are listed in
 [ORDERS.md](ORDERS.md) §14.

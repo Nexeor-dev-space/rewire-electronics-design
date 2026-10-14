@@ -43,5 +43,6 @@ export const applyCouponSchema = z.object({
 
 export const cartQuoteQuerySchema = z.object({
   emirate: z.enum(EMIRATE_VALUES),
+  areaId: idValidator.optional(),
   method: z.enum(DELIVERY_METHODS).default("STANDARD"),
 });

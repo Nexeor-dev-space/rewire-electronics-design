@@ -25,7 +25,6 @@ import {
   MAX_PRODUCT_ADD_ONS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { DELIVERY_METHOD_LABELS } from "@/lib/delivery";
 import { formatMoney } from "@/lib/money";
 import { lineTotal } from "@/lib/pricing/arithmetic";
 import { COUPON_MESSAGES, COUPON_MINIMUM_TOKEN } from "@/lib/pricing/coupon";
@@ -39,14 +38,13 @@ import {
   shopAddOnSelect,
   toShopAddOn,
 } from "@/services/catalogue.service";
-import { findDeliveryZone } from "@/services/delivery-zone.service";
+import { resolveDelivery } from "@/services/delivery-zone.service";
 import {
   BLOCKING_CART_LINE_ISSUES,
   type AppliedCoupon,
   type Cart,
   type CartLine,
   type CartQuote,
-  type DeliveryOption,
   type OfferedAddOn,
 } from "@/types/cart";
 import type {
@@ -71,7 +69,6 @@ const MESSAGE_CART_FULL = "Your cart is full.";
 const MESSAGE_LINE_NOT_FOUND = "That item isn't in your cart.";
 const MESSAGE_ADD_ON_UNAVAILABLE = "One of the chosen add-ons isn't available for this item.";
 const MESSAGE_EMPTY_CART = "Add something to your cart first.";
-const MESSAGE_NO_DELIVERY = "We don't deliver to that emirate yet.";
 
 const couponSelect = {
   id: true,
@@ -535,33 +532,15 @@ export async function getCart(owner: CartOwner, deliveryFee: number | null = nul
   return priced ? priced.cart : emptyCart(owner.kind === "user", deliveryFee);
 }
 
-function deliveryOptions(zone: NonNullable<Awaited<ReturnType<typeof findDeliveryZone>>>): DeliveryOption[] {
-  return [
-    {
-      method: "STANDARD",
-      label: DELIVERY_METHOD_LABELS.STANDARD,
-      fee: zone.standardFee,
-      etaMinDays: zone.standardMinDays,
-      etaMaxDays: zone.standardMaxDays,
-    },
-    {
-      method: "EXPRESS",
-      label: DELIVERY_METHOD_LABELS.EXPRESS,
-      fee: zone.expressFee,
-      etaMinDays: zone.expressMinDays,
-      etaMaxDays: zone.expressMaxDays,
-    },
-  ];
-}
+/** Before an area is picked in an emirate that has areas, there are no options and no fee yet. */
+export async function quoteCart(owner: CartOwner, { emirate, areaId, method }: CartQuoteData): Promise<CartQuote> {
+  const delivery = await resolveDelivery(emirate, areaId);
+  if (delivery.kind === "unavailable") throw new ServiceError("NOT_FOUND", delivery.message, 404);
 
-export async function quoteCart(owner: CartOwner, { emirate, method }: CartQuoteData): Promise<CartQuote> {
-  const zone = await findDeliveryZone(emirate);
-  if (!zone) throw new ServiceError("NOT_FOUND", MESSAGE_NO_DELIVERY, 404);
-
-  const options = deliveryOptions(zone);
+  const options = delivery.kind === "ok" ? delivery.options : [];
   const fee = options.find((option) => option.method === method)?.fee ?? null;
   const cart = await getCart(owner, fee);
-  return { cart, emirate, method, options };
+  return { cart, emirate, areaId: areaId ?? null, method, options };
 }
 
 /* ---------- item mutations ---------- */
