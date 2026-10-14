@@ -44,7 +44,7 @@ Rules:
 - Never add a temporary env var for testing. Change the stored configuration instead.
 - Do not read env values inside request handlers or workers when a tenant scoped setting already exists.
 
-Third party integration credentials (SMTP, APP_URL, EMAIL_FROM) are stored encrypted in the database and edited in the admin panel, not in `.env`; see docs/INTEGRATIONS.md.
+Third party integration credentials (SMTP, APP_URL, EMAIL_FROM) are read from env through `src/lib/env.ts`, validated with Zod; see docs/INTEGRATIONS.md.
 
 ##Database Safety
 - **Never create or run database migrations without my explicit approval.**
