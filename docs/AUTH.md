@@ -21,8 +21,8 @@ see [INTEGRATIONS.md](INTEGRATIONS.md).
    on every `/account` page, and a client rule that sends any `401` back to
    sign-in.
 
-`.env` holds only `DATABASE_URL` and `AUTH_SECRET`. Everything else auth needs
-(SMTP, sender, site address) is an admin setting.
+Everything auth needs (`DATABASE_URL`, `AUTH_SECRET`, SMTP, sender, site
+address) is read from env through `src/lib/env.ts` ([INTEGRATIONS.md](INTEGRATIONS.md)).
 
 There is no social sign-in (section 8).
 
@@ -110,8 +110,7 @@ the only cost per authenticated request; no cookie means no query. React
 **Deploy effect.** The cookie format went from three parts to four, so
 everyone (admins, staff and customers) was signed out once when this shipped.
 
-**AUTH_SECRET.** Changing it signs everyone out and also makes every stored
-integration credential unreadable ([INTEGRATIONS.md](INTEGRATIONS.md) §4).
+**AUTH_SECRET.** Changing it signs everyone out.
 
 **`SessionUser`.** `{ id, fullName, email, phone: string | null, role,
 emailVerified: boolean, createdAt: Date, permissions }`. `permissions` is the
@@ -176,7 +175,7 @@ Route by route:
 6. **resend-verification.** 409 if already verified. Issues a fresh token
    (the old one dies) and awaits the send: 500 "We couldn't send the email.
    Please try again." on an SMTP failure, 503 `NOT_CONFIGURED` when email is
-   off in LIVE mode.
+   off (production without SMTP or `APP_URL`).
 7. **forgot-password.** Always 200 for valid input. A token and email go out
    only for an `ACTIVE` `CUSTOMER`; staff reset through an Admin. The lookup
    and send happen in `after()`, so timing does not reveal whether the account
@@ -208,7 +207,7 @@ Route by route:
 5. Lifetimes: `VERIFY_TOKEN_TTL_SECONDS` (24 hours), `RESET_TOKEN_TTL_SECONDS`
    (1 hour).
 
-Links are built with `appUrl()` from the `APP_URL` setting, never from the
+Links are built with `appUrl()` from the `APP_URL` env value, never from the
 request `Host` header, which an attacker controls (reset link poisoning).
 
 ---
@@ -245,12 +244,10 @@ Limits of this design are in section 11.
 
 ## 8. Social sign-in
 
-Social sign-in: removed; the `OAuthAccount` table and hidden keys are kept for
-a possible return. Google and Apple sign-in, their routes, the `arctic`
-dependency and their validators are gone. The database still has the
-`OAuthAccount` model, the `OAuthProvider` enum and the six `GOOGLE_*` /
-`APPLE_*` `IntegrationKey` values; in code the keys are
-`HIDDEN_INTEGRATION_KEYS` ([INTEGRATIONS.md](INTEGRATIONS.md) §5). A customer
+Social sign-in: removed; the `OAuthAccount` table is kept for a possible
+return. Google and Apple sign-in, their routes, the `arctic` dependency and
+their validators are gone. The database still has the `OAuthAccount` model
+and the `OAuthProvider` enum. A customer
 who only ever signed in with Google has no password; they sign in again by
 setting one through forgot password.
 
@@ -378,9 +375,8 @@ the client through `auth.me` instead.
 2. **Shared IPs.** Everyone behind one office or mobile carrier NAT shares a
    window; ten sign-ins in 15 minutes from the shop floor locks the next
    attempt out for the rest of the window.
-3. **Single instance only.** The rate limit map and the integration config
-   cache live in process memory. They reset on restart, and a second instance
-   would keep separate counts and a stale config.
+3. **Single instance only.** The rate limit map lives in process memory. It
+   resets on restart, and a second instance would keep separate counts.
 4. **Sign-out is per browser.** There is no "sign out everywhere" except a
    password reset. A stolen cookie stays valid until it expires (7 days) or
    the password is reset.
@@ -390,9 +386,9 @@ the client through `auth.me` instead.
    sign-in do not. Guest checkout reveals them too: a registered email answers
    409 "An account with this email already exists. Sign in to continue." on
    the email field.
-7. **Email in DEV mode.** With no SMTP set, verify and reset emails print to
-   the server log. In production (`NODE_ENV=production`) the body, which holds
-   the link, is withheld; only `to` and `subject` are logged.
+7. **Email without SMTP.** Outside production, verify and reset emails print
+   to the server log, link included. In production email is off instead
+   ([INTEGRATIONS.md](INTEGRATIONS.md) §4).
 8. **scrypt cost.** Each sign-in, sign-up and reset hashes once (about 16 MB
    and tens of milliseconds). The rate limits bound it.
 

@@ -1,27 +1,28 @@
-# Integration credentials
+# Environment and email
 
-Where the credentials for third party services live, how they are protected,
-and how to set up email.
+Every deployment value the app reads (database, signing secret, SMTP, sender
+address, site address), how it is validated, and how to set up email.
 
-Read this before adding a third party service, reading a credential in code,
-or setting up an environment. The auth flows that use these values are in
-[AUTH.md](AUTH.md).
+Read this before adding an env var, reading one in code, or setting up an
+environment. The auth flows that use these values are in [AUTH.md](AUTH.md).
 
 ---
 
 ## 1. What lives where
 
-1. **`.env`** holds `DATABASE_URL` and `AUTH_SECRET` only. The app needs both
-   before it can read the database, so they cannot live in it.
-2. **The database** holds every third party credential (SMTP, sender address,
-   site address), encrypted. An Admin adds, replaces and
-   deletes them at **Governance → API Credentials**
-   (`/admin/settings/integrations`). A change applies on the next request: no
-   redeploy, no restart.
-3. **The DEV / LIVE mode** is in the database too, default DEV.
+1. **Env** (`.env` locally, the Coolify environment in deployment) holds every
+   value in section 3. They differ per environment and include secrets, so they
+   are deployment values, not admin settings.
+2. **Nothing is read from the database.** Until 2026-10-12 SMTP, `EMAIL_FROM`,
+   `APP_URL` and a DEV / LIVE mode were stored encrypted in the database and
+   edited on an admin API Credentials screen. Staging never had them set, so
+   every email was printed to the log instead of sent. The screen, its API and
+   the `integration_settings` and `integration_credentials` tables were
+   removed (migration `drop_integration_settings`).
+3. A change to any value needs a restart (Coolify redeploys on save).
 
-Do not add an env var for a new third party credential. Add a key to the
-`IntegrationKey` enum (a migration) and follow the same pattern.
+Do not add a new env var without asking first (`CLAUDE.md`). A value an admin
+should change belongs in the database instead.
 
 ---
 
@@ -29,219 +30,100 @@ Do not add an env var for a new third party credential. Add a key to the
 
 | File | Purpose |
 | --- | --- |
-| `prisma/schema/settings.prisma` | `IntegrationMode`, `IntegrationKey`, `IntegrationSettings`, `IntegrationCredential` |
-| `src/lib/crypto/secret-box.ts` | `sealSecret`, `openSecret` (AES-256-GCM) |
-| `src/lib/auth/auth-secret.ts` | `readAuthSecret()` |
-| `src/lib/integration-keys.ts` | Key list, `HIDDEN_INTEGRATION_KEYS`, labels, help text, groups, secret and multiline keys, defaults (client safe) |
-| `src/lib/integration-config.ts` | `resolveIntegrationConfig`, `integrationFeatures`, `hintOf`, config types (pure, tested) |
-| `src/services/integration.service.ts` | Admin reads and writes, `getIntegrationConfig` (server only) |
-| `src/validators/integration.validator.ts` | One value schema per key |
-| `src/types/integration.ts` | `IntegrationStatus`, `IntegrationCredentialStatus`, `IntegrationCredentialInput` |
-| `src/app/api/v1/admin/integrations/` | The routes in section 9, and the shared `authorize.ts` |
-| `src/hooks/use-integrations.ts` | Query and mutations for the screen |
-| `src/app/admin/settings/integrations/page.tsx` | The page and its Admin only check |
-| `src/components/admin/integrations/` | `IntegrationSettings`, `CredentialFormModal` |
+| `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv` (tested in `env.test.ts`) |
+| `src/lib/integration-config.ts` | `resolveIntegrationConfig(env, nodeEnv)`, `describeEmailTransport(config)`, `getIntegrationConfig()` (tested in `integration-config.test.ts`) |
+| `src/lib/email/send-email.ts` | `sendEmail`: sends, prints or refuses per the transport |
+| `src/lib/app-url.ts` | `appUrl(path)`: absolute links for emails |
+| `src/lib/db.ts`, `prisma/seed.ts`, `prisma7.config.ts` | Read `DATABASE_URL` through `env.ts` |
+| `src/lib/auth/sign.ts` | Reads `AUTH_SECRET` through `authEnv()` |
 
-Migration: `add_integration_settings`. It has no backfill: no settings row
-reads as DEV with nothing set.
+There are three readers, not one, on purpose: the Docker build has only
+`DATABASE_URL`, and a bad SMTP value must not stop the database client or
+sign in. Readers do not cache; parsing costs microseconds and secret rotation
+tests change `AUTH_SECRET` at runtime.
 
 ---
 
-## 3. Modes
+## 3. Keys
 
-| | DEV | LIVE |
-| --- | --- | --- |
-| Email with SMTP user, password and sender set | Sent over SMTP | Sent over SMTP |
-| Email without them | Printed to the server log | Off: sends fail with `503 NOT_CONFIGURED` |
-| Site address (`APP_URL`) unset | `http://localhost:3000` (`DEV_APP_URL`) | None: email turns off |
+Empty strings count as unset. A value that breaks a rule throws
+`Invalid environment:` with every problem listed, the first time that reader
+runs.
 
-Switching to LIVE with credentials missing is allowed; the screen's feature
-line shows what is off.
+| Key | Reader | Rule | Default |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | `databaseEnv()` | Required | none |
+| `AUTH_SECRET` | `authEnv()` | Required, at least `AUTH_SECRET_MIN_LENGTH` (32) characters | none |
+| `SMTP_HOST` | `emailEnv()` | Hostname | `smtp.gmail.com` |
+| `SMTP_PORT` | `emailEnv()` | Positive integer; 465 switches to implicit TLS | 587 (STARTTLS) |
+| `SMTP_USER` | `emailEnv()` | Set together with `SMTP_PASS` and `EMAIL_FROM`, or none of them | none |
+| `SMTP_PASS` | `emailEnv()` | As above | none |
+| `EMAIL_FROM` | `emailEnv()` | As above; `name@domain` or `Name <name@domain>` (so `mailto:` fails) | none |
+| `APP_URL` | `emailEnv()` | A full URL, for example `https://rewire.ae` | `http://localhost:3000` outside production |
 
-When DEV prints an email in a production build (`NODE_ENV=production`), only
-`to` and `subject` are logged and the body, which carries the link, is
-withheld. So a production server left in DEV never writes account takeover
-links to its log. Development builds print the whole text, link included.
-
----
-
-## 4. Encryption
-
-1. Each value is sealed with AES-256-GCM, a random 12 byte IV per seal and a
-   16 byte tag. Stored format: `v1.<iv>.<tag>.<ciphertext>`, each part
-   base64url.
-2. The key is derived from `AUTH_SECRET` with HKDF-SHA256 (info
-   `rewire:integration-credentials:v1`, 32 bytes) and held in memory.
-3. The credential's key name (for example `SMTP_PASS`) is authenticated data,
-   so a ciphertext copied into another key's row does not open.
-4. Values are **write-only**. No response, log line or error message carries a
-   value. The screen shows only whether a key is set, when, and a hint: the
-   last 4 characters of values of 8 or more characters.
-
-**Changing `AUTH_SECRET`** makes every stored value unreadable (and signs
-everyone out, [AUTH.md](AUTH.md) §4). The runtime treats an unreadable value
-as unset and logs its key name only: "integration credential SMTP_PASS
-unreadable; re-enter it (AUTH_SECRET changed?)". The screen marks the row
-"Unreadable, re-enter it". Re-enter each value to recover.
-
-Skipped on purpose: an audit log of changes, key rotation, an external vault.
+`prisma7.config.ts` uses `optionalDatabaseUrl()`, which never throws, so
+`prisma generate` runs in the Docker deps stage without a database.
 
 ---
 
-## 5. Keys
+## 4. Email transport
 
-Every value is trimmed, must not be empty, and may not contain control
-characters (which also blocks header injection through the sender).
+`getIntegrationConfig()` resolves the transport once per process and logs one
+line, so the server log shows which one is in use:
 
-| Key | What it is | Rule |
-| --- | --- | --- |
-| `SMTP_HOST` | SMTP server | Hostname only, no scheme or port. Default `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP port | 1 to 65535. Default 587 (STARTTLS); 465 switches to implicit TLS |
-| `SMTP_USER` | SMTP username | No spaces. Not required to be an email (Resend's is `resend`) |
-| `SMTP_PASS` | SMTP password | All spaces removed (Gmail shows app passwords in groups of four) |
-| `EMAIL_FROM` | Sender customers see | `name@domain` or `Name <name@domain>` |
-| `APP_URL` | Public site address for email links | `https://` any host, or `http://` for `localhost` / `127.0.0.1`; no path, query or credentials; stored without a trailing slash |
-
-`SMTP_PASS` is the only secret key; it uses a masked input.
-
-**Social sign-in: removed; the `OAuthAccount` table and hidden keys are kept
-for a possible return.** The six `GOOGLE_*` / `APPLE_*` values stay in the
-`IntegrationKey` enum (the migration is applied) and are listed in code as
-`HIDDEN_INTEGRATION_KEYS`. They are not in `INTEGRATION_KEYS`, so the screen
-does not show them, the credential routes answer 404 for them, and any stored
-row is ignored when the config loads. Such a row cannot be deleted through
-the API.
-
----
-
-## 6. What a missing key turns off
-
-A missing key turns off only the feature that reads it.
-
-1. `SMTP_HOST`, `SMTP_PORT`: nothing; the defaults apply.
-2. `SMTP_USER`, `SMTP_PASS` or `EMAIL_FROM`: email. In DEV emails print to the
-   log; in LIVE email is off.
-3. `APP_URL`: in DEV nothing (localhost is used). In LIVE, email, because
-   it needs absolute links.
+| Line | When |
+| --- | --- |
+| `email transport: SMTP (host:port, from ...)` | `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` set and a site address known |
+| `email transport: CONSOLE (...)` | Not production and the SMTP login is not set: emails print to the log, link included |
+| `email transport: OFF (...)` | Production (`NODE_ENV=production`) and the SMTP login or `APP_URL` is missing |
 
 What "email off" means for customers:
 
-1. Sign-up still creates the account and signs in; the verification email
+1. Sign up still creates the account and signs in; the verification email
    fails and is logged.
 2. The account banner's "Resend email" shows "Email isn't set up yet. Please
-   try again later." (503).
+   try again later." (503 `NOT_CONFIGURED`).
 3. Forgot password still answers "we've sent a link", and nothing is sent.
 
 ---
 
-## 7. Setup
+## 5. Setup
 
-Each environment has its own database, so each is configured on its own
-screen.
+### 5.1 Gmail for development
 
-### 7.1 Gmail for development
+1. On the Google account that will send, turn on 2 Step Verification.
+2. Create an app password at Google Account, Security, App passwords.
+3. In `.env` set `SMTP_USER` to the Gmail address, `SMTP_PASS` to the app
+   password (no spaces), and `EMAIL_FROM` to `Rewire <that-address@gmail.com>`.
+   Leave `SMTP_HOST` and `SMTP_PORT` unset.
+4. Leave `APP_URL` unset for `http://localhost:3000`.
 
-1. On the Google account that will send, turn on 2-Step Verification.
-2. Create an app password at Google Account → Security → App passwords.
-3. On the API Credentials screen set `SMTP_USER` to the Gmail address,
-   `SMTP_PASS` to the app password, and `EMAIL_FROM` to
-   `Rewire <that-address@gmail.com>`. Leave host and port unset
-   (`smtp.gmail.com`, 587).
-4. Leave `APP_URL` unset for `http://localhost:3000`, or set it to the port
-   you run on.
-5. Mode can stay DEV; SMTP is used whenever it is fully set.
+Gmail rewrites the sender to the signed in account unless the address is a
+verified "Send mail as" alias.
 
-Gmail rewrites the sender to the signed-in account unless the address is a
-verified "Send mail as" alias, so do not expect a custom domain sender here.
+### 5.2 Resend for staging and production
 
-### 7.2 Resend for production
-
-1. In Resend, add and verify the sending domain (the DNS records Resend lists:
-   SPF, DKIM and optionally DMARC).
+1. In Resend, add and verify the sending domain (SPF, DKIM, optionally DMARC).
 2. Create an API key with sending access.
-3. Set `SMTP_HOST` to `smtp.resend.com`, `SMTP_USER` to `resend`,
-   `SMTP_PASS` to the API key, and `EMAIL_FROM` to an address on the verified
-   domain, for example `Rewire <no-reply@rewire-electronics.com>`. Port 587
-   is the default; 465 also works.
+3. Set `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`, `SMTP_PASS` to the API
+   key, and `EMAIL_FROM` to an address **on the verified domain**, for example
+   `Rewire <no-reply@rewire-electronics.com>`. Resend refuses `gmail.com`
+   senders.
 4. Set `APP_URL` to the public origin, for example
    `https://rewire-electronics.com`.
-5. Switch the mode to LIVE.
-6. Check: sign up with a real inbox (or press "Resend email" on the account
-   banner of an unverified account) and confirm the link opens on the public
+5. Redeploy, check the log shows `email transport: SMTP`, then sign up with a
+   real inbox (or use Forgot password) and confirm the link opens on the public
    domain.
 
-Switching providers later is data only: replace the four values.
+Quote values with spaces in `.env` to be safe:
+`EMAIL_FROM="Rewire <no-reply@rewire-electronics.com>"`.
 
 ---
 
-## 8. The admin screen
+## 6. Known limits
 
-Governance → **API Credentials**, `/admin/settings/integrations`.
-
-1. **Admins only.** API Credentials is an Admin only module
-   ([PERMISSIONS.md](PERMISSIONS.md)): it is never on the Staff grid, so the
-   sidebar hides it from Staff and the page shows "Access denied". Every route
-   also checks `canManageIntegrations(role)` (`src/lib/auth/permissions.ts`),
-   true for Admin only.
-2. **Mode.** A DEV / LIVE switch; each change goes through a confirm dialog.
-   In DEV a warning banner explains what is off.
-3. **Features line.** Email (On, Logged to the server console, or Off),
-   computed from what is stored right now.
-4. **Rows**, grouped Email and Site. Each shows its label, help, and
-   "Set, ends in …", "Not set" (with the default for host and port) or
-   "Unreadable, re-enter it". Unset rows have Add; set rows have Replace and
-   Delete (confirmed).
-5. **The form** is one field, never prefilled, masked for secrets. The typed
-   value is dropped when the dialog closes. A 422 shows under the field.
-
----
-
-## 9. API
-
-Paths in `API_ENDPOINTS.admin.integrations`. Every route runs
-`authorizeIntegrations()` (a signed in session, then the Admin check), and answers `401`, `403` "Only Admins can manage integrations.",
-or `500 INTERNAL` (which includes a missing or short `AUTH_SECRET`).
-
-| Route | Input | Success | Errors |
-| --- | --- | --- | --- |
-| `GET admin/integrations` | none | `IntegrationStatus` | 401, 403 |
-| `PUT admin/integrations/mode` | `{ mode: "DEV" \| "LIVE" }` | `IntegrationStatus` | 401, 403, 422 `fields.mode` |
-| `PUT admin/integrations/credentials/[key]` | `{ value: string }` | `IntegrationStatus` | 401, 403, 404 unknown or hidden key, 422 `fields.value` |
-| `DELETE admin/integrations/credentials/[key]` | none | `IntegrationStatus`, also when the key was not set | 401, 403, 404 unknown or hidden key |
-
-`IntegrationStatus` is `{ mode, modeUpdatedAt, credentials, features }`.
-`credentials` always lists all 6 keys in `INTEGRATION_KEYS` order, each
-`{ key, isSet, readable, hint, updatedAt }`; hidden keys never appear.
-`features` is `{ email: "SMTP" | "CONSOLE" | "OFF" }`.
-
----
-
-## 10. Reading the config in code
-
-Server code calls one function: `getIntegrationConfig()` from
-`src/services/integration.service.ts`. It returns the resolved
-`IntegrationConfig`: `mode`, `appUrl` and `email` (SMTP settings, CONSOLE or
-OFF). Never read the credential table directly.
-
-1. **Cache.** One entry, the promise of the resolved config, on `globalThis`
-   (like `src/lib/db.ts`), so every route bundle shares it. The first call
-   runs one query for the settings row and one for the credentials (at most
-   12 rows; hidden key rows are dropped after reading). Every admin write
-   clears it. No TTL, no polling.
-2. A failed load is not cached; the next call retries.
-3. Never call it at module scope or during static generation, so `next build`
-   stays off the database.
-4. Consumers today: `sendEmail` (`src/lib/email/send-email.ts`) and
-   `appUrl()` (`src/lib/app-url.ts`).
-
----
-
-## 11. Known limits
-
-1. **One process.** A second instance keeps its cached config until restart.
-2. **`AUTH_SECRET` is a single point.** It signs sessions and derives the
-   encryption key; rotating it means re-entering every credential.
-3. **No history.** Replacing a value overwrites it; `updatedById` records only
-   the last Admin who changed each row.
-4. **Anyone with database access and `AUTH_SECRET`** can decrypt every value.
-   Keep both out of shared places.
+1. **Restart to change.** Every value is read from the process environment.
+2. **`AUTH_SECRET` is a single point.** Rotating it signs everyone out
+   ([AUTH.md](AUTH.md) §4).
+3. **Social sign in** is removed; the `OAuthAccount` table is kept for a
+   possible return. Its credentials would be new env vars.

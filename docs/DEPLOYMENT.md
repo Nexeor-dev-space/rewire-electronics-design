@@ -49,7 +49,8 @@ before `npm ci`:
 
 1. `prisma7.config.ts`, which tells Prisma the schema is the `prisma/schema`
    folder.
-2. `src/lib/db-url.ts`, which that config imports.
+2. `src/lib/env.ts`, which that config imports, and `src/lib/constants.ts`,
+   which `env.ts` imports.
 3. `prisma/`, the schema itself.
 
 If `prisma7.config.ts` gains another import, copy that file in the `deps`
@@ -76,8 +77,11 @@ runtime must be added with `outputFileTracingIncludes` in `next.config.ts`.
 | `NODE_ENV` | `production` | |
 | `NEXT_TELEMETRY_DISABLED` | `1` | |
 
-No new environment variables were added. `DATABASE_URL` and `AUTH_SECRET` are
-still set in Coolify as before (see [INTEGRATIONS.md](INTEGRATIONS.md)).
+Set these in the Coolify environment (see [INTEGRATIONS.md](INTEGRATIONS.md)):
+`DATABASE_URL` (also as a build variable), `AUTH_SECRET`, `SMTP_HOST`,
+`SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` and `APP_URL`. Without the
+SMTP login and `APP_URL`, production email is off and the log says
+`email transport: OFF`.
 
 ---
 

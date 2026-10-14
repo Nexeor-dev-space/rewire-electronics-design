@@ -146,27 +146,11 @@ SEED_ADMIN_EMAIL=you@example.com
 SEED_ADMIN_PASSWORD=<10+ characters>
 ```
 
-`AUTH_SECRET` also derives the key that encrypts the API Credentials below.
-Changing it signs everyone out and makes every stored credential unreadable.
+Changing `AUTH_SECRET` signs everyone out.
 
-Email and the site address are **not** `.env` values. After
-the first sign-in, an Admin sets them on the API Credentials screen.
-
-## API Credentials
-
-Governance → **API Credentials** (`/admin/settings/integrations`), permission
-key `governance.integrations`.
-
-1. Holds the SMTP settings, sender address and site address, encrypted, and the DEV / LIVE switch. Values are write-only: the screen
-   shows set or not set, the last four characters of longer values, and when
-   it changed.
-2. **Admins only.** API Credentials is an Admin only module, never on a
-   Staff role, so Staff don't see the row and the page answers "Access
-   denied". Every `/api/v1/admin/integrations` route also checks
-   `canManageIntegrations(role)` in `permissions.ts`, true for Admin only, and
-   answers 403 "Only Admins can manage integrations." otherwise.
-
-Keys, modes, encryption and the Gmail and Resend setup steps are in
+Email (SMTP, sender) and the site address are `.env` values too; there is no
+admin screen for them. The API Credentials screen was removed on 2026-10-12.
+Keys and the Gmail and Resend setup steps are in
 [INTEGRATIONS.md](INTEGRATIONS.md).
 
 ## Users

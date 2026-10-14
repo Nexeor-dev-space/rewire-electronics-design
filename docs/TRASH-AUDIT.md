@@ -123,8 +123,7 @@ Rules:
    the whole variants list both ways. A save that changed nothing writes no
    entry.
 2. **No secrets.** `auditSnapshot` drops `password`, `passwordHash`,
-   `createdAt` and `updatedAt`. API Credentials entries record only
-   `{ SMTP_PASS: "Set" }`, never a value. Never pass a secret in.
+   `createdAt` and `updatedAt`. Never pass a secret in.
 3. **Never fails the request.** A failed insert is logged to the server
    console and the change stands. The log is written after the change, not in
    its transaction: a crash between the two loses the entry, not the change.
@@ -144,11 +143,12 @@ What is recorded today:
 | Content & Policies | save (title, text, published, draft notice, blocks) |
 | Customers, Staff accounts | create, update (including a Staff role change), delete, restore; logged under the account's module |
 | Roles | create, update, delete a Staff role |
-| API Credentials | credential set or removed (no values), mode change |
 
 Older stock changes were recorded under the removed Inventory module
-(`catalogue.inventory`). `RETIRED_MODULE_LABELS` in `src/lib/audit.ts` keeps
-their "Inventory" label; the module filter no longer lists it.
+(`catalogue.inventory`), and older credential changes under the removed API
+Credentials module (`governance.integrations`). `RETIRED_MODULE_LABELS` in
+`src/lib/audit.ts` keeps their "Inventory" and "API Credentials" labels; the
+module filter no longer lists them.
 
 ---
 
