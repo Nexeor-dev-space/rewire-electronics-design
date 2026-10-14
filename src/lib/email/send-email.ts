@@ -3,8 +3,7 @@ import "server-only";
 import nodemailer from "nodemailer";
 import { ServiceError } from "@/lib/api/api-response";
 import { SMTP_TIMEOUT_MS } from "@/lib/constants";
-import type { SmtpConfig } from "@/lib/integration-config";
-import { getIntegrationConfig } from "@/services/integration.service";
+import { getIntegrationConfig, type SmtpConfig } from "@/lib/integration-config";
 import { chooseEmailOutcome, type EmailMessage } from "./email-outcome";
 
 export type SendEmailResult = "SENT" | "LOGGED";
@@ -36,7 +35,7 @@ async function sendOverSmtp(smtp: SmtpConfig, message: EmailMessage) {
 }
 
 export async function sendEmail(message: EmailMessage): Promise<SendEmailResult> {
-  const { email } = await getIntegrationConfig();
+  const { email } = getIntegrationConfig();
   const outcome = chooseEmailOutcome(email, message, process.env.NODE_ENV);
 
   switch (outcome.action) {

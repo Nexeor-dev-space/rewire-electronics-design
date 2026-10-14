@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
-import { optionalDatabaseUrl } from "./src/lib/db-url";
+import { optionalDatabaseUrl } from "./src/lib/env";
 
 export default defineConfig({
   schema: "prisma/schema",

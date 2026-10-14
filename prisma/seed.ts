@@ -6,7 +6,7 @@ import {
   paragraphsToRichText,
 } from "../src/lib/rich-text";
 import type { PolicySlug, RichTextDoc } from "../src/lib/policy-types";
-import { databaseUrl } from "../src/lib/db-url";
+import { databaseEnv } from "../src/lib/env";
 import { hashPassword } from "../src/lib/auth/password";
 import { seedCatalogue } from "./seed-catalogue";
 import { seedDeliveryAreas } from "./seed-delivery-areas";
@@ -15,7 +15,7 @@ import type { HomepageSectionType } from "../src/lib/homepage-sections";
 import { SHOP_INDEX_HREF } from "../src/lib/route-map";
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl() }),
+  adapter: new PrismaPg({ connectionString: databaseEnv().DATABASE_URL }),
 });
 
 interface SeedBlock {

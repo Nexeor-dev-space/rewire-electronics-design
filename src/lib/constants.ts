@@ -57,14 +57,12 @@ export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
 export const CHECKOUT_PAGE_PATH = "/checkout";
 export const CHECKOUT_SUCCESS_PAGE_PATH = "/checkout/success";
 
+export const AUTH_SECRET_MIN_LENGTH = 32;
 export const SMTP_DEFAULT_HOST = "smtp.gmail.com";
 export const SMTP_DEFAULT_PORT = 587;
 export const SMTP_IMPLICIT_TLS_PORT = 465;
 export const SMTP_TIMEOUT_MS = 10_000;
 export const DEV_APP_URL = "http://localhost:3000";
-export const INTEGRATION_HINT_LENGTH = 4;
-export const INTEGRATION_HINT_MIN_VALUE_LENGTH = 8;
-export const INTEGRATION_VALUE_MAX_LENGTH = 512;
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const VERIFY_TOKEN_TTL_SECONDS = 60 * 60 * 24;

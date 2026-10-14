@@ -1,39 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { DEV_APP_URL, INTEGRATION_HINT_MIN_VALUE_LENGTH } from "@/lib/constants";
-import {
-  hintOf,
-  integrationFeatures,
-  resolveIntegrationConfig,
-  type IntegrationValues,
-} from "./integration-config";
-import type { IntegrationKey } from "@/types/integration";
+import { DEV_APP_URL, SMTP_DEFAULT_HOST, SMTP_DEFAULT_PORT } from "@/lib/constants";
+import type { EmailEnv } from "./env";
+import { describeEmailTransport, resolveIntegrationConfig } from "./integration-config";
 
 const APP_URL = "https://rewire-electronics.com";
 
-const SMTP: IntegrationValues = {
+const NOTHING: EmailEnv = { SMTP_HOST: SMTP_DEFAULT_HOST, SMTP_PORT: SMTP_DEFAULT_PORT };
+
+const SMTP: EmailEnv = {
+  ...NOTHING,
   SMTP_USER: "shop@gmail.com",
   SMTP_PASS: "abcdefghijklmnop",
   EMAIL_FROM: "Rewire <shop@gmail.com>",
 };
 
-const EVERYTHING: IntegrationValues = { ...SMTP, APP_URL };
-
-function without(values: IntegrationValues, key: IntegrationKey): IntegrationValues {
-  const copy = { ...values };
-  delete copy[key];
-  return copy;
-}
-
 describe("resolveIntegrationConfig: email and app url", () => {
-  it("DEV with nothing set logs email to the console on the dev app url", () => {
-    const config = resolveIntegrationConfig("DEV", {});
+  it("development with nothing set logs email to the console on the dev app url", () => {
+    const config = resolveIntegrationConfig(NOTHING, "development");
     expect(config.appUrl).toBe(DEV_APP_URL);
     expect(config.email).toEqual({ transport: "CONSOLE" });
   });
 
-  it("DEV with user, pass and from sends over smtp.gmail.com:587 with STARTTLS", () => {
-    const config = resolveIntegrationConfig("DEV", SMTP);
-    expect(config.email).toEqual({
+  it("development with user, pass and from sends over smtp.gmail.com:587 with STARTTLS", () => {
+    expect(resolveIntegrationConfig(SMTP, "development").email).toEqual({
       transport: "SMTP",
       smtp: {
         host: "smtp.gmail.com",
@@ -46,62 +35,48 @@ describe("resolveIntegrationConfig: email and app url", () => {
     });
   });
 
-  it("uses a stored host and port, and port 465 turns on implicit TLS", () => {
-    const config = resolveIntegrationConfig("LIVE", {
-      ...SMTP,
-      APP_URL,
-      SMTP_HOST: "smtp.resend.com",
-      SMTP_PORT: "465",
-    });
+  it("uses the given host and port, and port 465 turns on implicit TLS", () => {
+    const config = resolveIntegrationConfig({ ...SMTP, APP_URL, SMTP_HOST: "smtp.resend.com", SMTP_PORT: 465 }, "production");
     expect(config.email).toMatchObject({
       transport: "SMTP",
       smtp: { host: "smtp.resend.com", port: 465, secure: true },
     });
   });
 
-  it("DEV missing EMAIL_FROM falls back to the console", () => {
-    expect(resolveIntegrationConfig("DEV", without(SMTP, "EMAIL_FROM")).email).toEqual({ transport: "CONSOLE" });
-  });
-
-  it("LIVE missing SMTP_PASS turns email off", () => {
-    expect(resolveIntegrationConfig("LIVE", without(EVERYTHING, "SMTP_PASS")).email).toEqual({ transport: "OFF" });
-  });
-
-  it("LIVE with SMTP and APP_URL sends over SMTP", () => {
-    const config = resolveIntegrationConfig("LIVE", { ...SMTP, APP_URL });
+  it("production with SMTP and APP_URL sends over SMTP", () => {
+    const config = resolveIntegrationConfig({ ...SMTP, APP_URL }, "production");
     expect(config.appUrl).toBe(APP_URL);
     expect(config.email.transport).toBe("SMTP");
   });
 
-  it("LIVE missing APP_URL turns email off", () => {
-    const config = resolveIntegrationConfig("LIVE", without(EVERYTHING, "APP_URL"));
+  it("production without SMTP turns email off", () => {
+    expect(resolveIntegrationConfig({ ...NOTHING, APP_URL }, "production").email).toEqual({ transport: "OFF" });
+  });
+
+  it("production missing APP_URL turns email off", () => {
+    const config = resolveIntegrationConfig(SMTP, "production");
     expect(config.appUrl).toBeNull();
     expect(config.email).toEqual({ transport: "OFF" });
   });
 
-  it("DEV prefers a stored APP_URL over the dev default", () => {
-    expect(resolveIntegrationConfig("DEV", { APP_URL }).appUrl).toBe(APP_URL);
+  it("development prefers APP_URL over the dev default", () => {
+    expect(resolveIntegrationConfig({ ...NOTHING, APP_URL }, "development").appUrl).toBe(APP_URL);
   });
 });
 
-describe("integrationFeatures", () => {
-  it("summarises what the runtime does", () => {
-    expect(integrationFeatures(resolveIntegrationConfig("LIVE", EVERYTHING))).toEqual({ email: "SMTP" });
-    expect(integrationFeatures(resolveIntegrationConfig("DEV", {}))).toEqual({ email: "CONSOLE" });
-  });
-});
-
-describe("hintOf", () => {
-  it("returns the last four characters of a long enough value", () => {
-    expect(hintOf("abcdefghijkl")).toBe("ijkl");
+describe("describeEmailTransport", () => {
+  it("names host, port and sender for SMTP, never the password", () => {
+    const line = describeEmailTransport(resolveIntegrationConfig({ ...SMTP, APP_URL }, "production"));
+    expect(line).toBe("email transport: SMTP (smtp.gmail.com:587, from Rewire <shop@gmail.com>)");
+    expect(line).not.toContain(SMTP.SMTP_PASS);
   });
 
-  it("returns a hint at exactly the minimum length", () => {
-    expect(hintOf("x".repeat(INTEGRATION_HINT_MIN_VALUE_LENGTH - 4) + "1234")).toBe("1234");
-  });
-
-  it("returns null for values shorter than the minimum", () => {
-    expect(hintOf("587")).toBeNull();
-    expect(hintOf("x".repeat(INTEGRATION_HINT_MIN_VALUE_LENGTH - 1))).toBeNull();
+  it("says why for CONSOLE and OFF", () => {
+    expect(describeEmailTransport(resolveIntegrationConfig(NOTHING, "development"))).toBe(
+      "email transport: CONSOLE (SMTP_USER, SMTP_PASS and EMAIL_FROM not set; emails print here)",
+    );
+    expect(describeEmailTransport(resolveIntegrationConfig(NOTHING, "production"))).toBe(
+      "email transport: OFF (production needs SMTP_USER, SMTP_PASS, EMAIL_FROM and APP_URL)",
+    );
   });
 });

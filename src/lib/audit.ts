@@ -22,7 +22,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
 export const DELETED_ACTOR_LABEL = "Deleted user";
 
 /** Modules since removed, so entries recorded under them still read well. */
-const RETIRED_MODULE_LABELS: [string, string][] = [["catalogue.inventory", "Inventory"]];
+const RETIRED_MODULE_LABELS: [string, string][] = [
+  ["catalogue.inventory", "Inventory"],
+  ["governance.integrations", "API Credentials"],
+];
 
 const MODULE_LABELS = new Map([
   ...RETIRED_MODULE_LABELS,

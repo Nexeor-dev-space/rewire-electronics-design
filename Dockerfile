@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 # postinstall runs `prisma generate`, which needs the config, what it imports,
 # and the schema.
 COPY prisma7.config.ts ./
-COPY src/lib/db-url.ts ./src/lib/db-url.ts
+COPY src/lib/env.ts src/lib/constants.ts ./src/lib/
 COPY prisma ./prisma
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
