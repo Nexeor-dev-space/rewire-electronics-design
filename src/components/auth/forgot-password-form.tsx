@@ -23,6 +23,7 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [sent, setSent] = useState(false);
+  const [resent, setResent] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,6 +41,11 @@ export function ForgotPasswordForm() {
     });
   }
 
+  function handleResend() {
+    setResent(false);
+    forgotPassword.mutate({ email }, { onSuccess: () => setResent(true) });
+  }
+
   const emailError = errors.email?.[0];
 
   return (
@@ -52,9 +58,27 @@ export function ForgotPasswordForm() {
         <h1 className="text-xl font-medium tracking-tight text-ink">Reset your password</h1>
 
         {sent ? (
-          <p className="mt-4 text-sm text-ink-secondary" role="status">
-            If an account exists for that email, we&apos;ve sent a link.
-          </p>
+          <>
+            <p className="mt-4 text-sm text-ink-secondary" role="status">
+              {resent
+                ? "If an account exists for that email, we've sent a new link. The earlier one no longer works."
+                : "If an account exists for that email, we've sent a link."}
+            </p>
+            {forgotPassword.isError && (
+              <p role="alert" className="mt-4 text-sm text-danger">
+                {forgotPassword.error.message}
+              </p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              loading={forgotPassword.isPending}
+              onClick={handleResend}
+              className="mt-6 w-full"
+            >
+              Send again
+            </Button>
+          </>
         ) : (
           <form onSubmit={handleSubmit} noValidate className="mt-4">
             <p className="text-sm text-ink-secondary">

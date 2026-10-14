@@ -1,12 +1,12 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { databaseUrl } from "../src/lib/db-url";
+import { databaseEnv } from "../src/lib/env";
 import { seedDeliveryAreas } from "./seed-delivery-areas";
 
 /** `npm run db:seed:areas`: loads only the delivery areas, touching no other seeded data. */
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl() }),
+  adapter: new PrismaPg({ connectionString: databaseEnv().DATABASE_URL }),
 });
 
 console.log("Delivery areas:");

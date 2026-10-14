@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { VerifyEmailBanner } from "@/components/account/verify-email-banner";
 import { SignInRedirect } from "@/components/auth/sign-in-redirect";
-import { getSession } from "@/lib/auth/session";
+import { getSession, hasSessionCookie } from "@/lib/auth/session";
 
 /**
  * Gate for every `/account/*` page. Signed out, `children` is never
@@ -14,7 +14,7 @@ import { getSession } from "@/lib/auth/session";
  */
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
-  if (!session) return <SignInRedirect />;
+  if (!session) return <SignInRedirect expired={await hasSessionCookie()} />;
 
   return (
     <>

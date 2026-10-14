@@ -234,9 +234,9 @@ Two codes need more than a message:
    `Retry-After` header in seconds. Rules live in `RATE_LIMITS` in
    `src/lib/constants.ts`; see [AUTH.md](AUTH.md) §7.
 2. `NOT_CONFIGURED` (503) means a feature's third party credentials are not
-   set, for example email in LIVE mode with no SMTP. Services throw it as a
+   set, for example email in production with no SMTP. Services throw it as a
    `ServiceError`; the shopper sees "Email isn't set up yet. Please try again
-   later." See [INTEGRATIONS.md](INTEGRATIONS.md) §6.
+   later." See [INTEGRATIONS.md](INTEGRATIONS.md) §4.
 
 A client that gets `UNAUTHENTICATED` is sent to sign-in automatically by the
 rule in `query-provider.tsx`, unless the query or mutation sets

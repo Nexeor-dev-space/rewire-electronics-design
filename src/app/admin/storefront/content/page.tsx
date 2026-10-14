@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { Badge } from "@/components/ui/badge";
 import { listPolicies } from "@/lib/policies";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
-import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Content & Policies" };
 
 export default async function ContentPoliciesPage() {
   const session = await getSession();
-  if (!session) redirect(SIGN_IN_PAGE_PATH);
+  if (!session) return null;
 
   const { permissions } = session.user;
   if (!hasPermission(permissions, PERMISSIONS.content)) {

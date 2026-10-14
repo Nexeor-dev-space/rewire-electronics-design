@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { PolicyEditor } from "@/components/admin/policy/policy-editor";
 import { getPolicy } from "@/lib/policies";
 import { POLICY_ROUTES, isPolicySlug } from "@/lib/policy-types";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
-import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -23,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PolicyEditorPage({ params }: Props) {
   const session = await getSession();
-  if (!session) redirect(SIGN_IN_PAGE_PATH);
+  if (!session) return null;
 
   const { permissions } = session.user;
   if (!hasPermission(permissions, PERMISSIONS.content, "EDIT")) {

@@ -53,7 +53,7 @@ and `updatedAt`. Money is an `Int` in fils.
 4. **`StoreSettings`** (`store_settings`): a singleton. `id` is an `Int`
    defaulting to 1, `returnWindowDays` (default 30), `updatedById` (nullable,
    `SetNull`). The service only upserts id 1. No row reads as the default
-   `RETURN_WINDOW_DAYS`, the same way `IntegrationSettings` works.
+   `RETURN_WINDOW_DAYS`.
 5. **Enums:** `ReturnStatus` and `ReturnReason`, mirrored by `RETURN_STATUSES`
    and `RETURN_REASONS` in `src/lib/returns.ts`.
 6. **Back relations:** `Order.returns`, `OrderItem.returnItems`,

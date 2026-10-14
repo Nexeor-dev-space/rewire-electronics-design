@@ -24,20 +24,22 @@ the schema after every install. `npx prisma generate` regenerates it by hand.
 
 ## 2. Environment
 
-`.env` at the repo root is for values the app needs before it can reach the
-database, and for the seed. Nothing else.
+`.env` at the repo root holds deployment values: secrets, credentials and
+values that differ per environment. The app reads them through
+`src/lib/env.ts`, which validates them with Zod.
 
 | Variable | Read by | Notes |
 | --- | --- | --- |
 | `DATABASE_URL` | App, Prisma CLI, seed | PostgreSQL URL. No quotes, no space after `=` ([POLICY-CMS.md](POLICY-CMS.md) §7) |
-| `AUTH_SECRET` | App | At least 32 characters. Signs sessions and the guest cart cookie, and derives the key that encrypts stored credentials. Changing it signs everyone out and makes every stored credential unreadable |
+| `AUTH_SECRET` | App | At least 32 characters. Signs sessions and the guest cart cookie. Changing it signs everyone out |
+| `SMTP_HOST`, `SMTP_PORT` | App, optional | Default `smtp.gmail.com`, 587 |
+| `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | App | All three or none. Without them, emails print to the log in development and are off in production |
+| `APP_URL` | App | Public origin for email links. Default `http://localhost:3000` outside production; required in production for email |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Seed only | The first Admin. The seed refuses a password under 8 characters, and skips the Admin when either is unset |
 | `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE` | Seed only, optional | Default "Administrator" and "+971 00 000 0000" |
 
-`SMTP_*`, `EMAIL_FROM` and `APP_URL` are **not** read from `.env`; setting
-them there does nothing. An Admin sets them at Governance → **API
-Credentials** (`/admin/settings/integrations`), where they are stored
-encrypted. See [INTEGRATIONS.md](INTEGRATIONS.md).
+Rules, defaults and the Gmail and Resend setup are in
+[INTEGRATIONS.md](INTEGRATIONS.md).
 
 Do not add an env var without approval. Settings an admin may change belong in
 the database.
@@ -60,7 +62,7 @@ npm run dev          # Next dev server with Turbopack, http://localhost:3000
 | `npm run db:deploy` | `prisma migrate deploy`: applies the committed migrations that are pending. Never creates one | Any, including production |
 | `npm run db:migrate -- --name <snake_case>` | `prisma migrate dev`: creates a migration from schema changes and applies it | Local development database only, after the change is approved |
 | `npm run db:seed` | `prisma db seed`, which runs `tsx prisma/seed.ts` | See the warning below |
-| `npm run db:seed:areas` | `tsx prisma/seed-areas-only.ts`: loads `prisma/data/delivery-areas.xlsx` into `delivery_areas`, adding only missing areas ([CART.md](CART.md) §5.1) | Any, after the `add_delivery_areas` migration; touches no other data |
+| `npm run db:seed:areas` | `tsx prisma/seed-areas-only.ts`: loads `prisma/data/delivery-areas.xlsx` into `delivery_areas`, adding only missing areas ([CART.md](CART.md) §5.1) | Any, after the `add_delivery_area` migration; touches no other data |
 | `npm run db:studio` | Prisma Studio, a browser view of the data | Local |
 
 Commit a new migration folder in the same commit as its model change, and never

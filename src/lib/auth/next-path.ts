@@ -3,6 +3,7 @@ import {
   NEXT_PATH_MAX_LENGTH,
   REGISTER_PAGE_PATH,
   RESET_PASSWORD_PAGE_PATH,
+  SESSION_EXPIRED_PARAM,
   SIGN_IN_PAGE_PATH,
   VERIFY_EMAIL_PAGE_PATH,
 } from "@/lib/constants";
@@ -41,7 +42,11 @@ export function safeNextPath(raw: string | null | undefined): string | null {
   return raw;
 }
 
-export function signInHref(next?: string | null): string {
+export function signInHref(next?: string | null, options: { expired?: boolean } = {}): string {
+  const params = new URLSearchParams();
   const safe = safeNextPath(next);
-  return safe ? `${SIGN_IN_PAGE_PATH}?next=${encodeURIComponent(safe)}` : SIGN_IN_PAGE_PATH;
+  if (safe) params.set("next", safe);
+  if (options.expired) params.set(SESSION_EXPIRED_PARAM, "1");
+  const query = params.toString();
+  return query ? `${SIGN_IN_PAGE_PATH}?${query}` : SIGN_IN_PAGE_PATH;
 }

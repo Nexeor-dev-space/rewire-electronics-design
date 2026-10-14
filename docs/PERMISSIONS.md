@@ -125,7 +125,6 @@ only the levels that grant more than the one below (`availableLevels`):
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
 | Staff accounts | `service.staff` | Admin only | |
-| API Credentials | `governance.integrations` | Admin only | |
 | Roles | `governance.roles` | Admin only | |
 
 Orders and Fulfilment (`PERMISSIONS.orders`, `PERMISSIONS.fulfilment`) were

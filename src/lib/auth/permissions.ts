@@ -40,7 +40,6 @@ export const PERMISSIONS = {
   brands: adminPermission("catalogue", "brands"),
   products: adminPermission("catalogue", "products"),
   addOns: adminPermission("catalogue", "add-ons"),
-  integrations: adminPermission("governance", "integrations"),
   coupons: adminPermission("marketing", "coupons"),
   orders: adminPermission("sales", "orders"),
   fulfilment: adminPermission("sales", "fulfilment"),
@@ -82,7 +81,6 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.changeLog, label: "Change Log", actions: ["VIEW"] },
   { key: PERMISSIONS.trash, label: "Trash", actions: ["VIEW", "RESTORE", "DELETE"] },
   { key: PERMISSIONS.staffAccounts, label: "Staff accounts", actions: CRUD, adminOnly: true },
-  { key: PERMISSIONS.integrations, label: "API Credentials", actions: VIEW_EDIT, adminOnly: true },
   { key: PERMISSIONS.roles, label: "Roles", actions: VIEW_EDIT, adminOnly: true },
 ];
 
@@ -240,8 +238,4 @@ export function assignableRoles(viewer: Role): Role[] {
 /** A password decides who can sign in as an account, so only Admins set one. */
 export function canSetPassword(viewer: Role): boolean {
   return viewer === "ADMIN";
-}
-
-export function canManageIntegrations(role: Role): boolean {
-  return role === "ADMIN";
 }

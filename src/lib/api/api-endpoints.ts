@@ -4,7 +4,6 @@
  */
 
 import type { Emirate } from "@/lib/emirates";
-import type { IntegrationKey } from "@/types/integration";
 
 const V1 = "/api/v1";
 
@@ -49,11 +48,6 @@ export const API_ENDPOINTS = {
       order: `${V1}/admin/homepage/order`,
       publish: `${V1}/admin/homepage/publish`,
       discard: `${V1}/admin/homepage/discard`,
-    },
-    integrations: {
-      status: `${V1}/admin/integrations`,
-      mode: `${V1}/admin/integrations/mode`,
-      credential: (key: IntegrationKey) => `${V1}/admin/integrations/credentials/${key}`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,

@@ -31,7 +31,7 @@ and its rich-text content, rendered title-left / content-right.
 | `src/lib/policies.ts` | Cached server reads |
 | `src/lib/rich-text.ts` | Validation on write, plain-text flattening |
 | `src/lib/faq-entry.ts` | Policy → FAQ accordion adapter |
-| `src/lib/db.ts`, `src/lib/db-url.ts` | Prisma client and the connection string |
+| `src/lib/db.ts`, `src/lib/env.ts` | Prisma client and the connection string |
 | `src/app/admin/storefront/content/` | Console list, editor route, `savePolicy` (checks the session and `storefront.content` permission) |
 | `src/components/admin/policy/` | The editor and its block rows |
 | `src/components/policy/` | The storefront document, page shell and renderer |
@@ -231,11 +231,11 @@ lede so the route never answers 200 with a blank body.
 
 ### Connection
 
-`DATABASE_URL` is the only variable. `src/lib/db-url.ts` is the single
-resolver — it trims the value and throws a clear error when it is unset — and
-all three consumers import it: the runtime client (`src/lib/db.ts`), the CLI
-config (`prisma7.config.ts`) and the seed (`prisma/seed.ts`), so they cannot
-end up pointed at different databases.
+`DATABASE_URL` is read in one place, `src/lib/env.ts`, which trims the value
+and throws a clear error when it is unset. All three consumers use it: the
+runtime client (`src/lib/db.ts`) and the seed (`prisma/seed.ts`) through
+`databaseEnv()`, and the CLI config (`prisma7.config.ts`) through
+`optionalDatabaseUrl()`, so they cannot end up pointed at different databases.
 
 The trim is not cosmetic. A leading space in `.env` produces Prisma's
 `P1013: The provided database string is invalid`, which reads like a malformed
@@ -245,8 +245,9 @@ URL rather than stray whitespace.
 DATABASE_URL=postgresql://user:password@localhost:5432/rewire_locale
 ```
 
-No quotes, no space after `=`. `db-url.ts` deliberately has no imports and no
-`server-only`, because `prisma7.config.ts` loads it outside the Next runtime.
+No quotes, no space after `=`. `env.ts` deliberately has no `server-only` and
+imports only `zod` and `constants.ts`, because `prisma7.config.ts` loads it
+outside the Next runtime.
 
 The runtime client caps its pg pool at `DB_POOL_MAX` (`src/lib/constants.ts`).
 The server is small and several app containers can share one Postgres, so the

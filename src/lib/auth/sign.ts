@@ -1,10 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { readAuthSecret } from "./auth-secret";
+import { authEnv } from "@/lib/env";
 
 const SEPARATOR = ".";
 
 export function sign(payload: string): string {
-  return createHmac("sha256", readAuthSecret()).update(payload).digest("base64url");
+  return createHmac("sha256", authEnv().AUTH_SECRET).update(payload).digest("base64url");
 }
 
 export function signed(payload: string): string {

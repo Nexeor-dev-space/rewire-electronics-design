@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AccessDenied } from "@/components/auth/access-denied";
+import { SignInRedirect } from "@/components/auth/sign-in-redirect";
 import { adminConsole, isAdminTheme } from "@/lib/admin-console";
-import { ADMIN_THEME_COOKIE, SIGN_IN_PAGE_PATH } from "@/lib/constants";
+import { ADMIN_THEME_COOKIE } from "@/lib/constants";
 import { canAccessAdmin, hasAnyModule } from "@/lib/auth/permissions";
-import { getSession } from "@/lib/auth/session";
+import { getSession, hasSessionCookie } from "@/lib/auth/session";
 
 /**
  * Admin route group.
@@ -35,7 +35,7 @@ export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSession();
-  if (!session) redirect(SIGN_IN_PAGE_PATH);
+  if (!session) return <SignInRedirect expired={await hasSessionCookie()} />;
   const { role, permissions } = session.user;
   if (!canAccessAdmin(role) || !hasAnyModule(permissions)) return <AccessDenied email={session.user.email} />;
 

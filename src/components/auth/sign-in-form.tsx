@@ -17,9 +17,10 @@ import { signInSchema } from "@/validators/auth.validator";
 interface Props {
   /** Where to land after a successful sign-in, if it's a safe path. */
   next?: string;
+  expired?: boolean;
 }
 
-export function SignInForm({ next }: Props) {
+export function SignInForm({ next, expired = false }: Props) {
   const router = useRouter();
   const signIn = useSignIn();
   const id = useId();
@@ -62,6 +63,11 @@ export function SignInForm({ next }: Props) {
         className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8"
       >
         <h1 className="text-xl font-medium tracking-tight text-ink">Sign in</h1>
+        {expired && (
+          <p role="status" className="mt-2 text-sm text-ink-secondary">
+            Your session has ended. Sign in again to continue.
+          </p>
+        )}
 
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
