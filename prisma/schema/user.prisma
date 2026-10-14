@@ -47,10 +47,8 @@ model User {
 
   storeSettingsUpdates StoreSettings[]
 
-  integrationSettingsUpdates   IntegrationSettings[]
-  integrationCredentialUpdates IntegrationCredential[]
-  staffRoleUpdates             StaffRole[]             @relation("StaffRoleUpdatedBy")
-  auditLogs                    AuditLog[]
+  staffRoleUpdates StaffRole[] @relation("StaffRoleUpdatedBy")
+  auditLogs        AuditLog[]
 
   @@index([state, updatedAt])
   @@index([staffRoleId])
