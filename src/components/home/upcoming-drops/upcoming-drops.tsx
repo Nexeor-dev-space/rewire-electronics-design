@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { getUpcomingDrops, type UpcomingDrop } from "@/lib/drops";
 import { headingLines } from "@/lib/homepage-sections";
-import type { PublishedSection } from "@/types/homepage";
+import type { PublishedDrop, PublishedSection } from "@/types/homepage";
 import { resolveWaitlistPreselect } from "@/lib/waitlist";
 import { buttonVariants } from "@/components/ui/button";
 import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
@@ -36,9 +35,10 @@ const lineClip = {
  * Section 02 — Upcoming Drops.
  *
  * The release calendar, read as a shopping decision: an oversized
- * statement, then four plates that each answer what it is, what it
- * costs, what that saves, whether any are left, and what to do — with
- * nothing important hidden behind a hover.
+ * statement, then plates that each answer what it is, what it costs, what
+ * that saves, whether any are left, and what to do — with nothing
+ * important hidden behind a hover. The drops are the section's items in
+ * Homepage Builder; their products, pictures and stock are the catalogue's.
  *
  * The unbuyable states (upcoming, sold out) share one waitlist dialog
  * owned here rather than one per card, so four cards cannot mount four
@@ -50,10 +50,10 @@ const lineClip = {
  * Waitlist" on.
  */
 export function UpcomingDrops({ section }: { section: PublishedSection }) {
-  const drops = getUpcomingDrops();
-  const [waitlistDrop, setWaitlistDrop] = useState<UpcomingDrop | null>(null);
+  const { drops } = section;
+  const [waitlistDrop, setWaitlistDrop] = useState<PublishedDrop | null>(null);
   const preselect = waitlistDrop
-    ? resolveWaitlistPreselect(waitlistDrop.name, waitlistDrop.variant)
+    ? resolveWaitlistPreselect(waitlistDrop.name, waitlistDrop.variant ?? "")
     : undefined;
 
   return (

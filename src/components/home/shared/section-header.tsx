@@ -8,7 +8,7 @@ import { DURATION, EASE_OUT_EXPO, staggerChildren, viewportOnce } from "@/lib/mo
 
 /**
  * The header and closing link the CMS-built sections share, set in the same
- * type scale and motion as Best sellers so an added section reads as part of
+ * type scale and motion as Just listed so an added section reads as part of
  * the page rather than a widget dropped onto it.
  */
 

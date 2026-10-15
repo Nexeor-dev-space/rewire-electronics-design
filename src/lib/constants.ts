@@ -21,6 +21,14 @@ export const SEARCH_SUGGESTION_LIMITS = { products: 5, brands: 4, categories: 4 
 
 export const DB_POOL_MAX = 5;
 
+/**
+ * The store's clock. Times staff enter (a drop's release) are read in this
+ * zone and times shoppers see are shown in it, whatever zone their device is
+ * in. See `src/lib/dates.ts`.
+ */
+export const STORE_TIME_ZONE = "Asia/Dubai";
+export const STORE_TIME_ZONE_LABEL = "GST";
+
 export const VAT_RATE_PERCENT = 5;
 export const MAX_COUPON_TARGETS = 50;
 export const COUPON_CODE_MIN_LENGTH = 3;

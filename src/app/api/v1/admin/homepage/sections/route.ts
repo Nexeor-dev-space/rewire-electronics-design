@@ -1,11 +1,10 @@
 import type { NextRequest } from "next/server";
-import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
 import { recordAudit } from "@/services/audit.service";
 import { addHomepageSection } from "@/services/homepage.service";
-import { createHomepageSectionSchema } from "@/validators/homepage.validator";
+import { createHomepageSectionSchema, sectionIssueErrors } from "@/validators/homepage.validator";
 import { SECTION_RULES } from "@/lib/homepage-sections";
 
 export async function POST(req: NextRequest) {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
       "VALIDATION",
       "Please check the highlighted fields.",
       422,
-      z.flattenError(input.error).fieldErrors,
+      sectionIssueErrors(input.error),
     );
   }
 

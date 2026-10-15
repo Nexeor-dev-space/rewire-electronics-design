@@ -1,9 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { getReviewSummary, getTestimonials } from "@/lib/testimonials";
 import { headingLines } from "@/lib/homepage-sections";
-import type { PublishedSection } from "@/types/homepage";
+import type { PublishedReview, PublishedSection } from "@/types/homepage";
 import {
   DURATION,
   EASE_OUT_EXPO,
@@ -35,15 +34,17 @@ const lineClip = {
  * underneath, the same words read as reporting. The carousel keeps that
  * shape at any length — see `testimonial-carousel.tsx`.
  *
- * The summary line is **derived** from the collection, never written down.
- * See the warning at the top of `lib/testimonials.ts`: a hardcoded rating
- * is a factual claim that survives the swap to real content unnoticed. The
- * rating is dropped entirely when nothing in the data carries one, so this
- * is safe to ship before real reviews exist.
+ * The reviews are the section's items in Homepage Builder → Reviews.
+ *
+ * The summary line is **derived** from the reviews shown, never written
+ * down: a hardcoded rating is a factual claim that outlives the reviews it
+ * was about. The rating is dropped when no review carries one. Reviews are
+ * typed in by staff, not tied to an order, so nothing here claims a
+ * "verified purchase".
  */
 export function Stories({ section }: { section: PublishedSection }) {
-  const testimonials = getTestimonials();
-  const { average, verifiedCount } = getReviewSummary();
+  const { reviews } = section;
+  const average = averageRating(reviews);
 
   return (
     <section
@@ -87,7 +88,7 @@ export function Stories({ section }: { section: PublishedSection }) {
                   <span className="text-ink-faint"> · </span>
                 </>
               )}
-              {verifiedCount} verified purchases
+              {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
             </motion.p>
           </div>
 
@@ -108,9 +109,15 @@ export function Stories({ section }: { section: PublishedSection }) {
           variants={rise}
           className="mt-12 lg:mt-16"
         >
-          <TestimonialCarousel items={testimonials} />
+          <TestimonialCarousel items={reviews} />
         </motion.div>
       </div>
     </section>
   );
+}
+
+/** Mean of the ratings present, or null when no review has one. */
+function averageRating(reviews: PublishedReview[]): number | null {
+  const ratings = reviews.flatMap((review) => (review.rating === null ? [] : [review.rating]));
+  return ratings.length > 0 ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : null;
 }

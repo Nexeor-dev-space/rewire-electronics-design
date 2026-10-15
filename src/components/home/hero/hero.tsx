@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useCallback, type MouseEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   motion,
   useMotionValue,
@@ -16,18 +10,12 @@ import {
   useTransform,
   useReducedMotion,
 } from "framer-motion";
-import { getLiveDrop } from "@/lib/drops";
+import { buttonVariants } from "@/components/ui/button";
 import { headingLines } from "@/lib/homepage-sections";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import type { PublishedSection } from "@/types/homepage";
 import { CategoryStrip } from "./category-strip";
-
-/** Dwell per device before the next crossfade. */
-const CYCLE_MS = 6000;
-
-/** Horizontal travel before a drag counts as a swipe rather than a tap. */
-const SWIPE_MIN_PX = 44;
 
 /** One entrance, several delays — the column reads top to bottom. */
 function enter(delay: number) {
@@ -39,89 +27,20 @@ function enter(delay: number) {
 }
 
 /**
- * Hero — a limited release in progress, not a shop window.
+ * Hero — the brand's opening statement, set from Homepage Builder → Hero.
  *
- * On desktop: the drop's argument on columns 1–4, the device on 5–9, and
- * its ledger on a dedicated rail at 10–12, sharing one baseline so the eye
- * reads product → price → how many remain → act.
+ * On desktop: the argument (heading, copy, button) on columns 1–4, the
+ * hero image on 5–9, and the tagline on a dedicated rail at 10–12.
  *
- * Below `lg` the running order changes rather than merely narrowing. The
- * sequence is one uninterrupted purchase block — device, controls, name,
- * variant, price, scarcity, then both CTAs — with the brand statement
- * after it. Nothing about buying is separated from the photograph by a
- * marketing headline, and the drop's numbers appear once, attached to the
- * product they describe, rather than again in a card further down.
+ * Below `lg` the running order changes rather than merely narrowing: the
+ * image first, then the tagline, then the argument and its button.
  *
- * The plinth turns over every six seconds. Rotation stops on reduced
- * motion, while focus is inside the hero, and while the pointer is on the
- * device itself.
+ * The image is the one staff upload — a desktop version and, optionally, a
+ * phone version (`mobileImageUrl`, which falls back to the desktop one).
+ * Without an image the centrepiece is left out and the copy stands alone.
  */
 export function Hero({ section }: { section: PublishedSection }) {
-  const drop = getLiveDrop();
   const prefersReducedMotion = useReducedMotion();
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [steered, setSteered] = useState(false);
-
-  const count = drop.devices.length;
-
-  /* ---------- Crossfade rotation ----------
-      Stops for good the moment the visitor works the controls: once
-      somebody is choosing what to look at, advancing the frame under them
-      is the carousel behaviour everyone hates. */
-  useEffect(() => {
-    if (prefersReducedMotion || paused || steered) return;
-    const id = window.setInterval(
-      () => setActive((i) => (i + 1) % count),
-      CYCLE_MS,
-    );
-    return () => window.clearInterval(id);
-  }, [prefersReducedMotion, paused, steered, count]);
-
-
-  const pause = useCallback(() => setPaused(true), []);
-  const resume = useCallback(() => setPaused(false), []);
-
-  const goPrev = useCallback(() => {
-    setSteered(true);
-    setActive((i) => (i - 1 + count) % count);
-  }, [count]);
-
-  const goNext = useCallback(() => {
-    setSteered(true);
-    setActive((i) => (i + 1) % count);
-  }, [count]);
-
-  /* ---------- Swipe ----------
-      Pointer events rather than touch, so a trackpad drag works too.
-      Nothing is prevented or captured: the gesture is only *read* on
-      release, which leaves vertical scrolling completely untouched — a
-      carousel that eats downward swipes is worse than one with no
-      gesture at all. A horizontal intent has to beat both the distance
-      floor and the vertical travel to count. */
-  const swipeFrom = useRef<{ x: number; y: number } | null>(null);
-
-  const onPointerDown = useCallback((event: ReactPointerEvent) => {
-    swipeFrom.current = { x: event.clientX, y: event.clientY };
-  }, []);
-
-  const onPointerUp = useCallback(
-    (event: ReactPointerEvent) => {
-      const from = swipeFrom.current;
-      swipeFrom.current = null;
-      if (!from) return;
-      const dx = event.clientX - from.x;
-      const dy = event.clientY - from.y;
-      if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)) return;
-      if (dx < 0) goNext();
-      else goPrev();
-    },
-    [goNext, goPrev],
-  );
-
-  const onPointerCancel = useCallback(() => {
-    swipeFrom.current = null;
-  }, []);
 
   /* ---------- Cursor tilt — a few degrees, spring-settled ---------- */
   const mx = useMotionValue(0);
@@ -158,8 +77,6 @@ export function Hero({ section }: { section: PublishedSection }) {
       aria-labelledby="hero-heading"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      onFocusCapture={pause}
-      onBlurCapture={resume}
       // `min-h-svh` is a landscape assumption: on a portrait desktop-width
       // canvas (iPad Pro 12.9", 1024×1366) stretching to the viewport
       // opens a ~500px void between the masthead and the product, because
@@ -304,89 +221,91 @@ export function Hero({ section }: { section: PublishedSection }) {
             repeating it here was pushing the promise "Premium certified
             electronics." down a rank on the page it is meant to open. */}
         <div className="grid w-full gap-y-6 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-10 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[auto_auto_1fr] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
-          {/* Phone-only live indicator — the drop-edition line above
-              carried it on mobile before; now it stands alone as the one
-              chrome the top of the mobile hero needs. */}
-          <motion.p
-            {...enter(0)}
-            className="order-1 flex items-center justify-end gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink min-[480px]:max-md:col-span-2 md:hidden"
-          >
-            <span
-              aria-hidden
-              className="size-1.5 shrink-0 animate-pulse-dot rounded-full bg-urgent"
-            />
-            Live
-          </motion.p>
-
           {/* ---------- Centrepiece · columns 5–9 ---------- */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{
-              delay: 0.45,
-              duration: DURATION.cinematic,
-              ease: EASE_OUT_EXPO,
-            }}
-            onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerCancel}
-            className="relative order-2 min-[480px]:max-md:col-start-1 min-[480px]:max-md:row-start-2 md:col-span-4 md:col-start-5 md:row-span-4 md:row-start-1 lg:col-span-5 lg:col-start-5"
-          >
+          {section.imageUrl && (
             <motion.div
-              style={
-                prefersReducedMotion
-                  ? undefined
-                  : { rotateX, rotateY, transformPerspective: 1100 }
-              }
-              // Biased right of the column centre so the product's mass sits
-              // near 56% of the viewport instead of dead centre.
-              //
-              // Phones get 34svh under a hard 280px ceiling. The cutouts
-              // are `object-contain`, so a tall box does not make the
-              // device bigger — it pads it with air and pushes the price
-              // of admission below the fold.
-              // From `lg` the box height is the *smaller* of 55svh and
-              // 38vw. The cutouts are roughly square and `object-contain`
-              // renders them at the column's width (~42vw), so any box
-              // taller than that is pure air — which is exactly what a
-              // portrait viewport produced (a 929px box around a 437px
-              // image). On landscape desktops the svh term is already the
-              // smaller one, so that is the term the banner is tuned on.
-              //
-              // It was 68svh before the category strip existed. The strip
-              // costs ~170px at the foot of the banner, and the whole
-              // point of this composition is that it resolves inside one
-              // screen — at 68svh the cards landed 30px above a 900px
-              // fold, which is a strip nobody sees. The height came out
-              // of the device rather than out of the strip because a
-              // half-visible row of five plates reads as a bug, while a
-              // slightly smaller product still reads as the product.
-              className="relative z-10 mx-auto h-[26svh] max-h-[12rem] w-full max-w-xl min-[480px]:max-h-[16rem] sm:h-[40svh] sm:max-h-[21rem] md:h-[min(55svh,38vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{
+                delay: 0.45,
+                duration: DURATION.cinematic,
+                ease: EASE_OUT_EXPO,
+              }}
+              className="relative order-2 min-[480px]:max-md:col-start-1 min-[480px]:max-md:row-start-2 md:col-span-4 md:col-start-5 md:row-span-4 md:row-start-1 lg:col-span-5 lg:col-start-5"
             >
               <motion.div
-                animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
-                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0"
+                style={
+                  prefersReducedMotion
+                    ? undefined
+                    : { rotateX, rotateY, transformPerspective: 1100 }
+                }
+                // Biased right of the column centre so the product's mass sits
+                // near 56% of the viewport instead of dead centre.
+                //
+                // Phones get 34svh under a hard 280px ceiling. The cutouts
+                // are `object-contain`, so a tall box does not make the
+                // device bigger — it pads it with air and pushes the price
+                // of admission below the fold.
+                // From `lg` the box height is the *smaller* of 55svh and
+                // 38vw. The cutouts are roughly square and `object-contain`
+                // renders them at the column's width (~42vw), so any box
+                // taller than that is pure air — which is exactly what a
+                // portrait viewport produced (a 929px box around a 437px
+                // image). On landscape desktops the svh term is already the
+                // smaller one, so that is the term the banner is tuned on.
+                //
+                // It was 68svh before the category strip existed. The strip
+                // costs ~170px at the foot of the banner, and the whole
+                // point of this composition is that it resolves inside one
+                // screen — at 68svh the cards landed 30px above a 900px
+                // fold, which is a strip nobody sees. The height came out
+                // of the device rather than out of the strip because a
+                // half-visible row of five plates reads as a bug, while a
+                // slightly smaller product still reads as the product.
+                className="relative z-10 mx-auto h-[26svh] max-h-[12rem] w-full max-w-xl min-[480px]:max-h-[16rem] sm:h-[40svh] sm:max-h-[21rem] md:h-[min(55svh,38vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
               >
-                {drop.devices.map((item, i) => (
-                  <Image
-                    key={item.id}
-                    src={item.image.url}
-                    alt={i === active ? item.image.alt : ""}
-                    fill
-                    priority={i === 0}
-                    loading={i === 0 ? undefined : "eager"}
-                    sizes="(max-width: 1024px) 80vw, 42vw"
-                    className={cn(
-                      "object-contain transition-opacity duration-(--duration-cinematic) ease-(--ease-in-out-soft)",
-                      i === active ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                ))}
+                <motion.div
+                  animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
+                  transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-0"
+                >
+                  {/* Decorative, like the promo banner's: the heading beside
+                      it carries the meaning, and there is no alt-text field.
+                      The phone version swaps in below `md` when there is one. */}
+                  {section.mobileImageUrl && section.mobileImageUrl !== section.imageUrl ? (
+                    <>
+                      <Image
+                        src={section.mobileImageUrl}
+                        alt=""
+                        fill
+                        priority
+                        sizes="80vw"
+                        className="object-contain md:hidden"
+                      />
+                      <Image
+                        src={section.imageUrl}
+                        alt=""
+                        fill
+                        priority
+                        sizes="(max-width: 1024px) 50vw, 42vw"
+                        className="hidden object-contain md:block"
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={section.imageUrl}
+                      alt=""
+                      fill
+                      priority
+                      sizes="(max-width: 1024px) 80vw, 42vw"
+                      className="object-contain"
+                    />
+                  )}
+                </motion.div>
               </motion.div>
-            </motion.div>
 
-          </motion.div>
+            </motion.div>
+          )}
 
           {/* ---------- Tagline · right rail ----------
               Where the LiveDropPanel used to live. Editorial statement
@@ -443,6 +362,26 @@ export function Hero({ section }: { section: PublishedSection }) {
               <p className="mt-5 text-base leading-relaxed text-ink-secondary sm:mt-8">
                 {section.subtitle}
               </p>
+            )}
+            {section.ctaLabel && section.ctaHref && (
+              <Link
+                href={section.ctaHref}
+                className={cn(buttonVariants({ size: "md" }), "mt-8")}
+              >
+                {section.ctaLabel}
+                <svg
+                  aria-hidden
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3.5"
+                >
+                  <path d="M3 8h10M9 4l4 4-4 4" />
+                </svg>
+              </Link>
             )}
           </motion.div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { RefPicker } from "@/components/admin/homepage/ref-picker";
+import { SectionItemsEditor, type ItemDraft } from "@/components/admin/homepage/section-items-editor";
 import { ImageField } from "@/components/admin/shared/image-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -11,6 +12,7 @@ import { useAddHomepageSection, useUpdateHomepageSection } from "@/hooks/use-hom
 import { apiFieldErrors } from "@/lib/api/api-client";
 import {
   emptySectionInput,
+  itemToInput,
   sectionToInput,
   validateSection,
   type SectionFormInput,
@@ -65,7 +67,16 @@ function SectionForm({
     initial ? sectionToInput(initial) : emptySectionInput(),
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? null);
+  const [mobileImageUrl, setMobileImageUrl] = useState(initial?.mobileImageUrl ?? null);
   const [refs, setRefs] = useState<SectionRef[]>(initial?.refs ?? []);
+  const [items, setItems] = useState<ItemDraft[]>(() =>
+    (initial?.items ?? []).map((item) => ({
+      key: item.id,
+      input: itemToInput(item),
+      product: item.product,
+      imageUrl: item.imageUrl,
+    })),
+  );
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
 
   const addSection = useAddHomepageSection();
@@ -78,7 +89,11 @@ function SectionForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const body = { ...form, refIds: refs.map((ref) => ref.id) };
+    const body = {
+      ...form,
+      refIds: refs.map((ref) => ref.id),
+      items: items.map((item) => item.input),
+    };
 
     const localErrors = validateSection(type, body);
     if (Object.keys(localErrors).length > 0) {
@@ -134,7 +149,7 @@ function SectionForm({
 
           {rule.image && (
             <ImageField
-              label="Image (optional)"
+              label={rule.mobileImage ? "Image, desktop (optional)" : "Image (optional)"}
               value={form.imageId}
               previewUrl={imageUrl}
               error={error("imageId")}
@@ -145,8 +160,25 @@ function SectionForm({
             />
           )}
 
+          {rule.mobileImage && (
+            <ImageField
+              label="Image, phones (optional — uses the desktop image without one)"
+              value={form.mobileImageId}
+              previewUrl={mobileImageUrl}
+              error={error("mobileImageId")}
+              onChange={(imageId, url) => {
+                set("mobileImageId", imageId);
+                setMobileImageUrl(url);
+              }}
+            />
+          )}
+
           {rule.refs && (
             <RefPicker kind={rule.refs} value={refs} onChange={setRefs} error={error("refIds")} />
+          )}
+
+          {rule.items && (
+            <SectionItemsEditor kind={rule.items} value={items} onChange={setItems} errors={errors} />
           )}
 
           <div className="flex flex-col gap-3">

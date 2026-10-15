@@ -26,7 +26,7 @@ export function HomepageSection({
   section: PublishedSection;
   /** The FAQ policy's entries; the FAQ section is omitted when there are none. */
   faqs: FaqEntry[];
-  /** The catalogue's newest products; the product shelf is omitted when there are none. */
+  /** The catalogue's newest products, for a Just Listed shelf with no picks. */
   products: ShopCard[];
 }): ReactNode {
   switch (section.type) {
@@ -34,8 +34,12 @@ export function HomepageSection({
       return <Hero section={section} />;
     case "UPCOMING_DROPS":
       return <UpcomingDrops section={section} />;
-    case "BEST_SELLERS":
-      return products.length > 0 ? <Featured section={section} products={products} /> : null;
+    case "BEST_SELLERS": {
+      // Just Listed: staff picks when any can be bought, else the newest
+      // products. The shelf is omitted when both are empty.
+      const shelf = section.products.length > 0 ? section.products : products;
+      return shelf.length > 0 ? <Featured section={section} products={shelf} /> : null;
+    }
     case "CONDITIONS":
       return <WhatYouHave section={section} />;
     case "TESTIMONIALS":

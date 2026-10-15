@@ -30,8 +30,10 @@ const lineClip = {
 };
 
 /**
- * The everyday shelf. Copy comes from the homepage CMS; the products come
- * from the catalogue (`listNewestShopProducts`), never from the CMS.
+ * Just Listed — the everyday shelf. Copy comes from the homepage CMS; the
+ * products are staff picks from Catalogue → Products or, with none, the
+ * newest listings (`listNewestShopProducts`). Name, image, price and stock
+ * are always the catalogue's.
  */
 export function Featured({
   section,

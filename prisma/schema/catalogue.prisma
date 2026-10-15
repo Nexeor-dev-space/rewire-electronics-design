@@ -116,6 +116,10 @@ model Product {
   specs    ProductSpec[]
   coupons  CouponProduct[]
 
+  /// Homepage drops and Just Listed picks. Deleting the product for good
+  /// deletes them; while it is unpublished or in Trash the homepage skips them.
+  homepageItems HomepageSectionItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

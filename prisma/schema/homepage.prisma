@@ -11,6 +11,9 @@ enum HomepageStage {
 enum HomepageSectionType {
   HERO
   UPCOMING_DROPS
+  /// Shown everywhere as "Just listed". The stored value keeps its old name:
+  /// renaming a Postgres enum value that rows already use needs a hand-edited
+  /// migration, and nothing outside the database sees it.
   BEST_SELLERS
   CONDITIONS
   TESTIMONIALS
@@ -39,17 +42,67 @@ model HomepageSection {
   /// A real relation, not an id inside JSON: the orphan sweep deletes any
   /// asset nothing references.
   imageId String?
-  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  image   MediaAsset? @relation("HomepageSectionImage", fields: [imageId], references: [id], onDelete: SetNull)
+
+  /// The Hero's image below `md`. Without one, phones get `image`.
+  mobileImageId String?
+  mobileImage   MediaAsset? @relation("HomepageSectionMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
 
   /// Brand or Category ids in display order. Ids that no longer exist are
   /// skipped when the section renders.
   refIds String[]
+
+  /// Drops, Just Listed picks or reviews, by the section's type.
+  items HomepageSectionItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([stage, sortOrder])
   @@map("homepage_sections")
+}
+
+/// One entry inside a section: a drop, a picked product or a review. Which
+/// fields an item may fill comes from its section's type — `ITEM_RULES` in
+/// `src/lib/homepage-sections.ts`. Items belong to one stage through their
+/// section, so publish copies them with it.
+model HomepageSectionItem {
+  id        String          @id @default(cuid())
+  sectionId String
+  section   HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sortOrder Int
+  visible   Boolean         @default(true)
+
+  /// Drops and Just Listed picks. Name, image, price and stock are read from
+  /// the product when the page renders — nothing is copied. Deleting the
+  /// product for good deletes the item: one left without it would fail its
+  /// kind's rules and block saving the section.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Drop: overrides the product's name. Review: the product bought.
+  title     String?
+  /// Review: the quote.
+  body      String?
+  /// Review: the customer, e.g. "Arjun M.".
+  author    String?
+  /// Review: 1–5.
+  rating    Int?
+  /// Drop: when it opens.
+  releaseAt DateTime?
+  ctaLabel  String?
+  ctaHref   String?
+
+  /// Drop: the picture when there is no product. Review: the avatar.
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sectionId, sortOrder])
+  @@index([productId])
+  @@map("homepage_section_items")
 }
 
 /// A single row, id "homepage". Drives the console's "Unpublished changes".

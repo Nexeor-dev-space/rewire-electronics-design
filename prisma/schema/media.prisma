@@ -10,8 +10,10 @@ model MediaAsset {
   brands           Brand[]
   productImages    ProductImage[]
   productOgImages  Product[]
-  homepageSections HomepageSection[]
-  orderItems       OrderItem[]
+  homepageSections       HomepageSection[]     @relation("HomepageSectionImage")
+  homepageMobileSections HomepageSection[]     @relation("HomepageSectionMobileImage")
+  homepageItems          HomepageSectionItem[]
+  orderItems             OrderItem[]
 
   @@map("media_assets")
 }
