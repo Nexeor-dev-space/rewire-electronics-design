@@ -196,6 +196,9 @@ kind, and a Staff account its role, happens here, in the Staff modal.
   badge (`GuestBadge`) beside the name. It can't sign in until it gets a
   password; setting one in the Edit modal clears the flag. Creating a user
   with a guest's email answers 409, like any taken email.
+* **Unverified badge:** a registered customer whose `emailVerifiedAt` is null
+  shows an "Unverified" badge beside the name. It disappears once they open
+  the verification link ([AUTH.md](AUTH.md)). Guests and staff never show it.
 * **Delete is soft:** `state` becomes `INACTIVE`. The account disappears from
   the list and can't sign in; its email stays taken. It waits in Governance →
   Trash → Users, where it can be restored ([TRASH-AUDIT.md](TRASH-AUDIT.md)).

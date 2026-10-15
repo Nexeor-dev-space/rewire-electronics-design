@@ -25,6 +25,7 @@ const userSelect = {
   phone: true,
   role: true,
   isGuest: true,
+  emailVerifiedAt: true,
   staffRole: { select: { id: true, name: true } },
   updatedAt: true,
 } satisfies Prisma.UserSelect;
