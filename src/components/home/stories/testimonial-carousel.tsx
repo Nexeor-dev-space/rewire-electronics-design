@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useReducedMotion } from "framer-motion";
-import type { Testimonial } from "@/lib/testimonials";
 import { cn } from "@/lib/utils";
+import type { PublishedReview } from "@/types/homepage";
 
 /**
  * TestimonialCarousel — a scroll track, not a slider widget.
@@ -26,7 +27,7 @@ import { cn } from "@/lib/utils";
  * collection already fits, which is what makes three reviews and fifty
  * reviews the same component.
  */
-export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
+export function TestimonialCarousel({ items }: { items: PublishedReview[] }) {
   const trackRef = useRef<HTMLUListElement>(null);
   const [index, setIndex] = useState(0);
   const [perView, setPerView] = useState(1);
@@ -100,20 +101,24 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
               </p>
             </blockquote>
 
-            <div className="mt-7 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-[0.9375rem] font-medium text-ink">
-                {item.author}
-              </span>
-              {item.verified && (
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-                  Verified purchase
+            <div className="mt-7 flex items-center gap-3">
+              {/* Optional, and small: a portrait is a courtesy, not proof. */}
+              {item.avatarUrl && (
+                <span className="relative size-9 shrink-0 overflow-hidden rounded-full bg-surface-3">
+                  <Image src={item.avatarUrl} alt="" fill sizes="36px" className="object-cover" />
                 </span>
               )}
+              <div className="min-w-0">
+                <span className="block text-[0.9375rem] font-medium text-ink">
+                  {item.author}
+                </span>
+                {item.product && (
+                  <p className="mt-1.5 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-faint">
+                    {item.product}
+                  </p>
+                )}
+              </div>
             </div>
-
-            <p className="mt-1.5 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-faint">
-              {item.product} · {item.drop}
-            </p>
           </li>
         ))}
       </ul>

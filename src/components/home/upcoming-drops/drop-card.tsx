@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { DropStatus, UpcomingDrop } from "@/lib/drops";
-import { productHrefForDrop } from "@/lib/route-map";
-import { cn, formatPrice, savingsPercent } from "@/lib/utils";
+import type { DropStatus } from "@/lib/drops";
+import { formatMoney } from "@/lib/money";
+import { cn, savingsPercent } from "@/lib/utils";
+import type { PublishedDrop } from "@/types/homepage";
 import { Countdown } from "@/components/ui/countdown";
 import { WishlistButton } from "@/components/product/wishlist-button";
 
 interface DropCardProps {
-  drop: UpcomingDrop;
+  drop: PublishedDrop;
   /** First card above the fold gets eager loading. */
   priority?: boolean;
   /** Opens the section's waitlist dialog — used by the unbuyable states. */
@@ -22,7 +23,7 @@ interface DropCardProps {
  * carry more information than an ordinary product's, so this maps each
  * to a concrete row rather than reusing the shop's `availabilityLabel`.
  */
-function availabilityFor(drop: UpcomingDrop): string | null {
+function availabilityFor(drop: PublishedDrop): string | null {
   switch (drop.status) {
     case "available":
       return `${drop.unitsLeft} units left`;
@@ -48,17 +49,27 @@ function availabilityFor(drop: UpcomingDrop): string | null {
  *   coming-soon      → countdown chip bottom-left of the plate
  *   primary action   → Add to cart (buyable) or Join Waitlist (not)
  *
- * The whole plate is a link to the PDP (or drop page for unlaunched
- * releases); the wishlist and cart controls sit above the stretched
- * pseudo-element on `z-20` and cancel the navigation on click.
+ * Everything comes from the drop's product in the catalogue — its picture,
+ * price and stock — or, for a release not in the catalogue yet, from the
+ * drop's own title and image. A drop with its own button (`ctaLabel` +
+ * `ctaHref`) offers that instead of the card's usual action.
+ *
+ * The whole plate is a link to the PDP when there is one; the wishlist and
+ * cart controls sit above the stretched pseudo-element on `z-20` and cancel
+ * the navigation on click.
  */
 export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
   const isSoldOut = drop.status === "sold-out";
   const isComingSoon = drop.status === "coming-soon";
-  const isBuyable = !isSoldOut && !isComingSoon;
-  const saving = savingsPercent(drop.price, drop.originalPrice);
+  const isBuyable = !isSoldOut && !isComingSoon && drop.href !== null;
+  const saving =
+    drop.price !== null && drop.originalPrice !== null
+      ? savingsPercent(drop.price, drop.originalPrice)
+      : 0;
   const availability = availabilityFor(drop);
-  const brand = drop.name.split(" ")[0];
+  const ownButton = drop.ctaLabel && drop.ctaHref ? { label: drop.ctaLabel, href: drop.ctaHref } : null;
+  /** Where the primary action goes; null means it opens the waitlist. */
+  const actionHref = ownButton?.href ?? (isBuyable ? drop.href : null);
 
   return (
     <article className="group/card relative flex h-full w-full flex-col">
@@ -73,18 +84,22 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
           the product itself (mostly dark cutouts) multiplies with cream
           to a very slightly warmed version of the same colour. */}
       <div className="relative aspect-square overflow-hidden rounded-xl border border-white/[0.04] bg-plate">
-        <Image
-          src={drop.image.url}
-          alt={drop.image.alt}
-          fill
-          priority={priority}
-          sizes="(max-width: 640px) 86vw, (max-width: 1280px) 46vw, 24vw"
-          className={cn(
-            "object-cover [mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
-            "group-hover/card:scale-[1.04]",
-            isSoldOut && "opacity-45 grayscale",
-          )}
-        />
+        {/* A product without photos is shown on the bare plate rather than
+            dropped — the name, price and action still stand. */}
+        {drop.imageUrl && (
+          <Image
+            src={drop.imageUrl}
+            alt={drop.imageAlt}
+            fill
+            priority={priority}
+            sizes="(max-width: 640px) 86vw, (max-width: 1280px) 46vw, 24vw"
+            className={cn(
+              "object-cover [mix-blend-mode:multiply] transition-transform duration-(--duration-slow) ease-(--ease-out-expo)",
+              "group-hover/card:scale-[1.04]",
+              isSoldOut && "opacity-45 grayscale",
+            )}
+          />
+        )}
 
         {/* Top-left: availability signal, small mono like the reference.
             Not rendered for coming-soon — the countdown at the bottom
@@ -111,65 +126,85 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
         {/* Coming-soon: countdown docked bottom-left of the plate. The
             drop card's one drop-specific chrome — every other corner
             behaves like an ordinary product card. */}
-        {isComingSoon && (
+        {isComingSoon && drop.releaseAt && (
           <span className="glass-strong pointer-events-none absolute bottom-3.5 left-3.5 inline-flex items-center gap-2 rounded-full px-3 py-1.5 shadow-(--shadow-soft)">
             <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
               Opens in
             </span>
             <Countdown
               compact
-              target={drop.startsAt}
+              target={drop.releaseAt}
               label={`${drop.name} drop opens in`}
               className="font-mono text-[0.625rem] leading-none tracking-[0.06em] text-ink"
             />
           </span>
         )}
 
-        <WishlistButton
-          product={{ slug: drop.slug, name: drop.name }}
-          className="absolute bottom-3 right-3 z-20"
-        />
+        {drop.slug && (
+          <WishlistButton
+            product={{ slug: drop.slug, name: drop.name }}
+            className="absolute bottom-3 right-3 z-20"
+          />
+        )}
       </div>
 
       {/* ---------- Copy ---------- */}
       <div className="flex flex-1 flex-col pt-5">
-        <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-          {brand}
-        </p>
+        {drop.brand && (
+          <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+            {drop.brand}
+          </p>
+        )}
 
         <h3 className="mt-2 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
-          <Link
-            href={productHrefForDrop(drop.slug)}
-            // Whole plate is one link; the wishlist and cart controls
-            // sit above it on `z-20` and stop propagation.
-            className="after:absolute after:inset-0 after:content-['']"
-          >
-            {drop.name}
-          </Link>
+          {drop.href ? (
+            <Link
+              href={drop.href}
+              // Whole plate is one link; the wishlist and cart controls
+              // sit above it on `z-20` and stop propagation.
+              className="after:absolute after:inset-0 after:content-['']"
+            >
+              {drop.name}
+            </Link>
+          ) : (
+            drop.name
+          )}
         </h3>
 
-        <p className="mt-1 text-[0.8125rem] text-ink-secondary">
-          {drop.variant}
-        </p>
+        {drop.variant && (
+          <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+            {drop.variant}
+          </p>
+        )}
 
-        <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
-          <span
-            className={cn(
-              "text-[1.0625rem] font-medium tabular-nums",
-              isSoldOut ? "text-ink-muted line-through" : "text-ink",
+        {/* The release moment itself, beside the countdown on the plate.
+            Already formatted on the server in store time. */}
+        {drop.opensAt && (
+          <p className="mt-2 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+            Opens {drop.opensAt}
+          </p>
+        )}
+
+        {drop.price !== null && (
+          <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
+            <span
+              className={cn(
+                "text-[1.0625rem] font-medium tabular-nums",
+                isSoldOut ? "text-ink-muted line-through" : "text-ink",
+              )}
+            >
+              {formatMoney(drop.price)}
+            </span>
+            {drop.originalPrice !== null && drop.originalPrice > drop.price && !isSoldOut && (
+              <>
+                <span className="sr-only">was </span>
+                <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+                  {formatMoney(drop.originalPrice)}
+                </s>
+              </>
             )}
-          >
-            {formatPrice(drop.price, drop.currency, drop.locale)}
-          </span>
-          {drop.originalPrice > drop.price && !isSoldOut && (
-            <>
-              <span className="sr-only">was </span>
-              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
-                {formatPrice(drop.originalPrice, drop.currency, drop.locale)}
-              </s>
-            </>
-          )}
-        </p>
+          </p>
+        )}
 
         {/* Primary action — a link to the product page when the drop is
             buyable (this card has no real variant to add, so it hands
@@ -177,10 +212,10 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
             otherwise. Both share one visual shape so a grid of
             mixed-state cards has a single action bar rhythm. `z-20`
             keeps the control above the stretched plate link. */}
-        <div className="relative z-20 mt-4">
-          {isBuyable ? (
+        <div className={cn("relative z-20", drop.price === null ? "mt-auto pt-5" : "mt-4")}>
+          {actionHref ? (
             <Link
-              href={productHrefForDrop(drop.slug)}
+              href={actionHref}
               className={cn(
                 "inline-flex h-11 w-full items-center justify-center gap-2 rounded-full",
                 "bg-accent text-[0.8125rem] font-medium tracking-tight text-white",
@@ -188,7 +223,7 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
                 "hover:bg-accent-hover active:scale-[0.98]",
               )}
             >
-              View &amp; Buy
+              {ownButton ? ownButton.label : <>View &amp; Buy</>}
               <svg
                 aria-hidden
                 viewBox="0 0 16 16"
