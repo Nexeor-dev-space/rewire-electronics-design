@@ -496,6 +496,8 @@ const homepage: SeedSection[] = [
     description: "Certified refurbished electronics, released in numbered editions.",
     title: "Premium certified electronics.",
     subtitle: "Professionally inspected. Fully warranted. Released in very limited quantities.",
+    ctaLabel: "Shop the collection",
+    ctaHref: SHOP_INDEX_HREF,
   },
   {
     type: "UPCOMING_DROPS",
@@ -542,31 +544,54 @@ const homepage: SeedSection[] = [
   },
 ];
 
+/** Upcoming Drops: the newest seeded products, the last two still to open. */
+const SEED_DROPS = 4;
+const SEED_DROP_OPENS_IN_DAYS = [null, null, 7, 14];
+
 /**
  * Replaces the whole homepage — draft and live — and marks it published. Like
  * the policies, this overwrites anything edited in the console. Images that
- * only the old rows referenced are collected by the upload sweep.
+ * only the old rows referenced are collected by the upload sweep. Runs after
+ * the catalogue, which the drops point at. Reviews start empty: there are no
+ * real ones to seed.
  */
 async function seedHomepage() {
   const now = new Date();
+  const dropProducts = await prisma.product.findMany({
+    where: { status: "PUBLISHED", deletedAt: null },
+    orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+    take: SEED_DROPS,
+    select: { id: true },
+  });
+  const drops = dropProducts.map((product, index) => {
+    const days = SEED_DROP_OPENS_IN_DAYS[index] ?? null;
+    return {
+      sortOrder: index,
+      productId: product.id,
+      releaseAt: days === null ? null : new Date(now.getTime() + days * 24 * 60 * 60 * 1000),
+    };
+  });
 
   await prisma.$transaction(async (tx) => {
     await tx.homepageSection.deleteMany({});
 
     for (const stage of ["DRAFT", "LIVE"] as const) {
-      await tx.homepageSection.createMany({
-        data: homepage.map((section, index) => ({
-          stage,
-          type: section.type,
-          sortOrder: index,
-          title: section.title,
-          eyebrow: section.eyebrow ?? null,
-          subtitle: section.subtitle ?? null,
-          description: section.description ?? null,
-          ctaLabel: section.ctaLabel ?? null,
-          ctaHref: section.ctaHref ?? null,
-        })),
-      });
+      for (const [index, section] of homepage.entries()) {
+        await tx.homepageSection.create({
+          data: {
+            stage,
+            type: section.type,
+            sortOrder: index,
+            title: section.title,
+            eyebrow: section.eyebrow ?? null,
+            subtitle: section.subtitle ?? null,
+            description: section.description ?? null,
+            ctaLabel: section.ctaLabel ?? null,
+            ctaHref: section.ctaHref ?? null,
+            items: { create: section.type === "UPCOMING_DROPS" ? drops : [] },
+          },
+        });
+      }
     }
 
     await tx.homepageState.upsert({
@@ -576,18 +601,18 @@ async function seedHomepage() {
     });
   });
 
-  console.log(`  ${homepage.length} sections, published`);
+  console.log(`  ${homepage.length} sections, ${drops.length} drops, published`);
 }
 
 async function main() {
   console.log("Policies:");
   await seedPolicies();
-  console.log("Homepage:");
-  await seedHomepage();
   console.log("Admin:");
   await seedAdmin();
   console.log("Catalogue:");
   await seedCatalogue(prisma);
+  console.log("Homepage:");
+  await seedHomepage();
   console.log("Delivery zones:");
   await seedDeliveryZones(prisma);
   console.log("Delivery areas:");

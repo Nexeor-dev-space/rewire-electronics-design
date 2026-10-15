@@ -4,15 +4,23 @@
  * file only adapts them to the form.
  */
 
-import { z } from "zod";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { checkSectionFields, type HomepageSectionType } from "@/lib/homepage-sections";
 import type { CategoryNode } from "@/types/category";
-import type { HomepageSection, HomepageSectionInput, SectionRef } from "@/types/homepage";
-import { homepageSectionSchema } from "@/validators/homepage.validator";
+import type {
+  HomepageSection,
+  HomepageSectionInput,
+  HomepageSectionItem,
+  HomepageSectionItemInput,
+  SectionRef,
+} from "@/types/homepage";
+import { homepageSectionSchema, sectionIssueErrors } from "@/validators/homepage.validator";
 
 /** A section body with every field present, as the form holds it. */
 export type SectionFormInput = Required<HomepageSectionInput>;
+
+/** An item body with every field present, as the form holds it. */
+export type SectionItemFormInput = Required<HomepageSectionItemInput>;
 
 /** `items` with the one at `index` moved one place; unchanged at the ends. */
 export function swapItems<T>(items: T[], index: number, offset: -1 | 1): T[] {
@@ -33,9 +41,11 @@ export function sectionToInput(section: HomepageSection): SectionFormInput {
     ctaLabel: section.ctaLabel,
     ctaHref: section.ctaHref,
     imageId: section.imageId,
+    mobileImageId: section.mobileImageId,
     seasonal: section.seasonal,
     visible: section.visible,
     refIds: section.refs.map((ref) => ref.id),
+    items: section.items.map(itemToInput),
   };
 }
 
@@ -48,9 +58,42 @@ export function emptySectionInput(): SectionFormInput {
     ctaLabel: null,
     ctaHref: null,
     imageId: null,
+    mobileImageId: null,
     seasonal: false,
     visible: true,
     refIds: [],
+    items: [],
+  };
+}
+
+/** A draft item as the body its section's PUT expects. */
+export function itemToInput(item: HomepageSectionItem): SectionItemFormInput {
+  return {
+    visible: item.visible,
+    productId: item.productId,
+    title: item.title,
+    body: item.body,
+    author: item.author,
+    rating: item.rating,
+    releaseAt: item.releaseAt,
+    ctaLabel: item.ctaLabel,
+    ctaHref: item.ctaHref,
+    imageId: item.imageId,
+  };
+}
+
+export function emptyItemInput(): SectionItemFormInput {
+  return {
+    visible: true,
+    productId: null,
+    title: null,
+    body: null,
+    author: null,
+    rating: null,
+    releaseAt: null,
+    ctaLabel: null,
+    ctaHref: null,
+    imageId: null,
   };
 }
 
@@ -63,12 +106,7 @@ export function validateSection(
   input: SectionFormInput,
 ): Record<string, string[]> {
   const parsed = homepageSectionSchema.safeParse(input);
-  if (!parsed.success) {
-    const fields: Record<string, string[] | undefined> = z.flattenError(parsed.error).fieldErrors;
-    return Object.fromEntries(
-      Object.entries(fields).filter((entry): entry is [string, string[]] => Boolean(entry[1]?.length)),
-    );
-  }
+  if (!parsed.success) return sectionIssueErrors(parsed.error);
   return checkSectionFields(type, parsed.data);
 }
 

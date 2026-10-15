@@ -475,6 +475,21 @@ export async function listNewestShopProducts(limit: number) {
   return rows.map((row) => toCard(row));
 }
 
+/**
+ * Products by id as shop cards, keyed by id — for the homepage's drops and
+ * Just Listed picks. Only what the shop would show: published, not in Trash,
+ * under a visible category, with at least one variant. Anything else is
+ * simply missing from the map.
+ */
+export async function findShopCards(ids: string[]): Promise<Map<string, ShopCard>> {
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.product.findMany({
+    where: { id: { in: ids }, ...PUBLISHED, variants: { some: {} } },
+    select: cardSelect,
+  });
+  return new Map(rows.map((row) => [row.id, toCard(row)]));
+}
+
 export function offeredAddOnWhere(categoryIds: string[]): Prisma.AddOnWhereInput {
   return {
     active: true,

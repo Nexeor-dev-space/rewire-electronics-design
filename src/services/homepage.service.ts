@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
+import { formatStoreDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import {
   MAX_HOMEPAGE_SECTIONS,
@@ -12,20 +13,31 @@ import {
   type HomepageSectionType,
 } from "@/lib/homepage-sections";
 import { SHOP_INDEX_HREF, productHrefForCategory } from "@/lib/route-map";
+import { productHref } from "@/lib/shop";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
-import type { PublishedSection } from "@/types/homepage";
+import { availabilityFromStock } from "@/types";
+import type { ShopCard } from "@/types/catalogue";
+import type {
+  HomepageSectionItem,
+  PublishedDrop,
+  PublishedReview,
+  PublishedSection,
+  SectionItemProduct,
+} from "@/types/homepage";
 import type {
   createHomepageSectionSchema,
+  homepageSectionItemSchema,
   homepageSectionSchema,
 } from "@/validators/homepage.validator";
-import { VISIBLE_CATEGORY } from "./catalogue.service";
+import { PUBLISHED, VISIBLE_CATEGORY, findShopCards } from "./catalogue.service";
 import { imageExists, releaseImage } from "./media.service";
 
 /**
  * The homepage as rows. Every section exists twice: DRAFT, which the console
  * edits, and LIVE, which the storefront reads. Publish replaces LIVE with a
  * copy of DRAFT and discard does the reverse, each in one transaction, so a
- * half-finished arrangement never reaches shoppers.
+ * half-finished arrangement never reaches shoppers. A section's items (drops,
+ * Just Listed picks, reviews) belong to it and are copied with it.
  *
  * Only DRAFT rows are ever addressed by id. A LIVE id answers 404.
  */
@@ -33,9 +45,24 @@ import { imageExists, releaseImage } from "./media.service";
 type Tx = Prisma.TransactionClient;
 type Stage = "DRAFT" | "LIVE";
 type SectionData = z.output<typeof homepageSectionSchema>;
+type ItemData = z.output<typeof homepageSectionItemSchema>;
 type CreateSectionData = z.output<typeof createHomepageSectionSchema>;
 
 const STATE_ID = "homepage";
+
+const itemSelect = {
+  id: true,
+  visible: true,
+  productId: true,
+  title: true,
+  body: true,
+  author: true,
+  rating: true,
+  releaseAt: true,
+  ctaLabel: true,
+  ctaHref: true,
+  imageId: true,
+} satisfies Prisma.HomepageSectionItemSelect;
 
 const sectionSelect = {
   id: true,
@@ -50,11 +77,23 @@ const sectionSelect = {
   ctaLabel: true,
   ctaHref: true,
   imageId: true,
+  mobileImageId: true,
   refIds: true,
+  items: { select: itemSelect, orderBy: { sortOrder: "asc" } },
   updatedAt: true,
 } satisfies Prisma.HomepageSectionSelect;
 
 type SectionRow = Prisma.HomepageSectionGetPayload<{ select: typeof sectionSelect }>;
+type ItemRow = SectionRow["items"][number];
+
+/** Every image a row holds: its own, its mobile one and its items'. */
+const imagesSelect = {
+  imageId: true,
+  mobileImageId: true,
+  items: { select: { imageId: true } },
+} satisfies Prisma.HomepageSectionSelect;
+
+type ImagesRow = Prisma.HomepageSectionGetPayload<{ select: typeof imagesSelect }>;
 
 interface RefRow {
   id: string;
@@ -78,7 +117,7 @@ export async function getHomepageDraft() {
     }),
     prisma.homepageState.findUnique({ where: { id: STATE_ID } }),
   ]);
-  const refs = await loadRefs(rows);
+  const [refs, products] = await Promise.all([loadRefs(rows), loadItemProducts(rows)]);
 
   return {
     sections: rows.map((row) => ({
@@ -94,7 +133,24 @@ export async function getHomepageDraft() {
       ctaHref: row.ctaHref,
       imageId: row.imageId,
       imageUrl: imageUrlOrNull(row.imageId),
+      mobileImageId: row.mobileImageId,
+      mobileImageUrl: imageUrlOrNull(row.mobileImageId),
       refs: refsOf(row, refs).map(({ id, name }) => ({ id, name })),
+      items: row.items.map((item): HomepageSectionItem => ({
+        id: item.id,
+        visible: item.visible,
+        productId: item.productId,
+        product: item.productId ? (products.get(item.productId) ?? null) : null,
+        title: item.title,
+        body: item.body,
+        author: item.author,
+        rating: item.rating,
+        releaseAt: item.releaseAt?.toISOString() ?? null,
+        ctaLabel: item.ctaLabel,
+        ctaHref: item.ctaHref,
+        imageId: item.imageId,
+        imageUrl: imageUrlOrNull(item.imageId),
+      })),
       updatedAt: row.updatedAt,
     })),
     hasUnpublishedChanges:
@@ -140,6 +196,7 @@ export async function addHomepageSection(data: CreateSectionData) {
         stage: "DRAFT",
         type: data.type,
         sortOrder: (last?.sortOrder ?? -1) + 1,
+        items: { create: data.items.map(itemColumnsOf) },
       },
     });
     await touchDraft(tx);
@@ -153,18 +210,21 @@ export async function updateHomepageSection(id: string, data: SectionData) {
     await lockHomepage(tx);
     const current = await tx.homepageSection.findFirst({
       where: { id, stage: "DRAFT" },
-      select: { type: true, imageId: true },
+      select: { type: true, ...imagesSelect },
     });
     if (!current) throw notFound();
 
     await assertSectionValid(tx, current.type, data);
-    await tx.homepageSection.update({ where: { id }, data: columnsOf(data) });
+    // Items are replaced wholesale, like a product's images and specs.
+    await tx.homepageSectionItem.deleteMany({ where: { sectionId: id } });
+    await tx.homepageSection.update({
+      where: { id },
+      data: { ...columnsOf(data), items: { create: data.items.map(itemColumnsOf) } },
+    });
 
-    // The LIVE copy may still point at the old image; releaseImage keeps it
-    // while any row of either stage does.
-    if (current.imageId !== null && current.imageId !== data.imageId) {
-      await releaseImage(tx, current.imageId);
-    }
+    // Every image the old version held. The LIVE copy may still point at
+    // some; releaseImage keeps any that a row of either stage still uses.
+    await releaseImages(tx, [current]);
     await touchDraft(tx);
   });
 
@@ -176,7 +236,7 @@ export async function deleteHomepageSection(id: string) {
     await lockHomepage(tx);
     const current = await tx.homepageSection.findFirst({
       where: { id, stage: "DRAFT" },
-      select: { type: true, imageId: true },
+      select: { type: true, ...imagesSelect },
     });
     if (!current) throw notFound();
 
@@ -189,7 +249,7 @@ export async function deleteHomepageSection(id: string) {
     }
 
     await tx.homepageSection.delete({ where: { id } });
-    if (current.imageId !== null) await releaseImage(tx, current.imageId);
+    await releaseImages(tx, [current]);
     await touchDraft(tx);
   });
 
@@ -247,11 +307,12 @@ export async function publishHomepage() {
 
     const oldLive = await tx.homepageSection.findMany({
       where: { stage: "LIVE" },
-      select: { imageId: true },
+      select: imagesSelect,
     });
 
+    // Items go with their sections (cascade).
     await tx.homepageSection.deleteMany({ where: { stage: "LIVE" } });
-    await tx.homepageSection.createMany({ data: draft.map((row) => copyAs(row, "LIVE")) });
+    await copySections(tx, draft, "LIVE");
     // After the copy, so an image both versions share is still referenced.
     await releaseImages(tx, oldLive);
 
@@ -286,11 +347,11 @@ export async function discardHomepageDraft() {
     });
     const oldDraft = await tx.homepageSection.findMany({
       where: { stage: "DRAFT" },
-      select: { imageId: true },
+      select: imagesSelect,
     });
 
     await tx.homepageSection.deleteMany({ where: { stage: "DRAFT" } });
-    await tx.homepageSection.createMany({ data: live.map((row) => copyAs(row, "DRAFT")) });
+    await copySections(tx, live, "DRAFT");
     await releaseImages(tx, oldDraft);
 
     // The draft now equals what is live, so there is nothing unpublished.
@@ -315,7 +376,8 @@ export function getPublishedHomepage(): Promise<PublishedSection[]> {
  * cached. The homepage renders per request anyway (`force-dynamic`), and a
  * cache here outlived the seed (which runs outside Next and can't clear it)
  * and served an empty homepage. Reading fresh also means a renamed,
- * unpublished or deleted brand or category leaves the page immediately.
+ * unpublished or deleted brand, category or product leaves the page
+ * immediately, and a drop's status follows its stock and release date.
  * DRAFT feeds the staff preview, LIVE the storefront.
  */
 export async function getHomepageSections(stage: Stage): Promise<PublishedSection[]> {
@@ -324,10 +386,19 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
     select: sectionSelect,
     orderBy: { sortOrder: "asc" },
   });
-  const refs = await loadRefs(rows, { visibleOnly: true });
+
+  const productIds = rows.flatMap((row) =>
+    row.items.flatMap((item) => (item.visible && item.productId ? [item.productId] : [])),
+  );
+  const [refs, cards] = await Promise.all([
+    loadRefs(rows, { visibleOnly: true }),
+    findShopCards([...new Set(productIds)]),
+  ]);
+  const now = new Date();
 
   return rows.flatMap((row) => {
     const kind = SECTION_RULES[row.type].refs;
+    const itemKind = SECTION_RULES[row.type].items;
     const items = refsOf(row, refs).map((ref) => ({
       id: ref.id,
       name: ref.name,
@@ -335,9 +406,31 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
       href: ref.href,
     }));
 
-    // Every chosen brand deleted or category unpublished, or a title missing
-    // from a hand-edited row: render nothing rather than empty chrome.
-    if ((kind !== null && items.length === 0) || !row.title) return [];
+    const shown = row.items.filter((item) => item.visible);
+    const drops =
+      itemKind === "drops" ? shown.flatMap((item) => toDrop(item, cards, now) ?? []) : [];
+    const reviews = itemKind === "reviews" ? shown.flatMap((item) => toReview(item) ?? []) : [];
+    // Picks the shop can't sell right now are skipped; with none left the
+    // shelf falls back to the newest products.
+    const products =
+      itemKind === "products"
+        ? shown.flatMap((item) => {
+            const card = item.productId ? cards.get(item.productId) : undefined;
+            return card && card.stock > 0 ? [card] : [];
+          })
+        : [];
+
+    // Every chosen brand deleted or category unpublished, every drop or
+    // review hidden or gone, or a title missing from a hand-edited row:
+    // render nothing rather than empty chrome.
+    if (
+      (kind !== null && items.length === 0) ||
+      (itemKind === "drops" && drops.length === 0) ||
+      (itemKind === "reviews" && reviews.length === 0) ||
+      !row.title
+    ) {
+      return [];
+    }
 
     return [
       {
@@ -351,10 +444,89 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
         ctaLabel: row.ctaLabel,
         ctaHref: row.ctaHref,
         imageUrl: imageUrlOrNull(row.imageId),
+        // Phones fall back to the main image.
+        mobileImageUrl: imageUrlOrNull(row.mobileImageId ?? row.imageId),
         items,
+        drops,
+        products,
+        reviews,
       },
     ];
   });
+}
+
+/**
+ * A drop card from its product, read now: price, stock and picture are the
+ * catalogue's, and the status follows the release date and stock. A drop
+ * without a product is a teaser for a release not in the catalogue yet; it
+ * shows only until its release date. Null when there is nothing to show — a
+ * product the shop wouldn't list, or a teaser whose date has passed.
+ */
+function toDrop(item: ItemRow, cards: Map<string, ShopCard>, now: Date): PublishedDrop | null {
+  const upcoming = item.releaseAt !== null && item.releaseAt > now;
+  const releaseAt = item.releaseAt?.toISOString() ?? null;
+  const shared = {
+    id: item.id,
+    releaseAt,
+    opensAt: upcoming && releaseAt ? formatStoreDateTime(releaseAt) : null,
+    ctaLabel: item.ctaLabel,
+    ctaHref: item.ctaHref,
+  };
+
+  if (item.productId) {
+    const card = cards.get(item.productId);
+    if (!card) return null;
+    const availability = availabilityFromStock(card.stock);
+    return {
+      ...shared,
+      slug: card.slug,
+      name: item.title ?? card.name,
+      brand: card.brand,
+      variant: [card.variant, card.storage].filter(Boolean).join(" · ") || null,
+      status: upcoming
+        ? "coming-soon"
+        : availability === "sold-out"
+          ? "sold-out"
+          : availability === "low-stock"
+            ? "almost-gone"
+            : "available",
+      price: card.price,
+      originalPrice: card.originalPrice,
+      unitsLeft: card.stock,
+      // The product's own picture; the item's upload only when it has none.
+      imageUrl: card.imageUrl ?? imageUrlOrNull(item.imageId),
+      imageAlt: card.imageAlt,
+      href: productHref(card),
+    };
+  }
+
+  if (!upcoming || !item.title) return null;
+  return {
+    ...shared,
+    slug: null,
+    name: item.title,
+    brand: null,
+    variant: null,
+    status: "coming-soon",
+    price: null,
+    originalPrice: null,
+    unitsLeft: null,
+    imageUrl: imageUrlOrNull(item.imageId),
+    imageAlt: item.title,
+    href: null,
+  };
+}
+
+function toReview(item: ItemRow): PublishedReview | null {
+  if (!item.body || !item.author) return null;
+  return {
+    id: item.id,
+    quote: item.body,
+    author: item.author,
+    product: item.title,
+    rating: item.rating,
+    avatarUrl: imageUrlOrNull(item.imageId),
+  };
 }
 
 /* ---------- rules ---------- */
@@ -379,9 +551,34 @@ async function assertSectionValid(tx: Tx, type: HomepageSectionType, data: Secti
     }
   }
 
-  if (data.imageId !== null && !(await imageExists(tx, data.imageId))) {
-    const message = "That image no longer exists. Upload it again.";
-    throw new ServiceError("VALIDATION", message, 422, { imageId: [message] });
+  // Any product that exists may be chosen. Draft, archived and Trashed ones
+  // are skipped on the storefront until they are listed again, so a product
+  // moved to Trash never blocks saving — or hiding — the section it is in.
+  const productIds = [
+    ...new Set(data.items.flatMap((item) => (item.productId ? [item.productId] : []))),
+  ];
+  if (productIds.length > 0) {
+    const found = await tx.product.count({ where: { id: { in: productIds } } });
+    if (found !== productIds.length) {
+      const message = "One of the chosen products no longer exists. Remove it and try again.";
+      throw new ServiceError("VALIDATION", message, 422, { items: [message] });
+    }
+  }
+
+  for (const [field, imageId] of [
+    ["imageId", data.imageId],
+    ["mobileImageId", data.mobileImageId],
+  ] as const) {
+    if (imageId !== null && !(await imageExists(tx, imageId))) {
+      const message = "That image no longer exists. Upload it again.";
+      throw new ServiceError("VALIDATION", message, 422, { [field]: [message] });
+    }
+  }
+  for (const [index, item] of data.items.entries()) {
+    if (item.imageId !== null && !(await imageExists(tx, item.imageId))) {
+      const message = "That image no longer exists. Upload it again.";
+      throw new ServiceError("VALIDATION", message, 422, { [`items.${index}.imageId`]: [message] });
+    }
   }
 }
 
@@ -398,30 +595,64 @@ function columnsOf(data: SectionData) {
     ctaLabel: data.ctaLabel,
     ctaHref: data.ctaHref,
     imageId: data.imageId,
+    mobileImageId: data.mobileImageId,
     refIds: data.refIds,
   };
 }
 
-function copyAs(row: SectionRow, stage: Stage): Prisma.HomepageSectionCreateManyInput {
+function itemColumnsOf(
+  item: ItemData | Omit<ItemRow, "id">,
+  index: number,
+): Prisma.HomepageSectionItemUncheckedCreateWithoutSectionInput {
   return {
-    stage,
-    type: row.type,
-    sortOrder: row.sortOrder,
-    visible: row.visible,
-    seasonal: row.seasonal,
-    eyebrow: row.eyebrow,
-    title: row.title,
-    subtitle: row.subtitle,
-    description: row.description,
-    ctaLabel: row.ctaLabel,
-    ctaHref: row.ctaHref,
-    imageId: row.imageId,
-    refIds: row.refIds,
+    sortOrder: index,
+    visible: item.visible,
+    productId: item.productId,
+    title: item.title,
+    body: item.body,
+    author: item.author,
+    rating: item.rating,
+    // A body carries an ISO string; a row being copied, a Date.
+    releaseAt: typeof item.releaseAt === "string" ? new Date(item.releaseAt) : item.releaseAt,
+    ctaLabel: item.ctaLabel,
+    ctaHref: item.ctaHref,
+    imageId: item.imageId,
   };
 }
 
-async function releaseImages(tx: Tx, rows: { imageId: string | null }[]) {
-  const ids = new Set(rows.flatMap((row) => (row.imageId === null ? [] : [row.imageId])));
+/** Recreates `rows` as `stage`, with their items. Ids are new. */
+async function copySections(tx: Tx, rows: SectionRow[], stage: Stage) {
+  for (const row of rows) {
+    await tx.homepageSection.create({
+      data: {
+        stage,
+        type: row.type,
+        sortOrder: row.sortOrder,
+        visible: row.visible,
+        seasonal: row.seasonal,
+        eyebrow: row.eyebrow,
+        title: row.title,
+        subtitle: row.subtitle,
+        description: row.description,
+        ctaLabel: row.ctaLabel,
+        ctaHref: row.ctaHref,
+        imageId: row.imageId,
+        mobileImageId: row.mobileImageId,
+        refIds: row.refIds,
+        items: { create: row.items.map(itemColumnsOf) },
+      },
+    });
+  }
+}
+
+async function releaseImages(tx: Tx, rows: ImagesRow[]) {
+  const ids = new Set(
+    rows.flatMap((row) =>
+      [row.imageId, row.mobileImageId, ...row.items.map((item) => item.imageId)].filter(
+        (id): id is string => id !== null,
+      ),
+    ),
+  );
   for (const id of ids) await releaseImage(tx, id);
 }
 
@@ -448,6 +679,45 @@ async function touchDraft(tx: Tx) {
     create: { id: STATE_ID, draftUpdatedAt: now },
     update: { draftUpdatedAt: now },
   });
+}
+
+/**
+ * The products the draft's items point at, as the builder shows them, with
+ * whether the storefront would list each. Products in Trash are still named
+ * so the builder can say why one is missing from the page.
+ */
+async function loadItemProducts(rows: Pick<SectionRow, "items">[]) {
+  const ids = [
+    ...new Set(
+      rows.flatMap((row) => row.items.flatMap((item) => (item.productId ? [item.productId] : []))),
+    ),
+  ];
+  if (ids.length === 0) return new Map<string, SectionItemProduct>();
+
+  const [products, listed] = await Promise.all([
+    prisma.product.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        name: true,
+        images: { select: { mediaId: true }, orderBy: { sortOrder: "asc" }, take: 1 },
+      },
+    }),
+    prisma.product.findMany({ where: { id: { in: ids }, ...PUBLISHED }, select: { id: true } }),
+  ]);
+  const onStorefront = new Set(listed.map((row) => row.id));
+
+  return new Map<string, SectionItemProduct>(
+    products.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        imageUrl: imageUrlOrNull(row.images[0]?.mediaId ?? null),
+        onStorefront: onStorefront.has(row.id),
+      },
+    ]),
+  );
 }
 
 /**

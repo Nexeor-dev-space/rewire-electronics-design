@@ -65,6 +65,10 @@ export const SECTION_TEXT_LIMITS: Record<SectionTextField, number> = {
 /** Keeps the admin API's one list bounded — see docs/HOMEPAGE-CMS.md. */
 export const MAX_HOMEPAGE_SECTIONS = 30;
 export const MAX_SECTION_REFS = 12;
+export const MAX_SECTION_ITEMS = 12;
+
+/** What a section's `items` hold. */
+export type SectionItemKind = "drops" | "products" | "reviews";
 
 export interface SectionTypeRule {
   label: string;
@@ -73,25 +77,30 @@ export interface SectionTypeRule {
   required: readonly SectionTextField[];
   optional: readonly SectionTextField[];
   image: boolean;
+  /** A separate image for phones. Only with `image`. */
+  mobileImage: boolean;
   seasonal: boolean;
   /** What `refIds` points at, or null when the type has no items to choose. */
   refs: "brands" | "categories" | null;
+  /** What `items` holds, or null when the type has none. */
+  items: SectionItemKind | null;
 }
 
 /**
- * A fixed type exposes exactly the slots its component had static copy in.
- * The Hero has no button; the Invitation's button opens the waitlist, so it
- * has a label and no link.
+ * A fixed type exposes exactly the slots its component renders. The
+ * Invitation's button opens the waitlist, so it has a label and no link.
  */
 export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   HERO: {
     label: "Hero",
     fixed: true,
     required: ["title"],
-    optional: ["eyebrow", "subtitle", "description"],
-    image: false,
+    optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
+    image: true,
+    mobileImage: true,
     seasonal: false,
     refs: null,
+    items: null,
   },
   UPCOMING_DROPS: {
     label: "Upcoming drops",
@@ -99,17 +108,21 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: "drops",
   },
   BEST_SELLERS: {
-    label: "Best sellers",
+    label: "Just listed",
     fixed: true,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: "products",
   },
   CONDITIONS: {
     label: "Conditions",
@@ -117,17 +130,21 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["eyebrow", "subtitle"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: null,
   },
   TESTIMONIALS: {
-    label: "Testimonials",
+    label: "Reviews",
     fixed: true,
     required: ["title"],
     optional: ["subtitle"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: "reviews",
   },
   FAQ: {
     label: "FAQ",
@@ -135,8 +152,10 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["subtitle"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: null,
   },
   INVITATION: {
     label: "Invitation",
@@ -144,8 +163,10 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title", "ctaLabel"],
     optional: ["subtitle"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: null,
+    items: null,
   },
   PROMO_BANNER: {
     label: "Promo banner",
@@ -153,8 +174,10 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
     image: true,
+    mobileImage: false,
     seasonal: true,
     refs: null,
+    items: null,
   },
   FEATURED_BRANDS: {
     label: "Featured brands",
@@ -162,8 +185,10 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: "brands",
+    items: null,
   },
   FEATURED_CATEGORIES: {
     label: "Featured categories",
@@ -171,10 +196,126 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
     image: false,
+    mobileImage: false,
     seasonal: false,
     refs: "categories",
+    items: null,
   },
 };
+
+/* ---------- items ---------- */
+
+export const ITEM_TEXT_FIELDS = ["title", "body", "author", "ctaLabel", "ctaHref"] as const;
+export type ItemTextField = (typeof ITEM_TEXT_FIELDS)[number];
+
+export const ITEM_TEXT_LIMITS: Record<ItemTextField, number> = {
+  title: 120,
+  body: 600,
+  author: 60,
+  ctaLabel: 40,
+  ctaHref: 300,
+};
+
+/** Every field an item can carry, for "which may this kind fill". */
+export type ItemField = ItemTextField | "productId" | "rating" | "releaseAt" | "imageId";
+
+const ITEM_FIELDS: readonly ItemField[] = [
+  ...ITEM_TEXT_FIELDS,
+  "productId",
+  "rating",
+  "releaseAt",
+  "imageId",
+];
+
+const ITEM_FIELD_NOUNS: Record<ItemField, string> = {
+  title: "title",
+  body: "text",
+  author: "customer name",
+  ctaLabel: "button label",
+  ctaHref: "button link",
+  productId: "product",
+  rating: "rating",
+  releaseAt: "release date",
+  imageId: "image",
+};
+
+export interface ItemKindRule {
+  /** One item, for messages: "drop", "product", "review". */
+  noun: string;
+  fields: readonly ItemField[];
+}
+
+/**
+ * - **Drops** take a product, which supplies the name, picture, price and
+ *   stock; or, for a release not yet in the catalogue, a title, an image and
+ *   a release date of their own.
+ * - **Products** are Just Listed picks: a product and nothing else.
+ * - **Reviews** are written in: quote and customer required, the product
+ *   bought, a rating and an avatar optional.
+ */
+export const ITEM_RULES: Record<SectionItemKind, ItemKindRule> = {
+  drops: {
+    noun: "drop",
+    fields: ["productId", "title", "releaseAt", "ctaLabel", "ctaHref", "imageId"],
+  },
+  products: { noun: "product", fields: ["productId"] },
+  reviews: { noun: "review", fields: ["body", "author", "title", "rating", "imageId"] },
+};
+
+export interface SectionItemFieldsInput {
+  visible: boolean;
+  productId: string | null;
+  title: string | null;
+  body: string | null;
+  author: string | null;
+  rating: number | null;
+  /** ISO string. */
+  releaseAt: string | null;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  imageId: string | null;
+}
+
+/**
+ * Field errors for one item under `kind`'s rules, keyed by field. Like
+ * sections, a field the kind doesn't carry is refused rather than dropped.
+ */
+export function checkItemFields(
+  kind: SectionItemKind,
+  item: SectionItemFieldsInput,
+): Partial<Record<ItemField, string[]>> {
+  const { noun, fields } = ITEM_RULES[kind];
+  const errors: Partial<Record<ItemField, string[]>> = {};
+  const add = (field: ItemField, message: string) => {
+    (errors[field] ??= []).push(message);
+  };
+
+  for (const field of ITEM_FIELDS) {
+    if (!fields.includes(field) && item[field] !== null) {
+      add(field, `A ${noun} has no ${ITEM_FIELD_NOUNS[field]}.`);
+    }
+  }
+
+  if (kind === "products" && !item.productId) add("productId", "Choose a product.");
+
+  if (kind === "drops" && !item.productId) {
+    // A release not in the catalogue yet: it needs its own name, picture and date.
+    if (!item.title) add("title", "Choose a product, or enter a title.");
+    if (!item.imageId) add("imageId", "Choose a product, or upload an image.");
+    if (!item.releaseAt) add("releaseAt", "Choose a product, or set a release date.");
+  }
+
+  if (kind === "reviews") {
+    if (!item.body) add("body", "Enter the review.");
+    if (!item.author) add("author", "Enter the customer's name.");
+  }
+
+  if (fields.includes("ctaLabel") && Boolean(item.ctaLabel) !== Boolean(item.ctaHref)) {
+    add(item.ctaLabel ? "ctaHref" : "ctaLabel", "Fill in both the button label and link, or neither.");
+  }
+
+  return errors;
+}
 
 /** The text fields `type` carries, in form order. */
 export function sectionFields(type: HomepageSectionType): SectionTextField[] {
@@ -192,8 +333,10 @@ export interface SectionFieldsInput {
   ctaLabel: string | null;
   ctaHref: string | null;
   imageId: string | null;
+  mobileImageId: string | null;
   seasonal: boolean;
   refIds: string[];
+  items: SectionItemFieldsInput[];
 }
 
 /**
@@ -228,6 +371,11 @@ export function checkSectionFields(
   }
 
   if (!rule.image && input.imageId) add("imageId", `A ${noun} section has no image.`);
+  if (!rule.mobileImage && input.mobileImageId) {
+    add("mobileImageId", `A ${noun} section has no mobile image.`);
+  } else if (input.mobileImageId && !input.imageId) {
+    add("mobileImageId", "Add the main image first. Phones fall back to it.");
+  }
   if (!rule.seasonal && input.seasonal) add("seasonal", `A ${noun} section can't be marked seasonal.`);
 
   if (rule.refs === null && input.refIds.length > 0) {
@@ -236,7 +384,27 @@ export function checkSectionFields(
     add("refIds", rule.refs === "brands" ? "Choose at least one brand." : "Choose at least one category.");
   }
 
+  if (rule.items === null) {
+    if (input.items.length > 0) add("items", `A ${noun} section has no items.`);
+  } else {
+    const kind = rule.items;
+    input.items.forEach((item, index) => {
+      for (const [field, messages] of Object.entries(checkItemFields(kind, item))) {
+        for (const message of messages ?? []) add(itemErrorKey(index, field as ItemField), message);
+      }
+    });
+    if (kind !== "reviews") {
+      const ids = input.items.flatMap((item) => (item.productId ? [item.productId] : []));
+      if (new Set(ids).size !== ids.length) add("items", "Each product can only be chosen once.");
+    }
+  }
+
   return errors;
+}
+
+/** Where an item's field error lands: `items.2.title`. */
+export function itemErrorKey(index: number, field: ItemField): string {
+  return `items.${index}.${field}`;
 }
 
 /**
