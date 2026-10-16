@@ -10,11 +10,11 @@ import { emirateLabel } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
 import {
   ORDER_STATUS_LABELS,
-  PAYMENT_LINK_NOTICE,
   PAYMENT_METHOD_LABELS,
+  PAYMENT_PENDING_NOTICE,
   PAYMENT_STATUS_LABELS,
-  awaitsPaymentLink,
   orderStatusTone,
+  paysOnline,
   type OrderStatus,
 } from "@/lib/orders";
 import { isReturnable } from "@/lib/returns";
@@ -330,7 +330,7 @@ function DeliveryCard({ order }: { order: OrderDetail }) {
 
 function PaymentCard({ order }: { order: OrderDetail }) {
   const showNotice =
-    order.paymentStatus === "UNPAID" && order.status !== "CANCELLED" && awaitsPaymentLink(order.paymentMethod);
+    order.paymentStatus === "UNPAID" && order.status !== "CANCELLED" && paysOnline(order.paymentMethod);
 
   return (
     <section className="rounded-2xl border border-line bg-surface p-6">
@@ -339,7 +339,7 @@ function PaymentCard({ order }: { order: OrderDetail }) {
         <p className="text-ink">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
         <p className="text-ink-secondary">{PAYMENT_STATUS_LABELS[order.paymentStatus]}</p>
       </div>
-      {showNotice && <p className="mt-3 text-[0.875rem] text-ink-secondary">{PAYMENT_LINK_NOTICE}</p>}
+      {showNotice && <p className="mt-3 text-[0.875rem] text-ink-secondary">{PAYMENT_PENDING_NOTICE}</p>}
     </section>
   );
 }

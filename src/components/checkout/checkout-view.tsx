@@ -30,8 +30,8 @@ import {
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
 import {
-  PAYMENT_LINK_NOTICE,
-  awaitsPaymentLink,
+  PAYMENT_REDIRECT_NOTICE,
+  paysOnline,
   type PaymentMethod,
 } from "@/lib/orders";
 import { cn } from "@/lib/utils";
@@ -316,8 +316,12 @@ export function CheckoutView({ payment }: Props) {
         idempotencyKey: idempotencyKey.current,
       },
       {
-        onSuccess: (order) => {
+        onSuccess: ({ order, paymentUrl }) => {
           idempotencyKey.current = null;
+          if (paymentUrl) {
+            window.location.assign(paymentUrl);
+            return;
+          }
           router.push(
             `${CHECKOUT_SUCCESS_PAGE_PATH}?order=${encodeURIComponent(order.number)}`,
           );
@@ -337,7 +341,9 @@ export function CheckoutView({ payment }: Props) {
     return (
       <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-(--spacing-gutter) py-16 text-center">
         <Spinner className="size-6 text-ink-secondary" />
-        <p className="text-sm text-ink-secondary">Opening your order…</p>
+        <p className="text-sm text-ink-secondary">
+          {placeOrder.data.paymentUrl ? "Taking you to secure payment…" : "Opening your order…"}
+        </p>
       </div>
     );
   }
@@ -660,9 +666,9 @@ export function CheckoutView({ payment }: Props) {
               options={payment}
             />
 
-            {awaitsPaymentLink(paymentMethod) && (
+            {paysOnline(paymentMethod) && (
               <p className="mt-4 text-[0.8125rem] leading-relaxed text-ink-secondary">
-                {PAYMENT_LINK_NOTICE}
+                {PAYMENT_REDIRECT_NOTICE}
               </p>
             )}
 

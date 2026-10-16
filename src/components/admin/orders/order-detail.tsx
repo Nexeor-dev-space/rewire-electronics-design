@@ -115,6 +115,11 @@ function OrderDetailBody({ order, canEdit }: { order: AdminOrderDetail; canEdit:
             <Row label="Status">
               <PaymentStatusBadge status={order.paymentStatus} />
             </Row>
+            {order.stripePaymentIntentId && (
+              <Row label="Stripe payment">
+                <span className="font-mono break-all">{order.stripePaymentIntentId}</span>
+              </Row>
+            )}
             {order.couponCode && (
               <Row label="Discount code">
                 <span className="font-mono">{order.couponCode}</span>
