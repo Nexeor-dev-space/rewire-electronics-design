@@ -67,6 +67,16 @@ export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
 export const CHECKOUT_PAGE_PATH = "/checkout";
 export const CHECKOUT_SUCCESS_PAGE_PATH = "/checkout/success";
 
+/** How long Stripe's payment page stays open (Stripe allows 30 minutes to 24 hours). */
+export const CHECKOUT_PAYMENT_WINDOW_MINUTES = 30;
+/** A retried checkout reuses the order's open Stripe page only while at least this much time is left. */
+export const CHECKOUT_SESSION_REUSE_MIN_MINUTES = 5;
+export const MS_PER_MINUTE = 60 * 1000;
+/** Query keys on the success page that Stripe returns the customer to. */
+export const CHECKOUT_SESSION_ID_PARAM = "session_id";
+export const PAYMENT_RESULT_PARAM = "payment";
+export const PAYMENT_CANCELLED_VALUE = "cancelled";
+
 export const AUTH_SECRET_MIN_LENGTH = 32;
 export const SMTP_DEFAULT_HOST = "smtp.gmail.com";
 export const SMTP_DEFAULT_PORT = 587;
@@ -94,6 +104,7 @@ export const RATE_LIMITS = {
   search: { limit: 60, windowSeconds: 60 },
   placeOrder: { limit: 10, windowSeconds: 60 * 10 },
   trackOrder: { limit: 10, windowSeconds: 60 * 15 },
+  confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";

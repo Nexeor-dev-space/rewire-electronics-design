@@ -38,6 +38,32 @@ const authSchema = z.object({
   ),
 });
 
+/** A secret (`sk_`) or restricted (`rk_`) key; a publishable `pk_` key is a common paste mistake. */
+const STRIPE_SECRET_KEY_PATTERN = /^(sk|rk)_/;
+
+const stripeSchema = z.object({
+  STRIPE_SECRET_KEY: z.preprocess(
+    blankToUndefined,
+    z
+      .string({ error: "STRIPE_SECRET_KEY must be set." })
+      .trim()
+      .regex(STRIPE_SECRET_KEY_PATTERN, "STRIPE_SECRET_KEY must be a secret key (sk_…), not the publishable key."),
+  ),
+});
+
+/** The endpoint's signing secret from the Stripe dashboard (Webhooks, Reveal). */
+const STRIPE_WEBHOOK_SECRET_PATTERN = /^whsec_/;
+
+const stripeWebhookSchema = z.object({
+  STRIPE_WEBHOOK_SECRET: z.preprocess(
+    blankToUndefined,
+    z
+      .string({ error: "STRIPE_WEBHOOK_SECRET must be set." })
+      .trim()
+      .regex(STRIPE_WEBHOOK_SECRET_PATTERN, "STRIPE_WEBHOOK_SECRET must be the endpoint's signing secret (whsec_…)."),
+  ),
+});
+
 const emailSchema = z
   .object({
     SMTP_HOST: z.preprocess(blankToUndefined, z.string().trim().default(SMTP_DEFAULT_HOST)),
@@ -60,6 +86,8 @@ const emailSchema = z
 export type DatabaseEnv = z.output<typeof databaseSchema>;
 export type AuthEnv = z.output<typeof authSchema>;
 export type EmailEnv = z.output<typeof emailSchema>;
+export type StripeEnv = z.output<typeof stripeSchema>;
+export type StripeWebhookEnv = z.output<typeof stripeWebhookSchema>;
 
 function parse<T extends z.ZodType>(schema: T, source: Source): z.output<T> {
   const result = schema.safeParse(source);
@@ -79,6 +107,14 @@ export function parseEmailEnv(source: Source): EmailEnv {
   return parse(emailSchema, source);
 }
 
+export function parseStripeEnv(source: Source): StripeEnv {
+  return parse(stripeSchema, source);
+}
+
+export function parseStripeWebhookEnv(source: Source): StripeWebhookEnv {
+  return parse(stripeWebhookSchema, source);
+}
+
 export function optionalDatabaseUrl(source: Source = process.env): string | undefined {
   return source.DATABASE_URL?.trim() || undefined;
 }
@@ -93,4 +129,13 @@ export function authEnv(): AuthEnv {
 
 export function emailEnv(): EmailEnv {
   return parseEmailEnv(process.env);
+}
+
+export function stripeEnv(): StripeEnv {
+  return parseStripeEnv(process.env);
+}
+
+/** Separate from `stripeEnv` so a missing webhook secret never stops card payments. */
+export function stripeWebhookEnv(): StripeWebhookEnv {
+  return parseStripeWebhookEnv(process.env);
 }

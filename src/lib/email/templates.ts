@@ -1,6 +1,6 @@
 import { RESET_TOKEN_TTL_SECONDS, VERIFY_TOKEN_TTL_SECONDS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
-import { PAYMENT_LINK_NOTICE, PAYMENT_METHOD_LABELS, awaitsPaymentLink, type PaymentMethod } from "@/lib/orders";
+import { PAYMENT_METHOD_LABELS, PAYMENT_PENDING_NOTICE, paysOnline, type PaymentMethod } from "@/lib/orders";
 import { siteConfig } from "@/lib/site";
 import type { EmailContent } from "./email-outcome";
 
@@ -86,8 +86,8 @@ export function resetPasswordMessage(input: LinkEmailInput): EmailContent {
 }
 
 export function orderConfirmationMessage({ number, total, paymentMethod, ...link }: OrderConfirmationInput): EmailContent {
-  const payment = awaitsPaymentLink(paymentMethod)
-    ? `You chose ${PAYMENT_METHOD_LABELS[paymentMethod]}. ${PAYMENT_LINK_NOTICE}`
+  const payment = paysOnline(paymentMethod)
+    ? `You chose ${PAYMENT_METHOD_LABELS[paymentMethod]}. ${PAYMENT_PENDING_NOTICE}`
     : `You chose ${PAYMENT_METHOD_LABELS[paymentMethod]}.`;
   return linkEmail(
     `Your ${siteConfig.name} order ${number}`,

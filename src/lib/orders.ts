@@ -47,7 +47,9 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   COD: "Cash on delivery",
 };
 
-export const PAYMENT_LINK_NOTICE = "Our team will send a secure payment link.";
+/** Card and Apple Pay are paid on Stripe's hosted page (docs/PAYMENTS.md). */
+export const PAYMENT_REDIRECT_NOTICE = "After you place your order, you'll pay on Stripe's secure page.";
+export const PAYMENT_PENDING_NOTICE = "We'll confirm your order as soon as your payment goes through.";
 export const PAYMENT_RECEIVED_NOTE = "Payment received";
 export const PLACED_STEP_LABEL = "Placed";
 
@@ -64,7 +66,8 @@ export function initialStatus(method: PaymentMethod): OrderStatus {
   return method === "COD" ? "CONFIRMED" : "PENDING_PAYMENT";
 }
 
-export function awaitsPaymentLink(method: PaymentMethod): boolean {
+/** Card and Apple Pay go through Stripe; cash on delivery doesn't. */
+export function paysOnline(method: PaymentMethod): boolean {
   return initialStatus(method) === "PENDING_PAYMENT";
 }
 
@@ -148,7 +151,7 @@ export function orderTimeline(
   const progress = PROGRESS_STEPS.map((key, index): OrderTimelineStep => {
     const event = firstEvent(key);
     const reached = status === "CANCELLED" ? Boolean(event) : index <= reachedIndex;
-    const pendingNote = key === "CONFIRMED" && status === "PENDING_PAYMENT" ? PAYMENT_LINK_NOTICE : "";
+    const pendingNote = key === "CONFIRMED" && status === "PENDING_PAYMENT" ? PAYMENT_PENDING_NOTICE : "";
     return {
       key,
       label: ORDER_STATUS_LABELS[key],

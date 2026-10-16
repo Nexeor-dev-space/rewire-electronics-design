@@ -40,6 +40,10 @@ model Order {
   returnableUntil DateTime?
   trackingNumber  String        @default("")
   staffNote       String        @default("")
+  /// Stripe PaymentIntent (`pi_…`) that paid the order; null for cash on delivery or unpaid. See docs/PAYMENTS.md.
+  stripePaymentIntentId String? @unique
+  /// The order's current Stripe payment page (`cs_…`); a retry reuses it while open. See docs/PAYMENTS.md.
+  stripeCheckoutSessionId String? @unique
 
   email      String
   phone      String
