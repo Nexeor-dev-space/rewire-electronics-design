@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useGetMe } from "@/hooks/use-auth";
-import { usePlacedOrder } from "@/hooks/use-checkout";
+import { useConfirmPayment, usePlacedOrder } from "@/hooks/use-checkout";
 import { useGetAccountOrder } from "@/hooks/use-order";
 import { ApiError } from "@/lib/api/api-client";
 import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
@@ -13,9 +13,9 @@ import { emirateLabel } from "@/lib/emirates";
 import { LOCALE, formatMoney } from "@/lib/money";
 import {
   ORDER_STATUS_LABELS,
-  PAYMENT_LINK_NOTICE,
   PAYMENT_METHOD_LABELS,
-  awaitsPaymentLink,
+  PAYMENT_PENDING_NOTICE,
+  paysOnline,
 } from "@/lib/orders";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,79 @@ function trackLookupHref(number: string): string {
   return number ? `${ORDER_TRACK_PAGE_PATH}?${new URLSearchParams({ number })}` : ORDER_TRACK_PAGE_PATH;
 }
 
-export function OrderSuccess({ number }: { number: string }) {
+interface OrderSuccessProps {
+  number: string;
+  /** Set when Stripe sends the customer back after paying. */
+  sessionId: string;
+  /** Set when the customer left Stripe's page without paying. */
+  paymentCancelled: boolean;
+}
+
+export function OrderSuccess({ number, sessionId, paymentCancelled }: OrderSuccessProps) {
+  if (sessionId) return <PaymentReturn sessionId={sessionId} />;
+  if (paymentCancelled) return <PaymentCancelled number={number} />;
+  return <PlacedConfirmation number={number} />;
+}
+
+function PaymentReturn({ sessionId }: { sessionId: string }) {
+  const me = useGetMe();
+  const payment = useConfirmPayment(sessionId);
+
+  if (payment.data) return <Confirmation order={payment.data} signedIn={Boolean(me.data)} />;
+
+  if (payment.isError) {
+    return (
+      <StatusPanel>
+        <p role="alert" className="text-sm text-ink-secondary">
+          {payment.error.message}
+        </p>
+        <button
+          type="button"
+          onClick={() => payment.refetch()}
+          className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+        >
+          Try again
+        </button>
+      </StatusPanel>
+    );
+  }
+
+  return (
+    <StatusPanel>
+      <Spinner className="size-6 text-ink-secondary" />
+      <p className="text-sm text-ink-secondary">Confirming your payment…</p>
+    </StatusPanel>
+  );
+}
+
+function PaymentCancelled({ number }: { number: string }) {
+  const me = useGetMe();
+
+  return (
+    <StatusPanel>
+      <div>
+        <p className="eyebrow">Payment not completed</p>
+        <h1 className="mt-3 text-display-sm font-light text-ink">Your payment wasn&rsquo;t finished.</h1>
+        <p className="mt-3 text-base text-ink-secondary">
+          {number ? `Order ${number} is saved` : "Your order is saved"}, but it hasn&rsquo;t been paid, so we
+          haven&rsquo;t confirmed it yet.
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <Link href={trackLookupHref(number)} className={PRIMARY_LINK}>
+          Track your order
+        </Link>
+        {me.data && (
+          <Link href={ACCOUNT_ORDERS_PATH} className={SECONDARY_LINK}>
+            View my orders
+          </Link>
+        )}
+      </div>
+    </StatusPanel>
+  );
+}
+
+function PlacedConfirmation({ number }: { number: string }) {
   const me = useGetMe();
   const placed = usePlacedOrder(number);
   const signedIn = Boolean(me.data);
@@ -115,7 +187,7 @@ function StatusPanel({ children }: { children: ReactNode }) {
 }
 
 function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boolean }) {
-  const awaitingPayment = awaitsPaymentLink(order.paymentMethod) && order.paymentStatus === "UNPAID";
+  const awaitingPayment = paysOnline(order.paymentMethod) && order.paymentStatus === "UNPAID";
 
   return (
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">
@@ -146,7 +218,7 @@ function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boole
           </p>
           {awaitingPayment && (
             <p className="mt-2 max-w-xl text-base leading-relaxed text-ink">
-              {PAYMENT_LINK_NOTICE}
+              {PAYMENT_PENDING_NOTICE}
             </p>
           )}
           <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink">
@@ -316,7 +388,7 @@ function OrderReceipt({ order, awaitingPayment }: { order: OrderDetail; awaiting
         <Meta label="Payment">
           <p className="text-[0.875rem] text-ink">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
           {awaitingPayment && (
-            <p className="text-[0.75rem] text-ink-muted">{PAYMENT_LINK_NOTICE}</p>
+            <p className="text-[0.75rem] text-ink-muted">{PAYMENT_PENDING_NOTICE}</p>
           )}
         </Meta>
 

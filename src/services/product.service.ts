@@ -3,6 +3,7 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
+import { DB_WRITE_TIMEOUT_MS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import type {
@@ -18,8 +19,6 @@ type ProductQuery = z.output<typeof productListQuerySchema>;
 type ProductStatusData = z.output<typeof productStatusSchema>;
 type TrashQuery = { page: number; pageSize: number; search?: string };
 type VariantData = ProductData["variants"][number];
-
-const WRITE_TIMEOUT_MS = 15_000;
 
 const namedRef = { select: { id: true, name: true } } as const;
 
@@ -185,7 +184,7 @@ export async function createProduct(data: ProductData) {
       });
       return created.id;
     },
-    { timeout: WRITE_TIMEOUT_MS },
+    { timeout: DB_WRITE_TIMEOUT_MS },
   );
 
   return getProduct(id);
@@ -248,7 +247,7 @@ export async function updateProduct(id: string, data: ProductData) {
         await releaseImage(tx, current.ogImageId);
       }
     },
-    { timeout: WRITE_TIMEOUT_MS },
+    { timeout: DB_WRITE_TIMEOUT_MS },
   );
 
   return getProduct(id);

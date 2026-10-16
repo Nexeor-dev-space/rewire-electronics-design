@@ -27,9 +27,10 @@ levels. This document covers what is specific to orders.
 | API | `/api/v1/checkout`, `orders/track`, `account/orders`, `admin/orders`, `admin/fulfilment` |
 | Screens | `/checkout`, `/checkout/success`, `/order/track`, `/account/orders`, `/account/orders/[number]`, `/admin/orders`, `/admin/orders/[number]`, `/admin/fulfilment` |
 
-There is no payment gateway. Card and Apple Pay orders are created unpaid and
-staff mark them paid by hand (section 4). Returns, refund calls and saved
-address prefill are later phases.
+Card and Apple Pay orders are created unpaid and paid on Stripe's hosted page;
+coming back from Stripe marks them paid ([PAYMENTS.md](PAYMENTS.md)). Staff can
+still mark them paid by hand (section 4). Refund calls and saved address
+prefill are later phases.
 
 ---
 
@@ -43,7 +44,9 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    guest order it is the shadow user) and `placedAsGuest`. State: `status`,
    `paymentStatus` (default `UNPAID`), `paymentMethod`, `deliveredAt`,
    `returnableUntil`, `trackingNumber`, `staffNote` (never shown to the
-   customer). Contact snapshot: `email` (lowercased, what Track Order
+   customer), `stripePaymentIntentId` (unique, the Stripe payment that paid
+   it) and `stripeCheckoutSessionId` (unique, its current Stripe payment page;
+   both in [PAYMENTS.md](PAYMENTS.md) §9). Contact snapshot: `email` (lowercased, what Track Order
    matches), `phone` (`+971…`), `firstName`, `lastName`, `emailOptIn`.
    Address snapshot: `address1`, `address2`, `city`, `postalCode`, `emirate`.
    Delivery snapshot: `deliveryMethod`, `deliveryEtaMinDays`,
@@ -99,7 +102,8 @@ All in `src/lib/orders.ts`.
 | `DELIVERED`, `CANCELLED` | final |
 
 1. **`initialStatus(method)`:** COD gives `CONFIRMED`; CARD and APPLE_PAY give
-   `PENDING_PAYMENT`. `awaitsPaymentLink(method)` is the same test.
+   `PENDING_PAYMENT`. `paysOnline(method)` is the same test (the method goes
+   through Stripe).
 2. **`nextStatuses(order)`** is `ORDER_TRANSITIONS[status]` without
    `CONFIRMED` while the order is not `PAID`. So a card order leaves Awaiting
    payment only by being marked paid (section 4) or cancelled.
@@ -114,15 +118,17 @@ All in `src/lib/orders.ts`.
    events, placedAt)`** builds the customer steps Placed, Confirmed,
    Processing, Dispatched, Delivered: `at` and `note` come from the first
    event with that status. A cancelled order shows the steps it reached, then
-   Cancelled. Awaiting payment shows Confirmed with `PAYMENT_LINK_NOTICE`
-   ("Our team will send a secure payment link.").
+   Cancelled. Awaiting payment shows Confirmed with `PAYMENT_PENDING_NOTICE`
+   ("We'll confirm your order as soon as your payment goes through.").
 
 ---
 
 ## 4. Payment rules
 
-Staff set the payment status by hand, in the admin order detail.
-`paymentActions(order)` says what is allowed:
+A Stripe payment marks a card or Apple Pay order paid through
+`recordStripePayment`, which applies rule 1 below with no actor and keeps the
+payment id ([PAYMENTS.md](PAYMENTS.md) §4). Staff set the payment status by hand, in the
+admin order detail. `paymentActions(order)` says what is allowed:
 
 1. `UNPAID` to `PAID`, unless the order is `CANCELLED`.
 2. `PAID` to `UNPAID`, only while `refundedAmount` is 0.
@@ -175,7 +181,10 @@ Before the transaction:
 
 The interactive transaction (retried whole up to `REFERENCE_NUMBER_ATTEMPTS`
 on a unique violation when no order holds the key, which means the generated
-number collided):
+number collided). It runs with `timeout: DB_WRITE_TIMEOUT_MS` (15 s) instead of
+Prisma's 5 s default: it makes 20 to 30 database round trips, and over a slow
+link (a remote database in development) 5 s was not enough and the order
+failed with `P2028` on the last step:
 
 1. **Lock the cart.** `lockCart` touches the cart row. No cart gives 409
    empty. Then the replay check runs again, which closes the double click
@@ -208,7 +217,11 @@ After commit, the route calls `after(() => sendOrderConfirmation(order))`
 when the order was created (not on a replay). It builds
 `/order/track?number=…&email=…` with `appUrl` and sends
 `orderConfirmationMessage`; CARD and APPLE_PAY emails carry
-`PAYMENT_LINK_NOTICE`. A failed send is logged and never fails the order.
+`PAYMENT_PENDING_NOTICE`. A failed send is logged and never fails the order.
+
+Then, for an unpaid CARD or APPLE_PAY order (a replay too), the route calls
+`startOnlinePayment`, which reuses the order's open Stripe page or opens one,
+and returns `{ order, paymentUrl }` ([PAYMENTS.md](PAYMENTS.md) §2, §4).
 
 **The client side of idempotency** is in `checkout-view.tsx`: the key lives in
 a ref (`crypto.randomUUID`), reused after a network error or a 5xx, renewed
@@ -305,7 +318,8 @@ status, payment}`, `admin.fulfilment.{list, detail}`).
 
 | Route | Auth | Success | Errors |
 | --- | --- | --- | --- |
-| `POST checkout` | session optional; `placeOrder` limit (user id, else IP) | 201 `OrderDetail`, 200 on a replay | 409 (empty cart, `fields.cart`, `fields.code`, `fields.expectedTotal`, stock, `fields.email`, key used), 422, 429 |
+| `POST checkout` | session optional; `placeOrder` limit (user id, else IP) | 201 `PlacedOrder` `{ order, paymentUrl }`, 200 on a replay | 409 (empty cart, `fields.cart`, `fields.code`, `fields.expectedTotal`, stock, `fields.email`, key used), 422, 429, 502 and 503 from Stripe ([PAYMENTS.md](PAYMENTS.md) §4) |
+| `POST checkout/payment` | none; `confirmPayment` limit by IP | 200 `OrderDetail` | see [PAYMENTS.md](PAYMENTS.md) §4 |
 | `POST orders/track` | none; `trackOrder` limit by IP | 200 `OrderDetail` | 404 (one message), 422, 429 |
 | `GET account/orders?page` | session | 200 `Paginated<OrderSummary>`, `ACCOUNT_LIST_PAGE_SIZE` per page, newest first | 401, 422 |
 | `GET account/orders/[number]` | session | 200 `OrderDetail` | 401, 404 "We couldn't find that order." for any miss |
@@ -365,11 +379,13 @@ Reads are not audited. See [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
 `src/hooks/use-checkout.ts`:
 
-1. **`usePlaceOrder()`** posts `checkout.place`, writes the order into
+1. **`usePlaceOrder()`** posts `checkout.place` (resolving to `PlacedOrder`), writes the order into
    `checkoutKeys.placed(number)`, and invalidates `cartKeys.all` and
    `orderKeys.all`.
 2. **`usePlacedOrder(number)`** reads that cache only (`skipToken`, never
    fetches). A reload of the success page therefore has nothing.
+3. **`useConfirmPayment(sessionId)`** posts `checkout.confirmPayment` when the
+   customer is back from Stripe ([PAYMENTS.md](PAYMENTS.md) §5).
 
 `src/hooks/use-order.ts`, keys under `orderKeys` (`"orders"`):
 
@@ -414,7 +430,10 @@ View. Without Edit the row is read only.
 
 **Checkout success** (`/checkout/success?order=RW-…`, `OrderSuccess`). Shows
 the order from `usePlacedOrder`, or from `useGetAccountOrder` when signed in
-and the cache is empty. Card and Apple Pay show `PAYMENT_LINK_NOTICE`. Track
+and the cache is empty. With `session_id` (back from Stripe) it confirms the
+payment first and shows the order from that; with `payment=cancelled` it shows
+the payment not finished panel ([PAYMENTS.md](PAYMENTS.md) §2). An unpaid card
+or Apple Pay order shows `PAYMENT_PENDING_NOTICE`. Track
 order goes to `/account/orders/{number}` when signed in, or to
 `/order/track?number=…&email=…` for a guest. A guest who reloads has no cache,
 so the page offers "Track your order" with only the number filled in.
@@ -495,8 +514,7 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 
 ## 15. Known limits
 
-1. **No payment gateway.** Card and Apple Pay orders wait for staff to send a
-   payment link and mark the order paid by hand. Nothing checks the payment.
+1. **Stripe payments** have their own limits; see [PAYMENTS.md](PAYMENTS.md) §12.
 2. **Rate limits are in memory.** They reset on restart and are per
    instance ([AUTH.md](AUTH.md) §11).
 3. **The customer email is in the confirmation URL**

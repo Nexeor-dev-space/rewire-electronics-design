@@ -109,6 +109,7 @@ export const API_ENDPOINTS = {
   },
   checkout: {
     place: `${V1}/checkout`,
+    confirmPayment: `${V1}/checkout/payment`,
   },
   deliveryAreas: `${V1}/delivery-areas`,
   orders: {

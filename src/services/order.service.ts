@@ -20,6 +20,7 @@ import {
   type OrderStatus,
 } from "@/lib/orders";
 import { returnableQuantity } from "@/lib/returns";
+import { PAYMENT_NOTES, paymentOutcome, type PaymentOutcome } from "@/lib/stripe-checkout";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import { returnedQuantities } from "@/services/return.service";
 import { getStoreSettings } from "@/services/store-settings.service";
@@ -54,6 +55,8 @@ const MESSAGE_ORDER_NOT_FOUND = "We couldn't find that order.";
 const MESSAGE_TRACK_NOT_FOUND = "We couldn't find an order with those details.";
 const MESSAGE_ORDER_CHANGED = "This order changed. Refresh and try again.";
 const MESSAGE_NOT_IN_FULFILMENT = "This order isn't in the fulfilment queue.";
+/** A Stripe payment that loses a race with another call for the same order runs once more. */
+const STRIPE_PAYMENT_ATTEMPTS = 2;
 
 const lineSelect = {
   id: true,
@@ -121,6 +124,7 @@ const adminDetailSelect = {
   ...orderDetailSelect,
   placedAsGuest: true,
   staffNote: true,
+  stripePaymentIntentId: true,
   user: { select: { id: true, fullName: true, email: true, isGuest: true } },
   events: {
     select: {
@@ -193,6 +197,7 @@ const stateSelect = {
   paymentStatus: true,
   refundedAmount: true,
   total: true,
+  stripePaymentIntentId: true,
 } satisfies Prisma.OrderSelect;
 
 type DetailRow = Prisma.OrderGetPayload<{ select: typeof orderDetailSelect }>;
@@ -281,6 +286,7 @@ function toAdminDetail(row: AdminDetailRow, returned: ReturnedQuantities): Admin
     customer: row.user,
     placedAsGuest: row.placedAsGuest,
     staffNote: row.staffNote,
+    stripePaymentIntentId: row.stripePaymentIntentId,
     events: row.events.map((event) => ({
       id: event.id,
       status: event.status,
@@ -530,7 +536,8 @@ async function applyStatusChange(
   if (to === "CANCELLED") await releaseOrder(tx, order.id);
 }
 
-async function applyPaymentChange(tx: Tx, order: StateRow, to: ManualPaymentStatus, actorId: string) {
+/** `actorId` null means the system (a Stripe payment), as on `OrderStatusEvent`. */
+async function applyPaymentChange(tx: Tx, order: StateRow, to: ManualPaymentStatus, actorId: string | null) {
   if (!paymentActions(order).includes(to)) {
     const message = `This order can't be marked ${PAYMENT_STATUS_LABELS[to].toLowerCase()}.`;
     throw new ServiceError("CONFLICT", message, 409, { paymentStatus: [message] });
@@ -580,6 +587,85 @@ export async function changePaymentStatus(actorId: string, number: string, to: M
     await applyPaymentChange(tx, order, to, actorId);
   });
   return getAdminOrder(number);
+}
+
+/* ---------- Stripe (no actor) ---------- */
+
+/** A staff note on the current status, skipped when the same note is already there (a resent event). */
+async function addNoteOnce(tx: Tx, order: Pick<StateRow, "id" | "status">, note: string) {
+  const existing = await tx.orderStatusEvent.findFirst({ where: { orderId: order.id, note }, select: { id: true } });
+  if (!existing) await tx.orderStatusEvent.create({ data: { orderId: order.id, status: order.status, note, actorId: null } });
+}
+
+async function applyStripePayment(tx: Tx, number: string, paymentIntentId: string): Promise<PaymentOutcome> {
+  const order = await findState(tx, number);
+  const outcome = paymentOutcome(order, paymentIntentId);
+  const keepId = () => tx.order.update({ where: { id: order.id }, data: { stripePaymentIntentId: paymentIntentId } });
+
+  switch (outcome) {
+    case "MARK_PAID":
+      await applyPaymentChange(tx, order, "PAID", null);
+      await keepId();
+      break;
+    case "PAID_BY_HAND":
+      await keepId();
+      await addNoteOnce(tx, order, PAYMENT_NOTES.paidByHand(paymentIntentId));
+      break;
+    case "DUPLICATE":
+      await addNoteOnce(tx, order, PAYMENT_NOTES.duplicate(paymentIntentId));
+      break;
+    case "ON_CANCELLED":
+      await addNoteOnce(tx, order, PAYMENT_NOTES.onCancelled(paymentIntentId));
+      break;
+    case "ALREADY_RECORDED":
+      break;
+  }
+  return outcome;
+}
+
+/**
+ * Stripe confirmed a payment (the return page or a webhook). Marks an unpaid
+ * order paid as staff would, with no actor, and keeps the payment id. Any other
+ * case leaves a staff note (`paymentOutcome`). Safe to call again with the same
+ * payment; when two calls race, the loser runs once more and finds it recorded.
+ */
+export async function recordStripePayment(number: string, paymentIntentId: string): Promise<PaymentOutcome> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await prisma.$transaction((tx) => applyStripePayment(tx, number, paymentIntentId));
+    } catch (error) {
+      const raced = error instanceof ServiceError && error.code === "CONFLICT";
+      if (!raced || attempt >= STRIPE_PAYMENT_ATTEMPTS) throw error;
+    }
+  }
+}
+
+/** The order's saved Stripe payment page, if any. */
+export async function getCheckoutSessionId(number: string): Promise<string | null> {
+  const row = await prisma.order.findUnique({ where: { number }, select: { stripeCheckoutSessionId: true } });
+  if (!row) throw notFound();
+  return row.stripeCheckoutSessionId;
+}
+
+/**
+ * Saves a new payment page only if the saved one is still `previous`. False
+ * means a parallel checkout saved its page first.
+ */
+export async function claimCheckoutSession(number: string, previous: string | null, next: string): Promise<boolean> {
+  const { count } = await prisma.order.updateMany({
+    where: { number, stripeCheckoutSessionId: previous },
+    data: { stripeCheckoutSessionId: next },
+  });
+  return count > 0;
+}
+
+/** A failed attempt or an expired payment page. `whileUnpaid` skips orders that were paid since. */
+export async function addPaymentNote(number: string, note: string, { whileUnpaid = false } = {}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const order = await findState(tx, number);
+    if (whileUnpaid && order.paymentStatus !== "UNPAID") return;
+    await addNoteOnce(tx, order, note);
+  });
 }
 
 export async function updateFulfilment(actorId: string, number: string, data: FulfilmentUpdateData) {
