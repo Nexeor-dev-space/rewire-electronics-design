@@ -6,7 +6,12 @@ import { ServiceError, isUniqueViolation } from "@/lib/api/api-response";
 import { appUrl } from "@/lib/app-url";
 import { resolveGuestUser } from "@/lib/auth/guest-user";
 import type { CartOwner } from "@/lib/cart-owner";
-import { ORDER_NUMBER_PREFIX, ORDER_TRACK_PAGE_PATH, REFERENCE_NUMBER_ATTEMPTS } from "@/lib/constants";
+import {
+  DB_WRITE_TIMEOUT_MS,
+  ORDER_NUMBER_PREFIX,
+  ORDER_TRACK_PAGE_PATH,
+  REFERENCE_NUMBER_ATTEMPTS,
+} from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/send-email";
 import { orderConfirmationMessage } from "@/lib/email/templates";
@@ -275,8 +280,9 @@ export async function placeOrder(
 
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const outcome = await prisma.$transaction((tx) =>
-        placeInTransaction(tx, owner, sessionUser, input, delivery),
+      const outcome = await prisma.$transaction(
+        (tx) => placeInTransaction(tx, owner, sessionUser, input, delivery),
+        { timeout: DB_WRITE_TIMEOUT_MS },
       );
       return { order: await loadPlaced(outcome.number), created: outcome.kind === "created" };
     } catch (error) {

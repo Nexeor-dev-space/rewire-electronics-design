@@ -20,6 +20,8 @@ export const SEARCH_MAX_WORDS = 5;
 export const SEARCH_SUGGESTION_LIMITS = { products: 5, brands: 4, categories: 4 } as const;
 
 export const DB_POOL_MAX = 5;
+/** Interactive transactions with many writes (product save, place order); Prisma's default is 5 s. */
+export const DB_WRITE_TIMEOUT_MS = 15_000;
 
 /**
  * The store's clock. Times staff enter (a drop's release) are read in this
