@@ -42,4 +42,12 @@ export const placeOrderSchema = checkoutInformationSchema.extend({
   idempotencyKey: z.uuid(),
 });
 
+/** Stripe Checkout session ids look like `cs_test_…` or `cs_live_…`. */
+const CHECKOUT_SESSION_ID_PATTERN = /^cs_(test|live)_[A-Za-z0-9]+$/;
+const CHECKOUT_SESSION_ID_MAX_LENGTH = 255;
+
+export const confirmPaymentSchema = z.object({
+  sessionId: z.string().trim().max(CHECKOUT_SESSION_ID_MAX_LENGTH).regex(CHECKOUT_SESSION_ID_PATTERN),
+});
+
 export type CheckoutInformationInput = z.infer<typeof checkoutInformationSchema>;

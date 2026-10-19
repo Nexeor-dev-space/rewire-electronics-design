@@ -670,9 +670,10 @@ followed by a mobile number (`5[024568]`) or a landline area code
 `050 123 4567` becomes `+971501234567`, `04 123 4567` becomes `+97141234567`.
 Anything else reads "Enter a valid UAE phone number, e.g. 050 123 4567."
 
-**Payment** takes no card details. Card and Apple Pay show "Our team will
-send a secure payment link." (`PAYMENT_LINK_NOTICE`) on the payment step and
-the success page.
+**Payment** takes no card details. Card and Apple Pay show "After you place
+your order, you'll pay on Stripe's secure page." (`PAYMENT_REDIRECT_NOTICE`) on
+the payment step, and Place order then goes to Stripe
+([PAYMENTS.md](PAYMENTS.md)).
 
 The server validates the same fields again with `placeOrderSchema`.
 

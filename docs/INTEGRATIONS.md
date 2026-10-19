@@ -30,16 +30,17 @@ should change belongs in the database instead.
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv` (tested in `env.test.ts`) |
+| `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `stripeEnv()`, `stripeWebhookEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv`, `parseStripeEnv`, `parseStripeWebhookEnv` (tested in `env.test.ts`) |
+| `src/lib/stripe.ts` | `stripeClient()`: the Stripe SDK with `STRIPE_SECRET_KEY` |
 | `src/lib/integration-config.ts` | `resolveIntegrationConfig(env, nodeEnv)`, `describeEmailTransport(config)`, `getIntegrationConfig()` (tested in `integration-config.test.ts`) |
 | `src/lib/email/send-email.ts` | `sendEmail`: sends, prints or refuses per the transport |
 | `src/lib/app-url.ts` | `appUrl(path)`: absolute links for emails |
 | `src/lib/db.ts`, `prisma/seed.ts`, `prisma7.config.ts` | Read `DATABASE_URL` through `env.ts` |
 | `src/lib/auth/sign.ts` | Reads `AUTH_SECRET` through `authEnv()` |
 
-There are three readers, not one, on purpose: the Docker build has only
-`DATABASE_URL`, and a bad SMTP value must not stop the database client or
-sign in. Readers do not cache; parsing costs microseconds and secret rotation
+There are five readers, not one, on purpose: the Docker build has only
+`DATABASE_URL`, a bad SMTP or Stripe value must not stop the database client or
+sign in, and a missing webhook secret must not stop card payments. Readers do not cache; parsing costs microseconds and secret rotation
 tests change `AUTH_SECRET` at runtime.
 
 ---
@@ -60,6 +61,8 @@ runs.
 | `SMTP_PASS` | `emailEnv()` | As above | none |
 | `EMAIL_FROM` | `emailEnv()` | As above; `name@domain` or `Name <name@domain>` (so `mailto:` fails) | none |
 | `APP_URL` | `emailEnv()` | A full URL, for example `https://rewire.ae` | `http://localhost:3000` outside production |
+| `STRIPE_SECRET_KEY` | `stripeEnv()` | Starts with `sk_` (or `rk_`); a `pk_` publishable key is refused. Needed only for card and Apple Pay ([PAYMENTS.md](PAYMENTS.md) §8) | none |
+| `STRIPE_WEBHOOK_SECRET` | `stripeWebhookEnv()` | Starts with `whsec_`; the signing secret of the Stripe webhook destination. Needed only for `POST webhooks/stripe` ([PAYMENTS.md](PAYMENTS.md) §6) | none |
 
 `prisma7.config.ts` uses `optionalDatabaseUrl()`, which never throws, so
 `prisma generate` runs in the Docker deps stage without a database.

@@ -162,6 +162,8 @@ export interface AdminOrderDetail extends OrderDetail {
   customer: AdminOrderCustomer | null;
   placedAsGuest: boolean;
   staffNote: string;
+  /** The Stripe payment (`pi_…`) that paid the order, for finding it in the Stripe dashboard. */
+  stripePaymentIntentId: string | null;
   events: AdminOrderEvent[];
   nextStatuses: OrderStatus[];
   paymentActions: ManualPaymentStatus[];
@@ -181,6 +183,12 @@ export type FulfilmentFilters = {
   pageSize?: number;
   status?: FulfilmentQueueStatus;
 };
+
+/** `POST checkout`: the order, and Stripe's payment page while a card or Apple Pay order is unpaid. */
+export interface PlacedOrder {
+  order: OrderDetail;
+  paymentUrl: string | null;
+}
 
 export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
 export type TrackOrderInput = z.input<typeof trackOrderSchema>;

@@ -3,9 +3,16 @@ import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { getSession } from "@/lib/auth/session";
 import { readGuestTokenHash, type CartOwner } from "@/lib/cart-owner";
+import { paysOnline } from "@/lib/orders";
 import { limitByIp, limitByUser } from "@/lib/rate-limit";
 import { placeOrder, sendOrderConfirmation } from "@/services/checkout.service";
+import { startOnlinePayment } from "@/services/payment.service";
+import type { OrderDetail, PlacedOrder } from "@/types/order";
 import { placeOrderSchema } from "@/validators/checkout.validator";
+
+function awaitsOnlinePayment(order: OrderDetail): boolean {
+  return paysOnline(order.paymentMethod) && order.status === "PENDING_PAYMENT" && order.paymentStatus === "UNPAID";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +41,10 @@ export async function POST(req: NextRequest) {
         ),
       );
     }
-    return apiSuccess(order, created ? 201 : 200);
+
+    // A replay of an unpaid order reuses its open Stripe page, or opens one if the last call failed.
+    const placed: PlacedOrder = awaitsOnlinePayment(order) ? await startOnlinePayment(order) : { order, paymentUrl: null };
+    return apiSuccess(placed, created ? 201 : 200);
   } catch (error) {
     return apiErrorFrom(error, "POST /checkout");
   }

@@ -34,7 +34,9 @@ values that differ per environment. The app reads them through
 | `AUTH_SECRET` | App | At least 32 characters. Signs sessions and the guest cart cookie. Changing it signs everyone out |
 | `SMTP_HOST`, `SMTP_PORT` | App, optional | Default `smtp.gmail.com`, 587 |
 | `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | App | All three or none. Without them, emails print to the log in development and are off in production |
-| `APP_URL` | App | Public origin for email links. Default `http://localhost:3000` outside production; required in production for email |
+| `APP_URL` | App | Public origin for email links and Stripe return links. Default `http://localhost:3000` outside production; required in production for email and card payments |
+| `STRIPE_SECRET_KEY` | App | Stripe secret key (`sk_test_…` locally, `sk_live_…` in production). Without it card and Apple Pay answer 503; cash on delivery works ([PAYMENTS.md](PAYMENTS.md)) |
+| `STRIPE_WEBHOOK_SECRET` | App | Signing secret (`whsec_…`) of the Stripe webhook destination for this environment. Without it `POST /api/v1/webhooks/stripe` answers 503 ([PAYMENTS.md](PAYMENTS.md) §8) |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Seed only | The first Admin. The seed refuses a password under 8 characters, and skips the Admin when either is unset |
 | `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE` | Seed only, optional | Default "Administrator" and "+971 00 000 0000" |
 
