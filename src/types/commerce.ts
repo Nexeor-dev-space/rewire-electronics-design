@@ -28,7 +28,7 @@ export type Availability = "in-stock" | "low-stock" | "sold-out" | "coming-soon"
 export const AVAILABILITY_LABELS: Record<Availability, string> = {
   "in-stock": "In stock",
   "low-stock": "Low stock",
-  "sold-out": "Sold out",
+  "sold-out": "Out of stock",
   "coming-soon": "Coming soon",
 };
 

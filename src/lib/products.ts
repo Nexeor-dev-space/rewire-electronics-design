@@ -100,6 +100,6 @@ export function availabilityLabel(product: Product): string {
     case "pre-order":
       return "Pre-order";
     case "sold-out":
-      return "Sold out";
+      return "Out of stock";
   }
 }

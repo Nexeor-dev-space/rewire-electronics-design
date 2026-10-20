@@ -262,9 +262,10 @@ function matchesVariantFilters(variant: CardVariant, query: ShopQuery) {
 }
 
 function toCard(row: CardRow, query?: ShopQuery): ShopCard {
-  const shown =
-    (query && row.variants.find((variant) => matchesVariantFilters(variant, query))) ??
-    row.variants[0];
+  const matching = query
+    ? row.variants.filter((variant) => matchesVariantFilters(variant, query))
+    : row.variants;
+  const shown = matching.find((variant) => variant.stock > 0) ?? matching[0] ?? row.variants[0];
   const image = row.images[0];
   return {
     id: row.id,

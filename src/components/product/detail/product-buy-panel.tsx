@@ -151,7 +151,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
 
   const purchasable = !soldOut && !comingSoon;
   const cta = soldOut
-    ? "Notify me"
+    ? AVAILABILITY_LABELS[availability]
     : comingSoon
       ? "Join waitlist"
       : "Add to Cart";
