@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import { CONDITION_META, GRADE_META, productHref } from "@/lib/shop";
 import { cn, savingsPercent } from "@/lib/utils";
-import { availabilityFromStock } from "@/types";
+import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import type { ShopCard } from "@/types/catalogue";
 import { WishlistButton } from "@/components/product/wishlist-button";
 import { AddToCartButton } from "@/components/product/add-to-cart-button";
@@ -65,7 +65,7 @@ export function ShopProductCard({
               soldOut ? "text-ink-muted" : "text-urgent",
             )}
           >
-            {soldOut ? "Sold out" : `${product.stock} left`}
+            {soldOut ? AVAILABILITY_LABELS[availability] : `${product.stock} left`}
           </span>
         )}
 

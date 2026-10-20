@@ -252,8 +252,9 @@ axis is counted with every other filter applied but its own, which is what lets
 the filter panel disable a zero option instead of hiding it. `total` counts
 products, not variants.
 
-A `ShopCard` shows one variant: the cheapest one that matches the condition,
-grade and storage filters, or the cheapest overall when none are set. The card
+A `ShopCard` shows one variant: the cheapest in stock one that matches the
+condition, grade and storage filters (the cheapest overall when none are set),
+falling back to the cheapest match when every match is out of stock. The card
 carries that variant's id (`variantId`), condition, grade, storage, colour,
 price and compare at price, plus total stock across variants, the first image
 and `optionCount` (the number of variants). The card's Add to cart adds

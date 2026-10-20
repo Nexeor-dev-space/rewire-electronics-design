@@ -6,6 +6,9 @@ import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { AVAILABILITY_LABELS } from "@/types";
+
+const OUT_OF_STOCK_LABEL = AVAILABILITY_LABELS["sold-out"];
 
 /**
  * AddToCartButton — the everyday commerce action, present on every card.
@@ -102,7 +105,7 @@ export function AddToCartButton({
     return (
       <Link
         href={`/product/${product.slug}`}
-        aria-label={soldOut ? `${product.name} is sold out` : `View ${product.name}`}
+        aria-label={soldOut ? `${product.name} is out of stock` : `View ${product.name}`}
         onClick={(event) => {
           if (soldOut) event.preventDefault();
           event.stopPropagation();
@@ -111,7 +114,7 @@ export function AddToCartButton({
         className={cn(className, BUTTON_CLASS, soldOut && "pointer-events-none opacity-40")}
       >
         <CartIcon />
-        {soldOut ? "Sold out" : "View & Buy"}
+        {soldOut ? OUT_OF_STOCK_LABEL : "View & Buy"}
       </Link>
     );
   }
@@ -152,13 +155,13 @@ export function AddToCartButton({
         aria-busy={addCartItem.isPending || undefined}
         aria-label={
           soldOut
-            ? `${product.name} is sold out`
+            ? `${product.name} is out of stock`
             : `Add ${product.name} to cart`
         }
         className={cn(className, BUTTON_CLASS)}
       >
         <CartIcon />
-        {soldOut ? "Sold out" : "Add to cart"}
+        {soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}
       </button>
       {addCartItem.isError && (
         <span
