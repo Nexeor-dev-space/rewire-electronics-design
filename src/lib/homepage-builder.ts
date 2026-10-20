@@ -71,6 +71,7 @@ export function itemToInput(item: HomepageSectionItem): SectionItemFormInput {
   return {
     visible: item.visible,
     productId: item.productId,
+    categoryId: item.categoryId,
     title: item.title,
     body: item.body,
     author: item.author,
@@ -86,6 +87,7 @@ export function emptyItemInput(): SectionItemFormInput {
   return {
     visible: true,
     productId: null,
+    categoryId: null,
     title: null,
     body: null,
     author: null,

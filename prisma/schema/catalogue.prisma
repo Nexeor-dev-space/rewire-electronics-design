@@ -26,6 +26,8 @@ model Category {
   addOns   AddOnCategory[]
   coupons  CouponCategory[]
 
+  homepageItems HomepageSectionItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

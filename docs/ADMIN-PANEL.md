@@ -281,6 +281,13 @@ The editing screen is Storefront → **Homepage Builder**
 delete sections), opens a staff only preview of the draft at
 `/preview/homepage`, and publishes or discards it.
 
+Storefront → **Banners** and **Curated Categories** are not separate modules.
+Their pages (`src/app/admin/storefront/banners/page.tsx` and
+`src/app/admin/storefront/curated-categories/page.tsx`) redirect to the
+Homepage Builder, where banners are Promo banner sections and curated
+categories are Featured categories sections. Both routes are in
+`BUILT_ROUTES`.
+
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.
 

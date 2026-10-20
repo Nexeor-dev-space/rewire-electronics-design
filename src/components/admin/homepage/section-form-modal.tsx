@@ -74,6 +74,7 @@ function SectionForm({
       key: item.id,
       input: itemToInput(item),
       product: item.product,
+      category: item.category,
       imageUrl: item.imageUrl,
     })),
   );
@@ -174,7 +175,7 @@ function SectionForm({
           )}
 
           {rule.refs && (
-            <RefPicker kind={rule.refs} value={refs} onChange={setRefs} error={error("refIds")} />
+            <RefPicker value={refs} onChange={setRefs} error={error("refIds")} />
           )}
 
           {rule.items && (

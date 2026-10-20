@@ -68,7 +68,7 @@ export const MAX_SECTION_REFS = 12;
 export const MAX_SECTION_ITEMS = 12;
 
 /** What a section's `items` hold. */
-export type SectionItemKind = "drops" | "products" | "reviews";
+export type SectionItemKind = "drops" | "products" | "reviews" | "categories";
 
 export interface SectionTypeRule {
   label: string;
@@ -80,8 +80,8 @@ export interface SectionTypeRule {
   /** A separate image for phones. Only with `image`. */
   mobileImage: boolean;
   seasonal: boolean;
-  /** What `refIds` points at, or null when the type has no items to choose. */
-  refs: "brands" | "categories" | null;
+  /** What `refIds` points at, or null when the type has no brands to choose. */
+  refs: "brands" | null;
   /** What `items` holds, or null when the type has none. */
   items: SectionItemKind | null;
 }
@@ -198,8 +198,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     image: false,
     mobileImage: false,
     seasonal: false,
-    refs: "categories",
-    items: null,
+    refs: null,
+    items: "categories",
   },
 };
 
@@ -217,11 +217,18 @@ export const ITEM_TEXT_LIMITS: Record<ItemTextField, number> = {
 };
 
 /** Every field an item can carry, for "which may this kind fill". */
-export type ItemField = ItemTextField | "productId" | "rating" | "releaseAt" | "imageId";
+export type ItemField =
+  | ItemTextField
+  | "productId"
+  | "categoryId"
+  | "rating"
+  | "releaseAt"
+  | "imageId";
 
 const ITEM_FIELDS: readonly ItemField[] = [
   ...ITEM_TEXT_FIELDS,
   "productId",
+  "categoryId",
   "rating",
   "releaseAt",
   "imageId",
@@ -234,6 +241,7 @@ const ITEM_FIELD_NOUNS: Record<ItemField, string> = {
   ctaLabel: "button label",
   ctaHref: "button link",
   productId: "product",
+  categoryId: "category",
   rating: "rating",
   releaseAt: "release date",
   imageId: "image",
@@ -260,11 +268,13 @@ export const ITEM_RULES: Record<SectionItemKind, ItemKindRule> = {
   },
   products: { noun: "product", fields: ["productId"] },
   reviews: { noun: "review", fields: ["body", "author", "title", "rating", "imageId"] },
+  categories: { noun: "category", fields: ["categoryId", "title", "imageId", "ctaHref"] },
 };
 
 export interface SectionItemFieldsInput {
   visible: boolean;
   productId: string | null;
+  categoryId: string | null;
   title: string | null;
   body: string | null;
   author: string | null;
@@ -297,6 +307,7 @@ export function checkItemFields(
   }
 
   if (kind === "products" && !item.productId) add("productId", "Choose a product.");
+  if (kind === "categories" && !item.categoryId) add("categoryId", "Choose a category.");
 
   if (kind === "drops" && !item.productId) {
     // A release not in the catalogue yet: it needs its own name, picture and date.
@@ -381,7 +392,7 @@ export function checkSectionFields(
   if (rule.refs === null && input.refIds.length > 0) {
     add("refIds", `A ${noun} section has no items to choose.`);
   } else if (rule.refs !== null && input.refIds.length === 0) {
-    add("refIds", rule.refs === "brands" ? "Choose at least one brand." : "Choose at least one category.");
+    add("refIds", "Choose at least one brand.");
   }
 
   if (rule.items === null) {
@@ -393,7 +404,11 @@ export function checkSectionFields(
         for (const message of messages ?? []) add(itemErrorKey(index, field as ItemField), message);
       }
     });
-    if (kind !== "reviews") {
+    if (kind === "categories") {
+      if (input.items.length === 0) add("items", "Choose at least one category.");
+      const ids = input.items.flatMap((item) => (item.categoryId ? [item.categoryId] : []));
+      if (new Set(ids).size !== ids.length) add("items", "Each category can only be chosen once.");
+    } else if (kind !== "reviews") {
       const ids = input.items.flatMap((item) => (item.productId ? [item.productId] : []));
       if (new Set(ids).size !== ids.length) add("items", "Each product can only be chosen once.");
     }
