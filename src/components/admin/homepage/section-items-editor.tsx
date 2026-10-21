@@ -16,7 +16,9 @@ import { emptyItemInput, swapItems, type SectionItemFormInput } from "@/lib/home
 import {
   ITEM_TEXT_LIMITS,
   MAX_SECTION_ITEMS,
+  SECTION_RULES,
   itemErrorKey,
+  type HomepageSectionType,
   type ItemField,
   type SectionItemKind,
 } from "@/lib/homepage-sections";
@@ -58,6 +60,7 @@ const HEADINGS: Record<SectionItemKind, string> = {
 };
 
 interface SectionItemsEditorProps {
+  type: HomepageSectionType;
   kind: SectionItemKind;
   value: ItemDraft[];
   onChange: (items: ItemDraft[]) => void;
@@ -69,7 +72,8 @@ interface SectionItemsEditorProps {
  * The drops, Just Listed picks or reviews inside a section. Each can be
  * moved, hidden and removed; the list is saved with the section.
  */
-export function SectionItemsEditor({ kind, value, onChange, errors }: SectionItemsEditorProps) {
+export function SectionItemsEditor({ type, kind, value, onChange, errors }: SectionItemsEditorProps) {
+  const { discountHint } = SECTION_RULES[type];
   const full = value.length >= MAX_SECTION_ITEMS;
   const chosenIds = value.flatMap((item) => {
     const chosenId = kind === "categories" ? item.input.categoryId : item.input.productId;
@@ -86,10 +90,17 @@ export function SectionItemsEditor({ kind, value, onChange, errors }: SectionIte
         {HEADINGS[kind]} ({value.length}/{MAX_SECTION_ITEMS})
       </legend>
 
-      {kind === "products" && (
+      {type === "BEST_SELLERS" && (
         <p className="text-sm text-ink-secondary">
           Leave empty to show the newest products automatically. Picks that aren&rsquo;t
           published or in stock are skipped on the storefront.
+        </p>
+      )}
+
+      {discountHint && (
+        <p className="text-sm text-ink-secondary">
+          Products that aren&rsquo;t published or in stock are skipped on the storefront. The
+          saving shows when the product has a &ldquo;Was&rdquo; price.
         </p>
       )}
 
@@ -99,6 +110,7 @@ export function SectionItemsEditor({ kind, value, onChange, errors }: SectionIte
             <li key={item.key} className="rounded-lg border border-line bg-surface p-4">
               <ItemCard
                 kind={kind}
+                discountHint={discountHint}
                 item={item}
                 index={index}
                 count={value.length}
@@ -141,8 +153,21 @@ export function SectionItemsEditor({ kind, value, onChange, errors }: SectionIte
           <ProductPicker
             chosenIds={chosenIds}
             canAdd={!full}
+            flagNoDiscount={discountHint}
             onPick={(product) => onChange([...value, newItemDraft(product)])}
           />
+          {kind === "deals" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              disabled={full}
+              onClick={() => onChange([...value, newItemDraft()])}
+            >
+              Add a promo tile
+            </Button>
+          )}
           {kind === "drops" && (
             <Button
               type="button"
@@ -165,6 +190,7 @@ export function SectionItemsEditor({ kind, value, onChange, errors }: SectionIte
 
 function ItemCard({
   kind,
+  discountHint,
   item,
   index,
   count,
@@ -174,6 +200,7 @@ function ItemCard({
   onRemove,
 }: {
   kind: SectionItemKind;
+  discountHint: boolean;
   item: ItemDraft;
   index: number;
   count: number;
@@ -192,7 +219,7 @@ function ItemCard({
     item.category?.name ??
     item.product?.name ??
     (kind === "reviews" ? input.author : input.title) ??
-    (kind === "reviews" ? "New review" : "New release");
+    (kind === "reviews" ? "New review" : kind === "deals" ? "New promo tile" : "New release");
   const thumbnail = item.category ?? item.product;
 
   return (
@@ -209,6 +236,11 @@ function ItemCard({
         {thumbnail && !thumbnail.onStorefront && (
           <Badge variant="warn" className="px-2 py-1 text-[0.625rem]">
             Not on storefront
+          </Badge>
+        )}
+        {discountHint && item.product && !item.product.onSale && (
+          <Badge variant="outline" className="px-2 py-1 text-[0.625rem]">
+            No discount
           </Badge>
         )}
         <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
@@ -282,6 +314,44 @@ function ItemCard({
 
           <ImageField
             label="Image (optional, uses the category's image without one)"
+            value={input.imageId}
+            previewUrl={item.imageUrl}
+            error={error("imageId")}
+            onChange={(imageId, url) => onChange({ ...item, input: { ...input, imageId }, imageUrl: url })}
+          />
+        </>
+      )}
+
+      {kind === "deals" && !input.productId && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id={`${id}-title`} label="Title" error={error("title")}>
+              <Input
+                id={`${id}-title`}
+                value={input.title ?? ""}
+                maxLength={ITEM_TEXT_LIMITS.title}
+                className="h-11"
+                onChange={(event) => set("title", event.target.value || null)}
+              />
+            </Field>
+            <Field
+              id={`${id}-cta-href`}
+              label="Link"
+              hint="A site path such as /collection, or an https:// link."
+              error={error("ctaHref")}
+            >
+              <Input
+                id={`${id}-cta-href`}
+                value={input.ctaHref ?? ""}
+                maxLength={ITEM_TEXT_LIMITS.ctaHref}
+                className="h-11"
+                onChange={(event) => set("ctaHref", event.target.value || null)}
+              />
+            </Field>
+          </div>
+
+          <ImageField
+            label="Image"
             value={input.imageId}
             previewUrl={item.imageUrl}
             error={error("imageId")}

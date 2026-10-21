@@ -3,10 +3,18 @@ import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
 import { HomepageBuilder } from "@/components/admin/homepage/homepage-builder";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
+import { HOMEPAGE_SECTION_PARAM } from "@/lib/constants";
+import { ADDABLE_SECTION_TYPES } from "@/lib/homepage-sections";
 
 export const metadata: Metadata = { title: "Homepage Builder" };
 
-export default async function HomepageBuilderPage() {
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function HomepageBuilderPage({ searchParams }: Props) {
+  const requested = (await searchParams)[HOMEPAGE_SECTION_PARAM];
+  const openType = ADDABLE_SECTION_TYPES.find((type) => type === requested);
   const session = await getSession();
   if (!session) return null;
 
@@ -21,5 +29,5 @@ export default async function HomepageBuilderPage() {
     );
   }
 
-  return <HomepageBuilder />;
+  return <HomepageBuilder openType={openType} />;
 }

@@ -25,6 +25,7 @@ import {
   MAX_HOMEPAGE_SECTIONS,
   SECTION_RULES,
   isAddableSectionType,
+  isWithinSchedule,
   type AddableSectionType,
 } from "@/lib/homepage-sections";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ const BADGE_CLASS = "px-2 py-1 text-[0.625rem]";
  * goes to the draft; shoppers see nothing until Publish. See
  * docs/HOMEPAGE-CMS.md.
  */
-export function HomepageBuilder() {
+export function HomepageBuilder({ openType }: { openType?: AddableSectionType }) {
   const access = useModuleAccess(PERMISSIONS.homepage);
   const draft = useGetHomepageDraft();
   const updateSection = useUpdateHomepageSection();
@@ -58,6 +59,14 @@ export function HomepageBuilder() {
   const [modal, setModal] = useState<Modal>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
+
+  if (openType && !opened && draft.data) {
+    setOpened(true);
+    const existing = draft.data.sections.find((section) => section.type === openType);
+    if (existing && access.edit) setModal({ kind: "edit", section: existing });
+    else if (!existing && access.create) setModal({ kind: "add", type: openType });
+  }
 
   const busy = updateSection.isPending || reorder.isPending || deleteSection.isPending;
 
@@ -202,7 +211,11 @@ export function HomepageBuilder() {
               key={type}
               variant="outline"
               size="sm"
-              disabled={!data || full}
+              disabled={
+                !data ||
+                full ||
+                (SECTION_RULES[type].singleton && data.sections.some((section) => section.type === type))
+              }
               onClick={() => openModal({ kind: "add", type })}
             >
               {SECTION_RULES[type].label}
@@ -362,6 +375,11 @@ function SectionRow({
             Seasonal
           </Badge>
         )}
+        {SECTION_RULES[section.type].schedule && (
+          <Badge variant="outline" className={BADGE_CLASS}>
+            {scheduleLabel(section)}
+          </Badge>
+        )}
         {!section.visible && <Badge className={BADGE_CLASS}>Hidden</Badge>}
         <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" checked={section.visible} disabled={locked} onChange={onToggle} />
@@ -380,6 +398,13 @@ function SectionRow({
       )}
     </div>
   );
+}
+
+function scheduleLabel({ startsAt, endsAt }: HomepageSection): string {
+  if (!startsAt || !endsAt) return "No dates";
+  const now = new Date();
+  if (isWithinSchedule(new Date(startsAt), new Date(endsAt), now)) return "Running";
+  return now < new Date(startsAt) ? "Scheduled" : "Ended";
 }
 
 function ListSkeleton() {

@@ -114,6 +114,7 @@ export const SESSION_EXPIRED_PARAM = "expired";
 
 /** The Homepage Builder, the staff draft preview it opens, and the FAQ's editor. */
 export const HOMEPAGE_BUILDER_PATH = "/admin/storefront/homepage";
+export const HOMEPAGE_SECTION_PARAM = "section";
 export const HOMEPAGE_PREVIEW_PATH = "/preview/homepage";
 export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 /** Where staff accounts and their roles are managed, linked from the Roles screen. */

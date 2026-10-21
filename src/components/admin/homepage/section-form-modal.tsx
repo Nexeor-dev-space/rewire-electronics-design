@@ -10,6 +10,8 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useAddHomepageSection, useUpdateHomepageSection } from "@/hooks/use-homepage";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { STORE_TIME_ZONE_LABEL } from "@/lib/constants";
+import { formatStoreDateTime, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
 import {
   emptySectionInput,
   itemToInput,
@@ -174,12 +176,51 @@ function SectionForm({
             />
           )}
 
+          {rule.schedule && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id={`${id}-starts`}
+                label={`Starts, ${STORE_TIME_ZONE_LABEL}`}
+                hint={form.startsAt ? formatStoreDateTime(form.startsAt) : undefined}
+                error={error("startsAt")}
+              >
+                <Input
+                  id={`${id}-starts`}
+                  type="datetime-local"
+                  value={toStoreDateTimeInput(form.startsAt ?? null)}
+                  className="h-11"
+                  onChange={(event) => set("startsAt", fromStoreDateTimeInput(event.target.value))}
+                />
+              </Field>
+              <Field
+                id={`${id}-ends`}
+                label={`Ends, ${STORE_TIME_ZONE_LABEL}`}
+                hint={form.endsAt ? formatStoreDateTime(form.endsAt) : undefined}
+                error={error("endsAt")}
+              >
+                <Input
+                  id={`${id}-ends`}
+                  type="datetime-local"
+                  value={toStoreDateTimeInput(form.endsAt ?? null)}
+                  className="h-11"
+                  onChange={(event) => set("endsAt", fromStoreDateTimeInput(event.target.value))}
+                />
+              </Field>
+            </div>
+          )}
+
           {rule.refs && (
             <RefPicker value={refs} onChange={setRefs} error={error("refIds")} />
           )}
 
           {rule.items && (
-            <SectionItemsEditor kind={rule.items} value={items} onChange={setItems} errors={errors} />
+            <SectionItemsEditor
+              type={type}
+              kind={rule.items}
+              value={items}
+              onChange={setItems}
+              errors={errors}
+            />
           )}
 
           <div className="flex flex-col gap-3">
