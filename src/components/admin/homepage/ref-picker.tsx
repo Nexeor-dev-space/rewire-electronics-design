@@ -5,14 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
 import { useGetBrands } from "@/hooks/use-brand";
-import { useGetCategories } from "@/hooks/use-category";
 import { PICKER_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
-import { flattenCategoryRefs, swapItems } from "@/lib/homepage-builder";
+import { swapItems } from "@/lib/homepage-builder";
 import { MAX_SECTION_REFS } from "@/lib/homepage-sections";
 import type { SectionRef } from "@/types/homepage";
 
 interface RefPickerProps {
-  kind: "brands" | "categories";
   /** Chosen items in display order. */
   value: SectionRef[];
   onChange: (refs: SectionRef[]) => void;
@@ -20,11 +18,11 @@ interface RefPickerProps {
 }
 
 /**
- * Chooses the brands or categories a featured section shows. One page of
+ * Chooses the brands a featured brands section shows. One page of
  * search results is enough to pick from; the chosen list keeps its order and
  * can be rearranged.
  */
-export function RefPicker({ kind, value, onChange, error }: RefPickerProps) {
+export function RefPicker({ value, onChange, error }: RefPickerProps) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
@@ -33,13 +31,10 @@ export function RefPicker({ kind, value, onChange, error }: RefPickerProps) {
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
 
-  const noun = kind === "brands" ? "brands" : "categories";
-  const listProps = { search, value, onChange };
-
   return (
     <fieldset>
       <legend className="eyebrow">
-        {kind === "brands" ? "Brands" : "Categories"} ({value.length}/{MAX_SECTION_REFS})
+        Brands ({value.length}/{MAX_SECTION_REFS})
       </legend>
 
       {value.length > 0 && (
@@ -88,12 +83,12 @@ export function RefPicker({ kind, value, onChange, error }: RefPickerProps) {
         type="search"
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
-        placeholder={`Search ${noun} by name`}
-        aria-label={`Search ${noun}`}
+        placeholder="Search brands by name"
+        aria-label="Search brands"
         className="mt-3 h-11"
       />
 
-      {kind === "brands" ? <BrandOptions {...listProps} /> : <CategoryOptions {...listProps} />}
+      <BrandOptions search={search} value={value} onChange={onChange} />
 
       <FieldError className="mt-2">{error}</FieldError>
     </fieldset>
@@ -115,19 +110,6 @@ function BrandOptions({ search, ...props }: OptionsProps) {
       pending={brands.isPending}
       error={brands.isError ? brands.error.message : null}
       options={(brands.data?.items ?? []).map(({ id, name }) => ({ id, name }))}
-    />
-  );
-}
-
-function CategoryOptions({ search, ...props }: OptionsProps) {
-  const categories = useGetCategories({ pageSize: PICKER_PAGE_SIZE, search: search || undefined });
-  return (
-    <OptionList
-      {...props}
-      noun="categories"
-      pending={categories.isPending}
-      error={categories.isError ? categories.error.message : null}
-      options={flattenCategoryRefs(categories.data?.items ?? [])}
     />
   );
 }

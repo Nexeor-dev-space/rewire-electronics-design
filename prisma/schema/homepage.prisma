@@ -48,11 +48,12 @@ model HomepageSection {
   mobileImageId String?
   mobileImage   MediaAsset? @relation("HomepageSectionMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
 
-  /// Brand or Category ids in display order. Ids that no longer exist are
-  /// skipped when the section renders.
+  /// Featured brands: brand ids in display order. Ids that no longer exist
+  /// are skipped when the section renders. Featured categories use `items`.
   refIds String[]
 
-  /// Drops, Just Listed picks or reviews, by the section's type.
+  /// Drops, Just Listed picks, reviews or featured categories, by the
+  /// section's type.
   items HomepageSectionItem[]
 
   createdAt DateTime @default(now())
@@ -62,9 +63,9 @@ model HomepageSection {
   @@map("homepage_sections")
 }
 
-/// One entry inside a section: a drop, a picked product or a review. Which
-/// fields an item may fill comes from its section's type — `ITEM_RULES` in
-/// `src/lib/homepage-sections.ts`. Items belong to one stage through their
+/// One entry inside a section: a drop, a picked product, a review or a
+/// featured category. Which fields an item may fill comes from its section's
+/// type — `ITEM_RULES` in `src/lib/homepage-sections.ts`. Items belong to one stage through their
 /// section, so publish copies them with it.
 model HomepageSectionItem {
   id        String          @id @default(cuid())
@@ -80,7 +81,10 @@ model HomepageSectionItem {
   productId String?
   product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  /// Drop: overrides the product's name. Review: the product bought.
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  /// Drop and category: overrides the name. Review: the product bought.
   title     String?
   /// Review: the quote.
   body      String?
@@ -102,6 +106,7 @@ model HomepageSectionItem {
 
   @@index([sectionId, sortOrder])
   @@index([productId])
+  @@index([categoryId])
   @@map("homepage_section_items")
 }
 

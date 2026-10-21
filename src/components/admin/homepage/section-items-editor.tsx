@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import Image from "next/image";
+import { CategoryPicker } from "@/components/admin/homepage/category-picker";
 import { ProductPicker } from "@/components/admin/homepage/product-picker";
 import { ImageField } from "@/components/admin/shared/image-field";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ import {
   type ItemField,
   type SectionItemKind,
 } from "@/lib/homepage-sections";
-import type { SectionItemProduct } from "@/types/homepage";
+import type { SectionItemCategory, SectionItemProduct } from "@/types/homepage";
 
 /** One item as the form holds it: the body plus what the form shows beside it. */
 export interface ItemDraft {
@@ -27,18 +28,23 @@ export interface ItemDraft {
   key: string;
   input: SectionItemFormInput;
   product: SectionItemProduct | null;
+  category: SectionItemCategory | null;
   /** Preview of `input.imageId`. */
   imageUrl: string | null;
 }
 
 let nextKey = 0;
 
-export function newItemDraft(product: SectionItemProduct | null = null): ItemDraft {
+export function newItemDraft(
+  product: SectionItemProduct | null = null,
+  category: SectionItemCategory | null = null,
+): ItemDraft {
   nextKey += 1;
   return {
     key: `new-${nextKey}`,
-    input: { ...emptyItemInput(), productId: product?.id ?? null },
+    input: { ...emptyItemInput(), productId: product?.id ?? null, categoryId: category?.id ?? null },
     product,
+    category,
     imageUrl: null,
   };
 }
@@ -47,6 +53,7 @@ const HEADINGS: Record<SectionItemKind, string> = {
   drops: "Drops",
   products: "Products",
   reviews: "Reviews",
+  categories: "Categories",
 };
 
 interface SectionItemsEditorProps {
@@ -63,7 +70,10 @@ interface SectionItemsEditorProps {
  */
 export function SectionItemsEditor({ kind, value, onChange, errors }: SectionItemsEditorProps) {
   const full = value.length >= MAX_SECTION_ITEMS;
-  const chosenIds = value.flatMap((item) => (item.input.productId ? [item.input.productId] : []));
+  const chosenIds = value.flatMap((item) => {
+    const chosenId = kind === "categories" ? item.input.categoryId : item.input.productId;
+    return chosenId ? [chosenId] : [];
+  });
 
   function update(index: number, next: ItemDraft) {
     onChange(value.map((item, at) => (at === index ? next : item)));
@@ -101,7 +111,16 @@ export function SectionItemsEditor({ kind, value, onChange, errors }: SectionIte
         </ol>
       )}
 
-      {kind === "reviews" ? (
+      {kind === "categories" ? (
+        <div>
+          <p className="text-sm text-ink-secondary">Add from Catalogue → Categories</p>
+          <CategoryPicker
+            chosenIds={chosenIds}
+            canAdd={!full}
+            onPick={(category) => onChange([...value, newItemDraft(null, category)])}
+          />
+        </div>
+      ) : kind === "reviews" ? (
         <div>
           <Button
             type="button"
@@ -169,22 +188,24 @@ function ItemCard({
     onChange({ ...item, input: { ...input, [key]: next } });
 
   const name =
+    item.category?.name ??
     item.product?.name ??
     (kind === "reviews" ? input.author : input.title) ??
     (kind === "reviews" ? "New review" : "New release");
+  const thumbnail = item.category ?? item.product;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        {item.product && (
+        {thumbnail && (
           <span className="relative size-10 shrink-0 overflow-hidden rounded-md bg-surface-2">
-            {item.product.imageUrl && (
-              <Image src={item.product.imageUrl} alt="" fill sizes="40px" className="object-contain" unoptimized />
+            {thumbnail.imageUrl && (
+              <Image src={thumbnail.imageUrl} alt="" fill sizes="40px" className="object-contain" unoptimized />
             )}
           </span>
         )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{name}</span>
-        {item.product && !item.product.onStorefront && (
+        {thumbnail && !thumbnail.onStorefront && (
           <Badge variant="warn" className="px-2 py-1 text-[0.625rem]">
             Not on storefront
           </Badge>
@@ -223,6 +244,50 @@ function ItemCard({
       </div>
 
       <FieldError>{error("productId")}</FieldError>
+      <FieldError>{error("categoryId")}</FieldError>
+
+      {kind === "categories" && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              id={`${id}-title`}
+              label="Title (optional)"
+              hint="Leave empty to use the category's name."
+              error={error("title")}
+            >
+              <Input
+                id={`${id}-title`}
+                value={input.title ?? ""}
+                maxLength={ITEM_TEXT_LIMITS.title}
+                className="h-11"
+                onChange={(event) => set("title", event.target.value || null)}
+              />
+            </Field>
+            <Field
+              id={`${id}-cta-href`}
+              label="Link (optional)"
+              hint="Leave empty to open the category's page."
+              error={error("ctaHref")}
+            >
+              <Input
+                id={`${id}-cta-href`}
+                value={input.ctaHref ?? ""}
+                maxLength={ITEM_TEXT_LIMITS.ctaHref}
+                className="h-11"
+                onChange={(event) => set("ctaHref", event.target.value || null)}
+              />
+            </Field>
+          </div>
+
+          <ImageField
+            label="Image (optional, uses the category's image without one)"
+            value={input.imageId}
+            previewUrl={item.imageUrl}
+            error={error("imageId")}
+            onChange={(imageId, url) => onChange({ ...item, input: { ...input, imageId }, imageUrl: url })}
+          />
+        </>
+      )}
 
       {kind === "drops" && (
         <>

@@ -22,6 +22,13 @@ export interface SectionItemProduct {
   onStorefront: boolean;
 }
 
+export interface SectionItemCategory {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  onStorefront: boolean;
+}
+
 /** One item of a draft section, as the admin API returns it. */
 export interface HomepageSectionItem {
   id: string;
@@ -29,6 +36,8 @@ export interface HomepageSectionItem {
   productId: string | null;
   /** Null when there is no product, or it was deleted. */
   product: SectionItemProduct | null;
+  categoryId: string | null;
+  category: SectionItemCategory | null;
   title: string | null;
   body: string | null;
   author: string | null;

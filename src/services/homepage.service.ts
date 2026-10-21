@@ -20,8 +20,10 @@ import type { ShopCard } from "@/types/catalogue";
 import type {
   HomepageSectionItem,
   PublishedDrop,
+  PublishedItem,
   PublishedReview,
   PublishedSection,
+  SectionItemCategory,
   SectionItemProduct,
 } from "@/types/homepage";
 import type {
@@ -37,7 +39,8 @@ import { imageExists, releaseImage } from "./media.service";
  * edits, and LIVE, which the storefront reads. Publish replaces LIVE with a
  * copy of DRAFT and discard does the reverse, each in one transaction, so a
  * half-finished arrangement never reaches shoppers. A section's items (drops,
- * Just Listed picks, reviews) belong to it and are copied with it.
+ * Just Listed picks, reviews, featured categories) belong to it and are
+ * copied with it.
  *
  * Only DRAFT rows are ever addressed by id. A LIVE id answers 404.
  */
@@ -54,6 +57,7 @@ const itemSelect = {
   id: true,
   visible: true,
   productId: true,
+  categoryId: true,
   title: true,
   body: true,
   author: true,
@@ -103,6 +107,12 @@ interface RefRow {
   href: string;
 }
 
+interface CategoryRow extends SectionItemCategory {
+  parentName: string | null;
+  imageId: string | null;
+  href: string;
+}
+
 const notFound = () =>
   new ServiceError("NOT_FOUND", "We couldn't find that section. It may have been deleted.", 404);
 
@@ -117,7 +127,11 @@ export async function getHomepageDraft() {
     }),
     prisma.homepageState.findUnique({ where: { id: STATE_ID } }),
   ]);
-  const [refs, products] = await Promise.all([loadRefs(rows), loadItemProducts(rows)]);
+  const [refs, products, categories] = await Promise.all([
+    loadRefs(rows),
+    loadItemProducts(rows),
+    loadItemCategories(rows),
+  ]);
 
   return {
     sections: rows.map((row) => ({
@@ -141,6 +155,8 @@ export async function getHomepageDraft() {
         visible: item.visible,
         productId: item.productId,
         product: item.productId ? (products.get(item.productId) ?? null) : null,
+        categoryId: item.categoryId,
+        category: categoryOf(item, categories),
         title: item.title,
         body: item.body,
         author: item.author,
@@ -390,23 +406,26 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
   const productIds = rows.flatMap((row) =>
     row.items.flatMap((item) => (item.visible && item.productId ? [item.productId] : [])),
   );
-  const [refs, cards] = await Promise.all([
-    loadRefs(rows, { visibleOnly: true }),
+  const [refs, cards, categories] = await Promise.all([
+    loadRefs(rows),
     findShopCards([...new Set(productIds)]),
+    loadItemCategories(rows),
   ]);
   const now = new Date();
 
   return rows.flatMap((row) => {
     const kind = SECTION_RULES[row.type].refs;
     const itemKind = SECTION_RULES[row.type].items;
-    const items = refsOf(row, refs).map((ref) => ({
-      id: ref.id,
-      name: ref.name,
-      imageUrl: imageUrlOrNull(ref.imageId),
-      href: ref.href,
-    }));
-
     const shown = row.items.filter((item) => item.visible);
+    const items =
+      itemKind === "categories"
+        ? shown.flatMap((item) => toCategoryCard(item, categories) ?? [])
+        : refsOf(row, refs).map((ref) => ({
+            id: ref.id,
+            name: ref.name,
+            imageUrl: imageUrlOrNull(ref.imageId),
+            href: ref.href,
+          }));
     const drops =
       itemKind === "drops" ? shown.flatMap((item) => toDrop(item, cards, now) ?? []) : [];
     const reviews = itemKind === "reviews" ? shown.flatMap((item) => toReview(item) ?? []) : [];
@@ -424,7 +443,7 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
     // review hidden or gone, or a title missing from a hand-edited row:
     // render nothing rather than empty chrome.
     if (
-      (kind !== null && items.length === 0) ||
+      ((kind !== null || itemKind === "categories") && items.length === 0) ||
       (itemKind === "drops" && drops.length === 0) ||
       (itemKind === "reviews" && reviews.length === 0) ||
       !row.title
@@ -517,6 +536,17 @@ function toDrop(item: ItemRow, cards: Map<string, ShopCard>, now: Date): Publish
   };
 }
 
+function toCategoryCard(item: ItemRow, categories: Map<string, CategoryRow>): PublishedItem | null {
+  const category = item.categoryId ? categories.get(item.categoryId) : undefined;
+  if (!category?.onStorefront) return null;
+  return {
+    id: item.id,
+    name: item.title ?? category.name,
+    imageUrl: imageUrlOrNull(item.imageId ?? category.imageId),
+    href: item.ctaHref ?? category.href,
+  };
+}
+
 function toReview(item: ItemRow): PublishedReview | null {
   if (!item.body || !item.author) return null;
   return {
@@ -537,17 +567,22 @@ async function assertSectionValid(tx: Tx, type: HomepageSectionType, data: Secti
     throw new ServiceError("VALIDATION", "Please check the highlighted fields.", 422, errors);
   }
 
-  const kind = SECTION_RULES[type].refs;
-  if (kind !== null) {
-    const where = { id: { in: data.refIds } };
-    const found =
-      kind === "brands" ? await tx.brand.count({ where }) : await tx.category.count({ where });
+  if (SECTION_RULES[type].refs === "brands") {
+    const found = await tx.brand.count({ where: { id: { in: data.refIds } } });
     if (found !== data.refIds.length) {
-      const message =
-        kind === "brands"
-          ? "One of the chosen brands no longer exists. Remove it and try again."
-          : "One of the chosen categories no longer exists. Remove it and try again.";
+      const message = "One of the chosen brands no longer exists. Remove it and try again.";
       throw new ServiceError("VALIDATION", message, 422, { refIds: [message] });
+    }
+  }
+
+  const categoryIds = [
+    ...new Set(data.items.flatMap((item) => (item.categoryId ? [item.categoryId] : []))),
+  ];
+  if (categoryIds.length > 0) {
+    const found = await tx.category.count({ where: { id: { in: categoryIds } } });
+    if (found !== categoryIds.length) {
+      const message = "One of the chosen categories no longer exists. Remove it and try again.";
+      throw new ServiceError("VALIDATION", message, 422, { items: [message] });
     }
   }
 
@@ -608,6 +643,7 @@ function itemColumnsOf(
     sortOrder: index,
     visible: item.visible,
     productId: item.productId,
+    categoryId: item.categoryId,
     title: item.title,
     body: item.body,
     author: item.author,
@@ -720,60 +756,75 @@ async function loadItemProducts(rows: Pick<SectionRow, "items">[]) {
   );
 }
 
-/**
- * Every brand and category the rows point at, fetched once per kind, with the
- * shop link each opens. `visibleOnly` is the storefront's view: categories the
- * shop wouldn't show (draft, archived, or under an unpublished parent) are
- * left out. The admin API sees every category that still exists.
- */
-async function loadRefs(
-  rows: Pick<SectionRow, "type" | "refIds">[],
-  { visibleOnly = false }: { visibleOnly?: boolean } = {},
-) {
-  const idsFor = (kind: "brands" | "categories") =>
-    rows.filter((row) => SECTION_RULES[row.type].refs === kind).flatMap((row) => row.refIds);
+/** Every brand the rows point at, fetched once, with the shop link each opens. */
+async function loadRefs(rows: Pick<SectionRow, "type" | "refIds">[]) {
+  const brandIds = rows
+    .filter((row) => SECTION_RULES[row.type].refs === "brands")
+    .flatMap((row) => row.refIds);
+  if (brandIds.length === 0) return new Map<string, RefRow>();
 
-  const brandIds = idsFor("brands");
-  const categoryIds = idsFor("categories");
-
-  const [brands, categories] = await Promise.all([
-    brandIds.length > 0
-      ? prisma.brand.findMany({
-          where: { id: { in: brandIds } },
-          select: { id: true, name: true, imageId: true },
-        })
-      : Promise.resolve([]),
-    categoryIds.length > 0
-      ? prisma.category.findMany({
-          where: { id: { in: categoryIds }, ...(visibleOnly ? VISIBLE_CATEGORY : {}) },
-          select: { id: true, name: true, imageId: true, slug: true },
-        })
-      : Promise.resolve([]),
-  ]);
-
-  // The shop matches brands by name, and serves categories at their slug.
-  const brandRefs: RefRow[] = brands.map((row) => ({
-    ...row,
-    href: `${SHOP_INDEX_HREF}?brand=${encodeURIComponent(row.name)}`,
-  }));
-  const categoryRefs: RefRow[] = categories.map(({ slug, ...row }) => ({
-    ...row,
-    href: productHrefForCategory(slug),
-  }));
-
-  return {
-    brands: new Map(brandRefs.map((row) => [row.id, row])),
-    categories: new Map(categoryRefs.map((row) => [row.id, row])),
-  };
+  const brands = await prisma.brand.findMany({
+    where: { id: { in: brandIds } },
+    select: { id: true, name: true, imageId: true },
+  });
+  // The shop matches brands by name.
+  return new Map(
+    brands.map((row): [string, RefRow] => [
+      row.id,
+      { ...row, href: `${SHOP_INDEX_HREF}?brand=${encodeURIComponent(row.name)}` },
+    ]),
+  );
 }
 
-/** A row's refs that still exist, in its stored order. */
-function refsOf(
-  row: Pick<SectionRow, "type" | "refIds">,
-  refs: Awaited<ReturnType<typeof loadRefs>>,
-): RefRow[] {
-  const kind = SECTION_RULES[row.type].refs;
-  if (kind === null) return [];
-  const table = refs[kind];
-  return row.refIds.flatMap((id) => table.get(id) ?? []);
+/** A row's brands that still exist, in its stored order. */
+function refsOf(row: Pick<SectionRow, "type" | "refIds">, refs: Map<string, RefRow>): RefRow[] {
+  if (SECTION_RULES[row.type].refs !== "brands") return [];
+  return row.refIds.flatMap((id) => refs.get(id) ?? []);
+}
+
+async function loadItemCategories(rows: Pick<SectionRow, "items">[]) {
+  const ids = [
+    ...new Set(
+      rows.flatMap((row) => row.items.flatMap((item) => (item.categoryId ? [item.categoryId] : []))),
+    ),
+  ];
+  if (ids.length === 0) return new Map<string, CategoryRow>();
+
+  const [categories, visible] = await Promise.all([
+    prisma.category.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, slug: true, imageId: true, parent: { select: { name: true } } },
+    }),
+    prisma.category.findMany({ where: { id: { in: ids }, ...VISIBLE_CATEGORY }, select: { id: true } }),
+  ]);
+  const onStorefront = new Set(visible.map((row) => row.id));
+
+  return new Map(
+    categories.map((row): [string, CategoryRow] => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        parentName: row.parent?.name ?? null,
+        imageId: row.imageId,
+        imageUrl: imageUrlOrNull(row.imageId),
+        href: productHrefForCategory(row.slug),
+        onStorefront: onStorefront.has(row.id),
+      },
+    ]),
+  );
+}
+
+function categoryOf(
+  item: ItemRow,
+  categories: Map<string, CategoryRow>,
+): SectionItemCategory | null {
+  const category = item.categoryId ? categories.get(item.categoryId) : undefined;
+  if (!category) return null;
+  return {
+    id: category.id,
+    name: category.parentName ? `${category.parentName} › ${category.name}` : category.name,
+    imageUrl: category.imageUrl,
+    onStorefront: category.onStorefront,
+  };
 }

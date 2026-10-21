@@ -33,10 +33,11 @@ function optionalHref(max: number) {
   return optionalText(max).refine((value) => value === null || isSafeHref(value), SAFE_HREF_MESSAGE);
 }
 
-/** One drop, picked product or review. Which fields its kind may fill is `checkItemFields`. */
+/** One drop, picked product, review or category. Which fields its kind may fill is `checkItemFields`. */
 export const homepageSectionItemSchema = z.object({
   visible: z.boolean().default(true),
   productId: idValidator.nullable().default(null),
+  categoryId: idValidator.nullable().default(null),
   title: optionalText(ITEM_TEXT_LIMITS.title),
   body: optionalText(ITEM_TEXT_LIMITS.body),
   author: optionalText(ITEM_TEXT_LIMITS.author),

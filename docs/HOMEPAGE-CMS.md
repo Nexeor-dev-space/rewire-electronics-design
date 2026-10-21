@@ -40,7 +40,7 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/hooks/use-homepage.ts` | React Query hooks for the admin API. Key `["homepage"]`; a successful mutation writes the returned draft into the cache with no refetch, a failed one reloads the draft |
 | `src/lib/homepage-builder.ts` | Pure helpers for the builder: `swapItems`, `sectionToInput`, `itemToInput`, `emptySectionInput`, `emptyItemInput`, `validateSection`, `firstLine`, `flattenCategoryRefs`. Client-safe |
 | `src/lib/dates.ts` | Store time helpers for drop release times: `toStoreDateTimeInput`, `fromStoreDateTimeInput`, `formatStoreDateTime` (§4). Unit tested in `dates.test.ts` |
-| `src/components/admin/homepage/` | The builder screen, the section form, the brand and category picker, the items editor and the product picker |
+| `src/components/admin/homepage/` | The builder screen, the section form, the brand picker, the items editor, the product picker and the category picker |
 | `src/app/admin/storefront/homepage/page.tsx` | The builder route, guarded by `storefront.homepage` |
 | `src/app/(site)/preview/homepage/page.tsx` | The staff draft preview |
 | `src/components/home/homepage-sections.tsx` | Renders a list of sections with the FAQ and product data they share. Used by `/` and the preview |
@@ -124,7 +124,7 @@ inputs to show.
 | `INVITATION` | next drop — `drops.ts` | title\*, button label\*, subtitle | fixed |
 | `PROMO_BANNER` | the CMS | title\*, image, eyebrow, subtitle, description, button, seasonal | added |
 | `FEATURED_BRANDS` | `Brand` table | title\*, eyebrow, subtitle, button, brands\* | added |
-| `FEATURED_CATEGORIES` | `Category` table | title\*, eyebrow, subtitle, button, categories\* | added |
+| `FEATURED_CATEGORIES` | category items (§4) | title\*, eyebrow, subtitle, button, categories\* | added |
 
 \* required.
 
@@ -157,7 +157,7 @@ inputs to show.
 
 ---
 
-## 4. Items — drops, Just Listed picks and reviews
+## 4. Items — drops, Just Listed picks, reviews and featured categories
 
 `HomepageSectionItem` rows hang off a section, in `sortOrder`, each with its
 own `visible`. What they hold is the section's `SECTION_RULES[type].items`, and
@@ -169,6 +169,7 @@ as sections. At most **12** per section.
 | `drops` | Upcoming drops | product, title, release date, button, image | a product, **or** title + image + release date |
 | `products` | Just listed | product | product |
 | `reviews` | Reviews | quote (`body`), customer (`author`), product bought (`title`), rating 1–5, avatar (`image`) | quote, customer |
+| `categories` | Featured categories | category, title, image, link (`ctaHref`) | category; at least one per section |
 
 **Saving.** The section `PUT` carries `items`, and that array **replaces** the
 section's items, like a product's images and specs. There are no item routes.
@@ -233,6 +234,22 @@ mega menu still read the mock in `src/lib/drops.ts`. A Releases module (P3)
 would replace that; homepage drops would then point at releases instead of, or
 as well as, products.
 
+**Featured categories.** Each item stores a `categoryId`, a real relation to
+`Category`. Its title, image and link replace the category's name, image and
+page when filled; left empty, the category's own are used, read when the page
+renders. The link follows the same `ctaHref` rule as a button (§3). Any
+category that exists can be chosen (422 on `items` otherwise), and the same
+category only once per section. A category the shop wouldn't show is kept and
+badged "Not on storefront" in the builder; on the storefront it is skipped,
+like a hidden item, and a section with nothing left is not rendered. Deleting
+a category deletes its items in both stages (`Cascade`). Category deletes are
+still not blocked by homepage use.
+
+Until migration `20261020111534_homepage_category_items` featured categories
+were a list of ids in `refIds`. The migration moved each section's list, in
+both stages, into items in the same order, skipped ids whose category no
+longer existed, and emptied `refIds` on those sections.
+
 **Brand and category links.** A brand opens `/collection?brand=<name>` — the shop matches
 brands by name. A category opens `/collection/<slug>` using its catalogue slug.
 Categories the shop wouldn't show (draft, archived, or under an unpublished
@@ -244,7 +261,7 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
 
 - `HomepageSection.imageId`, `HomepageSection.mobileImageId` (the Hero's
   phone image) and `HomepageSectionItem.imageId` (a teaser drop's picture, a
-  review's avatar) are relations to `MediaAsset`. Both the upload sweep and
+  review's avatar, a featured category's replacement image) are relations to `MediaAsset`. Both the upload sweep and
   `releaseImage` count all three, from rows of **either** stage, as a
   reference, so an image replaced in the draft survives until a publish
   replaces the live row too. A save releases every image the old version of
@@ -253,11 +270,11 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
 - An image id that no longer exists is refused on save (422 on that field,
   `items.N.imageId` for an item). A missing image on the storefront drops out
   quietly: the Hero leaves its centrepiece out, a drop card shows its plate.
-- `refIds` holds brand or category ids in display order, checked to exist on
-  save (422 on the field otherwise), at most 12. A brand or category deleted
-  later is **skipped** when the section renders; a featured section with
-  nothing left is not rendered at all. Brand and category deletes are not
-  blocked by homepage use.
+- `refIds` holds a featured brands section's brand ids in display order,
+  checked to exist on save (422 on the field otherwise), at most 12. A brand
+  deleted later is **skipped** when the section renders; a section with
+  nothing left is not rendered at all. Brand deletes are not blocked by
+  homepage use. Featured categories use items (§4), not `refIds`.
 - The storefront read (`getPublishedHomepage`, which is
   `getHomepageSections("LIVE")`; the preview calls it with `"DRAFT"`, with
   the same skipping rules) is **not cached**: the
@@ -272,8 +289,8 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
 ## 6. Limits
 
 - **30 sections**, so `GET /api/v1/admin/homepage` returns one bounded list
-  rather than a paginated one (see DATA-LAYER §4). **12** brands or categories
-  per featured section, **12** items per section. Text: eyebrow 60, title 120,
+  rather than a paginated one (see DATA-LAYER §4). **12** brands per featured
+  brands section, **12** items per section (so 12 featured categories). Text: eyebrow 60, title 120,
   subtitle 300, description 600, button label 40, button link 300 characters.
   Items: title 120, review 600, customer 60, button label 40, button link 300.
 - **Writes run one at a time.** Every homepage write first locks the
@@ -329,7 +346,11 @@ the homepage renders the header and footer only.
 
 ## 9. Homepage Builder
 
-Storefront → Homepage Builder, `/admin/storefront/homepage`. Signed out
+Storefront → Homepage Builder, `/admin/storefront/homepage`. The sidebar's
+**Banners** (`/admin/storefront/banners`) and **Curated Categories**
+(`/admin/storefront/curated-categories`) redirect here: banners are Promo
+banner sections and curated categories are Featured categories sections.
+Signed out
 redirects to sign in; a role without `storefront.homepage` sees "Access
 denied". Everything on the screen edits the draft; shoppers see nothing until
 Publish.
@@ -354,13 +375,13 @@ Policies, where the FAQ section's questions are edited.
 `SECTION_RULES` gives the type, with their length limits; the title is a
 textarea because a new line starts a new heading line. Promo banners get the
 shared image upload and a Seasonal checkbox; the Hero gets a desktop and a
-phone image; featured sections get the picker; Upcoming drops, Just listed
-and Reviews get the items editor. Before sending, `validateSection` runs the
+phone image; Featured brands get the brand picker; Upcoming drops, Just
+listed, Reviews and Featured categories get the items editor. Before sending, `validateSection` runs the
 same schema and type rules as the API, so most mistakes show without a round
 trip; the API's 422 field errors land on the same inputs, an item's on its
 own card.
 
-**Picker.** Searches brands or categories through the catalogue list
+**Brand picker.** Searches brands through the catalogue list
 endpoints, one page of results (`PICKER_PAGE_SIZE`). Chosen items keep their
 order, can be moved and removed, up to 12.
 
@@ -369,8 +390,12 @@ remove. Drops and Just listed add products through the **product picker**,
 which searches Catalogue → Products (any status; drafts are flagged "hidden on
 the storefront"). A drop card adds a title, a release date and time in Dubai time (§4) and a button, and
 "Add a release that isn't in the catalogue yet" adds one with its own image.
-A review card has the quote, customer, product bought, rating and photo. A
-product the storefront would skip is badged "Not on storefront".
+A review card has the quote, customer, product bought, rating and photo.
+Featured categories add categories through the **category picker**, which
+searches Catalogue → Categories (any status; subcategories show as
+"Parent › Child"). A category card has an optional title, link and image that
+replace the category's own. A product or category the storefront would skip is
+badged "Not on storefront".
 
 **Preview.** `/preview/homepage` renders the draft's visible sections with the
 real header and footer through the same `HomepageSections` component as `/`.
