@@ -39,7 +39,8 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/lib/api/api-endpoints.ts` | `API_ENDPOINTS.admin.homepage`, for the Page Builder's hooks |
 | `src/hooks/use-homepage.ts` | React Query hooks for the admin API. Key `["homepage"]`; a successful mutation writes the returned draft into the cache with no refetch, a failed one reloads the draft |
 | `src/lib/homepage-builder.ts` | Pure helpers for the builder: `swapItems`, `sectionToInput`, `itemToInput`, `emptySectionInput`, `emptyItemInput`, `validateSection`, `firstLine`, `flattenCategoryRefs`. Client-safe |
-| `src/lib/dates.ts` | Store time helpers for drop release times: `toStoreDateTimeInput`, `fromStoreDateTimeInput`, `formatStoreDateTime` (§4). Unit tested in `dates.test.ts` |
+| `src/lib/homepage-sections.test.ts` | Unit tests for the deals item rule, the Season deals schedule and the one per homepage rule |
+| `src/lib/dates.ts` | Store time helpers for drop release times and Season deals dates: `toStoreDateTimeInput`, `fromStoreDateTimeInput`, `formatStoreDateTime` (§4) |
 | `src/components/admin/homepage/` | The builder screen, the section form, the brand picker, the items editor, the product picker and the category picker |
 | `src/app/admin/storefront/homepage/page.tsx` | The builder route, guarded by `storefront.homepage` |
 | `src/app/(site)/preview/homepage/page.tsx` | The staff draft preview |
@@ -47,7 +48,9 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/components/home/homepage-section.tsx` | Section type → storefront component |
 | `src/components/home/{hero,upcoming-drops,featured,stories}/` | The Hero, Upcoming drops, Just listed and Reviews sections |
 | `src/components/home/{promo-banner,featured-brands,featured-categories}/` | The three section types staff can add |
-| `src/components/home/shared/section-header.tsx` | Header and closing link those three share |
+| `src/components/home/deals/` | Best deals and Season deals (`DealsSection`), and the promo tile (`DealTile`) |
+| `src/components/home/shared/section-header.tsx` | Header, closing link and product grid classes (`SHELF_GRID_CLASS`) the added sections share |
+| `src/app/admin/storefront/{best-deals,season-deals}/page.tsx` | Redirect to the builder with that section's form open (§10) |
 | `prisma/seed.ts` | The default homepage |
 
 ### Admin API
@@ -59,7 +62,7 @@ and `publishedAt`.
 | Route | Does |
 | --- | --- |
 | `GET /api/v1/admin/homepage` | The draft |
-| `POST /api/v1/admin/homepage/sections` | Add a `PROMO_BANNER`, `FEATURED_BRANDS` or `FEATURED_CATEGORIES`, appended last (201) |
+| `POST /api/v1/admin/homepage/sections` | Add a `PROMO_BANNER`, `FEATURED_BRANDS`, `FEATURED_CATEGORIES`, `BEST_DEALS` or `SEASON_DEALS`, appended last (201). 409 for a second `BEST_DEALS` or `SEASON_DEALS` |
 | `PUT /api/v1/admin/homepage/sections/[id]` | Replace a draft section's fields, `visible` and its `items` (§4) |
 | `DELETE /api/v1/admin/homepage/sections/[id]` | Delete an added section; 409 for a fixed one |
 | `PUT /api/v1/admin/homepage/order` | `{ ids }` — exactly the draft's ids, each once, in the new order |
@@ -125,8 +128,23 @@ inputs to show.
 | `PROMO_BANNER` | the CMS | title\*, image, eyebrow, subtitle, description, button, seasonal | added |
 | `FEATURED_BRANDS` | `Brand` table | title\*, eyebrow, subtitle, button, brands\* | added |
 | `FEATURED_CATEGORIES` | category items (§4) | title\*, eyebrow, subtitle, button, categories\* | added |
+| `BEST_DEALS` (Best deals) | product items (§4) | title\*, eyebrow, subtitle, description, button, image, products | added, one |
+| `SEASON_DEALS` (Season deals) | deal items (§4) | title\*, eyebrow, subtitle, description, button, image, starts\*, ends\*, deals | added, one |
 
 \* required.
+
+**One of each.** `SECTION_RULES[type].singleton` marks Best deals and Season
+deals. A second one is refused with 409, and the builder disables its Add
+button while one exists.
+
+**Season deals dates.** `startsAt` and `endsAt` on `HomepageSection` (migration
+`20261021081013_add_deal_sections`), set only for types with
+`SECTION_RULES[type].schedule`. Both are required and the end must be after
+the start; other types refuse them. The live homepage shows the section only
+from `startsAt` up to, not including, `endsAt` (`isWithinSchedule`), decided on
+the server per request. The preview ignores the dates so staff can check a
+campaign before it starts. The dates are typed in Dubai time, like drop
+release times (§4).
 
 - **Fixed** sections are part of the page: they can be moved and hidden, never
   added or deleted (a delete is 409). **Added** types can be created and
@@ -167,7 +185,8 @@ as sections. At most **12** per section.
 | Kind | Section | Fields | Required |
 | --- | --- | --- | --- |
 | `drops` | Upcoming drops | product, title, release date, button, image | a product, **or** title + image + release date |
-| `products` | Just listed | product | product |
+| `products` | Just listed, Best deals | product | product |
+| `deals` | Season deals | product, title, image, link (`ctaHref`) | a product alone, **or** title + image + link |
 | `reviews` | Reviews | quote (`body`), customer (`author`), product bought (`title`), rating 1–5, avatar (`image`) | quote, customer |
 | `categories` | Featured categories | category, title, image, link (`ctaHref`) | category; at least one per section |
 
@@ -223,6 +242,21 @@ through `src/lib/dates.ts` on the store's clock, `STORE_TIME_ZONE`
 in the chosen order. With no picks, or none of them sellable, the shelf shows
 `listNewestShopProducts(FEATURED_PRODUCTS_LIMIT)` as before. With neither, the
 shelf is left out.
+
+**Best deals.** Picks the shop can sell right now (listed and in stock) show
+in the chosen order, as the shop's own product cards. There is no fallback:
+with nothing sellable the section is left out. Any listed product can be
+picked. The card shows the saving when the variant it shows has a "Was" price
+(`compareAtPrice`); the builder badges a product without one "No discount".
+`onSale` on the admin product list and on an item's product is that same
+check (`isOnSale`, on the variant ordered first by `SHOP_VARIANT_ORDER`, both
+in `catalogue.service.ts`).
+
+**Season deals.** A deal is a product, shown as its product card on the same
+terms as Best deals, or a promo tile with its own title, uploaded image and
+link. A product deal may not carry a title, image or link, so a product's
+name and photos are never copied. A tile links wherever its link points. With
+nothing left to show the section is not rendered.
 
 **Reviews.** Written in by staff. The summary ("4.8/5 · 9 reviews") is derived
 from the reviews shown; the rating is dropped when none has one. They are not
@@ -336,7 +370,9 @@ the homepage renders the header and footer only.
    `src/lib/homepage-sections.ts` — and to `ADDABLE_SECTION_TYPES` if staff
    should be able to add it. If it holds items, set `items` to an existing
    kind or add one to `ITEM_RULES`, then shape them for the storefront in
-   `getHomepageSections`.
+   `getHomepageSections`. Set `singleton` for at most one per homepage,
+   `schedule` for start and end dates, and `discountHint` to flag products
+   without a discount in the pickers.
 3. Build its component taking `{ section: PublishedSection }`.
 4. Add a case to `src/components/home/homepage-section.tsx`. The switch is
    exhaustive, so the type-check fails until you do.
@@ -367,8 +403,10 @@ Publish.
 
 **Section list**, in draft order. Each row shows the type, the first line of
 its title, Seasonal and Hidden badges, a Visible checkbox, move up and down
-buttons, Edit, and Delete for added types only. **Add section** offers the
-addable types and is disabled at 30 sections. A note links to Content &
+buttons, Edit, and Delete for added types only. Season deals also shows
+"Scheduled", "Running" or "Ended" against its dates. **Add section** offers
+the addable types and is disabled at 30 sections; Best deals and Season deals
+are disabled while the draft has one. A note links to Content &
 Policies, where the FAQ section's questions are edited.
 
 **Section form.** One modal for every type. It shows only the fields
@@ -396,6 +434,10 @@ searches Catalogue → Categories (any status; subcategories show as
 "Parent › Child"). A category card has an optional title, link and image that
 replace the category's own. A product or category the storefront would skip is
 badged "Not on storefront".
+Best deals and Season deals add products through the product picker, which
+flags "No discount" on them. A Season deals card for a promo tile, added with
+"Add a promo tile", has a title, a link and an image upload. The Season deals
+form has Starts and Ends fields in Dubai time.
 
 **Preview.** `/preview/homepage` renders the draft's visible sections with the
 real header and footer through the same `HomepageSections` component as `/`.
@@ -414,3 +456,28 @@ is marked noindex. A bar at the bottom links back to the builder.
    each other (§6).
 4. An item's field errors are keyed by its position, so moving items after a
    failed save can leave an error on the wrong card until the next save.
+
+---
+
+## 10. Best Deals and Season Deals screens
+
+Storefront → **Best Deals** (`/admin/storefront/best-deals`) and Storefront →
+**Season Deals** (`/admin/storefront/season-deals`) are not separate modules.
+Each page redirects to the Homepage Builder with `?section=BEST_DEALS` or
+`?section=SEASON_DEALS` (`HOMEPAGE_SECTION_PARAM` in `src/lib/constants.ts`).
+The builder then opens that section's edit form, or its add form when the
+draft has none yet. Both routes are in `BUILT_ROUTES`.
+
+Publishing is the homepage's own Publish, so it also publishes any other
+unpublished homepage change.
+
+Both sidebar rows carry `permission: storefront.homepage` in
+`src/lib/admin-nav.ts`, so a role without the Homepage Builder doesn't see
+them (PERMISSIONS.md §7).
+
+**Example.** To run a Black Friday campaign:
+
+1. Open Storefront → Season Deals; the add form opens.
+2. Enter the title, set Starts and Ends, pick products and add a promo tile.
+3. Save, then Publish. The section appears on `/` at the start time and leaves
+   at the end time with no further publish.
