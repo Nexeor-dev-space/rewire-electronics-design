@@ -424,6 +424,8 @@ export interface SectionFieldsInput {
   imageId: string | null;
   mobileImageId: string | null;
   seasonal: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
   refIds: string[];
   items: SectionItemFieldsInput[];
 }
@@ -457,6 +459,17 @@ export function checkSectionFields(
   const hasLink = allowed.includes("ctaLabel") && allowed.includes("ctaHref");
   if (hasLink && Boolean(input.ctaLabel) !== Boolean(input.ctaHref)) {
     add(input.ctaLabel ? "ctaHref" : "ctaLabel", "Fill in both the button label and link, or neither.");
+  }
+
+  if (rule.schedule) {
+    if (!input.startsAt) add("startsAt", "Set when the deals start.");
+    if (!input.endsAt) add("endsAt", "Set when the deals end.");
+    else if (input.startsAt && Date.parse(input.endsAt) <= Date.parse(input.startsAt)) {
+      add("endsAt", "End after the start.");
+    }
+  } else {
+    if (input.startsAt) add("startsAt", `A ${noun} section has no start date.`);
+    if (input.endsAt) add("endsAt", `A ${noun} section has no end date.`);
   }
 
   if (!rule.image && input.imageId) add("imageId", `A ${noun} section has no image.`);
@@ -519,6 +532,10 @@ export function isSafeHref(href: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isWithinSchedule(startsAt: Date | null, endsAt: Date | null, now: Date): boolean {
+  return startsAt !== null && endsAt !== null && startsAt <= now && now < endsAt;
 }
 
 /** A stored title split into the heading's lines. */
