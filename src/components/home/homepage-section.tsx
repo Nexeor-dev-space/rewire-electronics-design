@@ -9,6 +9,7 @@ import { Invitation } from "@/components/home/invitation/invitation";
 import { PromoBanner } from "@/components/home/promo-banner/promo-banner";
 import { FeaturedBrands } from "@/components/home/featured-brands/featured-brands";
 import { FeaturedCategories } from "@/components/home/featured-categories/featured-categories";
+import { DealsSection } from "@/components/home/deals/deals-section";
 import type { FaqEntry } from "@/lib/faq-entry";
 import { headingLines } from "@/lib/homepage-sections";
 import type { ShopCard } from "@/types/catalogue";
@@ -57,7 +58,13 @@ export function HomepageSection({
     case "FEATURED_CATEGORIES":
       return <FeaturedCategories section={section} />;
     case "BEST_DEALS":
+      return section.products.length > 0 ? (
+        <DealsSection
+          section={section}
+          deals={section.products.map((card) => ({ kind: "product", id: card.id, card }))}
+        />
+      ) : null;
     case "SEASON_DEALS":
-      return null;
+      return <DealsSection section={section} deals={section.deals} />;
   }
 }

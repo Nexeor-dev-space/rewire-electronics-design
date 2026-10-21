@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { SHELF_GRID_CLASS } from "@/components/home/shared/section-header";
 import { ShopProductCard } from "@/components/shop/product-card";
 import { buttonVariants } from "@/components/ui/button";
 import { headingLines } from "@/lib/homepage-sections";
@@ -11,7 +12,6 @@ import {
   staggerChildren,
   viewportOnce,
 } from "@/lib/motion";
-import { cn } from "@/lib/utils";
 import type { ShopCard } from "@/types/catalogue";
 import type { PublishedSection } from "@/types/homepage";
 
@@ -108,17 +108,7 @@ export function Featured({
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.09, 0.1)}
-          className={cn(
-            "mt-14 lg:mt-16",
-            // Two up from 360px, matching the shop grid; one below it
-            // where the card copy starts colliding.
-            "grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2",
-            // Grid, gap, and column count matched to `UpcomingDrops`
-            // above so cards on this section never render narrower than
-            // the drop cards.
-            "sm:gap-x-6 sm:gap-y-14",
-            "xl:grid-cols-4 xl:gap-x-6",
-          )}
+          className={SHELF_GRID_CLASS}
         >
           {products.map((product, i) => (
             <motion.li key={product.id} variants={rise} className="flex">

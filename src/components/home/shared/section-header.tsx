@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { buttonVariants } from "@/components/ui/button";
 import { headingLines } from "@/lib/homepage-sections";
 import { DURATION, EASE_OUT_EXPO, staggerChildren, viewportOnce } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 /**
  * The header and closing link the CMS-built sections share, set in the same
@@ -20,6 +21,13 @@ export const rise = {
     transition: { duration: DURATION.slow, ease: EASE_OUT_EXPO },
   },
 };
+
+export const SHELF_GRID_CLASS = cn(
+  "mt-14 lg:mt-16",
+  "grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2",
+  "sm:gap-x-6 sm:gap-y-14",
+  "xl:grid-cols-4 xl:gap-x-6",
+);
 
 const lineClip = {
   hidden: { y: "140%" },
