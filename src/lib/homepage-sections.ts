@@ -19,6 +19,8 @@ export const HOMEPAGE_SECTION_TYPES = [
   "PROMO_BANNER",
   "FEATURED_BRANDS",
   "FEATURED_CATEGORIES",
+  "BEST_DEALS",
+  "SEASON_DEALS",
 ] as const;
 export type HomepageSectionType = (typeof HOMEPAGE_SECTION_TYPES)[number];
 
@@ -27,6 +29,8 @@ export const ADDABLE_SECTION_TYPES = [
   "PROMO_BANNER",
   "FEATURED_BRANDS",
   "FEATURED_CATEGORIES",
+  "BEST_DEALS",
+  "SEASON_DEALS",
 ] as const satisfies readonly HomepageSectionType[];
 export type AddableSectionType = (typeof ADDABLE_SECTION_TYPES)[number];
 
@@ -68,7 +72,7 @@ export const MAX_SECTION_REFS = 12;
 export const MAX_SECTION_ITEMS = 12;
 
 /** What a section's `items` hold. */
-export type SectionItemKind = "drops" | "products" | "reviews" | "categories";
+export type SectionItemKind = "drops" | "products" | "reviews" | "categories" | "deals";
 
 export interface SectionTypeRule {
   label: string;
@@ -84,6 +88,9 @@ export interface SectionTypeRule {
   refs: "brands" | null;
   /** What `items` holds, or null when the type has none. */
   items: SectionItemKind | null;
+  singleton: boolean;
+  schedule: boolean;
+  discountHint: boolean;
 }
 
 /**
@@ -101,6 +108,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   UPCOMING_DROPS: {
     label: "Upcoming drops",
@@ -112,6 +122,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: "drops",
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   BEST_SELLERS: {
     label: "Just listed",
@@ -123,6 +136,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: "products",
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   CONDITIONS: {
     label: "Conditions",
@@ -134,6 +150,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   TESTIMONIALS: {
     label: "Reviews",
@@ -145,6 +164,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: "reviews",
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   FAQ: {
     label: "FAQ",
@@ -156,6 +178,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   INVITATION: {
     label: "Invitation",
@@ -167,6 +192,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   PROMO_BANNER: {
     label: "Promo banner",
@@ -178,6 +206,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: true,
     refs: null,
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   FEATURED_BRANDS: {
     label: "Featured brands",
@@ -189,6 +220,9 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: "brands",
     items: null,
+    singleton: false,
+    schedule: false,
+    discountHint: false,
   },
   FEATURED_CATEGORIES: {
     label: "Featured categories",
@@ -200,6 +234,37 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     seasonal: false,
     refs: null,
     items: "categories",
+    singleton: false,
+    schedule: false,
+    discountHint: false,
+  },
+  BEST_DEALS: {
+    label: "Best deals",
+    fixed: false,
+    required: ["title"],
+    optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
+    image: true,
+    mobileImage: false,
+    seasonal: false,
+    refs: null,
+    items: "products",
+    singleton: true,
+    schedule: false,
+    discountHint: true,
+  },
+  SEASON_DEALS: {
+    label: "Season deals",
+    fixed: false,
+    required: ["title"],
+    optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
+    image: true,
+    mobileImage: false,
+    seasonal: false,
+    refs: null,
+    items: "deals",
+    singleton: true,
+    schedule: true,
+    discountHint: true,
   },
 };
 
@@ -269,6 +334,7 @@ export const ITEM_RULES: Record<SectionItemKind, ItemKindRule> = {
   products: { noun: "product", fields: ["productId"] },
   reviews: { noun: "review", fields: ["body", "author", "title", "rating", "imageId"] },
   categories: { noun: "category", fields: ["categoryId", "title", "imageId", "ctaHref"] },
+  deals: { noun: "deal", fields: ["productId", "title", "imageId", "ctaHref"] },
 };
 
 export interface SectionItemFieldsInput {
@@ -308,6 +374,18 @@ export function checkItemFields(
 
   if (kind === "products" && !item.productId) add("productId", "Choose a product.");
   if (kind === "categories" && !item.categoryId) add("categoryId", "Choose a category.");
+
+  if (kind === "deals" && item.productId) {
+    if (item.title) add("title", "A product deal takes its name from the product.");
+    if (item.imageId) add("imageId", "A product deal uses the product's photos.");
+    if (item.ctaHref) add("ctaHref", "A product deal links to its product page.");
+  }
+
+  if (kind === "deals" && !item.productId) {
+    if (!item.title) add("title", "Choose a product, or enter a title.");
+    if (!item.imageId) add("imageId", "Choose a product, or upload an image.");
+    if (!item.ctaHref) add("ctaHref", "Choose a product, or enter a link.");
+  }
 
   if (kind === "drops" && !item.productId) {
     // A release not in the catalogue yet: it needs its own name, picture and date.

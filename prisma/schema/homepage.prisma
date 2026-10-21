@@ -22,6 +22,8 @@ enum HomepageSectionType {
   PROMO_BANNER
   FEATURED_BRANDS
   FEATURED_CATEGORIES
+  BEST_DEALS
+  SEASON_DEALS
 }
 
 model HomepageSection {
@@ -38,6 +40,8 @@ model HomepageSection {
   description String?
   ctaLabel    String?
   ctaHref     String?
+  startsAt    DateTime?
+  endsAt      DateTime?
 
   /// A real relation, not an id inside JSON: the orphan sweep deletes any
   /// asset nothing references.

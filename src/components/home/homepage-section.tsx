@@ -56,5 +56,8 @@ export function HomepageSection({
       return <FeaturedBrands section={section} />;
     case "FEATURED_CATEGORIES":
       return <FeaturedCategories section={section} />;
+    case "BEST_DEALS":
+    case "SEASON_DEALS":
+      return null;
   }
 }

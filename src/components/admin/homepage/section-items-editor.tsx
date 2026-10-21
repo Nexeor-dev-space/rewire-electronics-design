@@ -54,6 +54,7 @@ const HEADINGS: Record<SectionItemKind, string> = {
   products: "Products",
   reviews: "Reviews",
   categories: "Categories",
+  deals: "Deals",
 };
 
 interface SectionItemsEditorProps {
