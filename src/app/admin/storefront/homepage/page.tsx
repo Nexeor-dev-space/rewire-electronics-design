@@ -29,5 +29,5 @@ export default async function HomepageBuilderPage({ searchParams }: Props) {
     );
   }
 
-  return <HomepageBuilder openType={openType} />;
+  return <HomepageBuilder key={openType} openType={openType} />;
 }

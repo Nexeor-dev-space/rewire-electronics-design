@@ -5,7 +5,11 @@
  */
 
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { checkSectionFields, type HomepageSectionType } from "@/lib/homepage-sections";
+import {
+  SECTION_RULES,
+  checkSectionFields,
+  type HomepageSectionType,
+} from "@/lib/homepage-sections";
 import type { CategoryNode } from "@/types/category";
 import type {
   HomepageSection,
@@ -124,6 +128,19 @@ export function validateSection(
 export function rowErrorMessage(error: Error): string {
   const [first] = Object.values(apiFieldErrors(error)).flatMap((messages) => messages ?? []);
   return first ?? error.message;
+}
+
+/**
+ * Why a deal section would show nothing on the storefront once published, or
+ * null. Products the storefront skips (unpublished, in Trash, under a hidden
+ * category) don't count; a promo tile always does.
+ */
+export function storefrontWarning(section: HomepageSection): string | null {
+  if (!SECTION_RULES[section.type].discountHint) return null;
+  const shows = section.items.some(
+    (item) => item.visible && (item.productId === null || item.product?.onStorefront === true),
+  );
+  return shows ? null : "No products on the storefront";
 }
 
 /** The first non-empty line of a stored title, for list rows. */

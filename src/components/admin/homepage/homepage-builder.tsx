@@ -19,7 +19,13 @@ import {
 } from "@/hooks/use-homepage";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { FAQ_EDITOR_PATH, HOMEPAGE_PREVIEW_PATH } from "@/lib/constants";
-import { firstLine, rowErrorMessage, sectionToInput, swapItems } from "@/lib/homepage-builder";
+import {
+  firstLine,
+  rowErrorMessage,
+  sectionToInput,
+  storefrontWarning,
+  swapItems,
+} from "@/lib/homepage-builder";
 import {
   ADDABLE_SECTION_TYPES,
   MAX_HOMEPAGE_SECTIONS,
@@ -60,12 +66,13 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   if (openType && !opened && draft.data) {
     setOpened(true);
     const existing = draft.data.sections.find((section) => section.type === openType);
-    if (existing && access.edit) setModal({ kind: "edit", section: existing });
-    else if (!existing && access.create) setModal({ kind: "add", type: openType });
+    if (existing && access.edit) openModal({ kind: "edit", section: existing });
+    else if (!existing && access.create) openModal({ kind: "add", type: openType });
   }
 
   const busy = updateSection.isPending || reorder.isPending || deleteSection.isPending;
@@ -229,6 +236,20 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
         </div>
       )}
 
+      {saved && data?.hasUnpublishedChanges && (
+        <div
+          role="status"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-2 px-4 py-3"
+        >
+          <p className="text-sm text-ink">Saved to the draft. Shoppers see it after you publish.</p>
+          {access.publish && (
+            <Button size="sm" onClick={() => setConfirm({ kind: "publish" })}>
+              Publish now
+            </Button>
+          )}
+        </div>
+      )}
+
       {actionError && (
         <p role="alert" className="mb-4 text-sm text-danger">
           {actionError}
@@ -247,9 +268,17 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
 
       {modal &&
         (modal.kind === "edit" ? (
-          <SectionFormModal section={modal.section} onClose={() => setModal(null)} />
+          <SectionFormModal
+            section={modal.section}
+            onClose={() => setModal(null)}
+            onSaved={() => setSaved(true)}
+          />
         ) : (
-          <SectionFormModal type={modal.type} onClose={() => setModal(null)} />
+          <SectionFormModal
+            type={modal.type}
+            onClose={() => setModal(null)}
+            onSaved={() => setSaved(true)}
+          />
         ))}
 
       <ConfirmDialog
@@ -336,6 +365,8 @@ function SectionRow({
 }) {
   const label = SECTION_RULES[section.type].label;
   const locked = disabled || !onEdit;
+  const warning = section.visible ? storefrontWarning(section) : null;
+  const schedule = SECTION_RULES[section.type].schedule ? scheduleLabel(section) : null;
   return (
     <div
       className={cn(
@@ -375,9 +406,14 @@ function SectionRow({
             Seasonal
           </Badge>
         )}
-        {SECTION_RULES[section.type].schedule && (
-          <Badge variant="outline" className={BADGE_CLASS}>
-            {scheduleLabel(section)}
+        {warning && (
+          <Badge variant="warn" className={BADGE_CLASS}>
+            {warning}
+          </Badge>
+        )}
+        {schedule && (
+          <Badge variant={schedule === "Running" ? "outline" : "warn"} className={BADGE_CLASS}>
+            {schedule}
           </Badge>
         )}
         {!section.visible && <Badge className={BADGE_CLASS}>Hidden</Badge>}

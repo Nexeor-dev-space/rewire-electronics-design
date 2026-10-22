@@ -30,7 +30,7 @@ import {
 } from "@/lib/homepage-sections";
 import type { HomepageSection, SectionRef } from "@/types/homepage";
 
-type SectionFormModalProps = { onClose: () => void } & (
+type SectionFormModalProps = { onClose: () => void; onSaved?: () => void } & (
   | { section: HomepageSection; type?: never }
   | { section?: never; type: AddableSectionType }
 );
@@ -44,12 +44,12 @@ const FIELD_HINTS: Partial<Record<SectionTextField, string>> = {
 };
 
 /** Adds an addable section, or edits any draft section, under its type's rules. */
-export function SectionFormModal({ section, type, onClose }: SectionFormModalProps) {
+export function SectionFormModal({ section, type, onClose, onSaved }: SectionFormModalProps) {
   const sectionType: HomepageSectionType = section ? section.type : type;
   const label = SECTION_RULES[sectionType].label;
   return (
     <Dialog open onClose={onClose} title={section ? `Edit ${label}` : `Add ${label}`}>
-      <SectionForm type={sectionType} initial={section} onClose={onClose} />
+      <SectionForm type={sectionType} initial={section} onClose={onClose} onSaved={onSaved} />
     </Dialog>
   );
 }
@@ -58,10 +58,12 @@ function SectionForm({
   type,
   initial,
   onClose,
+  onSaved,
 }: {
   type: HomepageSectionType;
   initial?: HomepageSection;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
   const id = useId();
   const rule = SECTION_RULES[type];
@@ -106,7 +108,10 @@ function SectionForm({
 
     setErrors({});
     const callbacks = {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        onSaved?.();
+        onClose();
+      },
       onError: (error: Error) => setErrors(apiFieldErrors(error)),
     };
     if (initial) updateSection.mutate({ id: initial.id, ...body }, callbacks);
