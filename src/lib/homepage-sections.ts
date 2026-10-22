@@ -76,6 +76,10 @@ export type SectionItemKind = "drops" | "products" | "reviews" | "categories" | 
 
 export interface SectionTypeRule {
   label: string;
+  /** One line for the Add section picker. */
+  description: string;
+  /** Its colour in the builder: `--section-tone-<tone>` in `globals.css`. */
+  tone: number;
   /** Part of the page: can be moved and hidden, never added or deleted. */
   fixed: boolean;
   required: readonly SectionTextField[];
@@ -100,6 +104,8 @@ export interface SectionTypeRule {
 export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   HERO: {
     label: "Hero",
+    description: "The opening banner: headline, image and button.",
+    tone: 1,
     fixed: true,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
@@ -114,6 +120,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   UPCOMING_DROPS: {
     label: "Upcoming drops",
+    description: "Products launching soon, with release dates.",
+    tone: 2,
     fixed: true,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
@@ -128,6 +136,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   BEST_SELLERS: {
     label: "Just listed",
+    description: "Hand-picked products, or the newest ones.",
+    tone: 3,
     fixed: true,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
@@ -142,6 +152,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   CONDITIONS: {
     label: "Conditions",
+    description: "How the condition grades work.",
+    tone: 4,
     fixed: true,
     required: ["title"],
     optional: ["eyebrow", "subtitle"],
@@ -156,6 +168,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   TESTIMONIALS: {
     label: "Reviews",
+    description: "Customer reviews with ratings.",
+    tone: 5,
     fixed: true,
     required: ["title"],
     optional: ["subtitle"],
@@ -170,6 +184,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   FAQ: {
     label: "FAQ",
+    description: "Questions and answers from Content & Policies.",
+    tone: 6,
     fixed: true,
     required: ["title"],
     optional: ["subtitle"],
@@ -184,6 +200,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   INVITATION: {
     label: "Invitation",
+    description: "The waitlist sign-up strip.",
+    tone: 7,
     fixed: true,
     required: ["title", "ctaLabel"],
     optional: ["subtitle"],
@@ -198,6 +216,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   PROMO_BANNER: {
     label: "Promo banner",
+    description: "A wide image banner with a headline and a link.",
+    tone: 8,
     fixed: false,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
@@ -212,6 +232,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   FEATURED_BRANDS: {
     label: "Featured brands",
+    description: "A row of brands you choose.",
+    tone: 9,
     fixed: false,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
@@ -226,6 +248,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   FEATURED_CATEGORIES: {
     label: "Featured categories",
+    description: "A row of categories you choose.",
+    tone: 10,
     fixed: false,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "ctaLabel", "ctaHref"],
@@ -240,6 +264,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   BEST_DEALS: {
     label: "Best deals",
+    description: "Products on sale, showing their saving.",
+    tone: 11,
     fixed: false,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],
@@ -254,6 +280,8 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   SEASON_DEALS: {
     label: "Season deals",
+    description: "Dated deals that show only between their start and end.",
+    tone: 12,
     fixed: false,
     required: ["title"],
     optional: ["eyebrow", "subtitle", "description", "ctaLabel", "ctaHref"],

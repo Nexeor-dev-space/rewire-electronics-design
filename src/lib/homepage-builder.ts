@@ -35,6 +35,14 @@ export function swapItems<T>(items: T[], index: number, offset: -1 | 1): T[] {
   return next;
 }
 
+/** `items` with the one at `from` taken out and put back at `to`. */
+export function moveItem<T>(items: T[], from: number, to: number): T[] {
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
 /** A draft section as the body its PUT expects. */
 export function sectionToInput(section: HomepageSection): SectionFormInput {
   return {
