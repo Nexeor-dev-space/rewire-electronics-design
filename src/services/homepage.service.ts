@@ -10,6 +10,7 @@ import {
   MAX_HOMEPAGE_SECTIONS,
   SECTION_RULES,
   checkSectionFields,
+  isWithinSchedule,
   type HomepageSectionType,
 } from "@/lib/homepage-sections";
 import { SHOP_INDEX_HREF, productHrefForCategory } from "@/lib/route-map";
@@ -19,6 +20,7 @@ import { availabilityFromStock } from "@/types";
 import type { ShopCard } from "@/types/catalogue";
 import type {
   HomepageSectionItem,
+  PublishedDeal,
   PublishedDrop,
   PublishedItem,
   PublishedReview,
@@ -31,7 +33,13 @@ import type {
   homepageSectionItemSchema,
   homepageSectionSchema,
 } from "@/validators/homepage.validator";
-import { PUBLISHED, VISIBLE_CATEGORY, findShopCards } from "./catalogue.service";
+import {
+  PUBLISHED,
+  SHOP_VARIANT_ORDER,
+  VISIBLE_CATEGORY,
+  findShopCards,
+  isOnSale,
+} from "./catalogue.service";
 import { imageExists, releaseImage } from "./media.service";
 
 /**
@@ -80,6 +88,8 @@ const sectionSelect = {
   description: true,
   ctaLabel: true,
   ctaHref: true,
+  startsAt: true,
+  endsAt: true,
   imageId: true,
   mobileImageId: true,
   refIds: true,
@@ -149,6 +159,8 @@ export async function getHomepageDraft() {
       imageUrl: imageUrlOrNull(row.imageId),
       mobileImageId: row.mobileImageId,
       mobileImageUrl: imageUrlOrNull(row.mobileImageId),
+      startsAt: row.startsAt?.toISOString() ?? null,
+      endsAt: row.endsAt?.toISOString() ?? null,
       refs: refsOf(row, refs).map(({ id, name }) => ({ id, name })),
       items: row.items.map((item): HomepageSectionItem => ({
         id: item.id,
@@ -196,6 +208,17 @@ export async function addHomepageSection(data: CreateSectionData) {
         `The homepage holds up to ${MAX_HOMEPAGE_SECTIONS} sections. Delete one before adding another.`,
         409,
       );
+    }
+
+    if (SECTION_RULES[data.type].singleton) {
+      const existing = await tx.homepageSection.count({ where: { stage: "DRAFT", type: data.type } });
+      if (existing > 0) {
+        throw new ServiceError(
+          "CONFLICT",
+          `The homepage already has a ${SECTION_RULES[data.type].label.toLowerCase()} section. Edit that one instead.`,
+          409,
+        );
+      }
     }
 
     await assertSectionValid(tx, data.type, data);
@@ -416,6 +439,13 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
   return rows.flatMap((row) => {
     const kind = SECTION_RULES[row.type].refs;
     const itemKind = SECTION_RULES[row.type].items;
+    if (
+      stage === "LIVE" &&
+      SECTION_RULES[row.type].schedule &&
+      !isWithinSchedule(row.startsAt, row.endsAt, now)
+    ) {
+      return [];
+    }
     const shown = row.items.filter((item) => item.visible);
     const items =
       itemKind === "categories"
@@ -438,6 +468,7 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
             return card && card.stock > 0 ? [card] : [];
           })
         : [];
+    const deals = itemKind === "deals" ? shown.flatMap((item) => toDeal(item, cards) ?? []) : [];
 
     // Every chosen brand deleted or category unpublished, every drop or
     // review hidden or gone, or a title missing from a hand-edited row:
@@ -446,6 +477,7 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
       ((kind !== null || itemKind === "categories") && items.length === 0) ||
       (itemKind === "drops" && drops.length === 0) ||
       (itemKind === "reviews" && reviews.length === 0) ||
+      (itemKind === "deals" && deals.length === 0) ||
       !row.title
     ) {
       return [];
@@ -469,9 +501,25 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
         drops,
         products,
         reviews,
+        deals,
       },
     ];
   });
+}
+
+function toDeal(item: ItemRow, cards: Map<string, ShopCard>): PublishedDeal | null {
+  if (item.productId) {
+    const card = cards.get(item.productId);
+    return card && card.stock > 0 ? { kind: "product", id: item.id, card } : null;
+  }
+  if (!item.title || !item.ctaHref) return null;
+  return {
+    kind: "promo",
+    id: item.id,
+    title: item.title,
+    imageUrl: imageUrlOrNull(item.imageId),
+    href: item.ctaHref,
+  };
 }
 
 /**
@@ -629,6 +677,8 @@ function columnsOf(data: SectionData) {
     description: data.description,
     ctaLabel: data.ctaLabel,
     ctaHref: data.ctaHref,
+    startsAt: data.startsAt ? new Date(data.startsAt) : null,
+    endsAt: data.endsAt ? new Date(data.endsAt) : null,
     imageId: data.imageId,
     mobileImageId: data.mobileImageId,
     refIds: data.refIds,
@@ -672,6 +722,8 @@ async function copySections(tx: Tx, rows: SectionRow[], stage: Stage) {
         description: row.description,
         ctaLabel: row.ctaLabel,
         ctaHref: row.ctaHref,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
         imageId: row.imageId,
         mobileImageId: row.mobileImageId,
         refIds: row.refIds,
@@ -737,6 +789,7 @@ async function loadItemProducts(rows: Pick<SectionRow, "items">[]) {
         id: true,
         name: true,
         images: { select: { mediaId: true }, orderBy: { sortOrder: "asc" }, take: 1 },
+        variants: { select: { price: true, compareAtPrice: true }, orderBy: SHOP_VARIANT_ORDER, take: 1 },
       },
     }),
     prisma.product.findMany({ where: { id: { in: ids }, ...PUBLISHED }, select: { id: true } }),
@@ -751,6 +804,7 @@ async function loadItemProducts(rows: Pick<SectionRow, "items">[]) {
         name: row.name,
         imageUrl: imageUrlOrNull(row.images[0]?.mediaId ?? null),
         onStorefront: onStorefront.has(row.id),
+        onSale: isOnSale(row.variants),
       },
     ]),
   );

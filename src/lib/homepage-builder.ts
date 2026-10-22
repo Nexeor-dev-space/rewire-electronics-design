@@ -5,7 +5,11 @@
  */
 
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { checkSectionFields, type HomepageSectionType } from "@/lib/homepage-sections";
+import {
+  SECTION_RULES,
+  checkSectionFields,
+  type HomepageSectionType,
+} from "@/lib/homepage-sections";
 import type { CategoryNode } from "@/types/category";
 import type {
   HomepageSection,
@@ -31,6 +35,14 @@ export function swapItems<T>(items: T[], index: number, offset: -1 | 1): T[] {
   return next;
 }
 
+/** `items` with the one at `from` taken out and put back at `to`. */
+export function moveItem<T>(items: T[], from: number, to: number): T[] {
+  const next = [...items];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
 /** A draft section as the body its PUT expects. */
 export function sectionToInput(section: HomepageSection): SectionFormInput {
   return {
@@ -43,6 +55,8 @@ export function sectionToInput(section: HomepageSection): SectionFormInput {
     imageId: section.imageId,
     mobileImageId: section.mobileImageId,
     seasonal: section.seasonal,
+    startsAt: section.startsAt,
+    endsAt: section.endsAt,
     visible: section.visible,
     refIds: section.refs.map((ref) => ref.id),
     items: section.items.map(itemToInput),
@@ -60,6 +74,8 @@ export function emptySectionInput(): SectionFormInput {
     imageId: null,
     mobileImageId: null,
     seasonal: false,
+    startsAt: null,
+    endsAt: null,
     visible: true,
     refIds: [],
     items: [],
@@ -120,6 +136,19 @@ export function validateSection(
 export function rowErrorMessage(error: Error): string {
   const [first] = Object.values(apiFieldErrors(error)).flatMap((messages) => messages ?? []);
   return first ?? error.message;
+}
+
+/**
+ * Why a deal section would show nothing on the storefront once published, or
+ * null. Products the storefront skips (unpublished, in Trash, under a hidden
+ * category) don't count; a promo tile always does.
+ */
+export function storefrontWarning(section: HomepageSection): string | null {
+  if (!SECTION_RULES[section.type].discountHint) return null;
+  const shows = section.items.some(
+    (item) => item.visible && (item.productId === null || item.product?.onStorefront === true),
+  );
+  return shows ? null : "No products on the storefront";
 }
 
 /** The first non-empty line of a stored title, for list rows. */

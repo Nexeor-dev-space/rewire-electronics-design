@@ -58,6 +58,16 @@ const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput
   "price-desc": [{ minPrice: "desc" }, { id: "asc" }],
 };
 
+export const SHOP_VARIANT_ORDER = [
+  { price: "asc" },
+  { sortOrder: "asc" },
+] satisfies Prisma.ProductVariantOrderByWithRelationInput[];
+
+export function isOnSale(variants: { price: number; compareAtPrice: number | null }[]): boolean {
+  const shown = variants[0];
+  return shown?.compareAtPrice != null && shown.compareAtPrice > shown.price;
+}
+
 const cardSelect = {
   id: true,
   slug: true,
@@ -79,7 +89,7 @@ const cardSelect = {
       colour: true,
       stock: true,
     },
-    orderBy: [{ price: "asc" }, { sortOrder: "asc" }],
+    orderBy: SHOP_VARIANT_ORDER,
   },
 } satisfies Prisma.ProductSelect;
 

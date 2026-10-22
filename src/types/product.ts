@@ -22,6 +22,7 @@ export interface ProductListItem {
   variantCount: number;
   totalStock: number;
   priceFrom: number | null;
+  onSale: boolean;
   updatedAt: string;
 }
 

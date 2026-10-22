@@ -341,6 +341,23 @@
     --color-warn: light-dark(#9a6410, #e0a45c);
     --color-danger: light-dark(#b23c37, #d1706a);
 
+    /* Homepage Builder: one colour per section type, so rows and the Add
+       section picker tell types apart at a glance. Indexed by
+       `SECTION_RULES[type].tone`. Not `--color-*`, so Tailwind never
+       turns them into site-wide utilities. */
+    --section-tone-1: light-dark(#4f6bed, #8196f2);
+    --section-tone-2: light-dark(#7c4ddb, #a98bf5);
+    --section-tone-3: light-dark(#b86e05, #e8ad5a);
+    --section-tone-4: light-dark(#0f857a, #4fc0b4);
+    --section-tone-5: light-dark(#c81d68, #ee78ae);
+    --section-tone-6: light-dark(#0277b3, #62b6e3);
+    --section-tone-7: light-dark(#5a8f0d, #9ccb5c);
+    --section-tone-8: light-dark(#d2510b, #f29663);
+    --section-tone-9: light-dark(#4338ca, #9091f0);
+    --section-tone-10: light-dark(#05875f, #52c69d);
+    --section-tone-11: light-dark(#cc2626, #ef7676);
+    --section-tone-12: light-dark(#a823b8, #df82e8);
+
     --glass-bg: light-dark(rgb(255 255 255 / 0.72), rgb(22 24 27 / 0.72));
     --glass-bg-strong: light-dark(rgb(255 255 255 / 0.92), rgb(22 24 27 / 0.92));
     --glass-border: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.1));

@@ -288,6 +288,10 @@ Homepage Builder, where banners are Promo banner sections and curated
 categories are Featured categories sections. Both routes are in
 `BUILT_ROUTES`.
 
+Storefront → **Best Deals** and **Season Deals** redirect to the builder too,
+with that section's form open (`?section=BEST_DEALS`, `?section=SEASON_DEALS`).
+Their sidebar rows need `storefront.homepage`. See HOMEPAGE-CMS.md §10.
+
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.
 

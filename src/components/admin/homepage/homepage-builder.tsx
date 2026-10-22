@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   useDeleteHomepageSection,
   useDiscardHomepageDraft,
@@ -19,17 +20,25 @@ import {
 } from "@/hooks/use-homepage";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { FAQ_EDITOR_PATH, HOMEPAGE_PREVIEW_PATH } from "@/lib/constants";
-import { firstLine, rowErrorMessage, sectionToInput, swapItems } from "@/lib/homepage-builder";
 import {
-  ADDABLE_SECTION_TYPES,
-  MAX_HOMEPAGE_SECTIONS,
+  firstLine,
+  moveItem,
+  rowErrorMessage,
+  sectionToInput,
+  storefrontWarning,
+  swapItems,
+} from "@/lib/homepage-builder";
+import {
   SECTION_RULES,
   isAddableSectionType,
+  isWithinSchedule,
   type AddableSectionType,
 } from "@/lib/homepage-sections";
 import { cn } from "@/lib/utils";
 import type { HomepageDraft, HomepageSection } from "@/types/homepage";
+import { AddSectionDialog } from "./add-section-dialog";
 import { SectionFormModal } from "./section-form-modal";
+import { SectionTone, toneStyle } from "./section-tone";
 
 type Modal = { kind: "add"; type: AddableSectionType } | { kind: "edit"; section: HomepageSection } | null;
 type Confirm =
@@ -46,7 +55,7 @@ const BADGE_CLASS = "px-2 py-1 text-[0.625rem]";
  * goes to the draft; shoppers see nothing until Publish. See
  * docs/HOMEPAGE-CMS.md.
  */
-export function HomepageBuilder() {
+export function HomepageBuilder({ openType }: { openType?: AddableSectionType }) {
   const access = useModuleAccess(PERMISSIONS.homepage);
   const draft = useGetHomepageDraft();
   const updateSection = useUpdateHomepageSection();
@@ -58,6 +67,18 @@ export function HomepageBuilder() {
   const [modal, setModal] = useState<Modal>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [opened, setOpened] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  if (openType && !opened && draft.data) {
+    setOpened(true);
+    const existing = draft.data.sections.find((section) => section.type === openType);
+    if (existing && access.edit) openModal({ kind: "edit", section: existing });
+    else if (!existing && access.create) openModal({ kind: "add", type: openType });
+  }
 
   const busy = updateSection.isPending || reorder.isPending || deleteSection.isPending;
 
@@ -75,12 +96,25 @@ export function HomepageBuilder() {
   }
 
   /** A stale list (sections added or deleted elsewhere) is refused; the hook reloads it. */
-  function move(sections: HomepageSection[], index: number, offset: -1 | 1) {
+  function saveOrder(ids: string[]) {
     setActionError(null);
-    const ids = sections.map((section) => section.id);
-    reorder.mutate(swapItems(ids, index, offset), {
-      onError: (error) => setActionError(rowErrorMessage(error)),
-    });
+    reorder.mutate(ids, { onError: (error) => setActionError(rowErrorMessage(error)) });
+  }
+
+  function move(sections: HomepageSection[], index: number, offset: -1 | 1) {
+    saveOrder(swapItems(sections.map((section) => section.id), index, offset));
+  }
+
+  function drop(sections: HomepageSection[], index: number) {
+    if (dragIndex !== null && dragIndex !== index) {
+      saveOrder(moveItem(sections.map((section) => section.id), dragIndex, index));
+    }
+    endDrag();
+  }
+
+  function endDrag() {
+    setDragIndex(null);
+    setOverIndex(null);
   }
 
   function openModal(next: NonNullable<Modal>) {
@@ -128,12 +162,38 @@ export function HomepageBuilder() {
     );
   } else {
     const { sections } = draft.data;
+    const canDrag = access.edit && !busy;
     content = (
       <ol className="overflow-hidden rounded-xl border border-line">
         {sections.map((section, index) => (
-          <li key={section.id} className="border-b border-line last:border-b-0">
+          <li
+            key={section.id}
+            draggable={canDrag}
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", section.id);
+              setDragIndex(index);
+            }}
+            onDragOver={(event) => {
+              if (dragIndex === null) return;
+              event.preventDefault();
+              setOverIndex(index);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              drop(sections, index);
+            }}
+            onDragEnd={endDrag}
+            className={cn(
+              "border-b border-line last:border-b-0",
+              dragIndex === index && "opacity-50",
+              overIndex === index && dragIndex !== index && "bg-surface-2",
+            )}
+          >
             <SectionRow
               section={section}
+              position={index + 1}
+              draggable={canDrag}
               disabled={busy}
               first={index === 0}
               last={index === sections.length - 1}
@@ -154,7 +214,6 @@ export function HomepageBuilder() {
   }
 
   const data = draft.data;
-  const full = (data?.sections.length ?? 0) >= MAX_HOMEPAGE_SECTIONS;
 
   return (
     <AdminPage
@@ -194,24 +253,27 @@ export function HomepageBuilder() {
         )
       }
     >
-      {access.create && (
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <span className="eyebrow mr-1">Add section</span>
-          {ADDABLE_SECTION_TYPES.map((type) => (
-            <Button
-              key={type}
-              variant="outline"
-              size="sm"
-              disabled={!data || full}
-              onClick={() => openModal({ kind: "add", type })}
-            >
-              {SECTION_RULES[type].label}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-secondary">
+          Drag a row, or use its arrows, to change the order.
+        </p>
+        {access.create && (
+          <Button size="sm" disabled={!data} onClick={() => setAdding(true)}>
+            Add section
+          </Button>
+        )}
+      </div>
+
+      {saved && data?.hasUnpublishedChanges && (
+        <div
+          role="status"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-2 px-4 py-3"
+        >
+          <p className="text-sm text-ink">Saved to the draft. Shoppers see it after you publish.</p>
+          {access.publish && (
+            <Button size="sm" onClick={() => setConfirm({ kind: "publish" })}>
+              Publish now
             </Button>
-          ))}
-          {full && (
-            <p className="text-xs text-ink-muted">
-              The homepage holds at most {MAX_HOMEPAGE_SECTIONS} sections.
-            </p>
           )}
         </div>
       )}
@@ -234,10 +296,30 @@ export function HomepageBuilder() {
 
       {modal &&
         (modal.kind === "edit" ? (
-          <SectionFormModal section={modal.section} onClose={() => setModal(null)} />
+          <SectionFormModal
+            section={modal.section}
+            onClose={() => setModal(null)}
+            onSaved={() => setSaved(true)}
+          />
         ) : (
-          <SectionFormModal type={modal.type} onClose={() => setModal(null)} />
+          <SectionFormModal
+            type={modal.type}
+            onClose={() => setModal(null)}
+            onSaved={() => setSaved(true)}
+          />
         ))}
+
+      {data && (
+        <AddSectionDialog
+          open={adding}
+          sections={data.sections}
+          onClose={() => setAdding(false)}
+          onPick={(type) => {
+            setAdding(false);
+            openModal({ kind: "add", type });
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={confirm !== null}
@@ -300,6 +382,8 @@ function PublishStatus({ draft }: { draft: HomepageDraft }) {
 
 function SectionRow({
   section,
+  position,
+  draggable,
   disabled,
   first,
   last,
@@ -310,6 +394,9 @@ function SectionRow({
   onDelete,
 }: {
   section: HomepageSection;
+  /** 1-based place on the page. */
+  position: number;
+  draggable: boolean;
   disabled: boolean;
   first: boolean;
   last: boolean;
@@ -323,14 +410,60 @@ function SectionRow({
 }) {
   const label = SECTION_RULES[section.type].label;
   const locked = disabled || !onEdit;
+  const warning = section.visible ? storefrontWarning(section) : null;
+  const schedule = SECTION_RULES[section.type].schedule ? scheduleLabel(section) : null;
   return (
     <div
-      className={cn(
-        "flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4",
-        !section.visible && "opacity-60",
-      )}
+      style={toneStyle(section.type)}
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 border-(--tone) px-4 py-3.5"
     >
-      <div className="flex flex-col gap-1">
+      <span
+        aria-hidden
+        className={cn("text-ink-muted", draggable ? "cursor-grab active:cursor-grabbing" : "opacity-40")}
+      >
+        <GripIcon />
+      </span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-xs text-ink-secondary">
+        {position}
+      </span>
+      <SectionTone type={section.type} className={cn(!section.visible && "opacity-50")} />
+
+      <div className={cn("min-w-0 flex-1", !section.visible && "opacity-60")}>
+        <p className="eyebrow">{label}</p>
+        <p className="mt-0.5 truncate text-sm text-ink">{firstLine(section.title) || "Untitled"}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {section.seasonal && (
+          <Badge variant="outline" className={BADGE_CLASS}>
+            Seasonal
+          </Badge>
+        )}
+        {warning && (
+          <Badge variant="warn" className={BADGE_CLASS}>
+            {warning}
+          </Badge>
+        )}
+        {schedule && (
+          <Badge variant={schedule === "Running" ? "outline" : "warn"} className={BADGE_CLASS}>
+            {schedule}
+          </Badge>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="w-14 text-right text-sm text-ink-secondary">
+          {section.visible ? "Visible" : "Hidden"}
+        </span>
+        <Switch
+          checked={section.visible}
+          disabled={locked}
+          onChange={onToggle}
+          label={`Show ${label} on the homepage`}
+        />
+      </div>
+
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="sm"
@@ -351,24 +484,6 @@ function SectionRow({
         </Button>
       </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="eyebrow">{label}</p>
-        <p className="mt-0.5 truncate text-sm text-ink">{firstLine(section.title) || "Untitled"}</p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {section.seasonal && (
-          <Badge variant="outline" className={BADGE_CLASS}>
-            Seasonal
-          </Badge>
-        )}
-        {!section.visible && <Badge className={BADGE_CLASS}>Hidden</Badge>}
-        <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" checked={section.visible} disabled={locked} onChange={onToggle} />
-          Visible
-        </label>
-      </div>
-
       {onDelete ? (
         <RowActions name={label} disabled={disabled} onEdit={onEdit} onDelete={onDelete} />
       ) : (
@@ -380,6 +495,23 @@ function SectionRow({
       )}
     </div>
   );
+}
+
+function GripIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
+      {[9, 15].flatMap((x) =>
+        [6, 12, 18].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r={1.5} />),
+      )}
+    </svg>
+  );
+}
+
+function scheduleLabel({ startsAt, endsAt }: HomepageSection): string {
+  if (!startsAt || !endsAt) return "No dates";
+  const now = new Date();
+  if (isWithinSchedule(new Date(startsAt), new Date(endsAt), now)) return "Running";
+  return now < new Date(startsAt) ? "Scheduled" : "Ended";
 }
 
 function ListSkeleton() {

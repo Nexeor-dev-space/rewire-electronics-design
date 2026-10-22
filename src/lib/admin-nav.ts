@@ -47,6 +47,8 @@ export interface AdminNavItem {
    * sitting beside warranty, roles beside users).
    */
   routes?: string[];
+  /** The module that gates this row when it is another module's screen. */
+  permission?: string;
   /** Secondary rows nested under this one, e.g. Trash → Products / Users. */
   children?: AdminNavItem[];
 }
@@ -177,12 +179,14 @@ export const adminNav: AdminNavSection[] = [
         label: "Best Deals",
         href: "/admin/storefront/best-deals",
         description: "The always on savings rail and what qualifies for it.",
+        permission: adminPermission("storefront", "homepage"),
       },
       {
         key: "season-deals",
         label: "Season Deals",
         href: "/admin/storefront/season-deals",
         description: "Time boxed seasonal promotions and their run dates.",
+        permission: adminPermission("storefront", "homepage"),
       },
       {
         key: "homepage",

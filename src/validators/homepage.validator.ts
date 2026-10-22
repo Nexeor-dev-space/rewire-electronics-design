@@ -8,7 +8,7 @@ import {
   SECTION_TEXT_LIMITS,
   isSafeHref,
 } from "@/lib/homepage-sections";
-import { idValidator } from "./common/primitives.validator";
+import { idValidator, isoDateTimeValidator } from "./common/primitives.validator";
 
 /**
  * The shape every section body shares. Which fields a given type may fill is
@@ -67,6 +67,8 @@ export const homepageSectionSchema = z.object({
   imageId: idValidator.nullable().default(null),
   mobileImageId: idValidator.nullable().default(null),
   seasonal: z.boolean().default(false),
+  startsAt: isoDateTimeValidator.nullable().default(null),
+  endsAt: isoDateTimeValidator.nullable().default(null),
   visible: z.boolean().default(true),
   refIds: z
     .array(idValidator)

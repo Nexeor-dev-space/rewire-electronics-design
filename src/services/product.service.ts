@@ -11,6 +11,7 @@ import type {
   productSchema,
   productStatusSchema,
 } from "@/validators/product.validator";
+import { SHOP_VARIANT_ORDER, isOnSale } from "./catalogue.service";
 import { imageExists, releaseImage } from "./media.service";
 
 type Tx = Prisma.TransactionClient;
@@ -31,7 +32,7 @@ const listSelect = {
   brand: namedRef,
   category: namedRef,
   images: { select: { mediaId: true }, orderBy: { sortOrder: "asc" }, take: 1 },
-  variants: { select: { price: true, stock: true } },
+  variants: { select: { price: true, compareAtPrice: true, stock: true }, orderBy: SHOP_VARIANT_ORDER },
 } satisfies Prisma.ProductSelect;
 
 type ListRow = Prisma.ProductGetPayload<{ select: typeof listSelect }>;
@@ -105,6 +106,7 @@ function toListItem(row: ListRow) {
     variantCount: row.variants.length,
     totalStock: row.variants.reduce((sum, variant) => sum + variant.stock, 0),
     priceFrom: prices.length > 0 ? Math.min(...prices) : null,
+    onSale: isOnSale(row.variants),
     updatedAt: row.updatedAt,
   };
 }

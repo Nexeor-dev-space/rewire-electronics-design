@@ -1,4 +1,9 @@
-import { adminNav, adminPermission, type AdminNavSection } from "@/lib/admin-nav";
+import {
+  adminNav,
+  adminPermission,
+  type AdminNavItem,
+  type AdminNavSection,
+} from "@/lib/admin-nav";
 
 /**
  * Roles and what each may do. Client-safe, so the UI can hide what the
@@ -188,8 +193,8 @@ const MODULE_KEYS = new Set(ADMIN_MODULES.map((module) => module.key));
  * may see, and goes when none are left. A section left with no rows is dropped.
  */
 export function visibleAdminNav(permissions: PermissionGrid): AdminNavSection[] {
-  const visible = (area: AdminNavSection["area"], key: string) => {
-    const moduleKey = adminPermission(area, key);
+  const visible = (area: AdminNavSection["area"], item: AdminNavItem) => {
+    const moduleKey = item.permission ?? adminPermission(area, item.key);
     return !MODULE_KEYS.has(moduleKey) || hasPermission(permissions, moduleKey);
   };
 
@@ -197,9 +202,9 @@ export function visibleAdminNav(permissions: PermissionGrid): AdminNavSection[] 
     .map((section) => ({
       ...section,
       items: section.items.flatMap((item) => {
-        if (!visible(section.area, item.key)) return [];
+        if (!visible(section.area, item)) return [];
         if (!item.children) return [item];
-        const children = item.children.filter((child) => visible(section.area, child.key));
+        const children = item.children.filter((child) => visible(section.area, child));
         const moduleChildren = item.children.some((child) => MODULE_KEYS.has(adminPermission(section.area, child.key)));
         if (moduleChildren && children.length === 0) return [];
         return [{ ...item, children }];

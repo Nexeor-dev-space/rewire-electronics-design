@@ -20,6 +20,7 @@ export interface SectionItemProduct {
   imageUrl: string | null;
   /** False when the storefront would skip it: unpublished, in Trash, or under a hidden category. */
   onStorefront: boolean;
+  onSale: boolean;
 }
 
 export interface SectionItemCategory {
@@ -68,6 +69,10 @@ export interface HomepageSection {
   imageUrl: string | null;
   mobileImageId: string | null;
   mobileImageUrl: string | null;
+  /** ISO string. */
+  startsAt: string | null;
+  /** ISO string. */
+  endsAt: string | null;
   /** Chosen brands or categories that still exist, in display order. */
   refs: SectionRef[];
   /** Drops, Just Listed picks or reviews, in display order. */
@@ -125,6 +130,10 @@ export interface PublishedDrop {
   ctaHref: string | null;
 }
 
+export type PublishedDeal =
+  | { kind: "product"; id: string; card: ShopCard }
+  | { kind: "promo"; id: string; title: string; imageUrl: string | null; href: string };
+
 export interface PublishedReview {
   id: string;
   quote: string;
@@ -157,4 +166,5 @@ export interface PublishedSection {
   products: ShopCard[];
   /** Reviews. */
   reviews: PublishedReview[];
+  deals: PublishedDeal[];
 }

@@ -10,6 +10,8 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useAddHomepageSection, useUpdateHomepageSection } from "@/hooks/use-homepage";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { STORE_TIME_ZONE_LABEL } from "@/lib/constants";
+import { formatStoreDateTime, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
 import {
   emptySectionInput,
   itemToInput,
@@ -28,7 +30,7 @@ import {
 } from "@/lib/homepage-sections";
 import type { HomepageSection, SectionRef } from "@/types/homepage";
 
-type SectionFormModalProps = { onClose: () => void } & (
+type SectionFormModalProps = { onClose: () => void; onSaved?: () => void } & (
   | { section: HomepageSection; type?: never }
   | { section?: never; type: AddableSectionType }
 );
@@ -42,12 +44,12 @@ const FIELD_HINTS: Partial<Record<SectionTextField, string>> = {
 };
 
 /** Adds an addable section, or edits any draft section, under its type's rules. */
-export function SectionFormModal({ section, type, onClose }: SectionFormModalProps) {
+export function SectionFormModal({ section, type, onClose, onSaved }: SectionFormModalProps) {
   const sectionType: HomepageSectionType = section ? section.type : type;
   const label = SECTION_RULES[sectionType].label;
   return (
     <Dialog open onClose={onClose} title={section ? `Edit ${label}` : `Add ${label}`}>
-      <SectionForm type={sectionType} initial={section} onClose={onClose} />
+      <SectionForm type={sectionType} initial={section} onClose={onClose} onSaved={onSaved} />
     </Dialog>
   );
 }
@@ -56,10 +58,12 @@ function SectionForm({
   type,
   initial,
   onClose,
+  onSaved,
 }: {
   type: HomepageSectionType;
   initial?: HomepageSection;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
   const id = useId();
   const rule = SECTION_RULES[type];
@@ -104,7 +108,10 @@ function SectionForm({
 
     setErrors({});
     const callbacks = {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        onSaved?.();
+        onClose();
+      },
       onError: (error: Error) => setErrors(apiFieldErrors(error)),
     };
     if (initial) updateSection.mutate({ id: initial.id, ...body }, callbacks);
@@ -174,12 +181,51 @@ function SectionForm({
             />
           )}
 
+          {rule.schedule && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                id={`${id}-starts`}
+                label={`Starts, ${STORE_TIME_ZONE_LABEL}`}
+                hint={form.startsAt ? formatStoreDateTime(form.startsAt) : undefined}
+                error={error("startsAt")}
+              >
+                <Input
+                  id={`${id}-starts`}
+                  type="datetime-local"
+                  value={toStoreDateTimeInput(form.startsAt ?? null)}
+                  className="h-11"
+                  onChange={(event) => set("startsAt", fromStoreDateTimeInput(event.target.value))}
+                />
+              </Field>
+              <Field
+                id={`${id}-ends`}
+                label={`Ends, ${STORE_TIME_ZONE_LABEL}`}
+                hint={form.endsAt ? formatStoreDateTime(form.endsAt) : undefined}
+                error={error("endsAt")}
+              >
+                <Input
+                  id={`${id}-ends`}
+                  type="datetime-local"
+                  value={toStoreDateTimeInput(form.endsAt ?? null)}
+                  className="h-11"
+                  onChange={(event) => set("endsAt", fromStoreDateTimeInput(event.target.value))}
+                />
+              </Field>
+            </div>
+          )}
+
           {rule.refs && (
             <RefPicker value={refs} onChange={setRefs} error={error("refIds")} />
           )}
 
           {rule.items && (
-            <SectionItemsEditor kind={rule.items} value={items} onChange={setItems} errors={errors} />
+            <SectionItemsEditor
+              type={type}
+              kind={rule.items}
+              value={items}
+              onChange={setItems}
+              errors={errors}
+            />
           )}
 
           <div className="flex flex-col gap-3">

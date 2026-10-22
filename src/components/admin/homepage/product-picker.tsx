@@ -13,6 +13,7 @@ interface ProductPickerProps {
   chosenIds: string[];
   /** False once the section holds as many items as it can. */
   canAdd: boolean;
+  flagNoDiscount?: boolean;
   onPick: (product: SectionItemProduct) => void;
 }
 
@@ -21,7 +22,7 @@ interface ProductPickerProps {
  * the product's own — the homepage never stores a copy. Any status can be
  * picked; one that isn't published stays off the storefront until it is.
  */
-export function ProductPicker({ chosenIds, canAdd, onPick }: ProductPickerProps) {
+export function ProductPicker({ chosenIds, canAdd, flagNoDiscount = false, onPick }: ProductPickerProps) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
@@ -57,6 +58,9 @@ export function ProductPicker({ chosenIds, canAdd, onPick }: ProductPickerProps)
                   {product.status === "DRAFT" ? "Draft" : "Archived"} · hidden on the storefront
                 </span>
               )}
+              {flagNoDiscount && !product.onSale && (
+                <span className="block text-xs text-ink-muted">No discount</span>
+              )}
             </span>
             <Button
               type="button"
@@ -69,6 +73,7 @@ export function ProductPicker({ chosenIds, canAdd, onPick }: ProductPickerProps)
                   name: product.name,
                   imageUrl: product.imageUrl,
                   onStorefront: product.status === "PUBLISHED",
+                  onSale: product.onSale,
                 })
               }
             >

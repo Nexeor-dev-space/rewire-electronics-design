@@ -223,6 +223,11 @@ only the children the user may see, and goes when none are left. Rows for
 modules not built yet (Releases and so on) stay visible, because they
 hold nothing.
 
+A row that is another module's screen names that module in its `permission`
+field (`AdminNavItem` in `src/lib/admin-nav.ts`), and `visibleAdminNav` checks
+that key instead of the row's own. Best Deals and Season Deals use
+`storefront.homepage`, because they open the Homepage Builder.
+
 **Buttons.** `AdminShell` puts the session's grid in `AdminAccessProvider`.
 A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 `{ view, create, edit, delete, publish, restore }`:
