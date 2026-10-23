@@ -90,6 +90,15 @@ storefront piece by piece. A section's items belong to its row, so Publish and
 Discard copy them with it, and an item hidden in the draft stays on the
 storefront until the next publish.
 
+**How the copy is written.** Publish and Discard share `copySections`, which
+inserts in two batches whatever the number of sections: one `createMany` for
+the sections, one for all their items. Each copied section's id is picked in
+the code (`randomUUID()`) before the insert, so every item already carries its
+new section's id and nothing has to be matched up afterwards. Sections keep
+their `sortOrder`; items are renumbered 0, 1, 2… in their existing order. This
+is why copied rows have UUID ids while rows created any other way have cuids.
+Both are plain strings and nothing depends on the format.
+
 `HomepageState` (one row, id `homepage`) holds `draftUpdatedAt`, bumped by every
 draft write, and `publishedAt`. The API's `hasUnpublishedChanges` is
 `publishedAt === null || draftUpdatedAt > publishedAt`.
