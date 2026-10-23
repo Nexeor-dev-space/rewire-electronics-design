@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { VerifyEmailBanner } from "@/components/account/verify-email-banner";
 import { SignInRedirect } from "@/components/auth/sign-in-redirect";
 import { getSession, hasSessionCookie } from "@/lib/auth/session";
+import { NOINDEX_ROBOTS } from "@/lib/constants";
+
+export const metadata: Metadata = { robots: NOINDEX_ROBOTS };
 
 /**
  * Gate for every `/account/*` page. Signed out, `children` is never

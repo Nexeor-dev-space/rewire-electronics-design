@@ -19,7 +19,7 @@ import { SpecTable } from "@/components/product/detail/spec-table";
 import { IncludedList } from "@/components/product/detail/included-list";
 import { TrustBlocks } from "@/components/product/detail/trust-blocks";
 import { RelatedProducts } from "@/components/product/detail/related-products";
-import { productJsonLd, productSeo } from "@/lib/seo";
+import { pageMetadata, productJsonLd, productSeo } from "@/lib/seo";
 import { findShopProductPage } from "@/services/catalogue.service";
 import { getStoreSettings } from "@/services/store-settings.service";
 
@@ -34,26 +34,7 @@ const getProduct = cache(findShopProductPage);
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const product = await getProduct((await params).slug);
   if (!product) return { title: "Product not found" };
-  const seo = productSeo(product);
-  return {
-    title: seo.absoluteTitle ? { absolute: seo.title } : seo.title,
-    description: seo.description,
-    keywords: seo.keywords.length > 0 ? seo.keywords : undefined,
-    alternates: { canonical: seo.canonical },
-    openGraph: {
-      type: "website",
-      title: seo.ogTitle,
-      description: seo.ogDescription,
-      url: seo.canonical,
-      images: [{ url: seo.ogImage }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: seo.ogTitle,
-      description: seo.ogDescription,
-      images: [seo.ogImage],
-    },
-  };
+  return pageMetadata(productSeo(product));
 }
 
 export default async function ProductPage({ params }: Params) {

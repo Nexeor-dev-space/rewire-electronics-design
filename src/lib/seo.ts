@@ -1,5 +1,7 @@
-import { SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
+import type { Metadata } from "next";
+import { NOINDEX_ROBOTS, SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { CURRENCY, fromMinorUnits } from "@/lib/money";
+import { POLICY_ROUTES, type PolicyData } from "@/lib/policy-types";
 import { productHref, type Condition } from "@/lib/shop";
 import { siteConfig } from "@/lib/site";
 import type { ShopProductDetail } from "@/types/catalogue";
@@ -22,17 +24,55 @@ export function clip(text: string, max: number): string {
   return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
-export interface ProductSeo {
+export interface PageSeo {
   title: string;
   /** True for an admin SEO title: used as written, without the site name suffix. */
-  absoluteTitle: boolean;
+  absoluteTitle?: boolean;
   description: string;
+  path: string;
+  /** Relative URLs resolve against `metadataBase` in the root layout. */
+  image?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  keywords?: string[];
+  noindex?: boolean;
+}
+
+export function pageMetadata(seo: PageSeo): Metadata {
+  const image = seo.image ?? siteConfig.ogImage;
+  const ogTitle = seo.ogTitle ?? seo.title;
+  const ogDescription = seo.ogDescription ?? seo.description;
+
+  return {
+    title: seo.absoluteTitle ? { absolute: seo.title } : seo.title,
+    description: seo.description,
+    ...(seo.keywords && { keywords: seo.keywords.length > 0 ? seo.keywords : null }),
+    alternates: { canonical: seo.path },
+    openGraph: {
+      type: "website",
+      url: seo.path,
+      siteName: siteConfig.name,
+      locale: siteConfig.locale,
+      title: ogTitle,
+      description: ogDescription,
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: ogTitle,
+      description: ogDescription,
+      images: [image],
+    },
+    ...(seo.noindex && { robots: NOINDEX_ROBOTS }),
+  };
+}
+
+export interface ProductSeo extends PageSeo {
+  absoluteTitle: boolean;
   keywords: string[];
   ogTitle: string;
   ogDescription: string;
-  /** Relative URLs resolve against `metadataBase` in the root layout. */
-  ogImage: string;
-  canonical: string;
+  image: string;
 }
 
 /**
@@ -54,8 +94,16 @@ export function productSeo(product: ShopProductDetail): ProductSeo {
     keywords: seo.metaKeywords,
     ogTitle: seo.ogTitle ?? title,
     ogDescription: seo.ogDescription ?? description,
-    ogImage: seo.ogImageUrl ?? product.images[0]?.url ?? siteConfig.ogImage,
-    canonical: seo.canonicalUrl ?? productHref(product),
+    image: seo.ogImageUrl ?? product.images[0]?.url ?? siteConfig.ogImage,
+    path: seo.canonicalUrl ?? productHref(product),
+  };
+}
+
+export function policySeo(policy: Pick<PolicyData, "slug" | "title" | "lede">): PageSeo {
+  return {
+    title: policy.title,
+    description: clip(policy.lede, SEO_DESCRIPTION_MAX_LENGTH),
+    path: POLICY_ROUTES[policy.slug],
   };
 }
 
@@ -82,7 +130,7 @@ export function productJsonLd(product: ShopProductDetail): string {
     brand: { "@type": "Brand", name: product.brand },
     image: product.images.map((image) => absoluteUrl(image.url)),
     // The same canonical the page declares, so the signals agree.
-    url: absoluteUrl(productSeo(product).canonical),
+    url: absoluteUrl(productSeo(product).path),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: CURRENCY,

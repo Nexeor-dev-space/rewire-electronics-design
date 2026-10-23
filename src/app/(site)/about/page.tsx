@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import { ABOUT_PAGE_PATH } from "@/lib/constants";
+import { pageMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
 import { AboutIntro } from "@/components/about/intro";
 import { AboutWhat } from "@/components/about/what";
@@ -10,11 +11,11 @@ import { AboutSustainability } from "@/components/about/sustainability";
 import { AboutCta } from "@/components/about/cta";
 import { Process } from "@/components/home/process/process";
 
-export const metadata: Metadata = {
-  title: `About — ${siteConfig.name}`,
-  description:
-    `${siteConfig.name}. ${siteConfig.description} Learn how Rewire inspects, grades and warrants every device before it reaches you.`,
-};
+export const metadata = pageMetadata({
+  title: "About",
+  description: `${siteConfig.name}. ${siteConfig.description} Learn how Rewire inspects, grades and warrants every device before it reaches you.`,
+  path: ABOUT_PAGE_PATH,
+});
 
 /**
  * About Rewire — the company's own page, told in the same voice as the

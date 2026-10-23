@@ -1,3 +1,4 @@
+import { ABOUT_PAGE_PATH } from "@/lib/constants";
 import type { StorefrontCategory } from "@/types/catalogue";
 import { getUpcomingDrops } from "./drops";
 import {
@@ -39,7 +40,7 @@ export const aboutColumns: { title: string; items: MenuLink[] }[] = [
   {
     title: "The Company",
     items: [
-      { label: "Our Story", href: "/about" },
+      { label: "Our Story", href: ABOUT_PAGE_PATH },
       policyLink("terms-and-conditions"),
       policyLink("privacy-policy"),
     ],
@@ -95,7 +96,7 @@ export const upcomingDropsLink = {
   live: true,
 };
 
-export const editorialNavLink = { label: "About", href: "/about" } as const;
+export const editorialNavLink = { label: "About", href: ABOUT_PAGE_PATH } as const;
 
 export const categoryGlyphs: Record<string, string[]> = {
   phones: [
