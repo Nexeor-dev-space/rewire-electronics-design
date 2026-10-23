@@ -57,10 +57,14 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    `imageId` are nullable and `SetNull`. Everything shown is a snapshot:
    `productName`, `productSlug`, `brandName`, `sku`, `storage`, `colour`,
    `condition`, `grade`, `warrantyMonths`, `imageAlt`, `unitPrice`,
-   `addOnUnitPrice`, `quantity`, `lineTotal`.
+   `addOnUnitPrice`, `quantity`, `lineTotal`. Not a snapshot: `serialNumber`
+   (the device serial or IMEI, entered in Fulfilment), `warrantyStartsAt` and
+   `warrantyEndsAt` (set on delivery, §3), all nullable (migration
+   `add_product_add_ons_and_warranty`).
 3. **`OrderItemAddOn`** (`order_item_add_ons`): `name`, `kind`, `price` per
-   unit, and a nullable `addOnId` (`SetNull`). Unavailable add-ons were not
-   charged and are not copied.
+   unit (the effective price the cart charged, so a product's override when
+   it had one), `extraWarrantyMonths`, and a nullable `addOnId` (`SetNull`).
+   Unavailable add-ons were not charged and are not copied.
 4. **`OrderStatusEvent`** (`order_status_events`): `status`, `note` (shown to
    the customer) and `actorId` (null means the customer or the system).
 5. **`CouponRedemption`** (`coupon_redemptions`): one per order (`orderId`
@@ -113,7 +117,14 @@ All in `src/lib/orders.ts`.
    `returnableUntil(now, days)`, where `days` is
    `(await getStoreSettings(tx)).returnWindowDays`, the admin set return
    window ([RETURNS.md](RETURNS.md) §6). It falls back to `RETURN_WINDOW_DAYS`
-   when no settings row exists.
+   when no settings row exists. In the same transaction every line gets
+   `warrantyStartsAt` = now and `warrantyEndsAt` = now plus its warranty
+   months (`startWarranties` in `src/services/order.service.ts`). The months
+   are `lineWarrantyMonths(line)`: the line's `warrantyMonths` plus the
+   `extraWarrantyMonths` of its add-on snapshots. `warrantyEndsAt(start,
+   months)` in `src/lib/orders.ts` adds calendar months in UTC and ends on the
+   last day of a shorter month (31 January plus one month is 28 or 29
+   February). Both helpers are pure and tested.
 5. **`orderStatusTone(status)`** gives the badge tone. **`orderTimeline(status,
    events, placedAt)`** builds the customer steps Placed, Confirmed,
    Processing, Dispatched, Delivered: `at` and `note` come from the first
@@ -348,9 +359,13 @@ Request bodies and queries (`src/validators/order.validator.ts`):
 8. **`GET admin/fulfilment`:** pagination and `status` (`CONFIRMED`,
    `PROCESSING` or `DISPATCHED`). With no filter the queue lists all three.
 9. **`PATCH admin/fulfilment/[number]`:** `status` (`PROCESSING`,
-   `DISPATCHED` or `DELIVERED`) and/or `trackingNumber`. Tracking is saved
-   first, then the status, in one transaction through the same
-   `applyStatusChange`, so the same rules, side effects and 409s apply.
+   `DISPATCHED` or `DELIVERED`), `trackingNumber` and/or `serials`
+   (`[{ itemId, serialNumber }]`, up to `CART_MAX_LINES`, each trimmed, up to
+   `SERIAL_NUMBER_MAX_LENGTH`; empty clears it). Tracking is saved first, then
+   the serials, then the status, in one transaction through the same
+   `applyStatusChange`, so the same rules, side effects and 409s apply. A
+   serial for an item that is not on this order is 422 on `serials`. The
+   change log records the serials with the status and tracking.
    An order outside the fulfilment queue (not `CONFIRMED`, `PROCESSING` or
    `DISPATCHED`) is 409 "This order isn't in the fulfilment queue."; tracking
    edits on other orders go through `PATCH admin/orders/[number]`.
@@ -360,7 +375,8 @@ status, paymentStatus, paymentMethod, delivery method and ETA, deliveredAt,
 returnableUntil, trackingNumber, contact, address, `lines`, `totals`
 { subtotal, discount, delivery, total, vatIncluded, vatRatePercent, refunded },
 couponCode, `timeline`), `OrderSummary` (list card with the first line),
-`AdminOrderRow`, and `AdminOrderDetail` (adds `customer` { id, fullName,
+`AdminOrderRow` (with `items`: id, product name, SKU, quantity and serial
+per line, so the Fulfilment row can edit serials), and `AdminOrderDetail` (adds `customer` { id, fullName,
 email, isGuest } or null, `placedAsGuest`, `staffNote`, `events` oldest first
 up to `ORDER_EVENT_LIMIT`, `nextStatuses`, `paymentActions`, `returns`
 { number, status }[] oldest first up to `ORDER_RETURNS_LIMIT`). Each line in
@@ -407,6 +423,12 @@ number, email or last name, a status filter, a payment filter, pagination.
 Each row shows number, date, customer (with a Guest badge when
 `placedAsGuest`), status, payment, total and lines.
 
+**Order lines on every order screen.** A line with add-ons shows an "Item" row
+and one row per add-on with its price × quantity (`LineBreakdown`, see
+[CART.md](CART.md) §9). The account order detail, Track Order and the admin
+order detail also show the warranty months, the serial when set, and
+"Warranty until {date}" once the order is delivered.
+
 **Admin order detail** (`/admin/orders/[number]`, `OrderDetailScreen`).
 Panels: Items with totals, History (oldest first, notes are customer
 visible), Status, Payment, Delivery (tracking number and staff note), and
@@ -423,8 +445,11 @@ Edit the panels are read only.
 **Admin Fulfilment** (`/admin/fulfilment`, `FulfilmentQueue`). Module
 `sales.fulfilment`. A queue of Confirmed, Processing and Dispatched orders,
 oldest first, with a "Whole queue" status filter. Each row has a tracking
-number field with Save, and one "Move to {next}" button (Confirmed to
-Processing, Processing to Dispatched, Dispatched to Delivered). The order
+number field, one "Serial / IMEI" field per line (a line with more than one
+unit takes its serials comma separated), Save when tracking or a serial
+changed, and one "Move to {next}" button (Confirmed to Processing, Processing
+to Dispatched, Dispatched to Delivered). Moving to Delivered starts each
+line's warranty. The order
 number links to the detail only when the viewer also holds `sales.orders`
 View. Without Edit the row is read only.
 
@@ -472,6 +497,7 @@ In `src/lib/constants.ts`.
 | `ORDER_NOTE_MAX_LENGTH` | 500 | Customer visible status note |
 | `STAFF_NOTE_MAX_LENGTH` | 1000 | Staff note |
 | `TRACKING_NUMBER_MAX_LENGTH` | 64 | Tracking number |
+| `SERIAL_NUMBER_MAX_LENGTH` | 120 | Serial or IMEI on an order line |
 | `ORDER_EVENT_LIMIT` | 50 | Events read per order |
 | `RETURN_WINDOW_DAYS` | 30 | Default window when no store settings row exists; the live value is `StoreSettings.returnWindowDays` |
 | `MS_PER_DAY` | 86 400 000 | `returnableUntil` |
@@ -508,7 +534,9 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 `src/lib/auth/guest-user.test.ts` (stub transaction: create, reuse, the race,
 `accountForSignUp`, `upgradeData`), `src/lib/reference-number.test.ts`,
 `src/validators/order.validator.test.ts` and additions to
-`checkout.validator.test.ts`. They cover pure rules only.
+`checkout.validator.test.ts`. Warranty tracking added `warrantyEndsAt` and
+`lineWarrantyMonths` cases to `orders.test.ts` and the `serials` cases to
+`order.validator.test.ts`. They cover pure rules only.
 
 ---
 
@@ -534,3 +562,12 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 9. **No saved address prefill** until Phase 3.
 10. **Staff can't edit the contact or address** on an order; only tracking,
     status, payment and the staff note change.
+11. **One serial field per order line.** A line can hold up to
+    `CART_MAX_LINE_QUANTITY` units, which share one field, comma separated.
+    Serials are edited in Fulfilment only, so not after delivery.
+12. **Warranty dates are written once, at delivery.** Later changes to the
+    product or add-on do not move them; a line delivered before this change
+    has none.
+13. **The admin orders and Fulfilment lists load each order's lines** (id,
+    name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
+    serial inputs.

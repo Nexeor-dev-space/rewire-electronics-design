@@ -17,6 +17,7 @@ import {
   type QuantityCheck,
   type QuantityProblem,
 } from "@/lib/cart-rules";
+import { addOnScopeOf, resolveOfferedAddOns, type AddOnScope } from "@/lib/add-on-rules";
 import { toShopCondition, toShopGrade } from "@/lib/catalogue";
 import {
   CART_COOKIE_MAX_AGE_SECONDS,
@@ -34,8 +35,8 @@ import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import {
   OFFERED_ADD_ON_ORDER,
   PUBLISHED,
+  offeredAddOnSelect,
   offeredAddOnWhere,
-  shopAddOnSelect,
   toShopAddOn,
 } from "@/services/catalogue.service";
 import { resolveDelivery } from "@/services/delivery-zone.service";
@@ -117,6 +118,7 @@ const cartSelect = {
               status: true,
               categoryId: true,
               warrantyMonths: true,
+              addOns: { select: { addOnId: true, priceOverride: true } },
               brand: { select: { name: true } },
               category: {
                 select: { status: true, parentId: true, parent: { select: { status: true } } },
@@ -132,7 +134,7 @@ const cartSelect = {
       addOns: {
         select: {
           seenPrice: true,
-          addOn: { select: { id: true, name: true, kind: true, price: true } },
+          addOn: { select: { id: true, name: true, kind: true, price: true, extraWarrantyMonths: true } },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -160,13 +162,7 @@ export interface PricedCart {
   cart: Cart;
 }
 
-const offeredSelect = {
-  ...shopAddOnSelect,
-  appliesToAll: true,
-  categories: { select: { categoryId: true } },
-} satisfies Prisma.AddOnSelect;
-
-type OfferedRow = Prisma.AddOnGetPayload<{ select: typeof offeredSelect }>;
+type OfferedRow = Prisma.AddOnGetPayload<{ select: typeof offeredAddOnSelect }>;
 
 const mergeLineSelect = {
   id: true,
@@ -181,12 +177,6 @@ type MergeLineRow = Prisma.CartItemGetPayload<{ select: typeof mergeLineSelect }
 
 function ownerWhere(owner: Owner) {
   return owner.kind === "user" ? { userId: owner.userId } : { guestTokenHash: owner.tokenHash };
-}
-
-function categoryIdsOf(product: { categoryId: string; category: { parentId: string | null } }) {
-  return product.category.parentId
-    ? [product.categoryId, product.category.parentId]
-    : [product.categoryId];
 }
 
 function lineNotFound() {
@@ -230,26 +220,21 @@ function toCouponRule({ products, categories, ...rule }: CouponRow): CouponRule 
 }
 
 function toOfferedAddOn(row: OfferedRow): OfferedAddOn {
-  const { id, label, note, price, kind } = toShopAddOn(row);
-  return { id, label, note, price, kind };
+  const { id, label, note, price, kind, extraWarrantyMonths } = toShopAddOn(row);
+  return { id, label, note, price, kind, extraWarrantyMonths };
 }
 
-function offeredForLine(rows: OfferedRow[], categoryIds: string[]) {
-  return rows
-    .filter(
-      (row) =>
-        row.appliesToAll || row.categories.some((link) => categoryIds.includes(link.categoryId)),
-    )
-    .slice(0, MAX_PRODUCT_ADD_ONS)
-    .map(toOfferedAddOn);
+function offeredForLine(rows: OfferedRow[], scope: AddOnScope) {
+  return resolveOfferedAddOns(rows, scope).map(toOfferedAddOn);
 }
 
-async function offeredAddOnsFor(db: Tx, categoryIds: string[]): Promise<OfferedRow[]> {
-  if (categoryIds.length === 0) return [];
+async function offeredAddOnsFor(db: Tx, scopes: AddOnScope[]): Promise<OfferedRow[]> {
+  if (scopes.length === 0) return [];
+  const categoryIds = [...new Set(scopes.flatMap((scope) => scope.categoryIds))];
   return db.addOn.findMany({
-    where: offeredAddOnWhere(categoryIds),
+    where: offeredAddOnWhere(scopes),
     select: {
-      ...offeredSelect,
+      ...offeredAddOnSelect,
       categories: { where: { categoryId: { in: categoryIds } }, select: { categoryId: true } },
     },
     orderBy: OFFERED_ADD_ON_ORDER,
@@ -257,16 +242,18 @@ async function offeredAddOnsFor(db: Tx, categoryIds: string[]): Promise<OfferedR
   });
 }
 
-async function assertAddOnsOffered(addOnIds: string[], categoryIds: string[]) {
-  if (addOnIds.length === 0) return;
-  const offered = await prisma.addOn.findMany({
-    where: offeredAddOnWhere(categoryIds),
-    select: { id: true },
+async function offeredPricesFor(scope: AddOnScope): Promise<Map<string, number>> {
+  const rows = await prisma.addOn.findMany({
+    where: offeredAddOnWhere([scope]),
+    select: offeredAddOnSelect,
     orderBy: OFFERED_ADD_ON_ORDER,
     take: MAX_PRODUCT_ADD_ONS,
   });
-  const ids = new Set(offered.map((addOn) => addOn.id));
-  if (addOnIds.some((id) => !ids.has(id))) {
+  return new Map(resolveOfferedAddOns(rows, scope).map((row) => [row.id, row.price]));
+}
+
+function assertAddOnsOffered(addOnIds: string[], offered: Map<string, number>) {
+  if (addOnIds.some((id) => !offered.has(id))) {
     throw new ServiceError("VALIDATION", MESSAGE_ADD_ON_UNAVAILABLE, 422, {
       addOnIds: [MESSAGE_ADD_ON_UNAVAILABLE],
     });
@@ -278,23 +265,23 @@ async function assertAddOnsOffered(addOnIds: string[], categoryIds: string[]) {
 function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine {
   const { variant } = item;
   const { product } = variant;
-  const categoryIds = categoryIdsOf(product);
-  const offeredAddOns = offeredForLine(offeredRows, categoryIds);
-  const offeredIds = new Set(offeredAddOns.map((addOn) => addOn.id));
+  const scope = addOnScopeOf(product);
+  const offeredAddOns = offeredForLine(offeredRows, scope);
+  const offeredPrices = new Map(offeredAddOns.map((addOn) => [addOn.id, addOn.price]));
   const visible = isProductVisible(product);
 
   const addOns = item.addOns.map((link) => ({
     id: link.addOn.id,
     label: link.addOn.name,
-    price: link.addOn.price,
+    price: offeredPrices.get(link.addOn.id) ?? link.addOn.price,
     seenPrice: link.seenPrice,
-    available: offeredIds.has(link.addOn.id),
+    available: offeredPrices.has(link.addOn.id),
   }));
 
   const pricing: PricingLine = {
     key: item.id,
     productId: product.id,
-    categoryIds,
+    categoryIds: scope.categoryIds,
     unitPrice: variant.price,
     addOnUnitPrice: addOns
       .filter((addOn) => addOn.available)
@@ -404,8 +391,8 @@ function priceRow(
   return { cartId: row.id, coupon, lines, pricing, cart };
 }
 
-function lineCategoryIds(row: CartRow) {
-  return [...new Set(row.items.flatMap((item) => categoryIdsOf(item.variant.product)))];
+function lineScopes(row: CartRow): AddOnScope[] {
+  return row.items.map((item) => addOnScopeOf(item.variant.product));
 }
 
 async function loadCartRow(owner: Owner, db: Tx = prisma) {
@@ -420,7 +407,7 @@ export async function loadPricedCart(db: Tx, owner: Owner, options: PriceOptions
   const row = await loadCartRow(owner, db);
   if (!row) return null;
 
-  const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(db, lineCategoryIds(row)) : [];
+  const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(db, lineScopes(row)) : [];
   const customerRedemptions =
     owner.kind === "user" && row.coupon ? await countRedemptions(db, row.coupon.id, owner.userId) : 0;
   return priceRow(row, owner, offeredRows, customerRedemptions, options);
@@ -471,7 +458,7 @@ async function findOrCreateCart(tx: Tx, owner: Owner): Promise<string> {
   return created.id;
 }
 
-async function writeLineAddOns(tx: Tx, cartItemId: string, addOnIds: string[]) {
+async function writeLineAddOns(tx: Tx, cartItemId: string, addOnIds: string[], offered: Map<string, number>) {
   await tx.cartItemAddOn.deleteMany({ where: { cartItemId } });
   if (addOnIds.length === 0) return;
 
@@ -480,7 +467,11 @@ async function writeLineAddOns(tx: Tx, cartItemId: string, addOnIds: string[]) {
     select: { id: true, price: true },
   });
   await tx.cartItemAddOn.createMany({
-    data: current.map((addOn) => ({ cartItemId, addOnId: addOn.id, seenPrice: addOn.price })),
+    data: current.map((addOn) => ({
+      cartItemId,
+      addOnId: addOn.id,
+      seenPrice: offered.get(addOn.id) ?? addOn.price,
+    })),
   });
 }
 
@@ -491,7 +482,13 @@ function findPurchasableVariant(variantId: string) {
       id: true,
       price: true,
       stock: true,
-      product: { select: { categoryId: true, category: { select: { parentId: true } } } },
+      product: {
+        select: {
+          categoryId: true,
+          category: { select: { parentId: true } },
+          addOns: { select: { addOnId: true, priceOverride: true } },
+        },
+      },
     },
   });
 }
@@ -515,6 +512,7 @@ function findOwnedLine(owner: Owner, itemId: string) {
               category: {
                 select: { status: true, parentId: true, parent: { select: { status: true } } },
               },
+              addOns: { select: { addOnId: true, priceOverride: true } },
             },
           },
         },
@@ -551,7 +549,8 @@ export async function addCartItem(
 ): Promise<{ cart: Cart; newGuestToken: string | null }> {
   const variant = await findPurchasableVariant(input.variantId);
   if (!variant) throw new ServiceError("NOT_FOUND", MESSAGE_ITEM_UNAVAILABLE, 404);
-  await assertAddOnsOffered(input.addOnIds, categoryIdsOf(variant.product));
+  const offered = await offeredPricesFor(addOnScopeOf(variant.product));
+  assertAddOnsOffered(input.addOnIds, offered);
 
   let target: Owner;
   let newGuestToken: string | null = null;
@@ -593,7 +592,7 @@ export async function addCartItem(
         ).id;
 
     const addOnIds = unionIds(existing?.addOns.map((link) => link.addOnId) ?? [], input.addOnIds);
-    await writeLineAddOns(tx, lineId, addOnIds);
+    await writeLineAddOns(tx, lineId, addOnIds, offered);
     await touchCart(tx, cartId);
   });
 
@@ -606,7 +605,8 @@ export async function updateCartItem(owner: CartOwner, itemId: string, input: Up
   if (!line) throw lineNotFound();
 
   const { product } = line.variant;
-  if (input.addOnIds) await assertAddOnsOffered(input.addOnIds, categoryIdsOf(product));
+  const offered = await offeredPricesFor(addOnScopeOf(product));
+  if (input.addOnIds) assertAddOnsOffered(input.addOnIds, offered);
 
   const quantity = input.quantity ?? line.quantity;
   assertQuantity({
@@ -621,7 +621,7 @@ export async function updateCartItem(owner: CartOwner, itemId: string, input: Up
       where: { id: line.id },
       data: { quantity, seenUnitPrice: line.variant.price },
     });
-    await writeLineAddOns(tx, line.id, input.addOnIds ?? line.addOns.map((link) => link.addOnId));
+    await writeLineAddOns(tx, line.id, input.addOnIds ?? line.addOns.map((link) => link.addOnId), offered);
     await touchCart(tx, line.cartId);
   });
 
@@ -656,16 +656,19 @@ export async function acknowledgeCart(owner: CartOwner) {
         data: { seenUnitPrice: item.variant.price },
       }),
     );
-  const addOnUpdates = row.items.flatMap((item) =>
-    item.addOns
-      .filter((link) => link.seenPrice !== link.addOn.price)
-      .map((link) =>
+  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
+  const addOnUpdates = row.items.flatMap((item) => {
+    const prices = new Map(buildLine(item, offeredRows).line.addOns.map((addOn) => [addOn.id, addOn.price]));
+    return item.addOns
+      .map((link) => ({ link, price: prices.get(link.addOn.id) ?? link.addOn.price }))
+      .filter(({ link, price }) => link.seenPrice !== price)
+      .map(({ link, price }) =>
         prisma.cartItemAddOn.updateMany({
           where: { cartItemId: item.id, addOnId: link.addOn.id },
-          data: { seenPrice: link.addOn.price },
+          data: { seenPrice: price },
         }),
-      ),
-  );
+      );
+  });
   if (lineUpdates.length + addOnUpdates.length > 0) {
     await prisma.$transaction([...lineUpdates, ...addOnUpdates]);
   }
@@ -684,7 +687,7 @@ export async function applyCartCoupon(userId: string, code: string) {
   const coupon = await prisma.coupon.findUnique({ where: { code }, select: couponSelect });
   if (!coupon) throw couponRejected(COUPON_MESSAGES.INVALID);
 
-  const offeredRows = await offeredAddOnsFor(prisma, lineCategoryIds(row));
+  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
   const customerRedemptions = await countRedemptions(prisma, coupon.id, userId);
   const pricing = priceCart({
     lines: row.items.map((item) => buildLine(item, offeredRows).pricing),

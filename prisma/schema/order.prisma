@@ -108,6 +108,10 @@ model OrderItem {
   warrantyMonths Int
   imageAlt       String           @default("")
 
+  serialNumber     String?
+  warrantyStartsAt DateTime?
+  warrantyEndsAt   DateTime?
+
   unitPrice      Int
   addOnUnitPrice Int @default(0)
   quantity       Int
@@ -134,6 +138,8 @@ model OrderItemAddOn {
   name        String
   kind        AddOnKind
   price       Int
+
+  extraWarrantyMonths Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

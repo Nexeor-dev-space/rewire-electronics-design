@@ -139,6 +139,9 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   }
 
   const inCartQty = line?.quantity ?? 0;
+  const warrantyMonths = addOns
+    .filter((addOn) => selectedAddOns.includes(addOn.id))
+    .reduce((months, addOn) => months + addOn.extraWarrantyMonths, product.warrantyMonths);
 
   const price = variant.price;
   const originalPrice = variant.compareAtPrice ?? undefined;
@@ -187,7 +190,6 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const maxQuantity = line?.maxQuantity ?? Math.min(variant.stock || 0, CART_MAX_LINE_QUANTITY);
 
   const trustItems = TRUST_ITEMS.flatMap((item) => {
-    if (item.icon === ShieldIcon) return [{ ...item, title: `${product.warrantyMonths}-mo warranty` }];
     if (item.icon === ReturnIcon) {
       return returnWindowDays > 0 ? [{ ...item, title: `${returnWindowDays}-day returns` }] : [];
     }
@@ -423,36 +425,42 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
           orphaned 56px heart under a full-width CTA looked accidental.
           Inline keeps the two actions reading as one control cluster. */}
       <div className="mt-10 flex gap-3 sm:gap-4">
-        {cartLoading ? (
-          <Skeleton className="h-14 flex-1 rounded-full" />
-        ) : purchasable && inCartQty > 0 ? (
-          <QuantityStepper
-            value={inCartQty}
-            max={maxQuantity}
-            disabled={stepperBusy}
-            onIncrement={handleIncrement}
-            onDecrement={handleDecrement}
-            groupLabel={`${product.name} in cart`}
-            variant="filled"
-            size="lg"
-            className="flex-1"
-          />
-        ) : (
-          <Button
-            size="lg"
-            variant="primary"
-            onClick={handleAddToCart}
-            loading={addCartItem.isPending}
-            className={cn(
-              "flex-1",
-              purchasable &&
-                "bg-accent text-white hover:bg-accent-hover",
-            )}
-            disabled={soldOut}
-          >
-            {cta}
-          </Button>
-        )}
+        <div className="flex flex-1 flex-col gap-2.5">
+          {cartLoading ? (
+            <Skeleton className="h-14 flex-1 rounded-full" />
+          ) : purchasable && inCartQty > 0 ? (
+            <QuantityStepper
+              value={inCartQty}
+              max={maxQuantity}
+              disabled={stepperBusy}
+              onIncrement={handleIncrement}
+              onDecrement={handleDecrement}
+              groupLabel={`${product.name} in cart`}
+              variant="filled"
+              size="lg"
+              className="flex-1"
+            />
+          ) : (
+            <Button
+              size="lg"
+              variant="primary"
+              onClick={handleAddToCart}
+              loading={addCartItem.isPending}
+              className={cn(
+                "flex-1",
+                purchasable &&
+                  "bg-accent text-white hover:bg-accent-hover",
+              )}
+              disabled={soldOut}
+            >
+              {cta}
+            </Button>
+          )}
+          <p className="flex items-center justify-center gap-1.5 text-[0.8125rem] text-ink-secondary">
+            <ShieldIcon />
+            {warrantyMonths} months warranty
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setSaved((s) => !s)}

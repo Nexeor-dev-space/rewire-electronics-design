@@ -217,7 +217,12 @@ function AddOnRow({
         <p className="truncate text-sm font-medium text-ink">{addOn.name}</p>
         {addOn.note && <p className="mt-0.5 truncate text-xs text-ink-muted">{addOn.note}</p>}
       </div>
-      <p className="text-sm text-ink-secondary">{ADD_ON_KIND_LABELS[addOn.kind]}</p>
+      <div>
+        <p className="text-sm text-ink-secondary">{ADD_ON_KIND_LABELS[addOn.kind]}</p>
+        {addOn.extraWarrantyMonths > 0 && (
+          <p className="mt-0.5 text-xs text-ink-muted">+{addOn.extraWarrantyMonths} months warranty</p>
+        )}
+      </div>
       <p className="text-sm tabular-nums text-ink-secondary">{formatMoney(addOn.price)}</p>
       <p className="truncate text-sm text-ink-secondary" title={offeredOn}>
         {offeredOn}

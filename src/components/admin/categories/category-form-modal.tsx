@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { ImageField } from "@/components/admin/shared/image-field";
+import { SeoBasicsFields, type DraftSeoBasics } from "@/components/admin/shared/seo-basics-fields";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
@@ -100,6 +101,12 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
   const [imageId, setImageId] = useState<string | null>(initial?.imageId ?? null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(initial?.imageUrl ?? null);
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [seo, setSeo] = useState<DraftSeoBasics>({
+    seoTitle: initial?.seoTitle ?? "",
+    metaDescription: initial?.metaDescription ?? "",
+    ogImageId: null,
+    ogImageUrl: null,
+  });
   const [status, setStatus] = useState<CategoryStatus>(
     initial?.status ?? (canPublish ? "PUBLISHED" : "DRAFT"),
   );
@@ -129,6 +136,8 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
       parentId: type === "child" ? parentId : null,
       imageId,
       description,
+      seoTitle: seo.seoTitle,
+      metaDescription: seo.metaDescription,
       status,
       showInNav,
       sortOrder: sortOrder.trim() === "" ? undefined : Number(sortOrder),
@@ -312,6 +321,14 @@ function CategoryForm({ initial, onClose }: { initial?: CategoryDetail; onClose:
               setImageId(nextId);
               setPreviewUrl(nextUrl);
             }}
+          />
+
+          <SeoBasicsFields
+            seo={seo}
+            onChange={setSeo}
+            fallback={{ title: name || "Category name", description: description || "The category description" }}
+            description="Search result text for the category page. Leave blank to use the name and description. The category image is the share image."
+            errorAt={error}
           />
         </div>
       </DialogBody>

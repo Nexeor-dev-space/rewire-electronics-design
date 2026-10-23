@@ -128,7 +128,10 @@ The rules behind these figures:
 1. **Add-ons are charged per unit.** Two phones with a 24 month extension pay
    for two extensions. `addOnUnitPrice` is the sum of the line's *available*
    add-on prices; an add-on that is no longer offered is shown but not
-   charged.
+   charged. An add-on's price is its effective price on that product: the
+   product's override when the product picked it with one, else the add-on's
+   own price (`resolveOfferedAddOns`, docs/CATALOGUE.md §3). The seen price
+   is stored at that effective price too.
 2. **Unpurchasable lines are shown, not priced.** A line whose product is
    unavailable or whose variant has no stock keeps its `lineTotal` for display
    but is left out of the subtotal and of coupon eligibility. A line with
@@ -408,7 +411,8 @@ Errors by route:
       product that is not published, or a hidden category.
    4. 422 on `addOnIds` "One of the chosen add-ons isn't available for this
       item." when an add-on is inactive or not among the product's offered
-      add-ons (the same top `MAX_PRODUCT_ADD_ONS` the product page shows).
+      add-ons: its picks, or the category list when it has none (the same top
+      `MAX_PRODUCT_ADD_ONS` the product page shows).
    5. 409 `CONFLICT` on `quantity`: "Only {n} left in stock.", "This item is
       out of stock.", "You can add up to 5 of this item.", or "Your cart is
       full." at `CART_MAX_LINES` lines.
@@ -452,8 +456,9 @@ Types in `src/types/cart.ts`.
    condition, grade, storage, colour, `quantity`, `maxQuantity`
    (`min(stock, CART_MAX_LINE_QUANTITY)`), `unitPrice`, `compareAtPrice`,
    `previousUnitPrice` (the seen price when the variant price changed),
-   `addOns` (chosen, each with `available`), `offeredAddOns` (what the row may
-   offer, the same rule as the product page), `lineTotal`, `issues`.
+   `addOns` (chosen, each with `available` and its effective `price`),
+   `offeredAddOns` (what the row may offer, the same rule as the product page,
+   each with `extraWarrantyMonths`), `lineTotal`, `issues`.
 3. `AppliedCoupon`: `code`, `description`, `valid`, `message`.
 4. `CartTotals`: `subtotal`, `discount`, `delivery` (null outside a quote),
    `total`, `vatIncluded`, `vatRatePercent`.
@@ -471,7 +476,7 @@ three applies.
 | `UNAVAILABLE` | Product not published, or its category (or parent) hidden | yes | no |
 | `OUT_OF_STOCK` | Variant stock is 0 | yes | no |
 | `INSUFFICIENT_STOCK` | Stock is above 0 but below the quantity | yes | yes, at the quantity asked |
-| `PRICE_CHANGED` | The variant price, or an available chosen add-on's price, differs from the seen price | no | yes, at the current price |
+| `PRICE_CHANGED` | The variant price, or an available chosen add-on's effective price, differs from the seen price. Also shown once for a line added before the product got an override | no | yes, at the current price |
 | `ADD_ON_UNAVAILABLE` | A chosen add-on is inactive or no longer offered on the product | no | the add-on is not charged |
 
 Blocking lines stay in the cart until the shopper removes them, so items
@@ -609,6 +614,16 @@ or `useGetAccountOrder(number)` when signed in; Track Order goes to
 `/account/orders/{number}` signed in, or `/order/track?number=…&email=…` for a
 guest. Without either (a guest reloading the page) it links to Track Order.
 
+**Add-ons as their own rows.** The cart page, the checkout summary, the order
+success page and both order detail screens show a line with add-ons as an
+"Item" row (unit price × quantity) and one row per add-on with its own price
+× quantity, through `LineBreakdown` in
+`src/components/order/line-breakdown.tsx`. An add-on that is no longer
+offered is struck through as "Not charged". This is display only: storage
+stays a set on the line (`CartItemAddOn`, `OrderItemAddOn`) and `lineTotal`
+still comes from the server. The cart's add-on chips stay for ticking and
+unticking.
+
 ### 9.1 Checkout steps
 
 `/checkout` is a four step accordion: **01 Information** (contact and
@@ -716,6 +731,8 @@ added `src/lib/pricing/price-cart.test.ts`, `src/lib/pricing/coupon.test.ts`,
 Delivery areas extended `delivery.test.ts` (`effectiveRates`,
 `deliveryOptions`) and `delivery-zone.validator.test.ts` (`deliveryAreaSchema`,
 `deliveryAreaListQuerySchema`, the zone's `enabled`).
+Per-product add-ons added `src/lib/add-on-rules.test.ts`
+(`resolveOfferedAddOns`, `addOnScopeOf`).
 They cover the pure rules only; the routes, the service and the checkout
 steps have no automated tests. Phase 5 tests are listed in
 [ORDERS.md](ORDERS.md) §14.
@@ -748,7 +765,10 @@ kept so references still hold.
    `MAX_PRODUCT_ADD_ONS × CART_MAX_LINES` (80) rows and then filtered per line.
    With more than 80 active add-ons matching the cart's categories, a line
    could offer fewer than the product page does.
-9. **Choosing another add-on on a line that still holds an unavailable one**
+9. **Offered add-ons per line** share that capped query with picks from
+   other lines, so a full cart with many picks and many category add-ons is
+   the case that could hit the cap.
+10. **Choosing another add-on on a line that still holds an unavailable one**
    answers 422, because the new set includes it. The shopper removes the
    unavailable chip first.
 

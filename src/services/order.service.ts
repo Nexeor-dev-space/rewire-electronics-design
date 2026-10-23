@@ -15,7 +15,9 @@ import {
   nextStatuses,
   orderTimeline,
   paymentActions,
+  lineWarrantyMonths,
   returnableUntil,
+  warrantyEndsAt,
   type ManualPaymentStatus,
   type OrderStatus,
 } from "@/lib/orders";
@@ -71,13 +73,16 @@ const lineSelect = {
   condition: true,
   grade: true,
   warrantyMonths: true,
+  serialNumber: true,
+  warrantyStartsAt: true,
+  warrantyEndsAt: true,
   imageAlt: true,
   unitPrice: true,
   addOnUnitPrice: true,
   quantity: true,
   lineTotal: true,
   addOns: {
-    select: { addOnId: true, name: true, kind: true, price: true },
+    select: { addOnId: true, name: true, kind: true, price: true, extraWarrantyMonths: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } satisfies Prisma.OrderItemSelect;
@@ -188,6 +193,10 @@ const adminRowSelect = {
   trackingNumber: true,
   placedAsGuest: true,
   _count: { select: { items: true } },
+  items: {
+    select: { id: true, productName: true, sku: true, quantity: true, serialNumber: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  },
 } satisfies Prisma.OrderSelect;
 
 const stateSelect = {
@@ -230,6 +239,9 @@ function toLine(row: LineRow, returned: ReturnedQuantities): OrderLine {
     storage: row.storage,
     colour: row.colour,
     warrantyMonths: row.warrantyMonths,
+    serialNumber: row.serialNumber,
+    warrantyStartsAt: isoOrNull(row.warrantyStartsAt),
+    warrantyEndsAt: isoOrNull(row.warrantyEndsAt),
     quantity: row.quantity,
     returnableQuantity: returnableQuantity(row.quantity, returned.get(row.id) ?? 0),
     unitPrice: row.unitPrice,
@@ -240,6 +252,7 @@ function toLine(row: LineRow, returned: ReturnedQuantities): OrderLine {
       name: addOn.name,
       kind: addOn.kind,
       price: addOn.price,
+      extraWarrantyMonths: addOn.extraWarrantyMonths,
     })),
   };
 }
@@ -345,11 +358,16 @@ function toAdminRow(row: AdminRow): AdminOrderRow {
     lineCount: row._count.items,
     trackingNumber: row.trackingNumber,
     placedAsGuest: row.placedAsGuest,
+    items: row.items,
   };
 }
 
 export function fulfilmentAuditView(row: AdminOrderRow) {
-  return { status: row.status, trackingNumber: row.trackingNumber };
+  return {
+    status: row.status,
+    trackingNumber: row.trackingNumber,
+    serials: row.items.map(({ sku, serialNumber }) => ({ sku, serialNumber })),
+  };
 }
 
 export function orderAuditView(order: AdminOrderDetail) {
@@ -509,6 +527,19 @@ async function releaseOrder(tx: Tx, orderId: string) {
   });
 }
 
+async function startWarranties(tx: Tx, orderId: string, startsAt: Date) {
+  const items = await tx.orderItem.findMany({
+    where: { orderId },
+    select: { id: true, warrantyMonths: true, addOns: { select: { extraWarrantyMonths: true } } },
+  });
+  for (const item of items) {
+    await tx.orderItem.update({
+      where: { id: item.id },
+      data: { warrantyStartsAt: startsAt, warrantyEndsAt: warrantyEndsAt(startsAt, lineWarrantyMonths(item)) },
+    });
+  }
+}
+
 async function applyStatusChange(
   tx: Tx,
   order: StateRow,
@@ -531,6 +562,7 @@ async function applyStatusChange(
     data: { status: to, ...delivered },
   });
   if (count === 0) throw orderChanged();
+  if (to === "DELIVERED") await startWarranties(tx, order.id, now);
 
   await tx.orderStatusEvent.create({ data: { orderId: order.id, status: to, note, actorId } });
   if (to === "CANCELLED") await releaseOrder(tx, order.id);
@@ -680,6 +712,16 @@ export async function updateFulfilment(actorId: string, number: string, data: Fu
         data: { trackingNumber: data.trackingNumber },
       });
       if (count === 0) throw orderChanged();
+    }
+    for (const { itemId, serialNumber } of data.serials ?? []) {
+      const { count } = await tx.orderItem.updateMany({
+        where: { id: itemId, orderId: order.id },
+        data: { serialNumber: serialNumber || null },
+      });
+      if (count === 0) {
+        const message = "One of the items isn't on this order.";
+        throw new ServiceError("VALIDATION", message, 422, { serials: [message] });
+      }
     }
     if (data.status) await applyStatusChange(tx, order, data.status, "", actorId);
   });

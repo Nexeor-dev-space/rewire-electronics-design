@@ -2,8 +2,10 @@ import { z } from "zod";
 import {
   ORDER_NOTE_MAX_LENGTH,
   ORDER_NUMBER_PREFIX,
+  CART_MAX_LINES,
   REFERENCE_NUMBER_DIGITS,
   SEARCH_QUERY_MAX_LENGTH,
+  SERIAL_NUMBER_MAX_LENGTH,
   STAFF_NOTE_MAX_LENGTH,
   TRACKING_NUMBER_MAX_LENGTH,
 } from "@/lib/constants";
@@ -14,7 +16,7 @@ import {
   ORDER_STATUSES,
   PAYMENT_STATUSES,
 } from "@/lib/orders";
-import { emailValidator, paginationQueryValidator } from "./common/primitives.validator";
+import { emailValidator, idValidator, paginationQueryValidator } from "./common/primitives.validator";
 
 const ORDER_NUMBER_PATTERN = new RegExp(`^${ORDER_NUMBER_PREFIX}\\d{${REFERENCE_NUMBER_DIGITS}}$`);
 const ORDER_NUMBER_EXAMPLE = `${ORDER_NUMBER_PREFIX}${"0".repeat(REFERENCE_NUMBER_DIGITS)}`;
@@ -83,7 +85,19 @@ export const fulfilmentUpdateSchema = z
   .object({
     status: z.enum(FULFILMENT_TARGET_STATUSES, { error: "Choose a status." }).optional(),
     trackingNumber: trackingNumberValidator.optional(),
+    serials: z
+      .array(
+        z.object({
+          itemId: idValidator,
+          serialNumber: z
+            .string()
+            .trim()
+            .max(SERIAL_NUMBER_MAX_LENGTH, `Use ${SERIAL_NUMBER_MAX_LENGTH} characters or fewer.`),
+        }),
+      )
+      .max(CART_MAX_LINES)
+      .optional(),
   })
-  .refine((data) => data.status !== undefined || data.trackingNumber !== undefined, {
+  .refine((data) => data.status !== undefined || data.trackingNumber !== undefined || data.serials !== undefined, {
     message: MESSAGE_NOTHING_TO_UPDATE,
   });

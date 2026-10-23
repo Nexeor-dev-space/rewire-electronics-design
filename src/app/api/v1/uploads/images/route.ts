@@ -4,11 +4,17 @@ import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { authorizeApi, forbidden } from "@/lib/auth/session";
 import { saveImage } from "@/services/media.service";
 
-const UPLOAD_MODULES = [PERMISSIONS.categories, PERMISSIONS.brands, PERMISSIONS.products, PERMISSIONS.homepage];
+const UPLOAD_MODULES = [
+  PERMISSIONS.categories,
+  PERMISSIONS.brands,
+  PERMISSIONS.products,
+  PERMISSIONS.homepage,
+  PERMISSIONS.content,
+];
 
 /**
- * The one image upload, shared by the category, brand, product and homepage
- * section modals. Open to anyone who can create or edit in one of them.
+ * The one image upload, shared by the category, brand, product, homepage
+ * and policy forms. Open to anyone who can create or edit in one of them.
  *
  * Takes `multipart/form-data` with a single `file` field, so there is no Zod
  * schema here — a `File` is validated by `saveImage` on type and size.

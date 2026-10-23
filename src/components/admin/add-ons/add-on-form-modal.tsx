@@ -32,6 +32,7 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
   const [note, setNote] = useState(initial?.note ?? "");
   const [kind, setKind] = useState<AddOnKind>(initial?.kind ?? "ACCESSORY");
   const [price, setPrice] = useState(initial ? fromMinorUnits(initial.price) : "");
+  const [extraWarrantyMonths, setExtraWarrantyMonths] = useState(String(initial?.extraWarrantyMonths ?? 0));
   const [popular, setPopular] = useState(initial?.popular ?? false);
   const [active, setActive] = useState(initial?.active ?? true);
   const [appliesToAll, setAppliesToAll] = useState(initial?.appliesToAll ?? false);
@@ -60,6 +61,8 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
       note,
       kind,
       price: priceMinor ?? 0,
+      extraWarrantyMonths:
+        kind === "PROTECTION" && extraWarrantyMonths.trim() !== "" ? Number(extraWarrantyMonths) : 0,
       popular,
       active,
       appliesToAll,
@@ -140,6 +143,24 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
               className="h-11"
             />
           </Field>
+
+          {kind === "PROTECTION" && (
+            <Field
+              id={`${id}-extra-warranty`}
+              label="Extra warranty (months)"
+              hint="Months this add-on adds to the product's warranty. 0 for none."
+              error={error("extraWarrantyMonths")}
+            >
+              <Input
+                id={`${id}-extra-warranty`}
+                inputMode="numeric"
+                value={extraWarrantyMonths}
+                onChange={(event) => setExtraWarrantyMonths(event.target.value)}
+                aria-invalid={error("extraWarrantyMonths") ? true : undefined}
+                className="h-11"
+              />
+            </Field>
+          )}
 
           <div className="flex flex-col gap-3 sm:col-span-2">
             <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">

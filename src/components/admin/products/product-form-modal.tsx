@@ -19,6 +19,7 @@ import { slugify } from "@/lib/utils";
 import type { CategoryNode } from "@/types/category";
 import type { ProductDetail } from "@/types/product";
 import { GRADED_CONDITIONS, productSchema } from "@/validators/product.validator";
+import { ProductAddOnsField, type DraftAddOnPick } from "./product-add-ons-field";
 import { ProductImagesField, type DraftImage } from "./product-images-field";
 import { ProductSeoFields, seoInput, toDraftSeo, type DraftSeo } from "./product-seo-fields";
 import { ProductSpecsEditor, newSpecKey, type DraftSpec } from "./product-specs-editor";
@@ -169,6 +170,13 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   );
   const [variants, setVariants] = useState<DraftVariant[]>(() => toDraftVariants(initial));
   const [seo, setSeo] = useState<DraftSeo>(() => toDraftSeo(initial));
+  const [addOnPicks, setAddOnPicks] = useState<DraftAddOnPick[]>(
+    () =>
+      initial?.addOns.map((pick) => ({
+        addOnId: pick.addOnId,
+        priceOverride: pick.priceOverride === null ? "" : fromMinorUnits(pick.priceOverride),
+      })) ?? [],
+  );
   const [errors, setErrors] = useState<Errors>({});
 
   const brands = useGetBrands(PICKER_FILTERS);
@@ -216,6 +224,10 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
         compareAtPrice:
           variant.compareAtPrice.trim() === "" ? null : (toMinorUnits(variant.compareAtPrice) ?? 0),
         stock: optionalNumber(variant.stock),
+      })),
+      addOns: addOnPicks.map((pick) => ({
+        addOnId: pick.addOnId,
+        priceOverride: pick.priceOverride.trim() === "" ? null : (toMinorUnits(pick.priceOverride) ?? -1),
       })),
       ...seoInput(seo),
     });
@@ -375,6 +387,14 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
           />
 
           <ProductSpecsEditor specs={specs} onChange={setSpecs} error={error("specs")} errorAt={error} />
+
+          <ProductAddOnsField
+            picks={addOnPicks}
+            onChange={setAddOnPicks}
+            current={initial?.addOns ?? []}
+            error={error("addOns")}
+            errorAt={error}
+          />
 
           <ProductSeoFields seo={seo} onChange={setSeo} fallback={seoFallback} errorAt={error} />
         </div>

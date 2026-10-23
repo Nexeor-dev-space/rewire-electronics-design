@@ -38,6 +38,12 @@ export const ADD_ON_KIND_LABELS: Record<AddOnKind, string> = {
 
 const shopFilterSchema = shopQuerySchema.omit({ page: true, pageSize: true });
 
+const SHOP_QUERY_KEYS: readonly string[] = Object.keys(shopQuerySchema.shape);
+
+export function hasShopQuery(params: Record<string, string | string[] | undefined>): boolean {
+  return Object.entries(params).some(([key, value]) => value !== undefined && SHOP_QUERY_KEYS.includes(key));
+}
+
 export function shopFiltersFromParams(
   params: Record<string, string | string[] | undefined>,
 ): ShopFilterState {

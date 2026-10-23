@@ -114,8 +114,8 @@ Headings: the page title is the `h1` and each block title is the `h2`, so
 content headings start at `h3`. A level outside the range is clamped rather
 than dropped, because the author meant a heading.
 
-`richTextToPlainText` flattens a document for the `FAQPage` JSON-LD and for
-meta descriptions. Inline siblings (text, hard breaks) join with nothing so a
+`richTextToPlainText` flattens a document for the `FAQPage` JSON-LD. Meta
+descriptions come from the SEO fields or the lede (section 5, SEO fields). Inline siblings (text, hard breaks) join with nothing so a
 bolded word does not split mid-word; block-level siblings join with a space so
 two paragraphs — or two bullets — do not run into each other.
 
@@ -153,20 +153,49 @@ the page loaded with, and no write ever happened.
 
 The transaction:
 
-1. Reads the policy and its block ids.
-2. Updates title, lede, draft and published.
-3. Deletes blocks the payload no longer carries.
-4. Updates or creates each submitted block, with the array index as `sortOrder`.
+1. Reads the policy, its share image and its block ids.
+2. Updates title, lede, draft, published and the three SEO fields.
+3. Releases the old share image when it was replaced or cleared.
+4. Deletes blocks the payload no longer carries.
+5. Updates or creates each submitted block, with the array index as `sortOrder`.
 
 Two rules the write path depends on:
 
-- **The update-vs-create decision comes from the database, not the payload.**
-  A block id is honoured only if it belongs to *this* policy; the update is
-  additionally scoped `where: { id, policyId }`. A foreign or stale id falls
-  through to `create` on the correct policy rather than writing across
-  policies.
-- **Order is positional.** A drag reorders the array in the editor and needs no
-  separate write; `sortOrder` is assigned from the index on save.
+1. **The update-vs-create decision comes from the database, not the payload.**
+   A block id is honoured only if it belongs to *this* policy; the update is
+   additionally scoped `where: { id, policyId }`. A foreign or stale id falls
+   through to `create` on the correct policy rather than writing across
+   policies.
+2. **Order is positional.** A drag reorders the array in the editor and needs no
+   separate write; `sortOrder` is assigned from the index on save.
+
+### SEO fields
+
+The editor's "SEO and sharing" part (`SeoBasicsFields` in
+`src/components/admin/shared/seo-basics-fields.tsx`) sets three optional
+fields, saved with the rest of the policy:
+
+| Field | Limit | Blank means |
+| --- | --- | --- |
+| `seoTitle` | 70 (`SEO_TITLE_MAX_LENGTH`), used exactly as written | The policy title plus " — Rewire Electronics" |
+| `metaDescription` | 160 (`SEO_DESCRIPTION_MAX_LENGTH`) | The lede, clipped to 160 characters at a word |
+| `ogImageId` | A `MediaAsset` from the shared upload, ideally 1200 × 630 | The site image (`siteConfig.ogImage`) |
+
+`savePolicy` checks them by hand, like the title and lede, rather than through
+a Zod schema: the action has no schema for anything else, and one for three
+fields would mean two validation styles in one function. Blank is stored as
+null. A share image id that no longer exists is refused with "The share image
+no longer exists. Upload it again."
+
+`policySeo` in `src/lib/seo.ts` applies the fallbacks, and `policyMetadata`
+renders them through `pageMetadata` (docs/CATALOGUE.md, section 7). It treats
+a missing key like null, so a cached `PolicyData` written before these fields
+existed still renders.
+
+The share image counts as a reference in `releaseImage` and the orphan sweep
+(`policyOgImages` on `MediaAsset`), so it is not deleted while a policy uses
+it. Uploading it goes through `POST /api/v1/uploads/images`, which accepts
+anyone who can edit Content as well as the catalogue and homepage modules.
 
 The action returns the re-read `PolicyData`, and the editor seeds its state
 from that rather than from what it sent. This matters: `router.refresh()`
@@ -192,12 +221,11 @@ value.
 
 ### Not yet done
 
-**There is no authentication or authorization on `/admin`.** Server Actions are
-public POST endpoints; until a session guard exists, anyone who can reach
-`/admin/storefront/content/<slug>` can call `savePolicy`. This is tracked
-separately and must land before the console is exposed.
+`savePolicy` checks the session and `storefront.content` Edit itself, and
+Publish for a change to `published`, because a Server Action is a public POST
+endpoint whatever page renders it.
 
-There is also no optimistic-concurrency guard: two editors saving the same
+There is no optimistic-concurrency guard: two editors saving the same
 policy will overwrite each other silently. Add a `updatedAt` check to the
 transaction when more than one person edits policies.
 
@@ -273,7 +301,9 @@ and why it is not wired into `postinstall`.
 ### Schema
 
 `Policy` carries `slug` (unique), `title`, `eyebrow`, `lede`, `draft`,
-`published` and timestamps. `published: false` makes the storefront route 404
+`published`, the nullable SEO fields `seoTitle`, `metaDescription` and
+`ogImageId` (a `MediaAsset`, set null if the asset goes; migration
+`add_page_seo_fields`) and timestamps. `published: false` makes the storefront route 404
 rather than render an empty page. `draft: true` renders the "not yet through
 legal review" notice on the page — said plainly rather than buried, because
 placeholder copy that looks like a reviewed policy is worse than no page at

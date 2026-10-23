@@ -6,6 +6,7 @@ import type {
   createHomepageSectionSchema,
   homepageSectionItemSchema,
   homepageSectionSchema,
+  homepageSeoSchema,
 } from "@/validators/homepage.validator";
 
 export interface SectionRef {
@@ -80,6 +81,15 @@ export interface HomepageSection {
   /** ISO string. */
   updatedAt: string;
 }
+
+export interface HomepageSeo {
+  seoTitle: string | null;
+  metaDescription: string | null;
+  ogImageId: string | null;
+  ogImageUrl: string | null;
+}
+
+export type HomepageSeoInput = z.input<typeof homepageSeoSchema>;
 
 export interface HomepageDraft {
   sections: HomepageSection[];

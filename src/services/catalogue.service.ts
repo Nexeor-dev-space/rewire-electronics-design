@@ -3,6 +3,7 @@ import "server-only";
 import { revalidateTag, unstable_cache } from "next/cache";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
+import { resolveOfferedAddOns, type AddOnPick, type AddOnScope } from "@/lib/add-on-rules";
 import { fromShopCondition, fromShopGrade, toShopCondition, toShopGrade } from "@/lib/catalogue";
 import {
   MAX_PRODUCT_ADD_ONS,
@@ -98,6 +99,7 @@ type CardRow = Prisma.ProductGetPayload<{ select: typeof cardSelect }>;
 const detailSelect = {
   id: true,
   slug: true,
+  addOns: { select: { addOnId: true, priceOverride: true } },
   name: true,
   description: true,
   warrantyMonths: true,
@@ -458,12 +460,12 @@ export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
   return { items: rows.map((row) => toCard(row, query)), page, pageSize, total, facets };
 }
 
-async function findShopProduct(slug: string): Promise<ShopProductDetail | null> {
+async function findShopProduct(slug: string): Promise<{ product: ShopProductDetail; picks: AddOnPick[] } | null> {
   const row = await prisma.product.findFirst({
     where: { slug, ...PUBLISHED },
     select: detailSelect,
   });
-  return row ? toDetail(row) : null;
+  return row ? { product: toDetail(row), picks: row.addOns } : null;
 }
 
 async function listRelatedShopProducts(product: ShopProductDetail, limit: number) {
@@ -501,11 +503,17 @@ export async function findShopCards(ids: string[]): Promise<Map<string, ShopCard
   return new Map(rows.map((row) => [row.id, toCard(row)]));
 }
 
-export function offeredAddOnWhere(categoryIds: string[]): Prisma.AddOnWhereInput {
-  return {
-    active: true,
-    OR: [{ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } }],
-  };
+export function offeredAddOnWhere(scopes: AddOnScope[]): Prisma.AddOnWhereInput {
+  const pickIds = [...new Set(scopes.flatMap((scope) => scope.picks.map((pick) => pick.addOnId)))];
+  const categoryIds = [
+    ...new Set(scopes.filter((scope) => scope.picks.length === 0).flatMap((scope) => scope.categoryIds)),
+  ];
+  const branches: Prisma.AddOnWhereInput[] = [];
+  if (categoryIds.length > 0) {
+    branches.push({ appliesToAll: true }, { categories: { some: { categoryId: { in: categoryIds } } } });
+  }
+  if (pickIds.length > 0) branches.push({ id: { in: pickIds } });
+  return { active: true, OR: branches };
 }
 
 export const OFFERED_ADD_ON_ORDER: Prisma.AddOnOrderByWithRelationInput[] = [
@@ -521,6 +529,13 @@ export const shopAddOnSelect = {
   kind: true,
   price: true,
   popular: true,
+  extraWarrantyMonths: true,
+} satisfies Prisma.AddOnSelect;
+
+export const offeredAddOnSelect = {
+  ...shopAddOnSelect,
+  appliesToAll: true,
+  categories: { select: { categoryId: true } },
 } satisfies Prisma.AddOnSelect;
 
 export function toShopAddOn(row: Prisma.AddOnGetPayload<{ select: typeof shopAddOnSelect }>): ShopAddOn {
@@ -531,26 +546,31 @@ export function toShopAddOn(row: Prisma.AddOnGetPayload<{ select: typeof shopAdd
     price: row.price,
     kind: row.kind.toLowerCase() as ShopAddOn["kind"],
     popular: row.popular,
+    extraWarrantyMonths: row.extraWarrantyMonths,
   };
 }
 
-async function listShopAddOns(category: ShopCategoryRef): Promise<ShopAddOn[]> {
-  const categoryIds = [category.id, ...(category.parent ? [category.parent.id] : [])];
+async function listShopAddOns(category: ShopCategoryRef, picks: AddOnPick[]): Promise<ShopAddOn[]> {
+  const scope: AddOnScope = {
+    categoryIds: [category.id, ...(category.parent ? [category.parent.id] : [])],
+    picks,
+  };
   const rows = await prisma.addOn.findMany({
-    where: offeredAddOnWhere(categoryIds),
-    select: shopAddOnSelect,
+    where: offeredAddOnWhere([scope]),
+    select: offeredAddOnSelect,
     orderBy: OFFERED_ADD_ON_ORDER,
     take: MAX_PRODUCT_ADD_ONS,
   });
-  return rows.map(toShopAddOn);
+  return resolveOfferedAddOns(rows, scope).map(toShopAddOn);
 }
 
 export async function findShopProductPage(slug: string): Promise<ShopProductPage | null> {
-  const product = await findShopProduct(slug);
-  if (!product) return null;
+  const found = await findShopProduct(slug);
+  if (!found) return null;
 
+  const { product, picks } = found;
   const [addOns, related] = await Promise.all([
-    listShopAddOns(product.category),
+    listShopAddOns(product.category, picks),
     listRelatedShopProducts(product, RELATED_PRODUCTS_LIMIT),
   ]);
   return { ...product, addOns, related };
@@ -580,6 +600,9 @@ export async function findShopCategory(slug: string) {
       name: true,
       slug: true,
       description: true,
+      seoTitle: true,
+      metaDescription: true,
+      imageId: true,
       parent: { select: { name: true, slug: true } },
     },
   });

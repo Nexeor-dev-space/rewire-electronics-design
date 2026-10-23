@@ -74,6 +74,10 @@ export interface PolicyData {
   lede: string;
   draft: boolean;
   published: boolean;
+  seoTitle: string | null;
+  metaDescription: string | null;
+  ogImageId: string | null;
+  ogImageUrl: string | null;
   updatedAt: string;
   blocks: PolicyBlockData[];
 }

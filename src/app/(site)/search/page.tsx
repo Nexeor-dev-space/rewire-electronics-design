@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
 import { shopFiltersFromParams } from "@/lib/catalogue";
 import { SHOP_PAGE_SIZE } from "@/lib/constants";
+import { pageMetadata } from "@/lib/seo";
 import { SEARCH_PAGE_PATH } from "@/lib/site";
 import { listShopProducts } from "@/services/catalogue.service";
 
@@ -14,10 +15,12 @@ interface PageProps {
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const { q } = shopFiltersFromParams(await searchParams);
-  return {
+  return pageMetadata({
     title: q ? `Search: ${q}` : "Search",
-    robots: { index: false },
-  };
+    description: "Search every Rewire device by name, brand or model.",
+    path: SEARCH_PAGE_PATH,
+    noindex: true,
+  });
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {

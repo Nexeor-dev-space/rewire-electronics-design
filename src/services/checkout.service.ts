@@ -141,13 +141,20 @@ function orderItems(priced: PricedCart): Prisma.OrderItemCreateWithoutOrderInput
     lineTotal: line.lineTotal,
     addOns: {
       create: item.addOns
-        .filter((link) => line.addOns.some((addOn) => addOn.id === link.addOn.id && addOn.available))
-        .map((link) => ({
-          addOn: { connect: { id: link.addOn.id } },
-          name: link.addOn.name,
-          kind: link.addOn.kind,
-          price: link.addOn.price,
-        })),
+        .flatMap((link) => {
+          const chosen = line.addOns.find((addOn) => addOn.id === link.addOn.id && addOn.available);
+          return chosen
+            ? [
+                {
+                  addOn: { connect: { id: link.addOn.id } },
+                  name: link.addOn.name,
+                  kind: link.addOn.kind,
+                  price: chosen.price,
+                  extraWarrantyMonths: link.addOn.extraWarrantyMonths,
+                },
+              ]
+            : [];
+        }),
     },
   }));
 }

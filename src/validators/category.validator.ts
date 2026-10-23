@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { paginationQueryValidator, slugValidator } from "./common/primitives.validator";
+import { SEO_DESCRIPTION_MAX_LENGTH, SEO_TITLE_MAX_LENGTH } from "@/lib/constants";
+import { optionalTextValidator, paginationQueryValidator, slugValidator } from "./common/primitives.validator";
 
 /**
  * Categories are two levels deep. `type` is not stored — it is derived from
@@ -35,6 +36,8 @@ export const categorySchema = z
     parentId: z.string().min(1).nullable().default(null),
     imageId: z.string().min(1).nullable().default(null),
     description: z.string().trim().max(300, "Use 300 characters or fewer.").default(""),
+    seoTitle: optionalTextValidator(SEO_TITLE_MAX_LENGTH),
+    metaDescription: optionalTextValidator(SEO_DESCRIPTION_MAX_LENGTH),
     status: z.enum(CATEGORY_STATUSES, { error: "Choose a status." }).default("PUBLISHED"),
     showInNav: z.boolean().default(true),
     sortOrder: z

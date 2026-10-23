@@ -85,6 +85,7 @@ export interface ShopAddOn {
   price: number;
   kind: "protection" | "accessory" | "service";
   popular: boolean;
+  extraWarrantyMonths: number;
 }
 
 /** The admin's SEO overrides, raw; `productSeo` in `src/lib/seo.ts` adds the fallbacks. */
