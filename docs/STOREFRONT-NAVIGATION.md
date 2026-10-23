@@ -512,6 +512,10 @@ The account pages no longer wrap themselves in `AccountGated`, and
 `src/components/account/account-auth-gate.tsx` is deleted. A new page
 under `/account` is gated by the layout with no code of its own.
 
+The layout also exports `metadata` with `robots: noindex, nofollow`
+(`NOINDEX_ROBOTS`), so every account page is kept out of search without
+setting it itself.
+
 ### 9.4 Header, drawer and tab bar state
 
 `AccountMenu`, `MobileDrawer` and `MobileTabBar` read the signed in user
@@ -582,3 +586,7 @@ order and empties the cart; the success page is `/checkout/success?order=…`
    the page under `/account` so the layout gates it (§9).
 7. Showing cart data somewhere new? Call `useGetCart` or
    `useGetCartQuote` and render the server's figures (§10).
+8. Adding a storefront page? Build its metadata with `pageMetadata` in
+   `src/lib/seo.ts`, so it gets a canonical, Open Graph and a Twitter card.
+   Set `noindex` if it is personal or a filtered view (docs/CATALOGUE.md,
+   section 7).

@@ -5,10 +5,12 @@ import {
   PAYMENT_LINK_NOTICE,
   accountOrdersWhere,
   initialStatus,
+  lineWarrantyMonths,
   nextStatuses,
   orderTimeline,
   paymentActions,
   returnableUntil,
+  warrantyEndsAt,
   type OrderStatus,
 } from "./orders";
 
@@ -155,5 +157,31 @@ describe("orderTimeline", () => {
   it("starts with Placed at the order time", () => {
     const [placed] = orderTimeline("CONFIRMED", [], placedAt);
     expect(placed).toMatchObject({ key: "PLACED", reached: true, at: placedAt.toISOString() });
+  });
+});
+
+describe("warrantyEndsAt", () => {
+  it("adds whole months and keeps the time of day", () => {
+    expect(warrantyEndsAt(new Date("2026-10-23T10:30:00Z"), 12).toISOString()).toBe("2027-10-23T10:30:00.000Z");
+  });
+
+  it("ends on the last day of a shorter month", () => {
+    expect(warrantyEndsAt(new Date("2026-01-31T10:00:00Z"), 1).toISOString()).toBe("2026-02-28T10:00:00.000Z");
+    expect(warrantyEndsAt(new Date("2024-01-31T10:00:00Z"), 1).toISOString()).toBe("2024-02-29T10:00:00.000Z");
+  });
+
+  it("returns the start for zero months", () => {
+    expect(warrantyEndsAt(new Date("2026-10-23T10:00:00Z"), 0).toISOString()).toBe("2026-10-23T10:00:00.000Z");
+  });
+});
+
+describe("lineWarrantyMonths", () => {
+  it("is the product warranty when nothing extends it", () => {
+    expect(lineWarrantyMonths({ warrantyMonths: 12, addOns: [] })).toBe(12);
+  });
+
+  it("adds the months of every add-on on the line", () => {
+    const addOns = [{ extraWarrantyMonths: 12 }, { extraWarrantyMonths: 0 }];
+    expect(lineWarrantyMonths({ warrantyMonths: 12, addOns })).toBe(24);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SERIAL_NUMBER_MAX_LENGTH } from "@/lib/constants";
 import {
   fulfilmentUpdateSchema,
   orderNumberValidator,
@@ -45,5 +46,19 @@ describe("update schemas", () => {
 
   it("refuses a fulfilment move outside the queue", () => {
     expect(fulfilmentUpdateSchema.safeParse({ status: "CANCELLED" }).success).toBe(false);
+  });
+
+  it("accepts serials on their own and trims them", () => {
+    const result = fulfilmentUpdateSchema.parse({ serials: [{ itemId: "item", serialNumber: "  356938035643809 " }] });
+    expect(result.serials).toEqual([{ itemId: "item", serialNumber: "356938035643809" }]);
+  });
+
+  it("accepts an empty serial, which clears it", () => {
+    expect(fulfilmentUpdateSchema.safeParse({ serials: [{ itemId: "item", serialNumber: "" }] }).success).toBe(true);
+  });
+
+  it("refuses a serial over the limit", () => {
+    const serialNumber = "x".repeat(SERIAL_NUMBER_MAX_LENGTH + 1);
+    expect(fulfilmentUpdateSchema.safeParse({ serials: [{ itemId: "item", serialNumber }] }).success).toBe(false);
   });
 });

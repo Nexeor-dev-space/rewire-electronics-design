@@ -17,10 +17,10 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Admin console, sidebar, admin routes | [docs/ADMIN-PANEL.md](docs/ADMIN-PANEL.md) |
 | Roles, custom Staff roles and access levels, staff permissions, `authorizeApi` actions, the Roles screen, hiding admin buttons | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) |
 | The change log, `recordAudit`, Trash, soft delete, restoring products or users | [docs/TRASH-AUDIT.md](docs/TRASH-AUDIT.md) |
-| Policy pages, rich text, the policy editor | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
-| Homepage sections, the homepage CMS API, publishing | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
+| Policy pages, rich text, the policy editor, policy SEO fields | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
+| Homepage sections, the homepage CMS API, publishing, homepage SEO | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
-| Products, the Product API, shop and product pages, catalogue admin, product SEO and Open Graph | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
+| Products, the Product API, shop and product pages, catalogue admin, add-ons and per-product picks, page metadata, SEO, Open Graph, noindex rules, the sitemap and robots | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Stripe, card and Apple Pay payment, `payment.service.ts`, `POST checkout/payment`, the Stripe webhook, the return from Stripe, `stripePaymentIntentId` | [docs/PAYMENTS.md](docs/PAYMENTS.md) |
