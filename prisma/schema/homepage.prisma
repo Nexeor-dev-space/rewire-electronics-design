@@ -119,8 +119,14 @@ model HomepageState {
   id             String    @id
   draftUpdatedAt DateTime
   publishedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+
+  seoTitle        String?
+  metaDescription String?
+  ogImageId       String?
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("homepage_state")
 }

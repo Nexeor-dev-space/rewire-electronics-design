@@ -11,6 +11,9 @@ model Category {
   slug        String @unique
   description String @default("")
 
+  seoTitle        String?
+  metaDescription String?
+
   status    CategoryStatus @default(PUBLISHED)
   showInNav Boolean        @default(true)
   sortOrder Int            @default(0)
