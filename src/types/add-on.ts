@@ -8,6 +8,7 @@ export interface AddOnItem {
   note: string;
   kind: AddOnKind;
   price: number;
+  extraWarrantyMonths: number;
   popular: boolean;
   active: boolean;
   appliesToAll: boolean;

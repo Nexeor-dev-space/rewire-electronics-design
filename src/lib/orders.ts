@@ -106,6 +106,20 @@ export function returnableUntil(deliveredAt: Date, windowDays: number): Date {
   return new Date(deliveredAt.getTime() + windowDays * MS_PER_DAY);
 }
 
+export function warrantyEndsAt(startsAt: Date, months: number): Date {
+  const end = new Date(startsAt);
+  const day = end.getUTCDate();
+  end.setUTCDate(1);
+  end.setUTCMonth(end.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
+  end.setUTCDate(Math.min(day, lastDay));
+  return end;
+}
+
+export function lineWarrantyMonths(line: { warrantyMonths: number; addOns: { extraWarrantyMonths: number }[] }) {
+  return line.addOns.reduce((months, addOn) => months + addOn.extraWarrantyMonths, line.warrantyMonths);
+}
+
 export function accountOrdersWhere(user: { id: string; emailVerified: boolean }) {
   return user.emailVerified
     ? { userId: user.id }

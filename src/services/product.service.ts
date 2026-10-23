@@ -70,6 +70,14 @@ const detailSelect = {
   },
   images: { select: { mediaId: true, alt: true, colour: true }, orderBy: { sortOrder: "asc" } },
   specs: { select: { group: true, label: true, value: true }, orderBy: { sortOrder: "asc" } },
+  addOns: {
+    select: {
+      addOnId: true,
+      priceOverride: true,
+      addOn: { select: { name: true, kind: true, price: true, active: true } },
+    },
+    orderBy: { addOn: { name: "asc" } },
+  },
   seoTitle: true,
   metaDescription: true,
   metaKeywords: true,
@@ -162,6 +170,7 @@ export async function getProduct(id: string, { inTrash = false } = {}) {
   return {
     ...row,
     images: row.images.map((image) => ({ ...image, url: imageUrl(image.mediaId) })),
+    addOns: row.addOns.map(({ addOn, ...pick }) => ({ ...pick, ...addOn })),
     ogImageUrl: imageUrlOrNull(row.ogImageId),
   };
 }
@@ -181,6 +190,7 @@ export async function createProduct(data: ProductData) {
           variants: { create: data.variants.map(variantFields) },
           images: { create: data.images.map(imageFields) },
           specs: { create: data.specs.map(specFields) },
+          addOns: { create: data.addOns.map(addOnPickFields) },
         },
         select: { id: true },
       });
@@ -232,12 +242,14 @@ export async function updateProduct(id: string, data: ProductData) {
 
       await tx.productImage.deleteMany({ where: { productId: id } });
       await tx.productSpec.deleteMany({ where: { productId: id } });
+      await tx.productAddOn.deleteMany({ where: { productId: id } });
       await tx.product.update({
         where: { id },
         data: {
           ...productFields(data),
           images: { create: data.images.map(imageFields) },
           specs: { create: data.specs.map(specFields) },
+          addOns: { create: data.addOns.map(addOnPickFields) },
         },
       });
 
@@ -418,6 +430,10 @@ async function assertSkusFree(tx: Tx, variants: VariantData[], exceptProductId?:
   }
 }
 
+function addOnPickFields(pick: ProductData["addOns"][number]) {
+  return { addOnId: pick.addOnId, priceOverride: pick.priceOverride };
+}
+
 async function assertReferences(tx: Tx, data: ProductData) {
   const brand = await tx.brand.findUnique({ where: { id: data.brandId }, select: { id: true } });
   if (!brand) {
@@ -437,6 +453,12 @@ async function assertReferences(tx: Tx, data: ProductData) {
   if (data.ogImageId !== null && !(await imageExists(tx, data.ogImageId))) {
     const message = "The share image no longer exists. Upload it again.";
     throw new ServiceError("VALIDATION", message, 422, { ogImageId: [message] });
+  }
+
+  const addOnIds = data.addOns.map((pick) => pick.addOnId);
+  if (addOnIds.length > 0 && (await tx.addOn.count({ where: { id: { in: addOnIds } } })) !== addOnIds.length) {
+    const message = "One of the add-ons no longer exists. Reload and pick again.";
+    throw new ServiceError("VALIDATION", message, 422, { addOns: [message] });
   }
 
   const mediaIds = data.images.map((image) => image.mediaId);

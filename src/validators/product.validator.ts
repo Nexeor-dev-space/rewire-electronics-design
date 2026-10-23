@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   CANONICAL_URL_MAX_LENGTH,
+  MAX_PRODUCT_ADD_ONS,
+  MAX_WARRANTY_MONTHS,
   OG_DESCRIPTION_MAX_LENGTH,
   OG_TITLE_MAX_LENGTH,
   SEO_DESCRIPTION_MAX_LENGTH,
@@ -127,6 +129,11 @@ export const productSpecSchema = z.object({
   value: z.string().trim().min(1, "Enter a spec value.").max(200),
 });
 
+export const productAddOnSchema = z.object({
+  addOnId: idValidator,
+  priceOverride: minorUnitsValidator.min(0, "Price can't be negative.").nullable().default(null),
+});
+
 export const productSchema = z
   .object({
     name: z.string().trim().min(1, "Enter a product name.").max(120, "Use 120 characters or fewer."),
@@ -134,7 +141,12 @@ export const productSchema = z
     description: z.string().trim().max(5000, "Use 5000 characters or fewer.").default(""),
     brandId: z.string().min(1, "Choose a brand."),
     categoryId: z.string().min(1, "Choose a category."),
-    warrantyMonths: z.number().int().min(0).max(60, "Use 60 months or fewer.").default(12),
+    warrantyMonths: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAX_WARRANTY_MONTHS, `Use ${MAX_WARRANTY_MONTHS} months or fewer.`)
+      .default(12),
     highlights: z.array(z.string().trim().min(1).max(160)).max(MAX_HIGHLIGHTS).default([]),
     included: z.array(z.string().trim().min(1).max(120)).max(MAX_INCLUDED).default([]),
     images: z.array(productImageSchema).max(MAX_IMAGES, `Add up to ${MAX_IMAGES} images.`).default([]),
@@ -143,6 +155,10 @@ export const productSchema = z
       .array(productVariantSchema)
       .min(1, "Add at least one variant.")
       .max(MAX_VARIANTS, `Add up to ${MAX_VARIANTS} variants.`),
+    addOns: z
+      .array(productAddOnSchema)
+      .max(MAX_PRODUCT_ADD_ONS, `Pick up to ${MAX_PRODUCT_ADD_ONS} add-ons.`)
+      .default([]),
     ...productSeoFields,
   })
   .superRefine((data, ctx) => {
@@ -167,6 +183,14 @@ export const productSchema = z
         });
       }
       options.add(option);
+    });
+
+    const addOnIds = new Set<string>();
+    data.addOns.forEach((pick, index) => {
+      if (addOnIds.has(pick.addOnId)) {
+        ctx.addIssue({ code: "custom", path: ["addOns", index, "addOnId"], message: "The same add-on is picked twice." });
+      }
+      addOnIds.add(pick.addOnId);
     });
 
     const mediaIds = data.images.map((image) => image.mediaId);

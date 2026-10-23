@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_WARRANTY_MONTHS } from "@/lib/constants";
 import { idValidator, minorUnitsValidator, paginationQueryValidator } from "./common/primitives.validator";
 
 export const ADD_ON_KINDS = ["PROTECTION", "ACCESSORY", "SERVICE"] as const;
@@ -21,6 +22,12 @@ export const addOnSchema = z
     note: z.string().trim().max(160, "Use 160 characters or fewer.").default(""),
     kind: z.enum(ADD_ON_KINDS, { error: "Choose a kind." }),
     price: minorUnitsValidator.min(0, "Price can't be negative."),
+    extraWarrantyMonths: z
+      .number({ error: "Enter a number of months." })
+      .int("Use a whole number.")
+      .min(0, "Use 0 or more.")
+      .max(MAX_WARRANTY_MONTHS, `Use ${MAX_WARRANTY_MONTHS} months or fewer.`)
+      .default(0),
     popular: z.boolean().default(false),
     active: z.boolean().default(true),
     appliesToAll: z.boolean().default(false),
@@ -32,6 +39,13 @@ export const addOnSchema = z
         code: "custom",
         path: ["categoryIds"],
         message: "Choose at least one category, or offer it on every product.",
+      });
+    }
+    if (data.extraWarrantyMonths > 0 && data.kind !== "PROTECTION") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["extraWarrantyMonths"],
+        message: "Only protection add-ons extend the warranty.",
       });
     }
   });
