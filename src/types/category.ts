@@ -20,6 +20,8 @@ export interface CategorySummary {
   /** `/api/v1/media/<id>`, or null when the category has no image. */
   imageUrl: string | null;
   description: string;
+  seoTitle: string | null;
+  metaDescription: string | null;
   status: CategoryStatus;
   showInNav: boolean;
   sortOrder: number;

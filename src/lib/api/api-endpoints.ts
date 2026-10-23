@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
       order: `${V1}/admin/homepage/order`,
       publish: `${V1}/admin/homepage/publish`,
       discard: `${V1}/admin/homepage/discard`,
+      seo: `${V1}/admin/homepage/seo`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,

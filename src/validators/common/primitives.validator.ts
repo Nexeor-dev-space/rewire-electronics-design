@@ -11,6 +11,15 @@ import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/constants";
 
 export const idValidator = z.string().min(1);
 
+export const optionalTextValidator = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `Use ${max} characters or fewer.`)
+    .nullable()
+    .default(null)
+    .transform((value) => value || null);
+
 export const slugValidator = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens.");

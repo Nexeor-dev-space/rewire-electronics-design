@@ -7,6 +7,7 @@ import { SHOP_PAGE_SIZE } from "@/lib/constants";
 import { productHrefForCategory } from "@/lib/route-map";
 import { pageMetadata } from "@/lib/seo";
 import { resolveCategory } from "@/lib/shop";
+import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import { findShopCategory, listShopProducts } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +24,14 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (!category) return { title: "Shop" };
 
   return pageMetadata({
-    title: category.name,
+    title: category.seoTitle ?? category.name,
+    absoluteTitle: category.seoTitle !== null,
     description:
-      category.description ||
-      `${category.name} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`,
+      category.metaDescription ??
+      (category.description ||
+        `${category.name} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`),
     path: productHrefForCategory(category.slug),
+    image: imageUrlOrNull(category.imageId) ?? undefined,
     noindex: hasShopQuery(await searchParams),
   });
 }

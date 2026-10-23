@@ -11,6 +11,7 @@ import {
 import {
   idValidator,
   minorUnitsValidator,
+  optionalTextValidator,
   paginationQueryValidator,
   slugValidator,
 } from "./common/primitives.validator";
@@ -36,15 +37,6 @@ export const MAX_STOCK = 100_000;
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const SKU = /^[A-Za-z0-9._-]+$/;
 
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max, `Use ${max} characters or fewer.`)
-    .nullable()
-    .default(null)
-    .transform((value) => value || null);
-
 export const stockValidator = z
   .number({ error: "Enter a stock count." })
   .int("Use a whole number.")
@@ -67,9 +59,9 @@ export const productVariantSchema = z
       .min(1, "Enter a SKU.")
       .max(64, "Use 64 characters or fewer.")
       .regex(SKU, "Use letters, numbers, dots, dashes or underscores."),
-    storage: optionalText(40),
-    colour: optionalText(40),
-    colourHex: optionalText(7).refine(
+    storage: optionalTextValidator(40),
+    colour: optionalTextValidator(40),
+    colourHex: optionalTextValidator(7).refine(
       (value) => value === null || HEX_COLOUR.test(value),
       "Use a hex colour like #1A1A1A.",
     ),
@@ -106,25 +98,25 @@ export const productVariantSchema = z
 export const productImageSchema = z.object({
   mediaId: idValidator,
   alt: z.string().trim().max(160).default(""),
-  colour: optionalText(40),
+  colour: optionalTextValidator(40),
 });
 
 /** A site path (`/product/x`, not `//host`) or an absolute https URL. */
-const canonicalUrlValidator = optionalText(CANONICAL_URL_MAX_LENGTH).refine(
+const canonicalUrlValidator = optionalTextValidator(CANONICAL_URL_MAX_LENGTH).refine(
   (value) => value === null || /^\/(?!\/)\S*$/.test(value) || /^https:\/\/\S+$/.test(value),
   "Use a path like /product/name, or a full https:// address.",
 );
 
 /** All optional; an empty field falls back on the storefront (`productSeo`). */
 const productSeoFields = {
-  seoTitle: optionalText(SEO_TITLE_MAX_LENGTH),
-  metaDescription: optionalText(SEO_DESCRIPTION_MAX_LENGTH),
+  seoTitle: optionalTextValidator(SEO_TITLE_MAX_LENGTH),
+  metaDescription: optionalTextValidator(SEO_DESCRIPTION_MAX_LENGTH),
   metaKeywords: z
     .array(z.string().trim().min(1).max(SEO_KEYWORD_MAX_LENGTH, `Keep each keyword to ${SEO_KEYWORD_MAX_LENGTH} characters.`))
     .max(SEO_KEYWORDS_MAX, `Add up to ${SEO_KEYWORDS_MAX} keywords.`)
     .default([]),
-  ogTitle: optionalText(OG_TITLE_MAX_LENGTH),
-  ogDescription: optionalText(OG_DESCRIPTION_MAX_LENGTH),
+  ogTitle: optionalTextValidator(OG_TITLE_MAX_LENGTH),
+  ogDescription: optionalTextValidator(OG_DESCRIPTION_MAX_LENGTH),
   ogImageId: idValidator.nullable().default(null),
   canonicalUrl: canonicalUrlValidator,
 };

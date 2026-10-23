@@ -7,11 +7,14 @@ import type {
   CreateHomepageSectionInput,
   HomepageDraft,
   HomepageSectionInput,
+  HomepageSeo,
+  HomepageSeoInput,
 } from "@/types/homepage";
 
 const homepageKeys = {
   all: ["homepage"] as const,
   draft: ["homepage", "draft"] as const,
+  seo: ["homepage", "seo"] as const,
 };
 
 const endpoints = API_ENDPOINTS.admin.homepage;
@@ -25,7 +28,23 @@ export function useGetHomepageDraft() {
   });
 }
 
+export function useGetHomepageSeo() {
+  return useQuery({
+    queryKey: homepageKeys.seo,
+    queryFn: ({ signal }) => apiRequest<HomepageSeo>(endpoints.seo, { signal }),
+  });
+}
+
 /* ---------- mutations ---------- */
+
+export function useUpdateHomepageSeo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: HomepageSeoInput) =>
+      apiRequest<HomepageSeo>(endpoints.seo, { method: "PUT", body: input }),
+    onSuccess: (seo) => queryClient.setQueryData(homepageKeys.seo, seo),
+  });
+}
 
 /**
  * Every homepage route answers with the whole draft, so a success writes it

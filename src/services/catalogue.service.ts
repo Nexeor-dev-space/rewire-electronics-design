@@ -580,6 +580,9 @@ export async function findShopCategory(slug: string) {
       name: true,
       slug: true,
       description: true,
+      seoTitle: true,
+      metaDescription: true,
+      imageId: true,
       parent: { select: { name: true, slug: true } },
     },
   });
