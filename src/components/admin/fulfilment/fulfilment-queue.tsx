@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetFulfilmentOrders, useUpdateFulfilment } from "@/hooks/use-order";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { ADMIN_PAGE_SIZE, TRACKING_NUMBER_MAX_LENGTH } from "@/lib/constants";
+import { ADMIN_PAGE_SIZE, SERIAL_NUMBER_MAX_LENGTH, TRACKING_NUMBER_MAX_LENGTH } from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
 import {
@@ -80,7 +80,7 @@ export function FulfilmentQueue() {
             {items.map((order) => (
               <li key={order.number} className="border-b border-line last:border-b-0">
                 <QueueRow
-                  key={`${order.status}|${order.trackingNumber}`}
+                  key={`${order.status}|${order.trackingNumber}|${order.items.map((item) => item.serialNumber ?? "").join("|")}`}
                   order={order}
                   canEdit={canEdit}
                   linkToOrder={canViewOrders}
@@ -133,10 +133,17 @@ function QueueRow({
   linkToOrder: boolean;
 }) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber);
+  const [serials, setSerials] = useState<Record<string, string>>(() =>
+    Object.fromEntries(order.items.map((item) => [item.id, item.serialNumber ?? ""])),
+  );
   const [error, setError] = useState<string | undefined>();
   const updateFulfilment = useUpdateFulfilment();
   const next = nextFulfilmentStatus(order.status);
   const trackingChanged = trackingNumber !== order.trackingNumber;
+  const changedSerials = order.items
+    .filter((item) => (serials[item.id] ?? "") !== (item.serialNumber ?? ""))
+    .map((item) => ({ itemId: item.id, serialNumber: serials[item.id] ?? "" }));
+  const serialsChanged = changedSerials.length > 0;
 
   function save(status?: FulfilmentTargetStatus) {
     setError(undefined);
@@ -145,11 +152,12 @@ function QueueRow({
         number: order.number,
         ...(status ? { status } : {}),
         ...(trackingChanged ? { trackingNumber } : {}),
+        ...(serialsChanged ? { serials: changedSerials } : {}),
       },
       {
         onError: (failure) => {
           const fields = apiFieldErrors(failure);
-          setError(fields.trackingNumber?.[0] ?? fields.status?.[0] ?? failure.message);
+          setError(fields.trackingNumber?.[0] ?? fields.serials?.[0] ?? fields.status?.[0] ?? failure.message);
         },
       },
     );
@@ -204,7 +212,7 @@ function QueueRow({
               aria-invalid={Boolean(error) || undefined}
               className="h-10 min-w-40 flex-1 font-mono"
             />
-            {trackingChanged && (
+            {(trackingChanged || serialsChanged) && (
               <Button type="submit" variant="outline" size="sm" loading={saving} disabled={updateFulfilment.isPending}>
                 Save
               </Button>
@@ -221,10 +229,34 @@ function QueueRow({
               </Button>
             )}
           </div>
+          <ul className="flex flex-col gap-1.5">
+            {order.items.map((item) => (
+              <li key={item.id} className="flex items-center gap-2">
+                <Input
+                  value={serials[item.id] ?? ""}
+                  onChange={(event) => setSerials((current) => ({ ...current, [item.id]: event.target.value }))}
+                  maxLength={SERIAL_NUMBER_MAX_LENGTH}
+                  placeholder={`Serial / IMEI · ${item.productName}`}
+                  aria-label={`Serial or IMEI for ${item.productName} (${item.sku})`}
+                  className="h-9 min-w-40 flex-1 font-mono text-sm"
+                />
+                {item.quantity > 1 && (
+                  <span className="shrink-0 text-xs text-ink-muted">×{item.quantity}, comma separated</span>
+                )}
+              </li>
+            ))}
+          </ul>
           <FieldError>{error}</FieldError>
         </form>
       ) : (
-        <p className="font-mono text-sm text-ink-secondary">{order.trackingNumber || "No tracking number"}</p>
+        <div>
+          <p className="font-mono text-sm text-ink-secondary">{order.trackingNumber || "No tracking number"}</p>
+          {order.items.map((item) => (
+            <p key={item.id} className="mt-0.5 truncate font-mono text-xs text-ink-muted">
+              {item.productName}: {item.serialNumber || "No serial"}
+            </p>
+          ))}
+        </div>
       )}
     </div>
   );

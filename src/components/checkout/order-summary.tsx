@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { signInHref } from "@/lib/auth/next-path";
 import { CHECKOUT_PAGE_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { LineBreakdown } from "@/components/order/line-breakdown";
 import { formatMoney } from "@/lib/money";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
@@ -254,21 +255,17 @@ function LineRow({ line }: { line: CartLine }) {
           )}
         </p>
 
-        {line.addOns.length > 0 && (
-          <ul className="mt-1.5 flex flex-col gap-0.5">
-            {line.addOns.map((addOn) => (
-              <li
-                key={addOn.id}
-                className="flex items-baseline justify-between gap-3 text-[0.75rem] text-ink-secondary"
-              >
-                <span className="truncate">+ {addOn.label}</span>
-                <span className="shrink-0 font-mono tabular-nums text-ink-muted">
-                  {formatMoney(addOn.price)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <LineBreakdown
+          compact
+          unitPrice={line.unitPrice}
+          quantity={line.quantity}
+          addOns={line.addOns.map((addOn) => ({
+            key: addOn.id,
+            label: addOn.label,
+            price: addOn.price,
+            charged: addOn.available,
+          }))}
+        />
       </div>
 
       <div className="shrink-0 text-right">

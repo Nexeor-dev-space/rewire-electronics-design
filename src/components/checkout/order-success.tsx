@@ -10,6 +10,7 @@ import { ApiError } from "@/lib/api/api-client";
 import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
+import { LineBreakdown } from "@/components/order/line-breakdown";
 import { LOCALE, formatMoney } from "@/lib/money";
 import {
   ORDER_STATUS_LABELS,
@@ -327,18 +328,17 @@ function OrderReceipt({ order, awaitingPayment }: { order: OrderDetail; awaiting
                       </>
                     )}
                   </p>
-                  {line.addOns.length > 0 && (
-                    <ul className="mt-1.5 flex flex-col gap-0.5">
-                      {line.addOns.map((addOn) => (
-                        <li
-                          key={`${line.id}-${addOn.name}`}
-                          className="truncate text-[0.75rem] text-ink-secondary"
-                        >
-                          + {addOn.name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <LineBreakdown
+                    compact
+                    unitPrice={line.unitPrice}
+                    quantity={line.quantity}
+                    addOns={line.addOns.map((addOn, index) => ({
+                      key: `${line.id}-${addOn.name}-${index}`,
+                      label: addOn.name,
+                      price: addOn.price,
+                      charged: true,
+                    }))}
+                  />
                 </div>
                 <p className="shrink-0 text-[0.9375rem] font-medium tabular-nums text-ink">
                   {formatMoney(line.lineTotal)}

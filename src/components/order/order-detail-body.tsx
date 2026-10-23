@@ -8,6 +8,7 @@ import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
+import { lineWarrantyMonths } from "@/lib/orders";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
@@ -20,6 +21,7 @@ import {
 import { isReturnable } from "@/lib/returns";
 import { CONDITION_META, GRADE_META, productHref } from "@/lib/shop";
 import { cn } from "@/lib/utils";
+import { LineBreakdown } from "./line-breakdown";
 
 export function OrderStatusPill({ status }: { status: OrderStatus }) {
   return <StatusPill tone={orderStatusTone(status)}>{ORDER_STATUS_LABELS[status]}</StatusPill>;
@@ -251,33 +253,44 @@ function OrderLineRow({
             <dt>Qty</dt>
             <dd className="mt-0.5 text-ink">{line.quantity}</dd>
           </div>
+          <div>
+            <dt>Warranty</dt>
+            <dd className="mt-0.5 text-ink">{lineWarrantyMonths(line)} months</dd>
+          </div>
+          {line.serialNumber && (
+            <div>
+              <dt>Serial / IMEI</dt>
+              <dd className="mt-0.5 break-all normal-case tracking-normal text-ink">{line.serialNumber}</dd>
+            </div>
+          )}
+          {line.warrantyEndsAt && (
+            <div>
+              <dt>Warranty until</dt>
+              <dd className="mt-0.5 text-ink">{formatOrderDate(line.warrantyEndsAt)}</dd>
+            </div>
+          )}
         </dl>
 
-        {line.addOns.length > 0 && (
-          <div className="mt-4 rounded-xl border border-line bg-surface-2/60 p-3.5">
-            <p className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">Add-ons</p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {line.addOns.map((addOn) => (
-                <li
-                  key={`${addOn.id ?? addOn.name}-${addOn.kind}`}
-                  className="flex items-baseline justify-between gap-4 text-[0.8125rem]"
-                >
-                  <span className="text-ink">{addOn.name}</span>
-                  <span className="shrink-0 font-mono tabular-nums text-ink-secondary">
-                    + {formatMoney(addOn.price)} each
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <LineBreakdown
+          unitPrice={line.unitPrice}
+          quantity={line.quantity}
+          addOns={line.addOns.map((addOn, index) => ({
+            key: `${addOn.id ?? addOn.name}-${index}`,
+            label: addOn.name,
+            price: addOn.price,
+            charged: true,
+          }))}
+          className="max-w-md"
+        />
       </div>
 
       <div className="w-full shrink-0 text-left sm:w-auto sm:text-right">
         <p className="text-[1rem] font-medium tabular-nums text-ink">{formatMoney(line.lineTotal)}</p>
-        <p className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
-          {formatMoney(line.unitPrice)} each
-        </p>
+        {line.addOns.length === 0 && (
+          <p className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
+            {formatMoney(line.unitPrice)} each
+          </p>
+        )}
         {returnHref && (
           <Link
             href={returnHref}

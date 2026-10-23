@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CartLine as CartLineData, CartLineIssue } from "@/types/cart";
 import { BLOCKING_CART_LINE_ISSUES } from "@/types/cart";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
+import { LineBreakdown } from "@/components/order/line-breakdown";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
@@ -145,12 +146,26 @@ export function CartLine({
             <span className="text-lg font-medium tabular-nums text-ink">
               {formatMoney(line.lineTotal)}
             </span>
-            {line.quantity > 1 && (
+            {line.quantity > 1 && line.addOns.length === 0 && (
               <span className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
                 {formatMoney(line.unitPrice)} each
               </span>
             )}
           </p>
+
+          {!blocking && (
+            <LineBreakdown
+              unitPrice={line.unitPrice}
+              quantity={line.quantity}
+              addOns={line.addOns.map((addOn) => ({
+                key: addOn.id,
+                label: addOn.label,
+                price: addOn.price,
+                charged: addOn.available,
+              }))}
+              className="max-w-sm"
+            />
+          )}
 
           {/* ---------- Quantity + Remove ---------- */}
           <div className="mt-5 flex items-center gap-5">
@@ -200,7 +215,7 @@ export function CartLine({
               {formatMoney(line.lineTotal)}
             </p>
           )}
-          {!blocking && line.quantity > 1 && (
+          {!blocking && line.quantity > 1 && line.addOns.length === 0 && (
             <p className="mt-1 font-mono text-[0.75rem] tabular-nums text-ink-muted">
               {formatMoney(line.unitPrice)} each
             </p>
