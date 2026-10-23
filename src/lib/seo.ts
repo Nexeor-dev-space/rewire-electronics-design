@@ -99,11 +99,16 @@ export function productSeo(product: ShopProductDetail): ProductSeo {
   };
 }
 
-export function policySeo(policy: Pick<PolicyData, "slug" | "title" | "lede">): PageSeo {
+export function policySeo(
+  policy: Pick<PolicyData, "slug" | "title" | "lede"> &
+    Partial<Pick<PolicyData, "seoTitle" | "metaDescription" | "ogImageUrl">>,
+): PageSeo {
   return {
-    title: policy.title,
-    description: clip(policy.lede, SEO_DESCRIPTION_MAX_LENGTH),
+    title: policy.seoTitle ?? policy.title,
+    absoluteTitle: policy.seoTitle != null,
+    description: policy.metaDescription ?? clip(policy.lede, SEO_DESCRIPTION_MAX_LENGTH),
     path: POLICY_ROUTES[policy.slug],
+    image: policy.ogImageUrl ?? undefined,
   };
 }
 

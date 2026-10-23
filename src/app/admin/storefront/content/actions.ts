@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
+import { SEO_DESCRIPTION_MAX_LENGTH, SEO_TITLE_MAX_LENGTH } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { POLICIES_TAG, policyTag, readPolicy } from "@/lib/policies";
 import { validateRichText } from "@/lib/rich-text";
@@ -16,6 +17,7 @@ import {
   type RichTextDoc,
 } from "@/lib/policy-types";
 import { recordAudit } from "@/services/audit.service";
+import { imageExists, releaseImage } from "@/services/media.service";
 
 export interface PolicyBlockInput {
   id: string | null;
@@ -28,6 +30,9 @@ export interface PolicyInput {
   lede: string;
   draft: boolean;
   published: boolean;
+  seoTitle: string;
+  metaDescription: string;
+  ogImageId: string | null;
   blocks: PolicyBlockInput[];
 }
 
@@ -68,6 +73,20 @@ export async function savePolicy(
   if (!title) return { ok: false, error: "The policy needs a title." };
   if (!lede) return { ok: false, error: "The policy needs introductory sub-text." };
 
+  const seoTitle = input.seoTitle.trim() || null;
+  const metaDescription = input.metaDescription.trim() || null;
+  const ogImageId = input.ogImageId || null;
+
+  if (seoTitle && seoTitle.length > SEO_TITLE_MAX_LENGTH) {
+    return { ok: false, error: `Keep the SEO title to ${SEO_TITLE_MAX_LENGTH} characters.` };
+  }
+  if (metaDescription && metaDescription.length > SEO_DESCRIPTION_MAX_LENGTH) {
+    return { ok: false, error: `Keep the meta description to ${SEO_DESCRIPTION_MAX_LENGTH} characters.` };
+  }
+  if (ogImageId && !(await imageExists(prisma, ogImageId))) {
+    return { ok: false, error: "The share image no longer exists. Upload it again." };
+  }
+
   const blocks = input.blocks.map((block) => ({
     id: block.id,
     title: block.title.trim(),
@@ -84,15 +103,19 @@ export async function savePolicy(
       async (tx) => {
         const policy = await tx.policy.findUnique({
           where: { slug },
-          select: { id: true, blocks: { select: { id: true, anchor: true } } },
+          select: { id: true, ogImageId: true, blocks: { select: { id: true, anchor: true } } },
         });
 
         if (!policy) throw new Error("Policy not found.");
 
         await tx.policy.update({
           where: { id: policy.id },
-          data: { title, lede, draft: input.draft, published: input.published },
+          data: { title, lede, draft: input.draft, published: input.published, seoTitle, metaDescription, ogImageId },
         });
+
+        if (policy.ogImageId !== null && policy.ogImageId !== ogImageId) {
+          await releaseImage(tx, policy.ogImageId);
+        }
 
         const owned = new Map(
           policy.blocks.map((block) => [block.id, block.anchor]),

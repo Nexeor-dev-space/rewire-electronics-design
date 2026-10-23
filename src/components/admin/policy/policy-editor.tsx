@@ -4,11 +4,14 @@ import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { Reorder } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { savePolicy, type PolicyInput } from "@/app/admin/storefront/content/actions";
+import { SeoBasicsFields } from "@/components/admin/shared/seo-basics-fields";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input, Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { EMPTY_RICH_TEXT, type PolicyData, type RichTextDoc } from "@/lib/policy-types";
+import { clip } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { PolicyBlockRow, type DraftBlock } from "./policy-block-row";
 
@@ -23,6 +26,7 @@ function toDraft(policy: PolicyData): {
   lede: string;
   draft: boolean;
   published: boolean;
+  seo: { seoTitle: string; metaDescription: string; ogImageId: string | null; ogImageUrl: string | null };
   blocks: DraftBlock[];
 } {
   return {
@@ -30,6 +34,12 @@ function toDraft(policy: PolicyData): {
     lede: policy.lede,
     draft: policy.draft,
     published: policy.published,
+    seo: {
+      seoTitle: policy.seoTitle ?? "",
+      metaDescription: policy.metaDescription ?? "",
+      ogImageId: policy.ogImageId,
+      ogImageUrl: policy.ogImageUrl,
+    },
     blocks: policy.blocks.map((block) => ({
       key: block.id,
       id: block.id,
@@ -116,6 +126,9 @@ export function PolicyEditor({
       lede: draft.lede,
       draft: draft.draft,
       published: draft.published,
+      seoTitle: draft.seo.seoTitle,
+      metaDescription: draft.seo.metaDescription,
+      ogImageId: draft.seo.ogImageId,
       blocks: draft.blocks.map((block) => ({
         id: block.id,
         title: block.title,
@@ -194,6 +207,18 @@ export function PolicyEditor({
             hint="Tells readers the text has not been through legal review."
             checked={draft.draft}
             onChange={(value) => setDraft((current) => ({ ...current, draft: value }))}
+          />
+        </div>
+
+        <div className="mt-6 border-t border-line pt-5">
+          <SeoBasicsFields
+            seo={draft.seo}
+            onChange={(seo) => setDraft((current) => ({ ...current, seo }))}
+            fallback={{
+              title: draft.title,
+              description: clip(draft.lede, SEO_DESCRIPTION_MAX_LENGTH),
+            }}
+            imageLabel="Share image (OG), ideally 1200 × 630. Defaults to the site image."
           />
         </div>
       </section>

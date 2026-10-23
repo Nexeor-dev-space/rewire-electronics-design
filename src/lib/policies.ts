@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { prisma } from "./db";
+import { imageUrlOrNull } from "./storage/image-storage";
 import { validateRichText } from "./rich-text";
 import {
   POLICY_SLUGS,
@@ -24,6 +25,9 @@ function toPolicyData(row: {
   lede: string;
   draft: boolean;
   published: boolean;
+  seoTitle: string | null;
+  metaDescription: string | null;
+  ogImageId: string | null;
   updatedAt: Date;
   blocks: {
     id: string;
@@ -42,6 +46,10 @@ function toPolicyData(row: {
     lede: row.lede,
     draft: row.draft,
     published: row.published,
+    seoTitle: row.seoTitle,
+    metaDescription: row.metaDescription,
+    ogImageId: row.ogImageId,
+    ogImageUrl: imageUrlOrNull(row.ogImageId),
     updatedAt: row.updatedAt.toISOString(),
     blocks: row.blocks.map((block) => ({
       id: block.id,

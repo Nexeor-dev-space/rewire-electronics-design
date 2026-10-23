@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { ImageField } from "@/components/admin/shared/image-field";
+import { seoCounter as counter } from "@/components/admin/shared/seo-basics-fields";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import {
@@ -59,8 +60,6 @@ export function seoInput(seo: DraftSeo) {
     canonicalUrl: seo.canonicalUrl,
   };
 }
-
-const counter = (value: string, max: number) => `${value.trim().length}/${max}`;
 
 const SEO_FIELDS = ["seoTitle", "metaDescription", "metaKeywords", "ogTitle", "ogDescription", "ogImageId", "canonicalUrl"];
 
