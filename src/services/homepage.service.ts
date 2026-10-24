@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
@@ -706,31 +708,40 @@ function itemColumnsOf(
   };
 }
 
-/** Recreates `rows` as `stage`, with their items. Ids are new. */
+/**
+ * Recreates `rows` as `stage`, with their items. Ids are new, picked here so
+ * each item knows its section's id before anything is inserted: two inserts
+ * however many sections there are.
+ */
 async function copySections(tx: Tx, rows: SectionRow[], stage: Stage) {
-  for (const row of rows) {
-    await tx.homepageSection.create({
-      data: {
-        stage,
-        type: row.type,
-        sortOrder: row.sortOrder,
-        visible: row.visible,
-        seasonal: row.seasonal,
-        eyebrow: row.eyebrow,
-        title: row.title,
-        subtitle: row.subtitle,
-        description: row.description,
-        ctaLabel: row.ctaLabel,
-        ctaHref: row.ctaHref,
-        startsAt: row.startsAt,
-        endsAt: row.endsAt,
-        imageId: row.imageId,
-        mobileImageId: row.mobileImageId,
-        refIds: row.refIds,
-        items: { create: row.items.map(itemColumnsOf) },
-      },
-    });
-  }
+  const copies = rows.map((row) => ({ id: randomUUID(), row }));
+
+  await tx.homepageSection.createMany({
+    data: copies.map(({ id, row }) => ({
+      id,
+      stage,
+      type: row.type,
+      sortOrder: row.sortOrder,
+      visible: row.visible,
+      seasonal: row.seasonal,
+      eyebrow: row.eyebrow,
+      title: row.title,
+      subtitle: row.subtitle,
+      description: row.description,
+      ctaLabel: row.ctaLabel,
+      ctaHref: row.ctaHref,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      imageId: row.imageId,
+      mobileImageId: row.mobileImageId,
+      refIds: row.refIds,
+    })),
+  });
+
+  const items = copies.flatMap(({ id, row }) =>
+    row.items.map((item, index) => ({ ...itemColumnsOf(item, index), sectionId: id })),
+  );
+  if (items.length > 0) await tx.homepageSectionItem.createMany({ data: items });
 }
 
 async function releaseImages(tx: Tx, rows: ImagesRow[]) {
