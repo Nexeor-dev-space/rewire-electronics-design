@@ -93,7 +93,7 @@ function WaitlistTile({ row }: { row: WaitlistRow }) {
   const opensDate = formatDropDate(row.startsAt);
 
   return (
-    <article className="group/tile flex flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface transition-colors duration-(--duration-base) ease-(--ease-out-expo) hover:border-white/[0.22] sm:flex-row">
+    <article className="group/tile relative flex flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface transition-colors duration-(--duration-base) ease-(--ease-out-expo) hover:border-white/[0.22] sm:flex-row">
       {/* ---------- Photograph plate ---------- */}
       <div className="relative aspect-[5/4] shrink-0 overflow-hidden bg-plate sm:aspect-auto sm:w-[38%] lg:w-[32%]">
         <Image
