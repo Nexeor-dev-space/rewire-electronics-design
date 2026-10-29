@@ -156,7 +156,7 @@ type EligibleOrderRow = Prisma.OrderGetPayload<{ select: typeof eligibleOrderSel
 
 /* ---------- mapping ---------- */
 
-function variantLabel(storage: string | null, colour: string | null) {
+export function variantLabel(storage: string | null, colour: string | null) {
   return [storage, colour].filter(Boolean).join(VARIANT_LABEL_SEPARATOR);
 }
 

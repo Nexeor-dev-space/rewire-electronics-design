@@ -34,6 +34,12 @@ const trackingNumberValidator = z
   .trim()
   .max(TRACKING_NUMBER_MAX_LENGTH, `Use ${TRACKING_NUMBER_MAX_LENGTH} characters or fewer.`);
 
+/** A device serial or IMEI; empty clears it. Several units on one line are comma separated. */
+export const serialNumberValidator = z
+  .string()
+  .trim()
+  .max(SERIAL_NUMBER_MAX_LENGTH, `Use ${SERIAL_NUMBER_MAX_LENGTH} characters or fewer.`);
+
 export const orderNumberParamsSchema = z.object({ number: orderNumberValidator });
 
 export const accountOrdersQuerySchema = z.object({
@@ -89,10 +95,7 @@ export const fulfilmentUpdateSchema = z
       .array(
         z.object({
           itemId: idValidator,
-          serialNumber: z
-            .string()
-            .trim()
-            .max(SERIAL_NUMBER_MAX_LENGTH, `Use ${SERIAL_NUMBER_MAX_LENGTH} characters or fewer.`),
+          serialNumber: serialNumberValidator,
         }),
       )
       .max(CART_MAX_LINES)

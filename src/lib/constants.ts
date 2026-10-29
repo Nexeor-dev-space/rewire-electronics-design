@@ -62,6 +62,10 @@ export const RETURN_NUMBER_PREFIX = "RT-";
 export const RETURN_DETAIL_MIN_LENGTH = 4;
 export const RETURN_DETAIL_MAX_LENGTH = 1000;
 export const REFUND_REFERENCE_MAX_LENGTH = 100;
+export const WARRANTY_CLAIM_NUMBER_PREFIX = "WC-";
+export const WARRANTY_CLAIM_ISSUE_MIN_LENGTH = 4;
+export const WARRANTY_CLAIM_ISSUE_MAX_LENGTH = 1000;
+export const WARRANTY_CLAIMS_LIMIT = 50;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
@@ -124,6 +128,8 @@ export const FAQ_EDITOR_PATH = "/admin/storefront/content/faq";
 /** Where staff accounts and their roles are managed, linked from the Roles screen. */
 export const STAFF_ACCOUNTS_PATH = "/admin/users/staff";
 export const ADMIN_RETURNS_PATH = "/admin/returns";
+export const ADMIN_WARRANTY_PATH = "/admin/service/warranty";
+export const ADMIN_WARRANTY_CLAIMS_PATH = "/admin/service/claims";
 /** The console's light / dark choice, per browser. No cookie means follow the OS. */
 export const ADMIN_THEME_COOKIE = "rewire_admin_theme";
 export const ADMIN_THEME_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
