@@ -68,6 +68,8 @@ and `publishedAt`.
 | `PUT /api/v1/admin/homepage/order` | `{ ids }` — exactly the draft's ids, each once, in the new order |
 | `POST /api/v1/admin/homepage/publish` | Draft → live |
 | `POST /api/v1/admin/homepage/discard` | Live → draft |
+| `GET /api/v1/admin/homepage/seo` | The homepage SEO fields (`HomepageSeo`), not the draft |
+| `PUT /api/v1/admin/homepage/seo` | Save them; live at once (§11). Needs Publish |
 
 Signed out → 401; without `storefront.homepage` → 403; a body that breaks a
 type's rules → 422 with field errors. An item's errors are keyed by its
@@ -407,6 +409,8 @@ Publish.
 2. **Preview** opens `/preview/homepage` in a new tab.
 3. **Discard draft** asks first. Disabled when there is nothing unpublished or
    nothing has ever been published.
+4. **SEO and sharing** opens the homepage SEO dialog (§11). Shown only with
+   Publish.
 4. **Publish** asks first. Disabled when there is nothing unpublished or the
    draft is empty.
 
@@ -490,3 +494,38 @@ them (PERMISSIONS.md §7).
 2. Enter the title, set Starts and Ends, pick products and add a promo tile.
 3. Save, then Publish. The section appears on `/` at the start time and leaves
    at the end time with no further publish.
+
+---
+
+## 11. Homepage SEO
+
+The homepage's title, meta description and share image. They sit on the
+single `homepage_state` row (`seoTitle`, `metaDescription`, `ogImageId`;
+migration `add_page_seo_fields`), not on a section, so they have no draft and
+live copy.
+
+| Field | Limit | Blank means |
+| --- | --- | --- |
+| `seoTitle` | 70 (`SEO_TITLE_MAX_LENGTH`), used exactly as written | "Rewire Electronics — " and the tagline (`siteConfig`) |
+| `metaDescription` | 160 (`SEO_DESCRIPTION_MAX_LENGTH`) | `siteConfig.description` |
+| `ogImageId` | A `MediaAsset`, ideally 1200 × 630 | `siteConfig.ogImage` |
+
+1. **Live on save.** `PUT /api/v1/admin/homepage/seo` writes the row and
+   revalidates `/`. There is no draft, so it needs `storefront.homepage`
+   Publish, the same access that takes the homepage live. Viewing needs View.
+2. **Input.** `homepageSeoSchema` in `src/validators/homepage.validator.ts`:
+   blank text becomes null, an unknown image id is a 422 on `ogImageId`.
+3. **Service.** `getHomepageSeo` and `updateHomepageSeo` in
+   `src/services/homepage.service.ts`. The update upserts the row, so it works
+   before the homepage was ever published, and releases a replaced share image.
+4. **Change log.** Each save is recorded as "Homepage SEO" under the homepage
+   module.
+5. **Storefront.** `generateMetadata` on `src/app/(site)/page.tsx` reads
+   `getHomepageSeo()` and renders through `pageMetadata` (docs/CATALOGUE.md,
+   section 7).
+6. **Screen.** `HomepageSeoDialog` in
+   `src/components/admin/homepage/homepage-seo-dialog.tsx`, using the shared
+   `SeoBasicsFields`. Hooks: `useGetHomepageSeo` and `useUpdateHomepageSeo` in
+   `src/hooks/use-homepage.ts`.
+7. **Images.** The share image counts as a reference in `releaseImage` and the
+   orphan sweep (`homepageOgImages` on `MediaAsset`).

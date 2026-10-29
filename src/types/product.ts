@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { AddOnKind } from "@/validators/add-on.validator";
 import type {
   ProductCondition,
   ProductGrade,
@@ -53,6 +54,15 @@ export interface ProductSpecDetail {
   value: string;
 }
 
+export interface ProductAddOnDetail {
+  addOnId: string;
+  priceOverride: number | null;
+  name: string;
+  kind: AddOnKind;
+  price: number;
+  active: boolean;
+}
+
 export interface ProductDetail {
   id: string;
   name: string;
@@ -71,6 +81,7 @@ export interface ProductDetail {
   variants: ProductVariantDetail[];
   images: ProductImageDetail[];
   specs: ProductSpecDetail[];
+  addOns: ProductAddOnDetail[];
   /** SEO overrides; null or empty falls back on the storefront (`productSeo`). */
   seoTitle: string | null;
   metaDescription: string | null;

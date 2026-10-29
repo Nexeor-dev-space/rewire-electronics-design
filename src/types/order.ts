@@ -26,6 +26,7 @@ export interface OrderLineAddOn {
   name: string;
   kind: AddOnKind;
   price: number;
+  extraWarrantyMonths: number;
 }
 
 export interface OrderLine {
@@ -42,6 +43,9 @@ export interface OrderLine {
   storage: string | null;
   colour: string | null;
   warrantyMonths: number;
+  serialNumber: string | null;
+  warrantyStartsAt: string | null;
+  warrantyEndsAt: string | null;
   quantity: number;
   returnableQuantity: number;
   unitPrice: number;
@@ -136,6 +140,15 @@ export interface AdminOrderRow {
   lineCount: number;
   trackingNumber: string;
   placedAsGuest: boolean;
+  items: AdminOrderRowItem[];
+}
+
+export interface AdminOrderRowItem {
+  id: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  serialNumber: string | null;
 }
 
 export interface AdminOrderCustomer {

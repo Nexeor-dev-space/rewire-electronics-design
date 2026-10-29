@@ -5,6 +5,7 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
 import { GuestBadge } from "@/components/admin/shared/guest-badge";
+import { LineBreakdown } from "@/components/order/line-breakdown";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
@@ -31,6 +32,7 @@ import { formatMoney } from "@/lib/money";
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
+  lineWarrantyMonths,
   type ManualPaymentStatus,
   type OrderStatus,
 } from "@/lib/orders";
@@ -193,22 +195,32 @@ function ItemList({ lines }: { lines: OrderLine[] }) {
             <p className="text-sm font-medium text-ink">{line.productName}</p>
             <p className="mt-0.5 text-xs text-ink-muted">{lineOptions(line)}</p>
             <p className="mt-0.5 font-mono text-xs text-ink-muted">{line.sku}</p>
-            {line.addOns.length > 0 && (
-              <ul className="mt-2 flex flex-col gap-1">
-                {line.addOns.map((addOn, index) => (
-                  <li key={addOn.id ?? `${addOn.name}-${index}`} className="text-xs text-ink-secondary">
-                    {addOn.name} · {ADD_ON_KIND_LABELS[addOn.kind]} ·{" "}
-                    <span className="tabular-nums">{formatMoney(addOn.price)}</span> each
-                  </li>
-                ))}
-              </ul>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Warranty {lineWarrantyMonths(line)} months
+              {line.warrantyEndsAt && <>, until {formatOrderDate(line.warrantyEndsAt)}</>}
+            </p>
+            {line.serialNumber && (
+              <p className="mt-0.5 break-all font-mono text-xs text-ink-secondary">Serial {line.serialNumber}</p>
             )}
+            <LineBreakdown
+              compact
+              unitPrice={line.unitPrice}
+              quantity={line.quantity}
+              addOns={line.addOns.map((addOn, index) => ({
+                key: addOn.id ?? `${addOn.name}-${index}`,
+                label: `${addOn.name} · ${ADD_ON_KIND_LABELS[addOn.kind]}`,
+                price: addOn.price,
+                charged: true,
+              }))}
+            />
           </div>
           <div className="shrink-0 text-right">
             <p className="text-sm tabular-nums text-ink">{formatMoney(line.lineTotal)}</p>
-            <p className="mt-0.5 text-xs tabular-nums text-ink-muted">
-              {line.quantity} × {formatMoney(line.unitPrice)}
-            </p>
+            {line.addOns.length === 0 && (
+              <p className="mt-0.5 text-xs tabular-nums text-ink-muted">
+                {line.quantity} × {formatMoney(line.unitPrice)}
+              </p>
+            )}
           </div>
         </li>
       ))}

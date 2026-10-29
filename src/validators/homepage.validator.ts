@@ -8,7 +8,14 @@ import {
   SECTION_TEXT_LIMITS,
   isSafeHref,
 } from "@/lib/homepage-sections";
-import { idValidator, isoDateTimeValidator } from "./common/primitives.validator";
+import { SEO_DESCRIPTION_MAX_LENGTH, SEO_TITLE_MAX_LENGTH } from "@/lib/constants";
+import { idValidator, isoDateTimeValidator, optionalTextValidator } from "./common/primitives.validator";
+
+export const homepageSeoSchema = z.object({
+  seoTitle: optionalTextValidator(SEO_TITLE_MAX_LENGTH),
+  metaDescription: optionalTextValidator(SEO_DESCRIPTION_MAX_LENGTH),
+  ogImageId: idValidator.nullable().default(null),
+});
 
 /**
  * The shape every section body shares. Which fields a given type may fill is

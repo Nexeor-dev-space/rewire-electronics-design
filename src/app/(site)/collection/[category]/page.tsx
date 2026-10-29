@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ShopCatalogue } from "@/components/shop/shop-catalogue";
-import { shopFiltersFromParams } from "@/lib/catalogue";
+import { hasShopQuery, shopFiltersFromParams } from "@/lib/catalogue";
 import { SHOP_PAGE_SIZE } from "@/lib/constants";
+import { productHrefForCategory } from "@/lib/route-map";
+import { pageMetadata } from "@/lib/seo";
 import { resolveCategory } from "@/lib/shop";
+import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import { findShopCategory, listShopProducts } from "@/services/catalogue.service";
 
 export const dynamic = "force-dynamic";
@@ -16,16 +19,21 @@ interface PageProps {
 
 const getCategory = cache((segment: string) => findShopCategory(resolveCategory(segment)));
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const category = await getCategory((await params).category);
   if (!category) return { title: "Shop" };
 
-  return {
-    title: category.name,
+  return pageMetadata({
+    title: category.seoTitle ?? category.name,
+    absoluteTitle: category.seoTitle !== null,
     description:
-      category.description ||
-      `${category.name} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`,
-  };
+      category.metaDescription ??
+      (category.description ||
+        `${category.name} at Rewire — refurbished, pre-owned, open box and new. Inspected, graded, and covered by a 12-month warranty.`),
+    path: productHrefForCategory(category.slug),
+    image: imageUrlOrNull(category.imageId) ?? undefined,
+    noindex: hasShopQuery(await searchParams),
+  });
 }
 
 export default async function CollectionCategoryPage({ params, searchParams }: PageProps) {

@@ -22,6 +22,7 @@ import { availabilityFromStock } from "@/types";
 import type { ShopCard } from "@/types/catalogue";
 import type {
   HomepageSectionItem,
+  HomepageSeo,
   PublishedDeal,
   PublishedDrop,
   PublishedItem,
@@ -34,6 +35,7 @@ import type {
   createHomepageSectionSchema,
   homepageSectionItemSchema,
   homepageSectionSchema,
+  homepageSeoSchema,
 } from "@/validators/homepage.validator";
 import {
   PUBLISHED,
@@ -189,6 +191,47 @@ export async function getHomepageDraft() {
         : state.publishedAt === null || state.draftUpdatedAt > state.publishedAt,
     publishedAt: state?.publishedAt ?? null,
   };
+}
+
+const seoSelect = {
+  seoTitle: true,
+  metaDescription: true,
+  ogImageId: true,
+} satisfies Prisma.HomepageStateSelect;
+
+function toHomepageSeo(row: Prisma.HomepageStateGetPayload<{ select: typeof seoSelect }> | null): HomepageSeo {
+  return {
+    seoTitle: row?.seoTitle ?? null,
+    metaDescription: row?.metaDescription ?? null,
+    ogImageId: row?.ogImageId ?? null,
+    ogImageUrl: imageUrlOrNull(row?.ogImageId ?? null),
+  };
+}
+
+export async function getHomepageSeo(): Promise<HomepageSeo> {
+  return toHomepageSeo(await prisma.homepageState.findUnique({ where: { id: STATE_ID }, select: seoSelect }));
+}
+
+export async function updateHomepageSeo(data: z.output<typeof homepageSeoSchema>): Promise<HomepageSeo> {
+  const seo = await prisma.$transaction(async (tx) => {
+    if (data.ogImageId !== null && !(await imageExists(tx, data.ogImageId))) {
+      const message = "The share image no longer exists. Upload it again.";
+      throw new ServiceError("VALIDATION", message, 422, { ogImageId: [message] });
+    }
+    const current = await tx.homepageState.findUnique({ where: { id: STATE_ID }, select: { ogImageId: true } });
+    const row = await tx.homepageState.upsert({
+      where: { id: STATE_ID },
+      create: { id: STATE_ID, draftUpdatedAt: new Date(), ...data },
+      update: data,
+      select: seoSelect,
+    });
+    if (current?.ogImageId && current.ogImageId !== data.ogImageId) {
+      await releaseImage(tx, current.ogImageId);
+    }
+    return toHomepageSeo(row);
+  });
+  revalidatePath("/");
+  return seo;
 }
 
 /** One draft section as the builder shows it; the change log's previous value. */

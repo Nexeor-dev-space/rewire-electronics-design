@@ -17,7 +17,7 @@ general conventions; this document covers what is specific to the catalogue.
 | Admin | Categories, Products and Add-ons screens under Catalogue. Stock is managed on the product edit form |
 | Product API | `GET /api/v1/products`, `GET /api/v1/products/[slug]` and the search suggestions `GET /api/v1/search` |
 | Storefront | `/`, `/collection`, `/collection/[category]`, `/search`, `/product/[slug]`, and the header, mega menus, mobile drawer, home category strip and search panel |
-| SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, canonical URLs |
+| SEO | `/sitemap.xml`, `/robots.txt`, product JSON-LD, and title, description, canonical, Open Graph and Twitter card on every storefront page (section 7) |
 
 The Product API is the one product source for the whole storefront. Issue #30
 requires that no second product or variant API is created, so new screens that
@@ -32,13 +32,14 @@ units (fils), like every other price in the project.
 
 | Model | Holds |
 | --- | --- |
-| `Category` | Name, slug, description, image, parent, status, `showInNav`, `sortOrder` |
+| `Category` | Name, slug, description, image, parent, status, `showInNav`, `sortOrder`, `seoTitle`, `metaDescription` |
 | `Product` | Slug, name, description, brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice`, `deletedAt`, the SEO fields (section 7) |
 | `ProductVariant` | SKU, condition, grade, battery health, storage, colour, colour hex, price, compare at price, stock, sort order |
 | `ProductImage` | A `MediaAsset`, alt text, an optional `colour`, sort order |
 | `ProductSpec` | Group, label, value, sort order |
-| `AddOn` | Name, note, kind (protection, accessory, service), price, popular, active, applies to all |
+| `AddOn` | Name, note, kind (protection, accessory, service), price, `extraWarrantyMonths`, popular, active, applies to all |
 | `AddOnCategory` | Which categories an add-on is offered on |
+| `ProductAddOn` | A product's own add-on picks, each with an optional `priceOverride` (minor units) |
 
 Rules the model encodes:
 
@@ -80,6 +81,8 @@ Rules the model encodes:
 | `add_product_image_colour` | Nullable `colour` on `product_images` |
 | `add_category_cms_fields` | `CategoryStatus` enum; `description`, `status` (default `PUBLISHED`), `showInNav` (default true) and `sortOrder` (default 0) on `categories` |
 | `move_condition_to_variants` | Adds `condition`, `grade` and `batteryHealth` to `product_variants`, copies each product's values onto its variants, then drops the three columns from `products` |
+| `add_product_add_ons_and_warranty` | `product_add_ons` table; `extraWarrantyMonths` (default 0) on `add_ons`; order line serial and warranty dates (docs/ORDERS.md) |
+| `add_page_seo_fields` | Nullable `seoTitle` and `metaDescription` on `categories`; the same two plus `ogImageId` on `policies` and `homepage_state` (docs/POLICY-CMS.md, docs/HOMEPAGE-CMS.md) |
 
 ---
 
@@ -123,6 +126,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    each parent, then its children named "Parent › Child" (`flattenCategoryRefs`
    in `src/lib/homepage-builder.ts`, shared with the homepage picker). Archived
    categories are left out, except the one the product already uses.
+5. The form's "SEO and sharing" part sets an optional SEO title (70
+   characters) and meta description (160), saved with the category. Blank means
+   the category page uses its name and description (section 7). The category
+   image is the page's share image; there is no separate one.
 
 ### Product rules
 
@@ -153,7 +160,14 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 9. **The edit form always loads fresh.** `useGetProduct` sets `gcTime: 0`, so
    closing the modal drops the cached product and the next open fetches it
    again, and a save never writes back stock older than the database.
-10. **Stock is managed on the product edit form only.** Each variant row has a
+10. **Add-on picks.** The form's Add-ons section lists every active add-on,
+    plus any picked add-on that has since been switched off. Ticking one
+    picks it for this product, up to `MAX_PRODUCT_ADD_ONS` (4), with an
+    optional override price; blank charges the catalogue price. Picks are
+    replaced on save, like images and specs. A duplicate is a 422 on
+    `addOns.<n>.addOnId`, and an add-on that no longer exists is a 422 on
+    `addOns`.
+11. **Stock is managed on the product edit form only.** Each variant row has a
     Stock field, and `ProductVariant.stock` is the single stock record; there
     is no separate inventory table or screen. Saving the product
     (`PUT /api/v1/admin/products/[id]`, Products Edit permission) updates each
@@ -174,10 +188,31 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 ### Add-on rules
 
 An add-on is offered on every product (`appliesToAll`) or on the categories it
-lists, and at least one of the two is required. A product shows add-ons
-attached to its own category or to that category's parent. Inactive add-ons are
-never shown. The product page shows at most `MAX_PRODUCT_ADD_ONS` (4),
-protection first, then popular, then cheapest.
+lists, and at least one of the two is required. Which add-ons a product offers:
+
+1. **The product has picks** (`ProductAddOn` rows): only those, each at its
+   `priceOverride` when set, else the add-on's own price. The category list is
+   not used, even when every pick is switched off; the product then offers
+   none.
+2. **No picks:** add-ons attached to its own category or to that category's
+   parent, plus every `appliesToAll` add-on, at their own prices.
+3. Inactive add-ons are never shown. The product page shows at most
+   `MAX_PRODUCT_ADD_ONS` (4), protection first, then popular, then cheapest by
+   catalogue price (an override does not change the order).
+
+`resolveOfferedAddOns(rows, scope)` in `src/lib/add-on-rules.ts` applies these
+rules, and `addOnScopeOf(product)` builds the scope (category, parent, picks).
+It is pure, so the product page, the cart and checkout use the same function
+and can't disagree on the price.
+
+**Extra warranty.** A protection add-on can add `extraWarrantyMonths` (0 to
+`MAX_WARRANTY_MONTHS`) to the product's warranty; any other kind is refused
+with a non-zero value. The seed sets 12 on "Extend warranty to 24 months".
+The admin form shows the field only for the Protection kind, and the list
+shows "+n months warranty" under the kind.
+
+Deleting an add-on removes it from every product that picked it (cascade). A
+product left with no picks goes back to the category list.
 
 ### Shared with the cart
 
@@ -187,10 +222,12 @@ The cart must apply exactly the storefront's visibility and add-on rules, so
 
 1. `VISIBLE_CATEGORY` and `PUBLISHED`: the Prisma filters for a visible
    category and a published product in one.
-2. `offeredAddOnWhere(categoryIds)` and `OFFERED_ADD_ON_ORDER`: the add-on
-   filter and order above.
-3. `shopAddOnSelect` and `toShopAddOn`: the add-on select and its mapping to
-   `ShopAddOn`.
+2. `offeredAddOnWhere(scopes)` and `OFFERED_ADD_ON_ORDER`: the add-on filter
+   and order above. One query covers several cart lines: picks by id, and the
+   category branch only for lines without picks.
+3. `shopAddOnSelect`, `offeredAddOnSelect` and `toShopAddOn`: the add-on
+   select (with `appliesToAll` and categories, which the resolver needs) and
+   its mapping to `ShopAddOn`, which carries `extraWarrantyMonths`.
 
 Changing any of these changes the cart too: which lines are flagged
 unavailable, and which add-ons a cart row offers and accepts. See
@@ -268,7 +305,8 @@ condition, grade, battery health, storage, colour, price, compare at price and
 stock), images (each with its `colour`), grouped specs, highlights, what is
 included and warranty months, plus:
 
-1. `addOns`: the add-ons offered on this product, as described in section 3.
+1. `addOns`: the add-ons offered on this product, as described in section 3,
+   with the effective price and `extraWarrantyMonths`.
 2. `related`: up to `RELATED_PRODUCTS_LIMIT` (5) other published products in the
    same category, newest first.
 
@@ -383,6 +421,14 @@ used by the shop and the homepage shelf. It links to `/product/[slug]` through
 
 ---
 
+**Warranty by the buy button.** The product page shows "n months warranty"
+under the Add to cart button (or the quantity stepper) for every condition.
+`n` is the product's `warrantyMonths` plus the `extraWarrantyMonths` of the
+ticked add-ons, so ticking the extension shows 24. The trust row keeps a plain
+"Warranty, Rewire-backed" tile, so the number appears once. Each add-on with
+extra months says "+n months warranty" under its note.
+
+
 ## 6. Variant images
 
 Images are tagged by colour, not by variant id. Storage never changes how a
@@ -415,14 +461,62 @@ the admin picks the new colour on them.
 
 | Piece | File |
 | --- | --- |
-| Sitemap | `src/app/sitemap.ts`. Home, the shop, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`) |
-| Robots | `src/app/robots.ts`. Keeps `/admin`, `/api`, `/account`, `/cart` and `/checkout` out, except `/api/v1/media/` so product images stay crawlable, and points to the sitemap |
+| Sitemap | `src/app/sitemap.ts`. Home, the shop, About, Support, every published policy page, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`) |
+| Robots | `src/app/robots.ts`. Keeps `/admin`, `/api`, `/account`, `/cart`, `/checkout` and `/search` out, except `/api/v1/media/` so product images stay crawlable, and points to the sitemap |
 | Product JSON-LD | `productJsonLd` in `src/lib/seo.ts`, rendered on the product page |
-| Product title, description, keywords, Open Graph, Twitter card, canonical | `generateMetadata` on the product page, values from `productSeo` in `src/lib/seo.ts` |
-| Product SEO fields in the admin | The "SEO and sharing" section of the product form, `src/components/admin/products/product-seo-fields.tsx` |
+| Page title, description, canonical, Open Graph, Twitter card | `pageMetadata` in `src/lib/seo.ts`, called from each page's `metadata` or `generateMetadata` |
+| Product values | `productSeo` in `src/lib/seo.ts` |
+| Policy page values | `policySeo` in `src/lib/seo.ts`, through `policyMetadata` in `src/components/policy/policy-page.tsx` |
+| SEO fields in the admin | Products: `src/components/admin/products/product-seo-fields.tsx`. Policies, the homepage and categories share `src/components/admin/shared/seo-basics-fields.tsx` |
 
 Absolute URLs come from `siteConfig.url` in `src/lib/site.ts`; relative ones
 (images, a canonical path) resolve against `metadataBase` in the root layout.
+
+### Page metadata
+
+Every storefront page builds its head through `pageMetadata(seo)`. It takes a
+title, description and path, and optionally an image, share title and
+description, keywords, `absoluteTitle` and `noindex`. It returns:
+
+1. The title, with the root template's " — Rewire Electronics" suffix unless
+   `absoluteTitle` is set (an admin SEO title is always used as written).
+2. The description.
+3. `alternates.canonical`, which is also `og:url`.
+4. Open Graph: `og:type` `website`, URL, site name, locale, title,
+   description, image. Next has no `product` Open Graph type, so products stay
+   `website`; the JSON-LD carries the commerce data.
+5. A `summary_large_image` Twitter card with the same title, description and
+   image.
+6. `robots: noindex, nofollow` only when `noindex` is set.
+
+The image defaults to `siteConfig.ogImage`. Keys the caller leaves out are left
+out of the result, not set to `undefined`: Next replaces a parent key even when
+the child's value is `undefined`, which would wipe the root layout's robots or
+keywords.
+
+| Page | Title | Description | Share image | Canonical | Indexed |
+| --- | --- | --- | --- | --- | --- |
+| Home `/` | Homepage SEO title → site name and tagline | Homepage meta description → site description | Homepage share image → site image | `/` | Yes |
+| Shop `/collection` | "Shop" | Fixed copy | Site image | `/collection` | Only without shop query params |
+| Category `/collection/<slug>` | Category SEO title → category name | Category meta description → its description → fixed copy | Category image → site image | `/collection/<real slug>`, so alias URLs such as `/collection/phones` point at the real one | Only without shop query params |
+| Product `/product/<slug>` | `productSeo` (below) | `productSeo` | `productSeo` | `productSeo` | Yes |
+| Policy pages | Policy SEO title → policy title | Policy meta description → lede, clipped to 160 | Policy share image → site image | The policy's route | Yes, when published |
+| About, Support | "About", "Support" | Fixed copy | Site image | `/about`, `/support` | Yes |
+| Search | "Search" or "Search: q" | Fixed copy | Site image | `/search` | No |
+| Cart, wishlist, checkout, order tracking, sign-in pages, account | Their own titles | Their own | Site image | None | No |
+
+**Filtered views.** `hasShopQuery(params)` in `src/lib/catalogue.ts` is true
+when any `shopQuerySchema` key is present: `q`, `category`, `condition`,
+`grade`, `brand`, `storage`, `price`, `sort`, `page` or `pageSize`. The shop
+and category pages are then noindex, with the canonical on the clean URL.
+Tracking parameters such as `utm_source` do not count, so a tracked link to a
+listing stays indexable.
+
+**Account pages** are noindex through `metadata` on
+`src/app/(site)/account/layout.tsx`, which every account page inherits.
+
+**The site image** is `siteConfig.ogImage` (`/images/rewire-img.jpg`, 2000 ×
+1333). A designed 1200 × 630 image can replace the file without a code change.
 
 ### Product SEO fields
 
@@ -500,7 +594,8 @@ All in `src/lib/constants.ts`.
 | `SHOP_MAX_FILTER_VALUES` | 50 | Values kept per filter |
 | `RELATED_PRODUCTS_LIMIT` | 5 | Related products |
 | `RATE_LIMITS.search` | 60 per minute, per IP | `GET /api/v1/search`, and `GET /api/v1/products` when `q` is set |
-| `MAX_PRODUCT_ADD_ONS` | 4 | Add-ons on the product page |
+| `MAX_PRODUCT_ADD_ONS` | 4 | Add-ons on the product page, and picks per product |
+| `MAX_WARRANTY_MONTHS` | 60 | Product warranty and an add-on's extra months |
 | `FEATURED_PRODUCTS_LIMIT` | 4 | Homepage shelf |
 | `SITEMAP_PRODUCT_LIMIT` | 1000 | Products in the sitemap |
 | `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
@@ -511,7 +606,10 @@ All in `src/lib/constants.ts`.
 | `SEARCH_MAX_WORDS` | 5 | Words of a query that are matched |
 | `SEARCH_SUGGESTION_LIMITS` | 5, 4, 4 | Products, brands and categories in the search panel |
 | `SEARCH_DEBOUNCE_MS` | 300 | Pause in typing before the panel asks for suggestions |
-| `SEO_TITLE_MAX_LENGTH`, `SEO_DESCRIPTION_MAX_LENGTH`, `OG_TITLE_MAX_LENGTH`, `OG_DESCRIPTION_MAX_LENGTH`, `SEO_KEYWORDS_MAX`, `SEO_KEYWORD_MAX_LENGTH`, `CANONICAL_URL_MAX_LENGTH` | 70, 160, 95, 200, 10, 40, 512 | Product SEO fields (section 7) |
+| `SEO_TITLE_MAX_LENGTH`, `SEO_DESCRIPTION_MAX_LENGTH` | 70, 160 | SEO title and meta description on products, categories, policies and the homepage (section 7) |
+| `OG_TITLE_MAX_LENGTH`, `OG_DESCRIPTION_MAX_LENGTH`, `SEO_KEYWORDS_MAX`, `SEO_KEYWORD_MAX_LENGTH`, `CANONICAL_URL_MAX_LENGTH` | 95, 200, 10, 40, 512 | Product SEO fields (section 7) |
+| `NOINDEX_ROBOTS` | `noindex, nofollow` | `pageMetadata` and the account layout |
+| `ABOUT_PAGE_PATH`, `SUPPORT_PAGE_PATH` | `/about`, `/support` | Those pages, the menus and the sitemap |
 
 ---
 

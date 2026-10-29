@@ -11,6 +11,9 @@ model Category {
   slug        String @unique
   description String @default("")
 
+  seoTitle        String?
+  metaDescription String?
+
   status    CategoryStatus @default(PUBLISHED)
   showInNav Boolean        @default(true)
   sortOrder Int            @default(0)
@@ -117,6 +120,7 @@ model Product {
   images   ProductImage[]
   specs    ProductSpec[]
   coupons  CouponProduct[]
+  addOns   ProductAddOn[]
 
   /// Homepage drops and Just Listed picks. Deleting the product for good
   /// deletes them; while it is unpublished or in Trash the homepage skips them.
@@ -213,11 +217,14 @@ model AddOn {
   kind  AddOnKind
   price Int
 
+  extraWarrantyMonths Int @default(0)
+
   popular      Boolean @default(false)
   active       Boolean @default(true)
   appliesToAll Boolean @default(false)
 
   categories      AddOnCategory[]
+  products        ProductAddOn[]
   cartItems       CartItemAddOn[]
   orderItemAddOns OrderItemAddOn[]
 
@@ -241,4 +248,19 @@ model AddOnCategory {
   @@id([addOnId, categoryId])
   @@index([categoryId])
   @@map("add_on_categories")
+}
+
+model ProductAddOn {
+  productId     String
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addOnId       String
+  addOn         AddOn   @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  priceOverride Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([productId, addOnId])
+  @@index([addOnId])
+  @@map("product_add_ons")
 }

@@ -123,6 +123,11 @@ export function ProductAddOns({
                   <span className="mt-1 block text-[0.8125rem] leading-snug text-ink-secondary">
                     {addOn.note}
                   </span>
+                  {addOn.extraWarrantyMonths > 0 && (
+                    <span className="mt-1 block font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-muted">
+                      +{addOn.extraWarrantyMonths} months warranty
+                    </span>
+                  )}
                 </span>
 
                 <span className="shrink-0 pl-2 font-mono text-[0.8125rem] tabular-nums text-ink">

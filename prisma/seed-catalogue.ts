@@ -35,6 +35,7 @@ interface SeedAddOn {
   kind: Kind;
   price: number;
   popular?: boolean;
+  extraWarrantyMonths?: number;
   categories: string[] | "all";
 }
 
@@ -92,8 +93,9 @@ const PRODUCTS: SeedProduct[] = [
 ];
 
 const ADD_ONS: SeedAddOn[] = [
-  { name: "Extend warranty to 24 months", note: "Doubles the included cover. Same terms, same workshop.", kind: "PROTECTION", price: 249_00, popular: true, categories: ["smartphones", "laptops", "tablets", "smartwatches", "audio"] },
+  { name: "Extend warranty to 24 months", note: "Doubles the included cover. Same terms, same workshop.", kind: "PROTECTION", price: 249_00, popular: true, extraWarrantyMonths: 12, categories: ["smartphones", "laptops", "tablets", "smartwatches", "audio"] },
   { name: "Accidental damage cover", note: "Two claims in 12 months, drops and spills included.", kind: "PROTECTION", price: 349_00, categories: ["smartphones", "laptops", "tablets", "smartwatches", "audio"] },
+  { name: "Battery replacement", note: "One new battery fitted in our workshop while the warranty runs.", kind: "PROTECTION", price: 199_00, categories: ["smartphones", "laptops", "tablets", "smartwatches"] },
   { name: "Screen protector, fitted", note: "Applied here, dust-free, before it ships.", kind: "SERVICE", price: 99_00, categories: ["smartphones"] },
   { name: "Leather case", note: "Matched to the finish you chose.", kind: "ACCESSORY", price: 179_00, categories: ["smartphones"] },
   { name: "20W USB-C adapter", note: "Not included with the device. UAE three-pin.", kind: "ACCESSORY", price: 129_00, categories: ["smartphones"] },
@@ -218,7 +220,13 @@ async function seedAddOns(prisma: PrismaClient, categoryIds: Map<string, string>
       where: { name: addOn.name, price: addOn.price },
       select: { id: true },
     });
-    if (exists) continue;
+    if (exists) {
+      await prisma.addOn.update({
+        where: { id: exists.id },
+        data: { extraWarrantyMonths: addOn.extraWarrantyMonths ?? 0 },
+      });
+      continue;
+    }
 
     const slugs = addOn.categories === "all" ? [] : addOn.categories;
     await prisma.addOn.create({
@@ -228,6 +236,7 @@ async function seedAddOns(prisma: PrismaClient, categoryIds: Map<string, string>
         kind: addOn.kind,
         price: addOn.price,
         popular: addOn.popular ?? false,
+        extraWarrantyMonths: addOn.extraWarrantyMonths ?? 0,
         appliesToAll: addOn.categories === "all",
         categories: { create: slugs.map((slug) => ({ categoryId: categoryIds.get(slug)! })) },
       },

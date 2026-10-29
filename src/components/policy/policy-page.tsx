@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublishedPolicy } from "@/lib/policies";
-import { siteConfig } from "@/lib/site";
+import { pageMetadata, policySeo } from "@/lib/seo";
 import type { PolicySlug } from "@/lib/policy-types";
 import { PolicyDocument } from "./policy-document";
 
@@ -10,10 +10,7 @@ export async function policyMetadata(slug: PolicySlug): Promise<Metadata> {
 
   if (!policy) return { title: "Not found" };
 
-  return {
-    title: `${policy.title} — ${siteConfig.name}`,
-    description: policy.lede,
-  };
+  return pageMetadata(policySeo(policy));
 }
 
 export async function PolicyPage({ slug }: { slug: PolicySlug }) {

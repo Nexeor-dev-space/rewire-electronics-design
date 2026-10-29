@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { HomepageDraft, HomepageSection } from "@/types/homepage";
 import { AddSectionDialog } from "./add-section-dialog";
+import { HomepageSeoDialog } from "./homepage-seo-dialog";
 import { SectionFormModal } from "./section-form-modal";
 import { SectionTone, toneStyle } from "./section-tone";
 
@@ -70,6 +71,7 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
   const [opened, setOpened] = useState(false);
   const [saved, setSaved] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [editingSeo, setEditingSeo] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
@@ -231,6 +233,11 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
               Preview
             </Button>
             {access.publish && (
+              <Button variant="outline" size="sm" onClick={() => setEditingSeo(true)}>
+                SEO and sharing
+              </Button>
+            )}
+            {access.publish && (
               <>
                 <Button
                   variant="outline"
@@ -308,6 +315,8 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
             onSaved={() => setSaved(true)}
           />
         ))}
+
+      {editingSeo && <HomepageSeoDialog onClose={() => setEditingSeo(false)} />}
 
       {data && (
         <AddSectionDialog

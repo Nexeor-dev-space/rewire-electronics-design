@@ -1,7 +1,20 @@
 import { HomepageSections } from "@/components/home/homepage-sections";
-import { getPublishedHomepage } from "@/services/homepage.service";
+import { pageMetadata } from "@/lib/seo";
+import { siteConfig } from "@/lib/site";
+import { getHomepageSeo, getPublishedHomepage } from "@/services/homepage.service";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  const seo = await getHomepageSeo();
+  return pageMetadata({
+    title: seo.seoTitle ?? `${siteConfig.name} — ${siteConfig.tagline}`,
+    absoluteTitle: true,
+    description: seo.metaDescription ?? siteConfig.description,
+    path: "/",
+    image: seo.ogImageUrl ?? undefined,
+  });
+}
 
 /**
  * The homepage is whatever was last published through the homepage API — see

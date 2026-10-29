@@ -1,11 +1,17 @@
 model Policy {
-  id        String   @id @default(cuid())
-  slug      String   @unique
+  id        String  @id @default(cuid())
+  slug      String  @unique
   title     String
-  eyebrow   String   @default("Legal")
+  eyebrow   String  @default("Legal")
   lede      String
-  draft     Boolean  @default(true)
-  published Boolean  @default(true)
+  draft     Boolean @default(true)
+  published Boolean @default(true)
+
+  seoTitle        String?
+  metaDescription String?
+  ogImageId       String?
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
