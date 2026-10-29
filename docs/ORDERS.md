@@ -564,10 +564,12 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
     status, payment and the staff note change.
 11. **One serial field per order line.** A line can hold up to
     `CART_MAX_LINE_QUANTITY` units, which share one field, comma separated.
-    Serials are edited in Fulfilment only, so not after delivery.
-12. **Warranty dates are written once, at delivery.** Later changes to the
-    product or add-on do not move them; a line delivered before this change
-    has none.
+    Serials are edited in Fulfilment, and after delivery on the Warranty &
+    Claims Edit page ([WARRANTY.md](WARRANTY.md) §6).
+12. **Warranty dates are written at delivery.** Later changes to the product
+    or add-on do not move them; a line delivered before this change has none.
+    Staff can correct the start on the Warranty & Claims Edit page, which
+    recalculates the end ([WARRANTY.md](WARRANTY.md) §6).
 13. **The admin orders and Fulfilment lists load each order's lines** (id,
     name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
     serial inputs.
