@@ -117,8 +117,9 @@ model OrderItem {
   quantity       Int
   lineTotal      Int
 
-  addOns      OrderItemAddOn[]
-  returnItems ReturnItem[]
+  addOns         OrderItemAddOn[]
+  returnItems    ReturnItem[]
+  warrantyClaims WarrantyClaim[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,0 +1,49 @@
+/// A claim's stage. Mirrored by WARRANTY_CLAIM_STATUSES in src/lib/warranty.ts.
+enum WarrantyClaimStatus {
+  RAISED
+  SERIAL_VERIFICATION
+  COLLECTION
+  ASSESSMENT
+  REPAIR
+  REPLACEMENT
+  RETURNED_TO_CUSTOMER
+  DECLINED
+}
+
+/// A warranty claim against one device. The warranty itself lives on the
+/// order line (`OrderItem.warrantyStartsAt`, `warrantyEndsAt`); see docs/WARRANTY.md.
+model WarrantyClaim {
+  id           String              @id @default(cuid())
+  number       String              @unique
+  orderItemId  String
+  orderItem    OrderItem           @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  /// The unit claimed, copied from the line's serials when the claim is raised.
+  serialNumber String
+  status       WarrantyClaimStatus @default(RAISED)
+  issue        String
+
+  events WarrantyClaimEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderItemId, status])
+  @@index([status, createdAt])
+  @@map("warranty_claims")
+}
+
+model WarrantyClaimEvent {
+  id      String              @id @default(cuid())
+  claimId String
+  claim   WarrantyClaim       @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  status  WarrantyClaimStatus
+  note    String              @default("")
+  actorId String?
+  actor   User?               @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([claimId, createdAt])
+  @@map("warranty_claim_events")
+}
