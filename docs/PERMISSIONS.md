@@ -122,6 +122,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Orders | `sales.orders` | View, Edit | No access, View, Edit |
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
+| VAT & Configuration | `governance.vat` | View, Edit | No access, View, Edit |
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
 | Staff accounts | `service.staff` | Admin only | |
@@ -139,6 +140,11 @@ covers the Returns list and detail and reading the return window; Edit covers
 status changes, recording a refund and changing the return window (the
 `admin/store-settings` routes use this key while the window is the only
 setting). See [RETURNS.md](RETURNS.md) §12.
+
+VAT & Configuration (`PERMISSIONS.vat`, `governance.vat`) offers View and Edit
+and can be granted to a Staff role. Existing Staff roles hold No access until
+an Admin sets a level. View opens the page and reads the rate; Edit saves it
+(`admin/vat-settings` routes). See [VAT.md](VAT.md).
 
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.
@@ -238,6 +244,7 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Users → Customers | Add, Edit and Delete hidden |
 | Users → Staff | Admin only; the page answers Access denied to Staff |
 | Delivery Zones | Edit hidden |
+| VAT & Configuration | The rate input is disabled and Save and Cancel are hidden without Edit; the page needs View |
 | Returns | Status buttons, the Record refund button and the Return window button are hidden (the window shows as plain text) without Edit; the list and detail need View, and the sidebar row needs View |
 | Orders detail | Status, payment, tracking and staff note controls hidden without Edit; the list and detail need View |
 | Fulfilment | Tracking field, Save and Move to buttons replaced by read only text without Edit; the order number links to the detail only with Orders View |

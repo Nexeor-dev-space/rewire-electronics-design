@@ -32,7 +32,9 @@ export const DB_WRITE_TIMEOUT_MS = 15_000;
 export const STORE_TIME_ZONE = "Asia/Dubai";
 export const STORE_TIME_ZONE_LABEL = "GST";
 
+/** The default VAT rate, used until an admin saves one in VAT & Configuration. */
 export const VAT_RATE_PERCENT = 5;
+export const VAT_RATE_MAX_PERCENT = 100;
 export const MAX_COUPON_TARGETS = 50;
 export const COUPON_CODE_MIN_LENGTH = 3;
 export const COUPON_CODE_MAX_LENGTH = 32;

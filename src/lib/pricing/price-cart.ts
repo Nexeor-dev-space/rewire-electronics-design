@@ -15,6 +15,7 @@ function assertLine(line: PricingLine): void {
 
 export function priceCart(input: PriceCartInput): CartPricing {
   input.lines.forEach(assertLine);
+  assertMinorUnits(input.vatRatePercent, "vatRatePercent");
   if (input.deliveryFee !== null) assertMinorUnits(input.deliveryFee, "deliveryFee");
 
   const lines = input.lines.map((line) => ({ key: line.key, lineTotal: lineTotal(line) }));
@@ -41,8 +42,8 @@ export function priceCart(input: PriceCartInput): CartPricing {
     discount,
     delivery,
     total,
-    vatIncluded: vatIncludedIn(total),
-    vatRatePercent: VAT_RATE_PERCENT,
+    vatIncluded: vatIncludedIn(total, input.vatRatePercent),
+    vatRatePercent: input.vatRatePercent,
     coupon,
   };
 }

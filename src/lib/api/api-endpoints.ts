@@ -71,6 +71,7 @@ export const API_ENDPOINTS = {
       refund: (number: string) => `${V1}/admin/returns/${number}/refund`,
     },
     storeSettings: `${V1}/admin/store-settings`,
+    vatSettings: `${V1}/admin/vat-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
