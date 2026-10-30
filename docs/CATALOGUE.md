@@ -518,6 +518,24 @@ listing stays indexable.
 **The site image** is `siteConfig.ogImage` (`/images/rewire-img.jpg`, 2000 ×
 1333). A designed 1200 × 630 image can replace the file without a code change.
 
+**The favicon** is the approved Rewire "R" lettermark taken from the wordmark,
+`siteConfig.favicon` (`/images/rewire-fav.png` in `public/`).
+
+1. **Where it is set:** `icons` in the root layout's `metadata`
+   (`src/app/layout.tsx`), as the browser tab icon (`image/png`) and the Apple
+   touch icon. Every route inherits it, the storefront, checkout and the admin
+   console included.
+2. **Old requests:** `/favicon.ico` redirects (307) to the PNG in
+   `next.config.ts`, for browsers and crawlers that ask for it directly.
+3. **Removed:** the default Next.js `src/app/favicon.ico`. Don't add a new
+   `src/app/favicon.ico` or `src/app/icon.*`; Next would add a second icon link
+   next to this one.
+4. **The file:** a square PNG, at least 180 × 180 so the Apple touch icon stays
+   sharp. Replacing the file keeps the same path, so after a deploy a browser
+   may show the old icon until it refreshes its icon cache (a hard refresh, or
+   reopening the tab). To force every browser to fetch it again, save the new
+   artwork under a new file name and update `siteConfig.favicon`.
+
 ### Product SEO fields
 
 Seven optional columns on `Product`, edited in the product form and saved with

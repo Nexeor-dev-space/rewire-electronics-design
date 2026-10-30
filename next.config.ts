@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { siteConfig } from "./src/lib/site";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -13,6 +14,9 @@ const nextConfig: NextConfig = {
 
   async redirects() {
     return [
+      // Browsers and crawlers that ask for /favicon.ico directly get the brand mark.
+      { source: "/favicon.ico", destination: siteConfig.favicon, permanent: false },
+
       { source: "/terms-and-conditions", destination: "/terms", permanent: true },
       { source: "/privacy-policy", destination: "/privacy", permanent: true },
 
