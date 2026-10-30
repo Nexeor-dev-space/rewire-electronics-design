@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     template: `%s — ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  // Set once here, so every route (storefront, checkout, admin) inherits it.
+  icons: {
+    icon: { url: siteConfig.favicon, type: "image/png" },
+    apple: siteConfig.favicon,
+  },
   keywords: [
     "refurbished electronics",
     "certified renewed",

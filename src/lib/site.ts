@@ -8,6 +8,7 @@ export const siteConfig = {
     "Rewire Electronics launches exclusive, certified-renewed electronics through limited drops. Premium devices, obsessively restored, released in numbered editions.",
   url: "https://rewire-electronics.com",
   ogImage: "/images/rewire-img.jpg",
+  favicon: "/images/rewire-fav.png",
   locale: "en_US",
 } as const;
 
