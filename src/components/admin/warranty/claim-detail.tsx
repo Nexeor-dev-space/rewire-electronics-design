@@ -16,6 +16,7 @@ import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import {
   WARRANTY_CLAIM_STATUS_LABELS,
   claimActionLabel,
+  unitLabel,
   type WarrantyClaimStatus,
 } from "@/lib/warranty";
 import type { AdminWarrantyClaimDetail } from "@/types/warranty";
@@ -89,6 +90,9 @@ function DeviceSection({ detail }: { detail: AdminWarrantyClaimDetail }) {
         <DetailRow label="Serial / IMEI">
           <span className="break-all font-mono">{detail.serialNumber}</span>
         </DetailRow>
+        {device.quantity > 1 && (
+          <DetailRow label="On the order">{unitLabel(device.unitNumber, device.quantity)}</DetailRow>
+        )}
         <DetailRow label="Warranty">
           <WarrantyStatusPill status={device.warrantyStatus} />
         </DetailRow>

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
-import { Select, Textarea } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/input";
 import { useCreateClaim } from "@/hooks/use-warranty";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { WARRANTY_CLAIM_ISSUE_MAX_LENGTH } from "@/lib/constants";
@@ -20,7 +20,7 @@ export function RaiseClaimDialog({ detail, onClose }: { detail: AdminWarrantyDet
       open
       onClose={onClose}
       title="Raise claim"
-      description={`A warranty claim for ${detail.productName}. It starts at Claim raised; the next step is serial verification.`}
+      description={`A warranty claim for ${detail.productName}, serial ${detail.serialNumber}. It starts at Claim raised; the next step is serial verification.`}
       className="max-w-lg"
     >
       <RaiseClaimForm detail={detail} onClose={onClose} />
@@ -31,7 +31,6 @@ export function RaiseClaimDialog({ detail, onClose }: { detail: AdminWarrantyDet
 function RaiseClaimForm({ detail, onClose }: { detail: AdminWarrantyDetail; onClose: () => void }) {
   const id = useId();
   const router = useRouter();
-  const [serialNumber, setSerialNumber] = useState(detail.claimableSerials[0] ?? "");
   const [issue, setIssue] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const create = useCreateClaim();
@@ -39,7 +38,7 @@ function RaiseClaimForm({ detail, onClose }: { detail: AdminWarrantyDetail; onCl
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const parsed = createClaimSchema.safeParse({ serialNumber, issue });
+    const parsed = createClaimSchema.safeParse({ issue });
     if (!parsed.success) {
       setErrors(z.flattenError(parsed.error).fieldErrors);
       return;
@@ -61,35 +60,17 @@ function RaiseClaimForm({ detail, onClose }: { detail: AdminWarrantyDetail; onCl
   return (
     <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
       <DialogBody>
-        <div className="grid gap-5">
-          <Field id={`${id}-serial`} label="Device" hint="The serial or IMEI of the unit." error={error("serialNumber")}>
-            <Select
-              id={`${id}-serial`}
-              value={serialNumber}
-              onChange={(event) => setSerialNumber(event.target.value)}
-              aria-invalid={error("serialNumber") ? true : undefined}
-              className="h-11 font-mono"
-            >
-              {detail.claimableSerials.map((serial) => (
-                <option key={serial} value={serial}>
-                  {serial}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field id={`${id}-issue`} label="Fault" hint="What the customer reported." error={error("issue")}>
-            <Textarea
-              id={`${id}-issue`}
-              data-autofocus
-              value={issue}
-              maxLength={WARRANTY_CLAIM_ISSUE_MAX_LENGTH}
-              onChange={(event) => setIssue(event.target.value)}
-              aria-invalid={error("issue") ? true : undefined}
-              className="min-h-28"
-            />
-          </Field>
-        </div>
+        <Field id={`${id}-issue`} label="Fault" hint="What the customer reported." error={error("issue")}>
+          <Textarea
+            id={`${id}-issue`}
+            data-autofocus
+            value={issue}
+            maxLength={WARRANTY_CLAIM_ISSUE_MAX_LENGTH}
+            onChange={(event) => setIssue(event.target.value)}
+            aria-invalid={error("issue") ? true : undefined}
+            className="min-h-28"
+          />
+        </Field>
       </DialogBody>
 
       <DialogFooter>

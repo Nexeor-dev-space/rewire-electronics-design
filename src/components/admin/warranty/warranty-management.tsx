@@ -23,6 +23,7 @@ import {
   WARRANTY_STATUSES,
   WARRANTY_STATUS_LABELS,
   claimStatusTone,
+  unitLabel,
   warrantyStatusTone,
   type WarrantyClaimStatus,
   type WarrantyStatus,
@@ -112,7 +113,7 @@ export function WarrantyManagement() {
         description={
           search || status
             ? "Nothing matches these filters."
-            : "Every device on a confirmed order appears here. Its warranty starts when the order is delivered."
+            : "Every unit on a confirmed order appears here, one row per device. Its warranty starts when the order is delivered."
         }
       />
     );
@@ -192,9 +193,14 @@ function WarrantyRow({ row, canEdit }: { row: AdminWarrantyRow; canEdit: boolean
 
   return (
     <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS)}>
-      <p className="min-w-0 break-all font-mono text-sm text-ink">
-        {row.serialNumber || <span className="text-ink-muted">No serial</span>}
-      </p>
+      <div className="min-w-0">
+        <p className="break-all font-mono text-sm text-ink">
+          {row.serialNumber || <span className="text-ink-muted">No serial</span>}
+        </p>
+        {row.quantity > 1 && (
+          <p className="mt-0.5 text-xs text-ink-muted">{unitLabel(row.unitNumber, row.quantity)}</p>
+        )}
+      </div>
       <div className="min-w-0">
         <p className="truncate text-sm text-ink">{row.productName}</p>
         {row.variantLabel && <p className="mt-0.5 truncate text-xs text-ink-muted">{row.variantLabel}</p>}

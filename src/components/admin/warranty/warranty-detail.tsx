@@ -14,6 +14,7 @@ import { ADMIN_WARRANTY_PATH } from "@/lib/constants";
 import { formatOrderDate } from "@/lib/dates";
 import { ORDER_STATUS_LABELS } from "@/lib/orders";
 import { POLICY_ROUTES } from "@/lib/policy-types";
+import { unitLabel } from "@/lib/warranty";
 import type { AdminWarrantyDetail } from "@/types/warranty";
 import { RaiseClaimDialog } from "./raise-claim-dialog";
 import {
@@ -136,9 +137,9 @@ function DeviceSection({ detail }: { detail: AdminWarrantyDetail }) {
         </div>
       </div>
       <dl className="mt-4 divide-y divide-line">
-        <DetailRow label={detail.serials.length > 1 ? "Serials / IMEIs" : "Serial / IMEI"}>
-          {detail.serials.length > 0 ? (
-            <span className="break-all font-mono">{detail.serials.join(", ")}</span>
+        <DetailRow label="Serial / IMEI">
+          {detail.serialNumber ? (
+            <span className="break-all font-mono">{detail.serialNumber}</span>
           ) : (
             <span className="text-ink-muted">Not recorded</span>
           )}
@@ -146,7 +147,9 @@ function DeviceSection({ detail }: { detail: AdminWarrantyDetail }) {
         <DetailRow label="SKU">
           <span className="font-mono">{detail.sku}</span>
         </DetailRow>
-        <DetailRow label="Quantity">{detail.quantity}</DetailRow>
+        {detail.quantity > 1 && (
+          <DetailRow label="On the order">{unitLabel(detail.unitNumber, detail.quantity)}</DetailRow>
+        )}
       </dl>
     </Section>
   );
@@ -191,8 +194,8 @@ function CoverSection({ detail }: { detail: AdminWarrantyDetail }) {
 function claimHint(detail: AdminWarrantyDetail): string | null {
   if (detail.canRaiseClaim) return null;
   if (detail.status !== "ACTIVE") return "A claim can be raised only while the warranty is active.";
-  if (detail.serials.length === 0) return "Record the device's serial or IMEI before raising a claim.";
-  return "Every unit on this line already has an open claim.";
+  if (!detail.serialNumber) return "Record the device's serial or IMEI before raising a claim.";
+  return "This device already has an open claim.";
 }
 
 function ClaimsSection({ detail, canEdit }: { detail: AdminWarrantyDetail; canEdit: boolean }) {
@@ -212,9 +215,7 @@ function ClaimsSection({ detail, canEdit }: { detail: AdminWarrantyDetail; canEd
               >
                 <div className="min-w-0">
                   <p className="font-mono text-sm text-ink">{claim.number}</p>
-                  <p className="mt-0.5 break-all text-xs text-ink-muted">
-                    {claim.serialNumber}, raised {formatOrderDate(claim.raisedAt)}
-                  </p>
+                  <p className="mt-0.5 text-xs text-ink-muted">Raised {formatOrderDate(claim.raisedAt)}</p>
                 </div>
                 <ClaimStatusPill status={claim.status} />
               </Link>

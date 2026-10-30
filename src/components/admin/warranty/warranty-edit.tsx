@@ -13,7 +13,7 @@ import { apiFieldErrors } from "@/lib/api/api-client";
 import { SERIAL_NUMBER_MAX_LENGTH } from "@/lib/constants";
 import { formatOrderDate, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
 import { warrantyEndsAt } from "@/lib/orders";
-import { checkWarrantyStart } from "@/lib/warranty";
+import { checkWarrantyStart, unitLabel } from "@/lib/warranty";
 import type { AdminWarrantyDetail, UpdateWarrantyInput } from "@/types/warranty";
 import { updateWarrantySchema } from "@/validators/warranty.validator";
 import { DetailError, DetailSkeleton, WarrantyBackLink } from "./warranty-detail";
@@ -121,11 +121,7 @@ function WarrantyEditForm({ detail }: { detail: AdminWarrantyDetail }) {
               <Field
                 id={`${id}-serial`}
                 label="Serial / IMEI"
-                hint={
-                  detail.quantity > 1
-                    ? `This line holds ${detail.quantity} units. Separate their serials with commas.`
-                    : "Leave empty if it isn't recorded yet."
-                }
+                hint={`${unitLabel(detail.unitNumber, detail.quantity) || "This device"}. Leave empty if it isn't recorded yet.`}
                 error={error("serialNumber")}
               >
                 <Input
@@ -143,7 +139,7 @@ function WarrantyEditForm({ detail }: { detail: AdminWarrantyDetail }) {
                 label="Warranty start"
                 hint={
                   started
-                    ? "The delivery date. Correct it if the device reached the customer on another day."
+                    ? `The delivery date. Correct it if the device reached the customer on another day.${detail.quantity > 1 ? ` It applies to all ${detail.quantity} units on this order line.` : ""}`
                     : "Starts when the order is marked delivered."
                 }
                 error={error("warrantyStartsAt")}
