@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState } from "react";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
+import { DetailRow, Section } from "@/components/admin/shared/detail-section";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/input";
@@ -103,24 +104,6 @@ function BackLink() {
     >
       All returns
     </Link>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-line bg-surface p-5 md:p-6">
-      <h2 className="mb-4 text-base font-medium text-ink">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
-      <dt className="text-sm text-ink-secondary">{label}</dt>
-      <dd className="text-sm tabular-nums text-ink">{children}</dd>
-    </div>
   );
 }
 

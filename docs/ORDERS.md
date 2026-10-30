@@ -57,10 +57,12 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    `imageId` are nullable and `SetNull`. Everything shown is a snapshot:
    `productName`, `productSlug`, `brandName`, `sku`, `storage`, `colour`,
    `condition`, `grade`, `warrantyMonths`, `imageAlt`, `unitPrice`,
-   `addOnUnitPrice`, `quantity`, `lineTotal`. Not a snapshot: `serialNumber`
-   (the device serial or IMEI, entered in Fulfilment), `warrantyStartsAt` and
-   `warrantyEndsAt` (set on delivery, §3), all nullable (migration
-   `add_product_add_ons_and_warranty`).
+   `addOnUnitPrice`, `quantity`, `lineTotal`. Not a snapshot:
+   `warrantyStartsAt` and `warrantyEndsAt` (set on delivery, §3), both
+   nullable (migration `add_product_add_ons_and_warranty`). Each unit is a
+   `Device` (`devices`) created with the line, holding its own serial or IMEI
+   ([WARRANTY.md](WARRANTY.md) §2); the line's own `serialNumber` was
+   dropped. `OrderLine.serials` lists the recorded serials in unit order.
 3. **`OrderItemAddOn`** (`order_item_add_ons`): `name`, `kind`, `price` per
    unit (the effective price the cart charged, so a product's override when
    it had one), `extraWarrantyMonths`, and a nullable `addOnId` (`SetNull`).
@@ -360,11 +362,12 @@ Request bodies and queries (`src/validators/order.validator.ts`):
    `PROCESSING` or `DISPATCHED`). With no filter the queue lists all three.
 9. **`PATCH admin/fulfilment/[number]`:** `status` (`PROCESSING`,
    `DISPATCHED` or `DELIVERED`), `trackingNumber` and/or `serials`
-   (`[{ itemId, serialNumber }]`, up to `CART_MAX_LINES`, each trimmed, up to
-   `SERIAL_NUMBER_MAX_LENGTH`; empty clears it). Tracking is saved first, then
-   the serials, then the status, in one transaction through the same
-   `applyStatusChange`, so the same rules, side effects and 409s apply. A
-   serial for an item that is not on this order is 422 on `serials`. The
+   (`[{ deviceId, serialNumber }]`, up to `CART_MAX_LINES` ×
+   `CART_MAX_LINE_QUANTITY`, each trimmed, up to `SERIAL_NUMBER_MAX_LENGTH`;
+   empty clears it). Tracking is saved first, then the serials, then the
+   status, in one transaction through the same `applyStatusChange`, so the
+   same rules, side effects and 409s apply. A serial for a device that is not
+   on this order is 422 on `serials`. The
    change log records the serials with the status and tracking.
    An order outside the fulfilment queue (not `CONFIRMED`, `PROCESSING` or
    `DISPATCHED`) is 409 "This order isn't in the fulfilment queue."; tracking
@@ -375,8 +378,9 @@ status, paymentStatus, paymentMethod, delivery method and ETA, deliveredAt,
 returnableUntil, trackingNumber, contact, address, `lines`, `totals`
 { subtotal, discount, delivery, total, vatIncluded, vatRatePercent, refunded },
 couponCode, `timeline`), `OrderSummary` (list card with the first line),
-`AdminOrderRow` (with `items`: id, product name, SKU, quantity and serial
-per line, so the Fulfilment row can edit serials), and `AdminOrderDetail` (adds `customer` { id, fullName,
+`AdminOrderRow` (with `items`: id, product name, SKU, quantity and
+`devices` { id, unitNumber, serialNumber } per line, so the Fulfilment row can
+edit each device's serial), and `AdminOrderDetail` (adds `customer` { id, fullName,
 email, isGuest } or null, `placedAsGuest`, `staffNote`, `events` oldest first
 up to `ORDER_EVENT_LIMIT`, `nextStatuses`, `paymentActions`, `returns`
 { number, status }[] oldest first up to `ORDER_RETURNS_LIMIT`). Each line in
@@ -445,8 +449,8 @@ Edit the panels are read only.
 **Admin Fulfilment** (`/admin/fulfilment`, `FulfilmentQueue`). Module
 `sales.fulfilment`. A queue of Confirmed, Processing and Dispatched orders,
 oldest first, with a "Whole queue" status filter. Each row has a tracking
-number field, one "Serial / IMEI" field per line (a line with more than one
-unit takes its serials comma separated), Save when tracking or a serial
+number field, one "Serial / IMEI" field per device (a line of 3 shows 3
+fields, labelled "Unit n of 3"), Save when tracking or a serial
 changed, and one "Move to {next}" button (Confirmed to Processing, Processing
 to Dispatched, Dispatched to Delivered). Moving to Delivered starts each
 line's warranty. The order
@@ -562,12 +566,14 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 9. **No saved address prefill** until Phase 3.
 10. **Staff can't edit the contact or address** on an order; only tracking,
     status, payment and the staff note change.
-11. **One serial field per order line.** A line can hold up to
-    `CART_MAX_LINE_QUANTITY` units, which share one field, comma separated.
-    Serials are edited in Fulfilment only, so not after delivery.
-12. **Warranty dates are written once, at delivery.** Later changes to the
-    product or add-on do not move them; a line delivered before this change
-    has none.
+11. **One serial per device.** Each unit on a line is a `Device` with its
+    own serial ([WARRANTY.md](WARRANTY.md) §2). Serials are edited in
+    Fulfilment, and after delivery on the Warranty & Claims Edit page
+    ([WARRANTY.md](WARRANTY.md) §6).
+12. **Warranty dates are written at delivery.** Later changes to the product
+    or add-on do not move them; a line delivered before this change has none.
+    Staff can correct the start on the Warranty & Claims Edit page, which
+    recalculates the end ([WARRANTY.md](WARRANTY.md) §6).
 13. **The admin orders and Fulfilment lists load each order's lines** (id,
     name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
     serial inputs.

@@ -257,10 +257,10 @@ function OrderLineRow({
             <dt>Warranty</dt>
             <dd className="mt-0.5 text-ink">{lineWarrantyMonths(line)} months</dd>
           </div>
-          {line.serialNumber && (
+          {line.serials.length > 0 && (
             <div>
               <dt>Serial / IMEI</dt>
-              <dd className="mt-0.5 break-all normal-case tracking-normal text-ink">{line.serialNumber}</dd>
+              <dd className="mt-0.5 break-all normal-case tracking-normal text-ink">{line.serials.join(", ")}</dd>
             </div>
           )}
           {line.warrantyEndsAt && (

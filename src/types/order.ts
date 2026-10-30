@@ -43,7 +43,8 @@ export interface OrderLine {
   storage: string | null;
   colour: string | null;
   warrantyMonths: number;
-  serialNumber: string | null;
+  /** The serials recorded so far, one per unit, in unit order. */
+  serials: string[];
   warrantyStartsAt: string | null;
   warrantyEndsAt: string | null;
   quantity: number;
@@ -148,6 +149,13 @@ export interface AdminOrderRowItem {
   productName: string;
   sku: string;
   quantity: number;
+  devices: AdminOrderRowDevice[];
+}
+
+/** One unit on the line, so Fulfilment can take a serial per device. */
+export interface AdminOrderRowDevice {
+  id: string;
+  unitNumber: number;
   serialNumber: string | null;
 }
 

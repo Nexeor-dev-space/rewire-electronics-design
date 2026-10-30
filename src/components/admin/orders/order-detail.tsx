@@ -199,8 +199,8 @@ function ItemList({ lines }: { lines: OrderLine[] }) {
               Warranty {lineWarrantyMonths(line)} months
               {line.warrantyEndsAt && <>, until {formatOrderDate(line.warrantyEndsAt)}</>}
             </p>
-            {line.serialNumber && (
-              <p className="mt-0.5 break-all font-mono text-xs text-ink-secondary">Serial {line.serialNumber}</p>
+            {line.serials.length > 0 && (
+              <p className="mt-0.5 break-all font-mono text-xs text-ink-secondary">Serial {line.serials.join(", ")}</p>
             )}
             <LineBreakdown
               compact

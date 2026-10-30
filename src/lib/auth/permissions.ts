@@ -49,6 +49,8 @@ export const PERMISSIONS = {
   orders: adminPermission("sales", "orders"),
   fulfilment: adminPermission("sales", "fulfilment"),
   returns: adminPermission("service", "returns"),
+  /** Warranty & Claims: warranty records per device and the claims against them. */
+  warranty: adminPermission("service", "warranty"),
   deliveryZones: adminPermission("governance", "delivery"),
   /** VAT & Configuration: the VAT rate the cart and checkout price with. */
   vat: adminPermission("governance", "vat"),
@@ -82,6 +84,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.orders, label: "Orders", actions: VIEW_EDIT },
   { key: PERMISSIONS.fulfilment, label: "Fulfilment", actions: VIEW_EDIT },
   { key: PERMISSIONS.returns, label: "Returns", actions: VIEW_EDIT },
+  { key: PERMISSIONS.warranty, label: "Warranty & Claims", actions: VIEW_EDIT },
   { key: PERMISSIONS.customers, label: "Customers", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },

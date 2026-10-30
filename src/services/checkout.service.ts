@@ -18,6 +18,7 @@ import { orderConfirmationMessage } from "@/lib/email/templates";
 import { initialStatus } from "@/lib/orders";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { generateReference } from "@/lib/reference-number";
+import { unitNumbers } from "@/lib/warranty";
 import { clearCheckedOutCart, loadPricedCart, lockCart, type PricedCart } from "@/services/cart.service";
 import { DELIVERY_MESSAGES } from "@/lib/delivery";
 import { resolveDelivery } from "@/services/delivery-zone.service";
@@ -139,6 +140,7 @@ function orderItems(priced: PricedCart): Prisma.OrderItemCreateWithoutOrderInput
     addOnUnitPrice: pricing.addOnUnitPrice,
     quantity: pricing.quantity,
     lineTotal: line.lineTotal,
+    devices: { create: unitNumbers(pricing.quantity).map((unitNumber) => ({ unitNumber })) },
     addOns: {
       create: item.addOns
         .flatMap((link) => {

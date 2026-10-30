@@ -131,13 +131,6 @@ export const adminNav: AdminNavSection[] = [
         description:
           "Optional extras offered alongside a device: cases, chargers, extended cover.",
       },
-      {
-        key: "devices",
-        label: "Device Registry",
-        href: "/admin/devices",
-        description:
-          "The individual device record, keyed by serial or IMEI. Warranty entitlement is tied to this record, not to the product.",
-      },
     ],
   },
   {
@@ -247,7 +240,7 @@ export const adminNav: AdminNavSection[] = [
         label: "Warranty & Claims",
         href: "/admin/service/warranty",
         description:
-          "Warranty entitlement per device and the claims raised against it. Reads from the device registry, since cover follows the serial or IMEI.",
+          "Every device sold, keyed by serial or IMEI, with its warranty dates and the claims raised against it.",
         routes: ["/admin/service/claims"],
       },
       {
