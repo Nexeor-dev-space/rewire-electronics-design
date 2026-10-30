@@ -2,11 +2,10 @@
 model StoreSettings {
   id               Int      @id @default(1)
   returnWindowDays Int      @default(30)
-  vatRatePercent   Int      @default(5)
   updatedById      String?
-  updatedBy        User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  updatedBy        User?    @relation(fields: [updatedById], references: [id])
 
   @@map("store_settings")
 }

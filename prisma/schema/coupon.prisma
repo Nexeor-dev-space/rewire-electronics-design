@@ -1,8 +1,3 @@
-enum CouponType {
-  PERCENT
-  FIXED
-}
-
 model Coupon {
   id               String             @id @default(cuid())
   code             String             @unique
@@ -17,12 +12,12 @@ model Coupon {
   perCustomerLimit Int?
   redemptionCount  Int                @default(0)
   appliesToAll     Boolean            @default(true)
-  products         CouponProduct[]
-  categories       CouponCategory[]
-  carts            Cart[]
-  redemptions      CouponRedemption[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  carts            Cart[]
+  categories       CouponCategory[]
+  products         CouponProduct[]
+  redemptions      CouponRedemption[]
 
   @@index([active, endsAt])
   @@index([updatedAt])
@@ -31,11 +26,11 @@ model Coupon {
 
 model CouponProduct {
   couponId  String
-  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@id([couponId, productId])
   @@index([productId])
@@ -44,13 +39,18 @@ model CouponProduct {
 
 model CouponCategory {
   couponId   String
-  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
   categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
   @@id([couponId, categoryId])
   @@index([categoryId])
   @@map("coupon_categories")
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
 }

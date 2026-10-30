@@ -1,13 +1,13 @@
 model Cart {
   id             String     @id @default(cuid())
   userId         String?    @unique
-  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   guestTokenHash String?    @unique
   couponId       String?
-  coupon         Coupon?    @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  items          CartItem[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+  items          CartItem[]
+  coupon         Coupon?    @relation(fields: [couponId], references: [id])
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([couponId])
   @@index([updatedAt])
@@ -17,14 +17,14 @@ model Cart {
 model CartItem {
   id            String          @id @default(cuid())
   cartId        String
-  cart          Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
   variantId     String
-  variant       ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
   quantity      Int
   seenUnitPrice Int
-  addOns        CartItemAddOn[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  addOns        CartItemAddOn[]
+  cart          Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant       ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, variantId])
   @@index([variantId])
@@ -33,12 +33,12 @@ model CartItem {
 
 model CartItemAddOn {
   cartItemId String
-  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
   addOnId    String
-  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
   seenPrice  Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
 
   @@id([cartItemId, addOnId])
   @@index([addOnId])
