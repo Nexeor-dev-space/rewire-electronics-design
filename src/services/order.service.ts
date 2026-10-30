@@ -73,7 +73,7 @@ const lineSelect = {
   condition: true,
   grade: true,
   warrantyMonths: true,
-  serialNumber: true,
+  devices: { select: { serialNumber: true }, orderBy: { unitNumber: "asc" } },
   warrantyStartsAt: true,
   warrantyEndsAt: true,
   imageAlt: true,
@@ -194,7 +194,13 @@ const adminRowSelect = {
   placedAsGuest: true,
   _count: { select: { items: true } },
   items: {
-    select: { id: true, productName: true, sku: true, quantity: true, serialNumber: true },
+    select: {
+      id: true,
+      productName: true,
+      sku: true,
+      quantity: true,
+      devices: { select: { id: true, unitNumber: true, serialNumber: true }, orderBy: { unitNumber: "asc" } },
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } satisfies Prisma.OrderSelect;
@@ -239,7 +245,7 @@ function toLine(row: LineRow, returned: ReturnedQuantities): OrderLine {
     storage: row.storage,
     colour: row.colour,
     warrantyMonths: row.warrantyMonths,
-    serialNumber: row.serialNumber,
+    serials: row.devices.flatMap((device) => (device.serialNumber ? [device.serialNumber] : [])),
     warrantyStartsAt: isoOrNull(row.warrantyStartsAt),
     warrantyEndsAt: isoOrNull(row.warrantyEndsAt),
     quantity: row.quantity,
@@ -366,7 +372,9 @@ export function fulfilmentAuditView(row: AdminOrderRow) {
   return {
     status: row.status,
     trackingNumber: row.trackingNumber,
-    serials: row.items.map(({ sku, serialNumber }) => ({ sku, serialNumber })),
+    serials: row.items.flatMap(({ sku, devices }) =>
+      devices.map(({ unitNumber, serialNumber }) => ({ sku, unitNumber, serialNumber })),
+    ),
   };
 }
 
@@ -713,13 +721,13 @@ export async function updateFulfilment(actorId: string, number: string, data: Fu
       });
       if (count === 0) throw orderChanged();
     }
-    for (const { itemId, serialNumber } of data.serials ?? []) {
-      const { count } = await tx.orderItem.updateMany({
-        where: { id: itemId, orderId: order.id },
+    for (const { deviceId, serialNumber } of data.serials ?? []) {
+      const { count } = await tx.device.updateMany({
+        where: { id: deviceId, orderItem: { orderId: order.id } },
         data: { serialNumber: serialNumber || null },
       });
       if (count === 0) {
-        const message = "One of the items isn't on this order.";
+        const message = "One of the devices isn't on this order.";
         throw new ServiceError("VALIDATION", message, 422, { serials: [message] });
       }
     }

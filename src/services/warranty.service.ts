@@ -20,7 +20,6 @@ import {
   checkWarrantyStart,
   isClaimOpen,
   nextClaimStatuses,
-  splitSerials,
   warrantyStatus,
   type WarrantyClaimStatus,
   type WarrantyStatus,
@@ -44,14 +43,14 @@ const MESSAGE_WARRANTY_NOT_FOUND = "We couldn't find that warranty.";
 const MESSAGE_CLAIM_NOT_FOUND = "We couldn't find that claim.";
 const MESSAGE_NOT_STARTED = "The warranty starts when the order is delivered.";
 const MESSAGE_NOT_ELIGIBLE = "A claim can only be raised while the warranty is active.";
-const MESSAGE_SERIAL_NOT_ON_DEVICE = "That serial isn't recorded on this device.";
+const MESSAGE_NO_SERIAL = "Record the device's serial or IMEI before raising a claim.";
 const MESSAGE_OPEN_CLAIM = "This device already has an open claim.";
 const MESSAGE_CLAIM_CHANGED = "This claim changed. Refresh and try again.";
 
-/** Only lines on paid, live orders are warranty records. */
-const warrantyLineWhere = {
-  order: { status: { in: [...WARRANTY_ORDER_STATUSES] } },
-} satisfies Prisma.OrderItemWhereInput;
+/** Only devices on paid, live orders are warranty records. */
+const warrantyDeviceWhere = {
+  orderItem: { order: { status: { in: [...WARRANTY_ORDER_STATUSES] } } },
+} satisfies Prisma.DeviceWhereInput;
 
 const openClaimWhere = {
   status: { in: [...OPEN_WARRANTY_CLAIM_STATUSES] },
@@ -59,50 +58,61 @@ const openClaimWhere = {
 
 const rowSelect = {
   id: true,
+  unitNumber: true,
   serialNumber: true,
-  productName: true,
-  storage: true,
-  colour: true,
-  warrantyStartsAt: true,
-  warrantyEndsAt: true,
-  order: { select: { number: true, firstName: true, lastName: true, email: true } },
+  orderItem: {
+    select: {
+      productName: true,
+      storage: true,
+      colour: true,
+      quantity: true,
+      warrantyStartsAt: true,
+      warrantyEndsAt: true,
+      order: { select: { number: true, firstName: true, lastName: true, email: true } },
+    },
+  },
   warrantyClaims: { where: openClaimWhere, select: { id: true }, take: 1 },
-} satisfies Prisma.OrderItemSelect;
+} satisfies Prisma.DeviceSelect;
 
 const detailSelect = {
   id: true,
+  unitNumber: true,
   serialNumber: true,
-  productName: true,
-  brandName: true,
-  sku: true,
-  storage: true,
-  colour: true,
-  imageId: true,
-  imageAlt: true,
-  quantity: true,
-  warrantyMonths: true,
-  warrantyStartsAt: true,
-  warrantyEndsAt: true,
-  addOns: {
-    select: { name: true, extraWarrantyMonths: true },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  },
-  order: {
+  orderItem: {
     select: {
-      number: true,
-      status: true,
-      createdAt: true,
-      deliveredAt: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      user: { select: { id: true, fullName: true, email: true } },
-      events: {
-        where: { status: "DISPATCHED" },
-        select: { createdAt: true },
+      productName: true,
+      brandName: true,
+      sku: true,
+      storage: true,
+      colour: true,
+      imageId: true,
+      imageAlt: true,
+      quantity: true,
+      warrantyMonths: true,
+      warrantyStartsAt: true,
+      warrantyEndsAt: true,
+      addOns: {
+        select: { name: true, extraWarrantyMonths: true },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: 1,
+      },
+      order: {
+        select: {
+          number: true,
+          status: true,
+          createdAt: true,
+          deliveredAt: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          user: { select: { id: true, fullName: true, email: true } },
+          events: {
+            where: { status: "DISPATCHED" },
+            select: { createdAt: true },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: 1,
+          },
+        },
       },
     },
   },
@@ -111,7 +121,7 @@ const detailSelect = {
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: WARRANTY_CLAIMS_LIMIT,
   },
-} satisfies Prisma.OrderItemSelect;
+} satisfies Prisma.DeviceSelect;
 
 const claimDetailSelect = {
   number: true,
@@ -119,15 +129,21 @@ const claimDetailSelect = {
   serialNumber: true,
   issue: true,
   createdAt: true,
-  orderItem: {
+  device: {
     select: {
       id: true,
-      productName: true,
-      storage: true,
-      colour: true,
-      warrantyStartsAt: true,
-      warrantyEndsAt: true,
-      order: { select: { number: true, firstName: true, lastName: true, email: true } },
+      unitNumber: true,
+      orderItem: {
+        select: {
+          productName: true,
+          storage: true,
+          colour: true,
+          quantity: true,
+          warrantyStartsAt: true,
+          warrantyEndsAt: true,
+          order: { select: { number: true, firstName: true, lastName: true, email: true } },
+        },
+      },
     },
   },
   events: {
@@ -137,8 +153,8 @@ const claimDetailSelect = {
   },
 } satisfies Prisma.WarrantyClaimSelect;
 
-type Row = Prisma.OrderItemGetPayload<{ select: typeof rowSelect }>;
-type DetailRow = Prisma.OrderItemGetPayload<{ select: typeof detailSelect }>;
+type Row = Prisma.DeviceGetPayload<{ select: typeof rowSelect }>;
+type DetailRow = Prisma.DeviceGetPayload<{ select: typeof detailSelect }>;
 type ClaimDetailRow = Prisma.WarrantyClaimGetPayload<{ select: typeof claimDetailSelect }>;
 
 /* ---------- mapping ---------- */
@@ -152,46 +168,47 @@ function fullName(order: { firstName: string; lastName: string }) {
 }
 
 function toRow(row: Row, now: Date): AdminWarrantyRow {
+  const line = row.orderItem;
   return {
     id: row.id,
     serialNumber: row.serialNumber,
-    productName: row.productName,
-    variantLabel: variantLabel(row.storage, row.colour),
-    customerName: fullName(row.order),
-    email: row.order.email,
-    orderNumber: row.order.number,
-    warrantyStartsAt: isoOrNull(row.warrantyStartsAt),
-    warrantyEndsAt: isoOrNull(row.warrantyEndsAt),
-    status: warrantyStatus(row, now),
+    unitNumber: row.unitNumber,
+    quantity: line.quantity,
+    productName: line.productName,
+    variantLabel: variantLabel(line.storage, line.colour),
+    customerName: fullName(line.order),
+    email: line.order.email,
+    orderNumber: line.order.number,
+    warrantyStartsAt: isoOrNull(line.warrantyStartsAt),
+    warrantyEndsAt: isoOrNull(line.warrantyEndsAt),
+    status: warrantyStatus(line, now),
     claimInProgress: row.warrantyClaims.length > 0,
   };
 }
 
 function toDetail(row: DetailRow, now: Date): AdminWarrantyDetail {
-  const status = warrantyStatus(row, now);
-  const serials = splitSerials(row.serialNumber);
-  const openClaims = row.warrantyClaims.filter((claim) => isClaimOpen(claim.status));
-  const claimed = new Set(openClaims.map((claim) => claim.serialNumber));
-  const claimableSerials = serials.filter((serial) => !claimed.has(serial));
-  const { order } = row;
+  const line = row.orderItem;
+  const { order } = line;
+  const status = warrantyStatus(line, now);
+  const claimInProgress = row.warrantyClaims.some((claim) => isClaimOpen(claim.status));
 
   return {
     id: row.id,
     serialNumber: row.serialNumber,
-    serials,
-    productName: row.productName,
-    brand: row.brandName,
-    sku: row.sku,
-    variantLabel: variantLabel(row.storage, row.colour),
-    imageUrl: imageUrlOrNull(row.imageId),
-    imageAlt: row.imageAlt,
-    quantity: row.quantity,
+    unitNumber: row.unitNumber,
+    quantity: line.quantity,
+    productName: line.productName,
+    brand: line.brandName,
+    sku: line.sku,
+    variantLabel: variantLabel(line.storage, line.colour),
+    imageUrl: imageUrlOrNull(line.imageId),
+    imageAlt: line.imageAlt,
     status,
-    warrantyStartsAt: isoOrNull(row.warrantyStartsAt),
-    warrantyEndsAt: isoOrNull(row.warrantyEndsAt),
-    baseMonths: row.warrantyMonths,
-    totalMonths: lineWarrantyMonths(row),
-    coverAddOns: row.addOns.filter((addOn) => addOn.extraWarrantyMonths > 0),
+    warrantyStartsAt: isoOrNull(line.warrantyStartsAt),
+    warrantyEndsAt: isoOrNull(line.warrantyEndsAt),
+    baseMonths: line.warrantyMonths,
+    totalMonths: lineWarrantyMonths(line),
+    coverAddOns: line.addOns.filter((addOn) => addOn.extraWarrantyMonths > 0),
     order: {
       number: order.number,
       status: order.status,
@@ -207,14 +224,14 @@ function toDetail(row: DetailRow, now: Date): AdminWarrantyDetail {
       status: claim.status,
       raisedAt: claim.createdAt.toISOString(),
     })),
-    claimInProgress: openClaims.length > 0,
-    claimableSerials,
-    canRaiseClaim: status === "ACTIVE" && claimableSerials.length > 0,
+    claimInProgress,
+    canRaiseClaim: status === "ACTIVE" && Boolean(row.serialNumber) && !claimInProgress,
   };
 }
 
 function toClaimDetail(row: ClaimDetailRow, now: Date): AdminWarrantyClaimDetail {
-  const { orderItem } = row;
+  const { device } = row;
+  const line = device.orderItem;
   return {
     number: row.number,
     status: row.status,
@@ -229,15 +246,17 @@ function toClaimDetail(row: ClaimDetailRow, now: Date): AdminWarrantyClaimDetail
       at: event.createdAt.toISOString(),
     })),
     device: {
-      id: orderItem.id,
-      productName: orderItem.productName,
-      variantLabel: variantLabel(orderItem.storage, orderItem.colour),
-      warrantyStatus: warrantyStatus(orderItem, now),
-      warrantyEndsAt: isoOrNull(orderItem.warrantyEndsAt),
+      id: device.id,
+      unitNumber: device.unitNumber,
+      quantity: line.quantity,
+      productName: line.productName,
+      variantLabel: variantLabel(line.storage, line.colour),
+      warrantyStatus: warrantyStatus(line, now),
+      warrantyEndsAt: isoOrNull(line.warrantyEndsAt),
     },
-    orderNumber: orderItem.order.number,
-    customerName: fullName(orderItem.order),
-    email: orderItem.order.email,
+    orderNumber: line.order.number,
+    customerName: fullName(line.order),
+    email: line.order.email,
   };
 }
 
@@ -277,24 +296,26 @@ function claimStatusLabel(status: WarrantyClaimStatus) {
 
 /* ---------- warranties ---------- */
 
-function statusWhere(status: WarrantyStatus | undefined, now: Date): Prisma.OrderItemWhereInput {
-  if (status === "PENDING") return { OR: [{ warrantyStartsAt: null }, { warrantyStartsAt: { gt: now } }] };
-  if (status === "ACTIVE") return { warrantyStartsAt: { lte: now }, warrantyEndsAt: { gt: now } };
-  if (status === "EXPIRED") return { warrantyEndsAt: { lte: now } };
+function statusWhere(status: WarrantyStatus | undefined, now: Date): Prisma.DeviceWhereInput {
+  if (status === "PENDING") {
+    return { orderItem: { OR: [{ warrantyStartsAt: null }, { warrantyStartsAt: { gt: now } }] } };
+  }
+  if (status === "ACTIVE") return { orderItem: { warrantyStartsAt: { lte: now }, warrantyEndsAt: { gt: now } } };
+  if (status === "EXPIRED") return { orderItem: { warrantyEndsAt: { lte: now } } };
   return {};
 }
 
-function searchWhere(search: string | undefined): Prisma.OrderItemWhereInput {
+function searchWhere(search: string | undefined): Prisma.DeviceWhereInput {
   if (!search) return {};
   const contains = { contains: search, mode: "insensitive" } as const;
   return {
     OR: [
       { serialNumber: contains },
-      { productName: contains },
-      { order: { number: contains } },
-      { order: { email: contains } },
-      { order: { firstName: contains } },
-      { order: { lastName: contains } },
+      { orderItem: { productName: contains } },
+      { orderItem: { order: { number: contains } } },
+      { orderItem: { order: { email: contains } } },
+      { orderItem: { order: { firstName: contains } } },
+      { orderItem: { order: { lastName: contains } } },
     ],
   };
 }
@@ -306,99 +327,97 @@ export async function listAdminWarranties({
   status,
 }: AdminWarrantyQuery): Promise<Paginated<AdminWarrantyRow>> {
   const now = new Date();
-  const where: Prisma.OrderItemWhereInput = {
-    ...warrantyLineWhere,
+  const where: Prisma.DeviceWhereInput = {
+    ...warrantyDeviceWhere,
     AND: [statusWhere(status, now), searchWhere(search)],
   };
   const [rows, total] = await prisma.$transaction([
-    prisma.orderItem.findMany({
+    prisma.device.findMany({
       where,
       select: rowSelect,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ orderItem: { createdAt: "desc" } }, { orderItemId: "asc" }, { unitNumber: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.orderItem.count({ where }),
+    prisma.device.count({ where }),
   ]);
   return { items: rows.map((row) => toRow(row, now)), page, pageSize, total };
 }
 
 export async function getAdminWarranty(id: string): Promise<AdminWarrantyDetail> {
-  const row = await prisma.orderItem.findFirst({ where: { id, ...warrantyLineWhere }, select: detailSelect });
+  const row = await prisma.device.findFirst({ where: { id, ...warrantyDeviceWhere }, select: detailSelect });
   if (!row) throw warrantyNotFound();
   return toDetail(row, new Date());
 }
 
 /**
- * Corrects the serial or the start date. The end date is always worked out
- * again from the start and the line's cover, so the status can't drift from
- * the dates. Product, order and customer are never touched.
+ * Corrects the device's serial, or the warranty start. The start lives on the
+ * order line, so it moves for every unit on that line, and the end date is
+ * always worked out again from it. Product, order and customer are never touched.
  */
 export async function updateWarranty(id: string, data: UpdateWarrantyData): Promise<AdminWarrantyDetail> {
   await prisma.$transaction(async (tx) => {
-    const item = await tx.orderItem.findFirst({
-      where: { id, ...warrantyLineWhere },
+    const device = await tx.device.findFirst({
+      where: { id, ...warrantyDeviceWhere },
       select: {
-        warrantyMonths: true,
-        warrantyStartsAt: true,
-        addOns: { select: { extraWarrantyMonths: true } },
-        order: { select: { createdAt: true } },
+        orderItem: {
+          select: {
+            id: true,
+            warrantyMonths: true,
+            warrantyStartsAt: true,
+            addOns: { select: { extraWarrantyMonths: true } },
+            order: { select: { createdAt: true } },
+          },
+        },
       },
     });
-    if (!item) throw warrantyNotFound();
+    if (!device) throw warrantyNotFound();
+    const line = device.orderItem;
 
-    const dates: Prisma.OrderItemUpdateInput = {};
-    if (data.warrantyStartsAt !== undefined) {
-      if (!item.warrantyStartsAt) throw conflict(MESSAGE_NOT_STARTED, "warrantyStartsAt");
-      const startsAt = new Date(data.warrantyStartsAt);
-      const message = checkWarrantyStart(startsAt, item.order.createdAt, new Date());
-      if (message) throw invalid(message, "warrantyStartsAt");
-      dates.warrantyStartsAt = startsAt;
-      dates.warrantyEndsAt = warrantyEndsAt(startsAt, lineWarrantyMonths(item));
+    if (data.serialNumber !== undefined) {
+      await tx.device.update({ where: { id }, data: { serialNumber: data.serialNumber || null } });
     }
 
-    await tx.orderItem.update({
-      where: { id },
-      data: {
-        ...(data.serialNumber !== undefined ? { serialNumber: data.serialNumber || null } : {}),
-        ...dates,
-      },
-    });
+    if (data.warrantyStartsAt !== undefined) {
+      if (!line.warrantyStartsAt) throw conflict(MESSAGE_NOT_STARTED, "warrantyStartsAt");
+      const startsAt = new Date(data.warrantyStartsAt);
+      const message = checkWarrantyStart(startsAt, line.order.createdAt, new Date());
+      if (message) throw invalid(message, "warrantyStartsAt");
+      await tx.orderItem.update({
+        where: { id: line.id },
+        data: { warrantyStartsAt: startsAt, warrantyEndsAt: warrantyEndsAt(startsAt, lineWarrantyMonths(line)) },
+      });
+    }
   });
   return getAdminWarranty(id);
 }
 
 /* ---------- claims ---------- */
 
-async function createClaimInTransaction(tx: Tx, orderItemId: string, input: CreateClaimData, actorId: string) {
+async function createClaimInTransaction(tx: Tx, deviceId: string, input: CreateClaimData, actorId: string) {
   const now = new Date();
-  // Locks the line, so two claims raised at once for one device can't both pass the open claim check.
-  const { count } = await tx.orderItem.updateMany({
-    where: { id: orderItemId, ...warrantyLineWhere },
+  // Locks the device, so two claims raised at once for it can't both pass the open claim check.
+  const { count } = await tx.device.updateMany({
+    where: { id: deviceId, ...warrantyDeviceWhere },
     data: { updatedAt: now },
   });
   if (count === 0) throw warrantyNotFound();
 
-  const item = await tx.orderItem.findUniqueOrThrow({
-    where: { id: orderItemId },
-    select: { serialNumber: true, warrantyStartsAt: true, warrantyEndsAt: true },
+  const device = await tx.device.findUniqueOrThrow({
+    where: { id: deviceId },
+    select: { serialNumber: true, orderItem: { select: { warrantyStartsAt: true, warrantyEndsAt: true } } },
   });
-  if (warrantyStatus(item, now) !== "ACTIVE") throw conflict(MESSAGE_NOT_ELIGIBLE);
-  if (!splitSerials(item.serialNumber).includes(input.serialNumber)) {
-    throw invalid(MESSAGE_SERIAL_NOT_ON_DEVICE, "serialNumber");
-  }
+  if (warrantyStatus(device.orderItem, now) !== "ACTIVE") throw conflict(MESSAGE_NOT_ELIGIBLE);
+  if (!device.serialNumber) throw conflict(MESSAGE_NO_SERIAL);
 
-  const open = await tx.warrantyClaim.findFirst({
-    where: { orderItemId, serialNumber: input.serialNumber, ...openClaimWhere },
-    select: { id: true },
-  });
-  if (open) throw conflict(MESSAGE_OPEN_CLAIM, "serialNumber");
+  const open = await tx.warrantyClaim.findFirst({ where: { deviceId, ...openClaimWhere }, select: { id: true } });
+  if (open) throw conflict(MESSAGE_OPEN_CLAIM);
 
   return tx.warrantyClaim.create({
     data: {
       number: generateReference(WARRANTY_CLAIM_NUMBER_PREFIX),
-      orderItem: { connect: { id: orderItemId } },
-      serialNumber: input.serialNumber,
+      device: { connect: { id: deviceId } },
+      serialNumber: device.serialNumber,
       issue: input.issue,
       events: { create: [{ status: "RAISED", actorId }] },
     },
@@ -407,13 +426,13 @@ async function createClaimInTransaction(tx: Tx, orderItemId: string, input: Crea
 }
 
 export async function createClaim(
-  orderItemId: string,
+  deviceId: string,
   input: CreateClaimData,
   actorId: string,
 ): Promise<AdminWarrantyClaimDetail> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const { number } = await prisma.$transaction((tx) => createClaimInTransaction(tx, orderItemId, input, actorId));
+      const { number } = await prisma.$transaction((tx) => createClaimInTransaction(tx, deviceId, input, actorId));
       return getAdminClaim(number);
     } catch (error) {
       if (!isUniqueViolation(error) || attempt >= REFERENCE_NUMBER_ATTEMPTS) throw error;

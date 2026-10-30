@@ -8,9 +8,12 @@ import type {
 } from "@/validators/warranty.validator";
 
 export interface AdminWarrantyRow {
-  /** The order line's id: one warranty record per line. */
+  /** The device's id: one warranty record per unit sold. */
   id: string;
   serialNumber: string | null;
+  /** Which unit of its order line this is, out of `quantity`. */
+  unitNumber: number;
+  quantity: number;
   productName: string;
   variantLabel: string;
   customerName: string;
@@ -37,14 +40,14 @@ export interface WarrantyClaimSummary {
 export interface AdminWarrantyDetail {
   id: string;
   serialNumber: string | null;
-  serials: string[];
+  unitNumber: number;
+  quantity: number;
   productName: string;
   brand: string;
   sku: string;
   variantLabel: string;
   imageUrl: string | null;
   imageAlt: string;
-  quantity: number;
   status: WarrantyStatus;
   warrantyStartsAt: string | null;
   warrantyEndsAt: string | null;
@@ -64,8 +67,7 @@ export interface AdminWarrantyDetail {
   customer: { id: string; fullName: string; email: string } | null;
   claims: WarrantyClaimSummary[];
   claimInProgress: boolean;
-  /** Serials on the line that no open claim holds. */
-  claimableSerials: string[];
+  /** Active warranty, a recorded serial and no open claim. */
   canRaiseClaim: boolean;
 }
 
@@ -86,6 +88,8 @@ export interface AdminWarrantyClaimDetail {
   events: AdminWarrantyClaimEvent[];
   device: {
     id: string;
+    unitNumber: number;
+    quantity: number;
     productName: string;
     variantLabel: string;
     warrantyStatus: WarrantyStatus;

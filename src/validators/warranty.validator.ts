@@ -42,8 +42,8 @@ export const updateWarrantySchema = z
     message: "Nothing to update.",
   });
 
+/** The claim is for the device in the URL; its serial is copied from the device. */
 export const createClaimSchema = z.object({
-  serialNumber: serialNumberValidator.min(1, "Choose the device the claim is for."),
   issue: z
     .string()
     .trim()

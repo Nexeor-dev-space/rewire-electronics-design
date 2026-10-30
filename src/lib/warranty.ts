@@ -39,13 +39,14 @@ export function warrantyStatusTone(status: WarrantyStatus): OrderStatusTone {
   return "muted";
 }
 
-/** A line holding several units keeps their serials in one field, comma separated. */
-export function splitSerials(serialNumber: string | null): string[] {
-  if (!serialNumber) return [];
-  return serialNumber
-    .split(",")
-    .map((serial) => serial.trim())
-    .filter(Boolean);
+/** Unit numbers for a line's devices: quantity 3 gives [1, 2, 3]. */
+export function unitNumbers(quantity: number): number[] {
+  return Array.from({ length: quantity }, (_, index) => index + 1);
+}
+
+/** "Unit 2 of 4" for a device on a line of several, "" when the line holds one. */
+export function unitLabel(unitNumber: number, quantity: number): string {
+  return quantity > 1 ? `Unit ${unitNumber} of ${quantity}` : "";
 }
 
 const MESSAGE_START_BEFORE_ORDER = "The warranty can't start before the order was placed.";

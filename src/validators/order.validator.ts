@@ -3,6 +3,7 @@ import {
   ORDER_NOTE_MAX_LENGTH,
   ORDER_NUMBER_PREFIX,
   CART_MAX_LINES,
+  CART_MAX_LINE_QUANTITY,
   REFERENCE_NUMBER_DIGITS,
   SEARCH_QUERY_MAX_LENGTH,
   SERIAL_NUMBER_MAX_LENGTH,
@@ -34,7 +35,7 @@ const trackingNumberValidator = z
   .trim()
   .max(TRACKING_NUMBER_MAX_LENGTH, `Use ${TRACKING_NUMBER_MAX_LENGTH} characters or fewer.`);
 
-/** A device serial or IMEI; empty clears it. Several units on one line are comma separated. */
+/** One device's serial or IMEI; empty clears it. */
 export const serialNumberValidator = z
   .string()
   .trim()
@@ -94,11 +95,11 @@ export const fulfilmentUpdateSchema = z
     serials: z
       .array(
         z.object({
-          itemId: idValidator,
+          deviceId: idValidator,
           serialNumber: serialNumberValidator,
         }),
       )
-      .max(CART_MAX_LINES)
+      .max(CART_MAX_LINES * CART_MAX_LINE_QUANTITY)
       .optional(),
   })
   .refine((data) => data.status !== undefined || data.trackingNumber !== undefined || data.serials !== undefined, {
