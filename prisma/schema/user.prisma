@@ -44,6 +44,7 @@ model User {
   orderEvents       OrderStatusEvent[]
   couponRedemptions CouponRedemption[]
   returnEvents      ReturnStatusEvent[]
+  warrantyEvents    WarrantyClaimEvent[]
 
   storeSettingsUpdates StoreSettings[]
 

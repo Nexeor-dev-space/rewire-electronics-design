@@ -31,9 +31,20 @@ import {
   type OrderStatus,
 } from "@/lib/orders";
 import { cn } from "@/lib/utils";
+import { unitLabel } from "@/lib/warranty";
 import type { AdminOrderRow } from "@/types/order";
 
 const COLUMNS = "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_8rem_minmax(0,1.8fr)]";
+
+/** Every unit on the order with its line, so each device gets its own serial field. */
+function orderDevices(order: AdminOrderRow) {
+  return order.items.flatMap((item) => item.devices.map((device) => ({ item, device })));
+}
+
+function deviceName(item: AdminOrderRow["items"][number], unitNumber: number) {
+  const unit = unitLabel(unitNumber, item.quantity);
+  return unit ? `${item.productName} (${unit})` : item.productName;
+}
 
 function nextFulfilmentStatus(status: OrderStatus): FulfilmentTargetStatus | null {
   const index = FULFILMENT_QUEUE_STATUSES.indexOf(status as FulfilmentQueueStatus);
@@ -80,7 +91,7 @@ export function FulfilmentQueue() {
             {items.map((order) => (
               <li key={order.number} className="border-b border-line last:border-b-0">
                 <QueueRow
-                  key={`${order.status}|${order.trackingNumber}|${order.items.map((item) => item.serialNumber ?? "").join("|")}`}
+                  key={`${order.status}|${order.trackingNumber}|${orderDevices(order).map(({ device }) => device.serialNumber ?? "").join("|")}`}
                   order={order}
                   canEdit={canEdit}
                   linkToOrder={canViewOrders}
@@ -133,16 +144,17 @@ function QueueRow({
   linkToOrder: boolean;
 }) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber);
+  const devices = orderDevices(order);
   const [serials, setSerials] = useState<Record<string, string>>(() =>
-    Object.fromEntries(order.items.map((item) => [item.id, item.serialNumber ?? ""])),
+    Object.fromEntries(devices.map(({ device }) => [device.id, device.serialNumber ?? ""])),
   );
   const [error, setError] = useState<string | undefined>();
   const updateFulfilment = useUpdateFulfilment();
   const next = nextFulfilmentStatus(order.status);
   const trackingChanged = trackingNumber !== order.trackingNumber;
-  const changedSerials = order.items
-    .filter((item) => (serials[item.id] ?? "") !== (item.serialNumber ?? ""))
-    .map((item) => ({ itemId: item.id, serialNumber: serials[item.id] ?? "" }));
+  const changedSerials = devices
+    .filter(({ device }) => (serials[device.id] ?? "") !== (device.serialNumber ?? ""))
+    .map(({ device }) => ({ deviceId: device.id, serialNumber: serials[device.id] ?? "" }));
   const serialsChanged = changedSerials.length > 0;
 
   function save(status?: FulfilmentTargetStatus) {
@@ -230,19 +242,16 @@ function QueueRow({
             )}
           </div>
           <ul className="flex flex-col gap-1.5">
-            {order.items.map((item) => (
-              <li key={item.id} className="flex items-center gap-2">
+            {devices.map(({ item, device }) => (
+              <li key={device.id}>
                 <Input
-                  value={serials[item.id] ?? ""}
-                  onChange={(event) => setSerials((current) => ({ ...current, [item.id]: event.target.value }))}
+                  value={serials[device.id] ?? ""}
+                  onChange={(event) => setSerials((current) => ({ ...current, [device.id]: event.target.value }))}
                   maxLength={SERIAL_NUMBER_MAX_LENGTH}
-                  placeholder={`Serial / IMEI · ${item.productName}`}
-                  aria-label={`Serial or IMEI for ${item.productName} (${item.sku})`}
-                  className="h-9 min-w-40 flex-1 font-mono text-sm"
+                  placeholder={`Serial / IMEI · ${deviceName(item, device.unitNumber)}`}
+                  aria-label={`Serial or IMEI for ${deviceName(item, device.unitNumber)}, ${item.sku}`}
+                  className="h-9 w-full min-w-40 font-mono text-sm"
                 />
-                {item.quantity > 1 && (
-                  <span className="shrink-0 text-xs text-ink-muted">×{item.quantity}, comma separated</span>
-                )}
               </li>
             ))}
           </ul>
@@ -251,9 +260,9 @@ function QueueRow({
       ) : (
         <div>
           <p className="font-mono text-sm text-ink-secondary">{order.trackingNumber || "No tracking number"}</p>
-          {order.items.map((item) => (
-            <p key={item.id} className="mt-0.5 truncate font-mono text-xs text-ink-muted">
-              {item.productName}: {item.serialNumber || "No serial"}
+          {devices.map(({ item, device }) => (
+            <p key={device.id} className="mt-0.5 truncate font-mono text-xs text-ink-muted">
+              {deviceName(item, device.unitNumber)}: {device.serialNumber || "No serial"}
             </p>
           ))}
         </div>

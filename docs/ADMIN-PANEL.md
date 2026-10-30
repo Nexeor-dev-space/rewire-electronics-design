@@ -360,6 +360,18 @@ is in `BUILT_ROUTES`.
 The Returns panel on the admin order detail is not built yet. The rules,
 endpoints and data model are in [RETURNS.md](RETURNS.md).
 
+## Warranty & Claims
+
+Service → **Warranty & Claims** (`/admin/service/warranty`, the preview at
+`/admin/service/warranty/[id]`, the edit page at `…/[id]/edit`, and claims at
+`/admin/service/claims/[number]`). Permission key `service.warranty`
+(`PERMISSIONS.warranty`), View and Edit. Both routes are in `BUILT_ROUTES`.
+
+The Catalogue → Device Registry placeholder (`/admin/devices`) was removed:
+each device is an order line keyed by its serial or IMEI, and its warranty and
+claims are managed here. The rules, endpoints and data model are in
+[WARRANTY.md](WARRANTY.md).
+
 ## Orders and Fulfilment
 
 Sales → **Orders** and **Fulfilment**. Permission keys `sales.orders`

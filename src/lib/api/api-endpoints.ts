@@ -70,6 +70,15 @@ export const API_ENDPOINTS = {
       status: (number: string) => `${V1}/admin/returns/${number}/status`,
       refund: (number: string) => `${V1}/admin/returns/${number}/refund`,
     },
+    warranties: {
+      list: `${V1}/admin/warranties`,
+      detail: (id: string) => `${V1}/admin/warranties/${id}`,
+      claims: (id: string) => `${V1}/admin/warranties/${id}/claims`,
+    },
+    warrantyClaims: {
+      detail: (number: string) => `${V1}/admin/warranty-claims/${number}`,
+      status: (number: string) => `${V1}/admin/warranty-claims/${number}/status`,
+    },
     storeSettings: `${V1}/admin/store-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
