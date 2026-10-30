@@ -108,7 +108,6 @@ model OrderItem {
   warrantyMonths Int
   imageAlt       String           @default("")
 
-  serialNumber     String?
   warrantyStartsAt DateTime?
   warrantyEndsAt   DateTime?
 
@@ -119,7 +118,7 @@ model OrderItem {
 
   addOns         OrderItemAddOn[]
   returnItems    ReturnItem[]
-  warrantyClaims WarrantyClaim[]
+  devices        Device[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

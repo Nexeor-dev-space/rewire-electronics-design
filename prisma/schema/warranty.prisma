@@ -10,14 +10,34 @@ enum WarrantyClaimStatus {
   DECLINED
 }
 
-/// A warranty claim against one device. The warranty itself lives on the
-/// order line (`OrderItem.warrantyStartsAt`, `warrantyEndsAt`); see docs/WARRANTY.md.
+/// One physical unit sold: a line with quantity 3 has devices 1, 2 and 3, each
+/// with its own serial or IMEI. Created with the order line at checkout. The
+/// warranty dates stay on the line, since its units are delivered together.
+/// See docs/WARRANTY.md.
+model Device {
+  id           String    @id @default(cuid())
+  orderItemId  String
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  /// 1 up to the line's quantity.
+  unitNumber   Int
+  serialNumber String?
+
+  warrantyClaims WarrantyClaim[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderItemId, unitNumber])
+  @@map("devices")
+}
+
+/// A warranty claim against one device.
 model WarrantyClaim {
   id           String              @id @default(cuid())
   number       String              @unique
-  orderItemId  String
-  orderItem    OrderItem           @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
-  /// The unit claimed, copied from the line's serials when the claim is raised.
+  deviceId     String
+  device       Device              @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  /// The device's serial when the claim was raised, kept if the serial is corrected later.
   serialNumber String
   status       WarrantyClaimStatus @default(RAISED)
   issue        String
@@ -27,7 +47,7 @@ model WarrantyClaim {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orderItemId, status])
+  @@index([deviceId, status])
   @@index([status, createdAt])
   @@map("warranty_claims")
 }
