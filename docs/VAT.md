@@ -62,9 +62,10 @@ a Staff role. See [PERMISSIONS.md](PERMISSIONS.md).
 
 ## 7. Database change
 
-One column on `StoreSettings`: `vatRatePercent Int @default(5)`. The schema file
-is updated. The migration is not generated yet and needs approval. Existing rows
-take the default 5.
+One column on `StoreSettings`: `vatRatePercent Int @default(5)`. The migration
+is `20261030140000_add_vat_rate_percent`. Existing rows take the default 5.
+Apply it with `npm run db:deploy`. Do not run `prisma db pull` against a database
+that has not had it applied, because the pull removes the column from the schema.
 
 ## 8. Not covered
 
