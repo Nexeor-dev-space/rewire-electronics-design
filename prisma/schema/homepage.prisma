@@ -24,6 +24,8 @@ model HomepageSection {
   mobileImageId String?
   endsAt        DateTime?
   startsAt      DateTime?
+  /// Drops, Just Listed picks, reviews or featured categories, by the
+  /// section's type.
   items         HomepageSectionItem[]
   image         MediaAsset?           @relation("HomepageSectionImage", fields: [imageId], references: [id])
   mobileImage   MediaAsset?           @relation("HomepageSectionMobileImage", fields: [mobileImageId], references: [id])

@@ -75,6 +75,8 @@ model Product {
   /// `src/lib/seo.ts` and docs/CATALOGUE.md.
   seoTitle        String?
   coupons         CouponProduct[]
+  /// Homepage drops and Just Listed picks. Deleting the product for good
+  /// deletes them; while it is unpublished or in Trash the homepage skips them.
   homepageItems   HomepageSectionItem[]
   addOns          ProductAddOn[]
   images          ProductImage[]
