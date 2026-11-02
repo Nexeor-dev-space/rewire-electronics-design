@@ -52,7 +52,7 @@ const warrantyDeviceWhere = {
   orderItem: { order: { status: { in: [...WARRANTY_ORDER_STATUSES] } } },
 } satisfies Prisma.DeviceWhereInput;
 
-const openClaimWhere = {
+export const openClaimWhere = {
   status: { in: [...OPEN_WARRANTY_CLAIM_STATUSES] },
 } satisfies Prisma.WarrantyClaimWhereInput;
 

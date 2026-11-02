@@ -1,4 +1,4 @@
-import { STORE_TIME_ZONE, STORE_TIME_ZONE_LABEL } from "@/lib/constants";
+import { MS_PER_DAY, STORE_TIME_ZONE, STORE_TIME_ZONE_LABEL } from "@/lib/constants";
 import { LOCALE } from "@/lib/money";
 
 export function formatOrderDate(iso: string): string {
@@ -61,6 +61,12 @@ export function toStoreDateTimeInput(iso: string | null): string {
   if (Number.isNaN(at.getTime())) return "";
   // Shifted so its UTC fields read as the store's wall clock.
   return new Date(at.getTime() + storeOffsetMs(at)).toISOString().slice(0, 16);
+}
+
+export function startOfStoreDay(now: Date): Date {
+  const offset = storeOffsetMs(now);
+  const storeMidnight = Math.floor((now.getTime() + offset) / MS_PER_DAY) * MS_PER_DAY;
+  return new Date(storeMidnight - offset);
 }
 
 const DATE_TIME_INPUT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;

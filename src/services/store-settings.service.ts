@@ -2,7 +2,7 @@ import "server-only";
 
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
+import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { StoreSettingsView } from "@/types/return";
 import type { storeSettingsSchema } from "@/validators/return.validator";
@@ -16,6 +16,7 @@ const SETTINGS_ID = 1;
 const settingsSelect = {
   returnWindowDays: true,
   vatRatePercent: true,
+  lowStockThreshold: true,
   updatedAt: true,
 } satisfies Prisma.StoreSettingsSelect;
 
@@ -25,6 +26,7 @@ function toView(row: SettingsRow | null): StoreSettingsView {
   return {
     returnWindowDays: row?.returnWindowDays ?? RETURN_WINDOW_DAYS,
     vatRatePercent: row?.vatRatePercent ?? VAT_RATE_PERCENT,
+    lowStockThreshold: row?.lowStockThreshold ?? LOW_STOCK_THRESHOLD,
     updatedAt: row ? row.updatedAt.toISOString() : null,
   };
 }

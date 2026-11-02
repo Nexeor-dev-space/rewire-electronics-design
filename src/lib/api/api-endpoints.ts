@@ -80,6 +80,7 @@ export const API_ENDPOINTS = {
       status: (number: string) => `${V1}/admin/warranty-claims/${number}/status`,
     },
     storeSettings: `${V1}/admin/store-settings`,
+    dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,

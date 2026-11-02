@@ -19,7 +19,7 @@ Users module are described under [Access control](#access-control) and
 | File | Purpose |
 | --- | --- |
 | `src/lib/admin-nav.ts` | Central navigation config, route resolution, breadcrumbs |
-| `src/lib/admin-console.ts` | Console chrome copy and dashboard metric placeholders |
+| `src/lib/admin-console.ts` | Console chrome copy and the dashboard tiles |
 | `src/components/admin/admin-shell.tsx` | The frame: rail, drawer, header, content column |
 | `src/components/admin/admin-nav.tsx` | The navigation list, rendered from the config |
 | `src/components/admin/admin-breadcrumbs.tsx` | Breadcrumb trail derived from the current path |
@@ -485,10 +485,42 @@ A built module adds its route to `BUILT_ROUTES` so the catch-all stops listing i
 ## Dashboard
 
 Four operational indicators, declared in `src/lib/admin-console.ts`: Orders
-Today, Live Release, Open Warranty Claims and Low Stock. Each shows a placeholder
-figure rather than a number, so the screen cannot show a value it did not count.
-Wiring one up means replacing the placeholder with the module's own query. No
-reporting or analytics is present, as the issue specifies.
+Today, Live Release, Open Warranty Claims and Low Stock. No reporting or
+analytics is present. Issue #102 connected them to live records.
+
+### What each figure counts
+
+| Card | Count | Needs View on |
+| --- | --- | --- |
+| Orders Today | Orders created since midnight on the store clock (`startOfStoreDay` in `src/lib/dates.ts`), excluding `PENDING_PAYMENT`. Cancelled orders count, since they were placed | `PERMISSIONS.orders` |
+| Live Release | Always "No live release". No Releases module exists yet | |
+| Open Warranty Claims | Claims in `OPEN_WARRANTY_CLAIM_STATUSES`, through `openClaimWhere` in `warranty.service.ts` | `PERMISSIONS.warranty` |
+| Low Stock | Variants with `stock` below `StoreSettings.lowStockThreshold`, on products not in Trash. Out of stock variants count | `PERMISSIONS.products` |
+
+A figure the viewer has no View on comes back `null` and the card shows the
+placeholder with the hint "No access".
+
+### API
+
+`GET /api/v1/admin/dashboard` answers any Admin or Staff user (401 without a
+session, 403 for a customer). It returns
+`{ ordersToday, openClaims, lowStock, liveRelease }`, each a count or `null`.
+`getDashboardMetrics` in `src/services/dashboard.service.ts` runs the three
+counts in parallel.
+
+### Screen
+
+`DashboardMetrics` (`src/components/admin/dashboard-metrics.tsx`) calls
+`useDashboardMetrics` (`src/hooks/use-dashboard.ts`). It shows a skeleton while
+loading, the placeholder plus a Try again line on error, and the counts once
+loaded. The query refetches every time the dashboard opens. There is no polling.
+The Open module links are unchanged.
+
+### Low stock threshold
+
+`StoreSettings.lowStockThreshold`, an `Int` defaulting to 5
+(`LOW_STOCK_THRESHOLD` in `src/lib/constants.ts` when no row exists). Migration
+`20261102100000_add_low_stock_threshold`. No screen edits it yet.
 
 ## Known technical debt
 
