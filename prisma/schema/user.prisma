@@ -1,78 +1,3 @@
-/// A custom role an Admin creates and assigns to STAFF accounts. It can't be
-/// deleted while any account holds it.
-model StaffRole {
-  id          String                @id @default(cuid())
-  name        String
-  /// Trimmed and lowercased name, so names are unique ignoring case.
-  nameKey     String                @unique
-  description String?
-  updatedById String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  permissions StaffRolePermission[]
-  updatedBy   User?                 @relation("StaffRoleUpdatedBy", fields: [updatedById], references: [id])
-  users       User[]                @relation("StaffRoleUsers")
-
-  @@map("staff_roles")
-}
-
-model StaffRolePermission {
-  roleId String
-  /// A permission module key, e.g. `catalogue.products`.
-  module String
-  level  AccessLevel
-  role   StaffRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  @@id([roleId, module])
-  @@map("staff_role_permissions")
-}
-
-model AuthToken {
-  id        String        @id @default(cuid())
-  userId    String
-  type      AuthTokenType
-  tokenHash String        @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, type])
-  @@map("auth_tokens")
-}
-
-model OAuthAccount {
-  id             String        @id @default(cuid())
-  userId         String
-  provider       OAuthProvider
-  providerUserId String
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerUserId])
-  @@index([userId])
-  @@map("oauth_accounts")
-}
-
-/// A saved delivery address. Exactly one per user has `isPrimary` set when
-/// they have any — enforced in `src/services/customer.service.ts`.
-model Address {
-  id        String   @id @default(cuid())
-  userId    String
-  emirate   Emirate
-  street    String
-  landmark  String
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@map("addresses")
-}
-
 /// Who an account is. ADMIN and STAFF reach the console; CUSTOMER never does.
 /// ADMIN and CUSTOMER access is fixed in `src/lib/auth/permissions.ts`; what a
 /// STAFF account may do comes from its `StaffRole`.
@@ -139,14 +64,72 @@ enum AccessLevel {
   FULL
 }
 
+/// A custom role an Admin creates and assigns to STAFF accounts. It can't be
+/// deleted while any account holds it.
+model StaffRole {
+  id          String                @id @default(cuid())
+  name        String
+  /// Trimmed and lowercased name, so names are unique ignoring case.
+  nameKey     String                @unique
+  description String?
+  users       User[]                @relation("StaffRoleUsers")
+  permissions StaffRolePermission[]
+  updatedById String?
+  updatedBy   User?                 @relation("StaffRoleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@map("staff_roles")
+}
+
+model StaffRolePermission {
+  roleId String
+  role   StaffRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  /// A permission module key, e.g. `catalogue.products`.
+  module String
+  level  AccessLevel
+
+  @@id([roleId, module])
+  @@map("staff_role_permissions")
+}
+
 enum AuthTokenType {
   VERIFY
   RESET
 }
 
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, type])
+  @@map("auth_tokens")
+}
+
 enum OAuthProvider {
   GOOGLE
   APPLE
+}
+
+model OAuthAccount {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       OAuthProvider
+  providerUserId String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 enum Emirate {
@@ -157,4 +140,21 @@ enum Emirate {
   RAS_AL_KHAIMAH
   SHARJAH
   UMM_AL_QUWAIN
+}
+
+/// A saved delivery address. Exactly one per user has `isPrimary` set when
+/// they have any — enforced in `src/services/customer.service.ts`.
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emirate   Emirate
+  street    String
+  landmark  String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("addresses")
 }

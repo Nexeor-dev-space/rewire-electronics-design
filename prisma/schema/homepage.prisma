@@ -1,96 +1,3 @@
-model HomepageSection {
-  id            String                @id @default(cuid())
-  stage         HomepageStage
-  type          HomepageSectionType
-  sortOrder     Int
-  visible       Boolean               @default(true)
-  seasonal      Boolean               @default(false)
-  eyebrow       String?
-  /// A new line starts a new line of the heading.
-  title         String?
-  subtitle      String?
-  description   String?
-  ctaLabel      String?
-  ctaHref       String?
-  /// A real relation, not an id inside JSON: the orphan sweep deletes any
-  /// asset nothing references.
-  imageId       String?
-  /// Featured brands: brand ids in display order. Ids that no longer exist
-  /// are skipped when the section renders. Featured categories use `items`.
-  refIds        String[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  /// The Hero's image below `md`. Without one, phones get `image`.
-  mobileImageId String?
-  endsAt        DateTime?
-  startsAt      DateTime?
-  /// Drops, Just Listed picks, reviews or featured categories, by the
-  /// section's type.
-  items         HomepageSectionItem[]
-  image         MediaAsset?           @relation("HomepageSectionImage", fields: [imageId], references: [id])
-  mobileImage   MediaAsset?           @relation("HomepageSectionMobileImage", fields: [mobileImageId], references: [id])
-
-  @@index([stage, sortOrder])
-  @@map("homepage_sections")
-}
-
-/// One entry inside a section: a drop, a picked product, a review or a
-/// featured category. Which fields an item may fill comes from its section's
-/// type — `ITEM_RULES` in `src/lib/homepage-sections.ts`. Items belong to one stage through their
-/// section, so publish copies them with it.
-model HomepageSectionItem {
-  id         String          @id @default(cuid())
-  sectionId  String
-  sortOrder  Int
-  visible    Boolean         @default(true)
-  /// Drops and Just Listed picks. Name, image, price and stock are read from
-  /// the product when the page renders — nothing is copied. Deleting the
-  /// product for good deletes the item: one left without it would fail its
-  /// kind's rules and block saving the section.
-  productId  String?
-  /// Drop and category: overrides the name. Review: the product bought.
-  title      String?
-  /// Review: the quote.
-  body       String?
-  /// Review: the customer, e.g. "Arjun M.".
-  author     String?
-  /// Review: 1–5.
-  rating     Int?
-  /// Drop: when it opens.
-  releaseAt  DateTime?
-  ctaLabel   String?
-  ctaHref    String?
-  /// Drop: the picture when there is no product. Review: the avatar.
-  imageId    String?
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  categoryId String?
-  category   Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  image      MediaAsset?     @relation(fields: [imageId], references: [id])
-  product    Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  section    HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
-  @@index([sectionId, sortOrder])
-  @@index([productId])
-  @@index([categoryId])
-  @@map("homepage_section_items")
-}
-
-/// A single row, id "homepage". Drives the console's "Unpublished changes".
-model HomepageState {
-  id              String      @id
-  draftUpdatedAt  DateTime
-  publishedAt     DateTime?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  metaDescription String?
-  ogImageId       String?
-  seoTitle        String?
-  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id])
-
-  @@map("homepage_state")
-}
-
 /// Which copy of the homepage a row belongs to. The console edits DRAFT;
 /// shoppers see LIVE. Publish replaces LIVE with a copy of DRAFT, discard the
 /// reverse — see docs/HOMEPAGE-CMS.md.
@@ -117,4 +24,109 @@ enum HomepageSectionType {
   FEATURED_CATEGORIES
   BEST_DEALS
   SEASON_DEALS
+}
+
+model HomepageSection {
+  id          String              @id @default(cuid())
+  stage       HomepageStage
+  type        HomepageSectionType
+  sortOrder   Int
+  visible     Boolean             @default(true)
+  seasonal    Boolean             @default(false)
+  eyebrow     String?
+  /// A new line starts a new line of the heading.
+  title       String?
+  subtitle    String?
+  description String?
+  ctaLabel    String?
+  ctaHref     String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+
+  /// A real relation, not an id inside JSON: the orphan sweep deletes any
+  /// asset nothing references.
+  imageId String?
+  image   MediaAsset? @relation("HomepageSectionImage", fields: [imageId], references: [id], onDelete: SetNull)
+
+  /// The Hero's image below `md`. Without one, phones get `image`.
+  mobileImageId String?
+  mobileImage   MediaAsset? @relation("HomepageSectionMobileImage", fields: [mobileImageId], references: [id], onDelete: SetNull)
+
+  /// Featured brands: brand ids in display order. Ids that no longer exist
+  /// are skipped when the section renders. Featured categories use `items`.
+  refIds String[]
+
+  /// Drops, Just Listed picks, reviews or featured categories, by the
+  /// section's type.
+  items HomepageSectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage, sortOrder])
+  @@map("homepage_sections")
+}
+
+/// One entry inside a section: a drop, a picked product, a review or a
+/// featured category. Which fields an item may fill comes from its section's
+/// type — `ITEM_RULES` in `src/lib/homepage-sections.ts`. Items belong to one stage through their
+/// section, so publish copies them with it.
+model HomepageSectionItem {
+  id        String          @id @default(cuid())
+  sectionId String
+  section   HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sortOrder Int
+  visible   Boolean         @default(true)
+
+  /// Drops and Just Listed picks. Name, image, price and stock are read from
+  /// the product when the page renders — nothing is copied. Deleting the
+  /// product for good deletes the item: one left without it would fail its
+  /// kind's rules and block saving the section.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  /// Drop and category: overrides the name. Review: the product bought.
+  title     String?
+  /// Review: the quote.
+  body      String?
+  /// Review: the customer, e.g. "Arjun M.".
+  author    String?
+  /// Review: 1–5.
+  rating    Int?
+  /// Drop: when it opens.
+  releaseAt DateTime?
+  ctaLabel  String?
+  ctaHref   String?
+
+  /// Drop: the picture when there is no product. Review: the avatar.
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sectionId, sortOrder])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("homepage_section_items")
+}
+
+/// A single row, id "homepage". Drives the console's "Unpublished changes".
+model HomepageState {
+  id             String    @id
+  draftUpdatedAt DateTime
+  publishedAt    DateTime?
+
+  seoTitle        String?
+  metaDescription String?
+  ogImageId       String?
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("homepage_state")
 }

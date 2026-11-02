@@ -1,19 +1,21 @@
 model MediaAsset {
-  id                     String                @id @default(cuid())
-  mimeType               String
-  data                   Bytes
-  createdAt              DateTime              @default(now())
-  updatedAt              DateTime              @updatedAt
-  brands                 Brand[]
+  id       String @id @default(cuid())
+  mimeType String
+  data     Bytes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   categories             Category[]
-  homepageItems          HomepageSectionItem[]
-  homepageSections       HomepageSection[]     @relation("HomepageSectionImage")
-  homepageMobileSections HomepageSection[]     @relation("HomepageSectionMobileImage")
-  homepageOgImages       HomepageState[]
-  orderItems             OrderItem[]
-  policyOgImages         Policy[]
+  brands                 Brand[]
   productImages          ProductImage[]
   productOgImages        Product[]
+  homepageSections       HomepageSection[]     @relation("HomepageSectionImage")
+  homepageMobileSections HomepageSection[]     @relation("HomepageSectionMobileImage")
+  homepageItems          HomepageSectionItem[]
+  orderItems             OrderItem[]
+  policyOgImages         Policy[]
+  homepageOgImages       HomepageState[]
 
   @@map("media_assets")
 }

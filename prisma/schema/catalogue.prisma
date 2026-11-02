@@ -1,25 +1,38 @@
+enum CategoryStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Category {
-  id              String                @id @default(cuid())
-  name            String
-  nameKey         String                @unique
-  parentId        String?
-  imageId         String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  slug            String                @unique
-  description     String                @default("")
-  showInNav       Boolean               @default(true)
-  sortOrder       Int                   @default(0)
-  status          CategoryStatus        @default(PUBLISHED)
-  metaDescription String?
+  id          String @id @default(cuid())
+  name        String
+  nameKey     String @unique
+  slug        String @unique
+  description String @default("")
+
   seoTitle        String?
-  addOns          AddOnCategory[]
-  image           MediaAsset?           @relation(fields: [imageId], references: [id])
-  parent          Category?             @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children        Category[]            @relation("CategoryTree")
-  coupons         CouponCategory[]
-  homepageItems   HomepageSectionItem[]
-  products        Product[]
+  metaDescription String?
+
+  status    CategoryStatus @default(PUBLISHED)
+  showInNav Boolean        @default(true)
+  sortOrder Int            @default(0)
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  products Product[]
+  addOns   AddOnCategory[]
+  coupons  CouponCategory[]
+
+  homepageItems HomepageSectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([parentId])
   @@index([status, sortOrder])
@@ -30,183 +43,22 @@ model Category {
 
 /// A manufacturer. Flat — brands have no hierarchy.
 model Brand {
-  id        String      @id @default(cuid())
-  name      String
+  id      String @id @default(cuid())
+  name    String
   /// See `Category.nameKey`.
-  nameKey   String      @unique
-  imageId   String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  image     MediaAsset? @relation(fields: [imageId], references: [id])
-  products  Product[]
+  nameKey String @unique
+
+  imageId String?
+  image   MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([updatedAt])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("brands")
-}
-
-model Product {
-  id              String                @id @default(cuid())
-  slug            String                @unique
-  name            String
-  description     String                @default("")
-  brandId         String
-  categoryId      String
-  warrantyMonths  Int                   @default(12)
-  highlights      String[]
-  included        String[]
-  status          ProductStatus         @default(DRAFT)
-  publishedAt     DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  minPrice        Int                   @default(0)
-  /// Soft delete: set when the product goes to Trash, cleared on restore.
-  /// Every product query filters `deletedAt: null`; see docs/TRASH-AUDIT.md.
-  deletedAt       DateTime?
-  /// A site path (`/product/x`) or an absolute https URL.
-  canonicalUrl    String?
-  metaDescription String?
-  metaKeywords    String[]
-  ogDescription   String?
-  ogImageId       String?
-  ogTitle         String?
-  /// SEO overrides, all optional. Empty means the storefront falls back to
-  /// the product's own name, description and images; see `productSeo` in
-  /// `src/lib/seo.ts` and docs/CATALOGUE.md.
-  seoTitle        String?
-  coupons         CouponProduct[]
-  /// Homepage drops and Just Listed picks. Deleting the product for good
-  /// deletes them; while it is unpublished or in Trash the homepage skips them.
-  homepageItems   HomepageSectionItem[]
-  addOns          ProductAddOn[]
-  images          ProductImage[]
-  specs           ProductSpec[]
-  variants        ProductVariant[]
-  brand           Brand                 @relation(fields: [brandId], references: [id])
-  category        Category              @relation(fields: [categoryId], references: [id])
-  ogImage         MediaAsset?           @relation(fields: [ogImageId], references: [id])
-
-  @@index([status, publishedAt])
-  @@index([status, minPrice])
-  @@index([categoryId, status])
-  @@index([brandId, status])
-  @@index([updatedAt])
-  @@index([deletedAt])
-  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
-  @@index([slug(ops: raw("gin_trgm_ops"))], type: Gin)
-  @@map("products")
-}
-
-model ProductVariant {
-  id             String           @id @default(cuid())
-  productId      String
-  sku            String           @unique
-  storage        String?
-  colour         String?
-  colourHex      String?
-  price          Int
-  compareAtPrice Int?
-  stock          Int              @default(0)
-  sortOrder      Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  condition      ProductCondition
-  grade          ProductGrade?
-  batteryHealth  Int?
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId, sortOrder])
-  @@index([stock])
-  @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin)
-  @@map("product_variants")
-}
-
-model ProductImage {
-  id        String     @id @default(cuid())
-  productId String
-  mediaId   String
-  alt       String     @default("")
-  sortOrder Int        @default(0)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  colour    String?
-  media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId, sortOrder])
-  @@map("product_images")
-}
-
-model ProductSpec {
-  id        String   @id @default(cuid())
-  productId String
-  group     String
-  label     String
-  value     String
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId, sortOrder])
-  @@map("product_specs")
-}
-
-model AddOn {
-  id                  String           @id @default(cuid())
-  name                String
-  note                String           @default("")
-  kind                AddOnKind
-  price               Int
-  popular             Boolean          @default(false)
-  active              Boolean          @default(true)
-  appliesToAll        Boolean          @default(false)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  extraWarrantyMonths Int              @default(0)
-  categories          AddOnCategory[]
-  cartItems           CartItemAddOn[]
-  orderItemAddOns     OrderItemAddOn[]
-  products            ProductAddOn[]
-
-  @@index([active, appliesToAll])
-  @@index([updatedAt])
-  @@map("add_ons")
-}
-
-model AddOnCategory {
-  addOnId    String
-  categoryId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
-  @@id([addOnId, categoryId])
-  @@index([categoryId])
-  @@map("add_on_categories")
-}
-
-model ProductAddOn {
-  productId     String
-  addOnId       String
-  priceOverride Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  addOn         AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
-  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@id([productId, addOnId])
-  @@index([addOnId])
-  @@map("product_add_ons")
-}
-
-enum CategoryStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
 }
 
 enum ProductStatus {
@@ -229,8 +81,186 @@ enum ProductGrade {
   GOOD
 }
 
+model Product {
+  id          String @id @default(cuid())
+  slug        String @unique
+  name        String
+  description String @default("")
+
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  warrantyMonths Int      @default(12)
+  highlights     String[]
+  included       String[]
+
+  status      ProductStatus @default(DRAFT)
+  publishedAt DateTime?
+  minPrice    Int           @default(0)
+  /// Soft delete: set when the product goes to Trash, cleared on restore.
+  /// Every product query filters `deletedAt: null`; see docs/TRASH-AUDIT.md.
+  deletedAt   DateTime?
+
+  /// SEO overrides, all optional. Empty means the storefront falls back to
+  /// the product's own name, description and images; see `productSeo` in
+  /// `src/lib/seo.ts` and docs/CATALOGUE.md.
+  seoTitle        String?
+  metaDescription String?
+  metaKeywords    String[]
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+  /// A site path (`/product/x`) or an absolute https URL.
+  canonicalUrl    String?
+
+  variants ProductVariant[]
+  images   ProductImage[]
+  specs    ProductSpec[]
+  coupons  CouponProduct[]
+  addOns   ProductAddOn[]
+
+  /// Homepage drops and Just Listed picks. Deleting the product for good
+  /// deletes them; while it is unpublished or in Trash the homepage skips them.
+  homepageItems HomepageSectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([status, minPrice])
+  @@index([categoryId, status])
+  @@index([brandId, status])
+  @@index([updatedAt])
+  @@index([deletedAt])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([slug(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku       String  @unique
+  storage   String?
+  colour    String?
+  colourHex String?
+
+  condition     ProductCondition
+  grade         ProductGrade?
+  batteryHealth Int?
+
+  price          Int
+  compareAtPrice Int?
+  stock          Int  @default(0)
+  sortOrder      Int  @default(0)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@index([stock])
+  @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id        String     @id @default(cuid())
+  productId String
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  alt       String     @default("")
+  colour    String?
+  sortOrder Int        @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}
+
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group     String
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, sortOrder])
+  @@map("product_specs")
+}
+
 enum AddOnKind {
   PROTECTION
   ACCESSORY
   SERVICE
+}
+
+model AddOn {
+  id    String    @id @default(cuid())
+  name  String
+  note  String    @default("")
+  kind  AddOnKind
+  price Int
+
+  extraWarrantyMonths Int @default(0)
+
+  popular      Boolean @default(false)
+  active       Boolean @default(true)
+  appliesToAll Boolean @default(false)
+
+  categories      AddOnCategory[]
+  products        ProductAddOn[]
+  cartItems       CartItemAddOn[]
+  orderItemAddOns OrderItemAddOn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, appliesToAll])
+  @@index([updatedAt])
+  @@map("add_ons")
+}
+
+model AddOnCategory {
+  addOnId    String
+  addOn      AddOn    @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([addOnId, categoryId])
+  @@index([categoryId])
+  @@map("add_on_categories")
+}
+
+model ProductAddOn {
+  productId     String
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addOnId       String
+  addOn         AddOn   @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  priceOverride Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([productId, addOnId])
+  @@index([addOnId])
+  @@map("product_add_ons")
 }

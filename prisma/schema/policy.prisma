@@ -1,18 +1,21 @@
 model Policy {
-  id              String        @id @default(cuid())
-  slug            String        @unique
-  title           String
-  eyebrow         String        @default("Legal")
-  lede            String
-  draft           Boolean       @default(true)
-  published       Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  eyebrow   String  @default("Legal")
+  lede      String
+  draft     Boolean @default(true)
+  published Boolean @default(true)
+
+  seoTitle        String?
   metaDescription String?
   ogImageId       String?
-  seoTitle        String?
-  ogImage         MediaAsset?   @relation(fields: [ogImageId], references: [id])
-  blocks          PolicyBlock[]
+  ogImage         MediaAsset? @relation(fields: [ogImageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  blocks PolicyBlock[]
 
   @@map("policies")
 }
@@ -20,13 +23,13 @@ model Policy {
 model PolicyBlock {
   id        String   @id @default(cuid())
   policyId  String
+  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
   anchor    String
   title     String
   content   Json
   sortOrder Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
   @@unique([policyId, anchor])
   @@index([policyId, sortOrder])
