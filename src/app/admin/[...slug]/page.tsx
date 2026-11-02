@@ -28,6 +28,7 @@ const BUILT_ROUTES = new Set([
   "/admin/marketing/coupons",
   "/admin/coupons",
   "/admin/settings/delivery",
+  "/admin/settings/vat",
   "/admin/returns",
   "/admin/service/warranty",
   "/admin/service/claims",

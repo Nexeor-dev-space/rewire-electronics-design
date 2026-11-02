@@ -38,7 +38,7 @@ function rule(overrides: Partial<CouponRule> = {}): CouponRule {
 }
 
 function input(overrides: Partial<PriceCartInput> = {}): PriceCartInput {
-  return { lines: [], coupon: null, deliveryFee: null, now: NOW, ...overrides };
+  return { lines: [], coupon: null, deliveryFee: null, vatRatePercent: VAT_RATE_PERCENT, now: NOW, ...overrides };
 }
 
 describe("priceCart", () => {
@@ -142,6 +142,27 @@ describe("priceCart", () => {
     expect(result.total).toBe(105_00);
     expect(result.vatIncluded).toBe(5_00);
     expect(result.vatRatePercent).toBe(VAT_RATE_PERCENT);
+  });
+
+  it("prices with the rate it is given, not the default", () => {
+    const lines = [line({ unitPrice: 110_00 })];
+    const standard = priceCart(input({ lines }));
+    const raised = priceCart(input({ lines, vatRatePercent: 10 }));
+
+    expect(raised.total).toBe(standard.total);
+    expect(raised.vatRatePercent).toBe(10);
+    expect(raised.vatIncluded).toBe(10_00);
+    expect(standard.vatIncluded).toBe(5_24);
+  });
+
+  it("includes no VAT at a 0% rate", () => {
+    const result = priceCart(input({ lines: [line({ unitPrice: 110_00 })], vatRatePercent: 0 }));
+    expect(result.vatIncluded).toBe(0);
+    expect(result.vatRatePercent).toBe(0);
+  });
+
+  it.each([-1, 7.5])("throws on a bad VAT rate %s", (vatRatePercent) => {
+    expect(() => priceCart(input({ vatRatePercent }))).toThrow(Error);
   });
 
   it.each([

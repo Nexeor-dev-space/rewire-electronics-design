@@ -52,6 +52,8 @@ export interface PriceCartInput {
   lines: PricingLine[];
   coupon: { rule: CouponRule; customerRedemptions: number } | null;
   deliveryFee: number | null;
+  /** The VAT rate to price with: the saved setting, never read inside this pure function. */
+  vatRatePercent: number;
   now: Date;
 }
 

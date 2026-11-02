@@ -119,8 +119,8 @@ passes `now`. Safe to import on the client. Money is `Int` fils everywhere.
 | `discount` | The coupon discount when `evaluateCoupon` is ok, otherwise 0. Never above the eligible subtotal |
 | `delivery` | `null` when no fee was passed; 0 when the subtotal is 0; otherwise the fee |
 | `total` | `subtotal − discount + delivery` |
-| `vatIncluded` | `round(total × 5 / 105)` |
-| `vatRatePercent` | `VAT_RATE_PERCENT` (5) |
+| `vatIncluded` | `round(total × rate / (100 + rate))`, with the rate passed in as `input.vatRatePercent` |
+| `vatRatePercent` | `input.vatRatePercent`, the saved VAT setting (see [VAT.md](VAT.md)) |
 | `coupon` | The raw `CouponResult`, or null when no coupon was passed |
 
 The rules behind these figures:
@@ -138,8 +138,10 @@ The rules behind these figures:
    `INSUFFICIENT_STOCK` is priced at the quantity asked for.
 3. **VAT is included, never added.** Prices are VAT inclusive; `vatIncluded`
    is the part of the total that is VAT, computed once on the rounded total.
-   Delivery is inside the VAT base. The rate is a server constant, not a
-   setting: the admin "VAT & Configuration" row stays a placeholder.
+   Delivery is inside the VAT base. The rate is the saved
+   `StoreSettings.vatRatePercent`, edited in admin VAT & Configuration. The
+   cart service reads it with `getVatRatePercent` and passes it to
+   `priceCart`, which stays pure. See [VAT.md](VAT.md).
 4. **Bad input throws.** A negative or fractional price, fee or quantity
    throws a plain `Error`. That is a caller bug, not a shopper error.
 
@@ -700,7 +702,8 @@ In `src/lib/constants.ts`.
 
 | Constant | Value | Used by |
 | --- | --- | --- |
-| `VAT_RATE_PERCENT` | 5 | `priceCart` |
+| `VAT_RATE_PERCENT` | 5 | Default rate when no store settings row exists; the live value is `StoreSettings.vatRatePercent` |
+| `VAT_RATE_MAX_PERCENT` | 100 | Upper bound of the VAT rate validator |
 | `CART_MAX_LINES` | 20 | Lines per cart, merge cap, read limit |
 | `CART_MAX_LINE_QUANTITY` | 5 | Quantity per line, validator, stepper maximum |
 | `CART_COOKIE_MAX_AGE_SECONDS` | 30 days | Cookie lifetime and stale guest sweep |

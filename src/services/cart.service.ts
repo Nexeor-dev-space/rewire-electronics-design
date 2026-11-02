@@ -40,6 +40,7 @@ import {
   toShopAddOn,
 } from "@/services/catalogue.service";
 import { resolveDelivery } from "@/services/delivery-zone.service";
+import { getVatRatePercent } from "@/services/store-settings.service";
 import {
   BLOCKING_CART_LINE_ISSUES,
   type AppliedCoupon,
@@ -340,8 +341,8 @@ function appliedCoupon(row: CouponRow, pricing: CartPricing): AppliedCoupon {
   };
 }
 
-function emptyCart(couponsAllowed: boolean, deliveryFee: number | null): Cart {
-  const pricing = priceCart({ lines: [], coupon: null, deliveryFee, now: new Date() });
+function emptyCart(couponsAllowed: boolean, deliveryFee: number | null, vatRatePercent: number): Cart {
+  const pricing = priceCart({ lines: [], coupon: null, deliveryFee, vatRatePercent, now: new Date() });
   return {
     id: null,
     items: [],
@@ -363,6 +364,7 @@ function priceRow(
   owner: Owner,
   offeredRows: OfferedRow[],
   customerRedemptions: number,
+  vatRatePercent: number,
   { deliveryFee, now }: PriceOptions,
 ): PricedCart {
   const lines = row.items.map((item) => buildLine(item, offeredRows));
@@ -371,6 +373,7 @@ function priceRow(
     lines: lines.map((entry) => entry.pricing),
     coupon: couponRow ? { rule: toCouponRule(couponRow), customerRedemptions } : null,
     deliveryFee,
+    vatRatePercent,
     now,
   });
   const items = lines.map((entry) => entry.line);
@@ -410,7 +413,8 @@ export async function loadPricedCart(db: Tx, owner: Owner, options: PriceOptions
   const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(db, lineScopes(row)) : [];
   const customerRedemptions =
     owner.kind === "user" && row.coupon ? await countRedemptions(db, row.coupon.id, owner.userId) : 0;
-  return priceRow(row, owner, offeredRows, customerRedemptions, options);
+  const vatRatePercent = await getVatRatePercent(db);
+  return priceRow(row, owner, offeredRows, customerRedemptions, vatRatePercent, options);
 }
 
 export async function lockCart(tx: Tx, owner: Owner, now: Date): Promise<boolean> {
@@ -524,10 +528,10 @@ function findOwnedLine(owner: Owner, itemId: string) {
 /* ---------- reads ---------- */
 
 export async function getCart(owner: CartOwner, deliveryFee: number | null = null): Promise<Cart> {
-  if (!owner) return emptyCart(false, deliveryFee);
+  if (!owner) return emptyCart(false, deliveryFee, await getVatRatePercent());
 
   const priced = await loadPricedCart(prisma, owner, { deliveryFee, now: new Date() });
-  return priced ? priced.cart : emptyCart(owner.kind === "user", deliveryFee);
+  return priced ? priced.cart : emptyCart(owner.kind === "user", deliveryFee, await getVatRatePercent());
 }
 
 /** Before an area is picked in an emirate that has areas, there are no options and no fee yet. */
@@ -693,6 +697,7 @@ export async function applyCartCoupon(userId: string, code: string) {
     lines: row.items.map((item) => buildLine(item, offeredRows).pricing),
     coupon: { rule: toCouponRule(coupon), customerRedemptions },
     deliveryFee: null,
+    vatRatePercent: await getVatRatePercent(prisma),
     now: new Date(),
   });
   if (pricing.coupon && !pricing.coupon.ok) {

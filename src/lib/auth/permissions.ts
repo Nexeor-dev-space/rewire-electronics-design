@@ -52,6 +52,8 @@ export const PERMISSIONS = {
   /** Warranty & Claims: warranty records per device and the claims against them. */
   warranty: adminPermission("service", "warranty"),
   deliveryZones: adminPermission("governance", "delivery"),
+  /** VAT & Configuration: the VAT rate the cart and checkout price with. */
+  vat: adminPermission("governance", "vat"),
   roles: adminPermission("governance", "roles"),
   changeLog: adminPermission("governance", "change-log"),
   /** Restore (RESTORE) and delete permanently (DELETE) for products and users. */
@@ -86,6 +88,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.customers, label: "Customers", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
+  { key: PERMISSIONS.vat, label: "VAT & Configuration", actions: VIEW_EDIT },
   { key: PERMISSIONS.changeLog, label: "Change Log", actions: ["VIEW"] },
   { key: PERMISSIONS.trash, label: "Trash", actions: ["VIEW", "RESTORE", "DELETE"] },
   { key: PERMISSIONS.staffAccounts, label: "Staff accounts", actions: CRUD, adminOnly: true },

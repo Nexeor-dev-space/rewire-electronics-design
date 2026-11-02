@@ -101,6 +101,7 @@ export interface AdminReturnDetail extends CustomerReturn {
 
 export interface StoreSettingsView {
   returnWindowDays: number;
+  vatRatePercent: number;
   updatedAt: string | null;
 }
 
