@@ -81,6 +81,18 @@ export function fromStoreDateTimeInput(value: string): string | null {
   return Number.isNaN(at.getTime()) ? null : at.toISOString();
 }
 
+/** Today on the store's clock, "2026-11-14". */
+export function storeToday(now: Date): string {
+  return toStoreDateTimeInput(now.toISOString()).slice(0, 10);
+}
+
+/** The instant a store day, "2026-11-14", begins. */
+export function storeDayStart(day: string): Date {
+  const iso = fromStoreDateTimeInput(`${day}T00:00`);
+  if (!iso) throw new RangeError(`Not a store day: ${day}`);
+  return new Date(iso);
+}
+
 /**
  * An instant on the store's clock, labelled: "14 Nov, 6:00 pm GST". Format it
  * on the server and hand the text to the page, so the server and the browser

@@ -8,7 +8,7 @@ shaped this way, and how to add to it.
 The admin panel's information architecture, shell and placeholder pages. It
 establishes every navigation section, every module route and the reusable frame
 they all sit in. It deliberately implements no module functionality: no CRUD, no
-data, no reporting. Each module is a separate issue; sign-in, roles and the
+data. Each module is a separate issue; sign-in, roles and the
 Users module are described under [Access control](#access-control) and
 [Users](#users).
 
@@ -207,6 +207,13 @@ lists every recorded admin change with its previous and new values.
 Governance → **Trash** (`/admin/trash/products`, `/admin/trash/users`,
 `governance.trash`) holds deleted products and accounts for restore. Both are
 described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
+
+## Reports
+
+Governance → **Reports** (`/admin/reports`, `governance.reports`, View only).
+Sales and orders, products, inventory, returns, warranty and other metrics, each
+with its filters, charts and a CSV export. What each figure means is in
+[REPORTS.md](REPORTS.md).
 
 ## Categories and Brands
 
@@ -485,17 +492,17 @@ A built module adds its route to `BUILT_ROUTES` so the catch-all stops listing i
 ## Dashboard
 
 Four operational indicators, declared in `src/lib/admin-console.ts`: Orders
-Today, Live Release, Open Warranty Claims and Low Stock. No reporting or
-analytics is present. Issue #102 connected them to live records.
+Today, Live Release, Open Warranty Claims and Low Stock. Issue #102 connected
+them to live records. Reporting lives on its own screen, [REPORTS.md](REPORTS.md).
 
 ### What each figure counts
 
 | Card | Count | Needs View on |
 | --- | --- | --- |
-| Orders Today | Orders created since midnight on the store clock (`startOfStoreDay` in `src/lib/dates.ts`), excluding `PENDING_PAYMENT`. Cancelled orders count, since they were placed | `PERMISSIONS.orders` |
-| Live Release | Always "No live release". No Releases module exists yet | |
+| Orders Today | Every order created since midnight on the store clock (`startOfStoreDay` in `src/lib/dates.ts`), whatever its status, so it matches the Orders list | `PERMISSIONS.orders` |
+| Live Release | The release that is active, has started, has not ended and whose product is not in Trash; the latest start wins. Shows its title, product and end, or "No live release" | `PERMISSIONS.releases` |
 | Open Warranty Claims | Claims in `OPEN_WARRANTY_CLAIM_STATUSES`, through `openClaimWhere` in `warranty.service.ts` | `PERMISSIONS.warranty` |
-| Low Stock | Variants with `stock` below `StoreSettings.lowStockThreshold`, on products not in Trash. Out of stock variants count | `PERMISSIONS.products` |
+| Low Stock | Variants whose `stock` is below their own `lowStockThreshold`, or below the store default (`StoreSettings.lowStockThreshold`) when theirs is blank. Archived products and products in Trash are left out. Out of stock variants count | `PERMISSIONS.products` |
 
 A figure the viewer has no View on comes back `null` and the card shows the
 placeholder with the hint "No access".
@@ -504,23 +511,25 @@ placeholder with the hint "No access".
 
 `GET /api/v1/admin/dashboard` answers any Admin or Staff user (401 without a
 session, 403 for a customer). It returns
-`{ ordersToday, openClaims, lowStock, liveRelease }`, each a count or `null`.
-`getDashboardMetrics` in `src/services/dashboard.service.ts` runs the three
-counts in parallel.
+`{ ordersToday, openClaims, lowStock, liveRelease, canViewReleases }`: counts or
+`null`, the live release or `null`, and whether the viewer may see releases.
+`getDashboardMetrics` in `src/services/dashboard.service.ts` runs the four reads
+in parallel.
 
 ### Screen
 
 `DashboardMetrics` (`src/components/admin/dashboard-metrics.tsx`) calls
 `useDashboardMetrics` (`src/hooks/use-dashboard.ts`). It shows a skeleton while
-loading, the placeholder plus a Try again line on error, and the counts once
-loaded. The query refetches every time the dashboard opens. There is no polling.
-The Open module links are unchanged.
+loading, the placeholder plus a Try again line on error, and the figures once
+loaded. The query refetches every time the dashboard opens, and any release
+change invalidates it. There is no polling. The Open module links are unchanged.
 
 ### Low stock threshold
 
-`StoreSettings.lowStockThreshold`, an `Int` defaulting to 5
-(`LOW_STOCK_THRESHOLD` in `src/lib/constants.ts` when no row exists). Migration
-`20261102100000_add_low_stock_threshold`. No screen edits it yet.
+Each variant has an optional "Low stock alert" (`ProductVariant.lowStockThreshold`)
+on the product form. Blank means the store default,
+`StoreSettings.lowStockThreshold`, an `Int` defaulting to 5 and read by
+`getLowStockThreshold` on its own. No screen edits the store default yet.
 
 ## Known technical debt
 

@@ -4,6 +4,7 @@
  */
 
 import type { Emirate } from "@/lib/emirates";
+import type { ReportKey } from "@/lib/reports";
 
 const V1 = "/api/v1";
 
@@ -82,6 +83,9 @@ export const API_ENDPOINTS = {
     warrantyClaims: {
       detail: (number: string) => `${V1}/admin/warranty-claims/${number}`,
       status: (number: string) => `${V1}/admin/warranty-claims/${number}/status`,
+    },
+    reports: {
+      detail: (report: ReportKey) => `${V1}/admin/reports/${report}`,
     },
     storeSettings: `${V1}/admin/store-settings`,
     dashboard: `${V1}/admin/dashboard`,
