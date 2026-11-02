@@ -86,8 +86,9 @@ out. A device outside these answers 404 on every warranty route.
    `warrantyStartsAt` to that moment and `warrantyEndsAt` to the start plus
    `lineWarrantyMonths(line)`: the product's months (12 by default) plus any
    extended cover add-ons ([ORDERS.md](ORDERS.md) §3).
-2. **The list filter** turns the same rules into a query (`statusWhere` in the
-   service), so the filter and the badge always agree.
+2. **The list filter** turns the same rules into a query (`warrantyStatusWhere`
+   in the service, also used by [REPORTS.md](REPORTS.md)), so the filter and the
+   badge always agree.
 3. **Claim in progress** is shown as its own badge beside the warranty status,
    never instead of it. It means the device has a claim that is not Returned
    to customer or Declined.
