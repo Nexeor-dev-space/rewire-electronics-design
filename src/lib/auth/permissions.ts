@@ -54,6 +54,8 @@ export const PERMISSIONS = {
   deliveryZones: adminPermission("governance", "delivery"),
   /** VAT & Configuration: the VAT rate the cart and checkout price with. */
   vat: adminPermission("governance", "vat"),
+  /** Reports: read only figures drawn from orders, products, returns and warranty. */
+  reports: adminPermission("governance", "reports"),
   roles: adminPermission("governance", "roles"),
   changeLog: adminPermission("governance", "change-log"),
   /** Restore (RESTORE) and delete permanently (DELETE) for products and users. */
@@ -89,6 +91,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
   { key: PERMISSIONS.vat, label: "VAT & Configuration", actions: VIEW_EDIT },
+  { key: PERMISSIONS.reports, label: "Reports", actions: ["VIEW"] },
   { key: PERMISSIONS.changeLog, label: "Change Log", actions: ["VIEW"] },
   { key: PERMISSIONS.trash, label: "Trash", actions: ["VIEW", "RESTORE", "DELETE"] },
   { key: PERMISSIONS.staffAccounts, label: "Staff accounts", actions: CRUD, adminOnly: true },

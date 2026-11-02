@@ -48,7 +48,7 @@ const MESSAGE_OPEN_CLAIM = "This device already has an open claim.";
 const MESSAGE_CLAIM_CHANGED = "This claim changed. Refresh and try again.";
 
 /** Only devices on paid, live orders are warranty records. */
-const warrantyDeviceWhere = {
+export const warrantyDeviceWhere = {
   orderItem: { order: { status: { in: [...WARRANTY_ORDER_STATUSES] } } },
 } satisfies Prisma.DeviceWhereInput;
 
@@ -296,7 +296,7 @@ function claimStatusLabel(status: WarrantyClaimStatus) {
 
 /* ---------- warranties ---------- */
 
-function statusWhere(status: WarrantyStatus | undefined, now: Date): Prisma.DeviceWhereInput {
+export function warrantyStatusWhere(status: WarrantyStatus | undefined, now: Date): Prisma.DeviceWhereInput {
   if (status === "PENDING") {
     return { orderItem: { OR: [{ warrantyStartsAt: null }, { warrantyStartsAt: { gt: now } }] } };
   }
@@ -329,7 +329,7 @@ export async function listAdminWarranties({
   const now = new Date();
   const where: Prisma.DeviceWhereInput = {
     ...warrantyDeviceWhere,
-    AND: [statusWhere(status, now), searchWhere(search)],
+    AND: [warrantyStatusWhere(status, now), searchWhere(search)],
   };
   const [rows, total] = await prisma.$transaction([
     prisma.device.findMany({

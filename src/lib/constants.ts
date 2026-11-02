@@ -68,6 +68,12 @@ export const WARRANTY_CLAIM_NUMBER_PREFIX = "WC-";
 export const WARRANTY_CLAIM_ISSUE_MIN_LENGTH = 4;
 export const WARRANTY_CLAIM_ISSUE_MAX_LENGTH = 1000;
 export const WARRANTY_CLAIMS_LIMIT = 50;
+/** Reports: a trend goes daily up to this many days and monthly beyond, so a chart stays readable. */
+export const REPORT_DAILY_BUCKET_MAX_DAYS = 92;
+export const REPORT_MAX_RANGE_DAYS = 1830;
+export const REPORT_TOP_PRODUCTS_LIMIT = 20;
+export const REPORT_TOP_COUPONS_LIMIT = 10;
+export const REPORT_EXPORT_PAGE_SIZE = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";

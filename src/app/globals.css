@@ -341,6 +341,11 @@
     --color-warn: light-dark(#9a6410, #e0a45c);
     --color-danger: light-dark(#b23c37, #d1706a);
 
+    /* Reports: the one hue every chart mark uses. Checked against both surfaces
+       for contrast and colour blindness; see docs/REPORTS.md. Not `--color-*`,
+       so Tailwind never turns it into a site-wide utility. */
+    --report-series: light-dark(#4f6bed, #6c82ee);
+
     /* Homepage Builder: one colour per section type, so rows and the Add
        section picker tell types apart at a glance. Indexed by
        `SECTION_RULES[type].tone`. Not `--color-*`, so Tailwind never

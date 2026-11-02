@@ -124,6 +124,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
 | VAT & Configuration | `governance.vat` | View, Edit | No access, View, Edit |
+| Reports | `governance.reports` | View | No access, View |
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
 | Staff accounts | `service.staff` | Admin only | |
@@ -151,6 +152,10 @@ Staff roles hold No access until an Admin sets a level. View covers the
 warranty table, the warranty preview and the claim page; Edit covers the Edit
 page, raising a claim and changing a claim's status. See
 [WARRANTY.md](WARRANTY.md) §11.
+
+Reports (`PERMISSIONS.reports`) follows the same rule. View covers the page,
+every report and exporting them, and shows sales totals even without View on
+Orders. See [REPORTS.md](REPORTS.md) §6.
 
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.

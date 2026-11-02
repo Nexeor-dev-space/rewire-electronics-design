@@ -8,7 +8,7 @@ shaped this way, and how to add to it.
 The admin panel's information architecture, shell and placeholder pages. It
 establishes every navigation section, every module route and the reusable frame
 they all sit in. It deliberately implements no module functionality: no CRUD, no
-data, no reporting. Each module is a separate issue; sign-in, roles and the
+data. Each module is a separate issue; sign-in, roles and the
 Users module are described under [Access control](#access-control) and
 [Users](#users).
 
@@ -207,6 +207,13 @@ lists every recorded admin change with its previous and new values.
 Governance → **Trash** (`/admin/trash/products`, `/admin/trash/users`,
 `governance.trash`) holds deleted products and accounts for restore. Both are
 described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
+
+## Reports
+
+Governance → **Reports** (`/admin/reports`, `governance.reports`, View only).
+Sales and orders, products, inventory, returns, warranty and other metrics, each
+with its filters, charts and a CSV export. What each figure means is in
+[REPORTS.md](REPORTS.md).
 
 ## Categories and Brands
 
@@ -487,8 +494,8 @@ A built module adds its route to `BUILT_ROUTES` so the catch-all stops listing i
 Four operational indicators, declared in `src/lib/admin-console.ts`: Orders
 Today, Live Release, Open Warranty Claims and Low Stock. Each shows a placeholder
 figure rather than a number, so the screen cannot show a value it did not count.
-Wiring one up means replacing the placeholder with the module's own query. No
-reporting or analytics is present, as the issue specifies.
+Wiring one up means replacing the placeholder with the module's own query.
+Reporting lives on its own screen, [REPORTS.md](REPORTS.md).
 
 ## Known technical debt
 
