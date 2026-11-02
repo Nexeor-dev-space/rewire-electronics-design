@@ -65,6 +65,7 @@ const detailSelect = {
       price: true,
       compareAtPrice: true,
       stock: true,
+      lowStockThreshold: true,
     },
     orderBy: { sortOrder: "asc" },
   },
@@ -390,6 +391,7 @@ function variantFields(variant: VariantData, index: number) {
     price: variant.price,
     compareAtPrice: variant.compareAtPrice,
     stock: variant.stock,
+    lowStockThreshold: variant.lowStockThreshold,
     sortOrder: index,
   };
 }

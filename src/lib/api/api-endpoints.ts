@@ -50,6 +50,10 @@ export const API_ENDPOINTS = {
       discard: `${V1}/admin/homepage/discard`,
       seo: `${V1}/admin/homepage/seo`,
     },
+    releases: {
+      list: `${V1}/admin/releases`,
+      detail: (id: string) => `${V1}/admin/releases/${id}`,
+    },
     coupons: {
       list: `${V1}/admin/coupons`,
       detail: (id: string) => `${V1}/admin/coupons/${id}`,

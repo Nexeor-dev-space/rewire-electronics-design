@@ -16,7 +16,6 @@ const SETTINGS_ID = 1;
 const settingsSelect = {
   returnWindowDays: true,
   vatRatePercent: true,
-  lowStockThreshold: true,
   updatedAt: true,
 } satisfies Prisma.StoreSettingsSelect;
 
@@ -26,7 +25,6 @@ function toView(row: SettingsRow | null): StoreSettingsView {
   return {
     returnWindowDays: row?.returnWindowDays ?? RETURN_WINDOW_DAYS,
     vatRatePercent: row?.vatRatePercent ?? VAT_RATE_PERCENT,
-    lowStockThreshold: row?.lowStockThreshold ?? LOW_STOCK_THRESHOLD,
     updatedAt: row ? row.updatedAt.toISOString() : null,
   };
 }
@@ -34,6 +32,14 @@ function toView(row: SettingsRow | null): StoreSettingsView {
 export async function getStoreSettings(db: Prisma.TransactionClient = prisma): Promise<StoreSettingsView> {
   const row = await db.storeSettings.findUnique({ where: { id: SETTINGS_ID }, select: settingsSelect });
   return toView(row);
+}
+
+export async function getLowStockThreshold(): Promise<number> {
+  const row = await prisma.storeSettings.findUnique({
+    where: { id: SETTINGS_ID },
+    select: { lowStockThreshold: true },
+  });
+  return row?.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
 }
 
 /** The rate the cart and checkout price with; falls back to the default until one is saved. */

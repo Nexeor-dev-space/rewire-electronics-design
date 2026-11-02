@@ -15,8 +15,10 @@ export const adminConsole = {
   label: "Admin",
 } as const;
 
+export type AdminMetricKey = "orders-today" | "live-release" | "open-claims" | "low-stock";
+
 export interface AdminMetric {
-  key: string;
+  key: AdminMetricKey;
   label: string;
   /** One line saying what the figure counts. */
   hint: string;
@@ -45,13 +47,13 @@ export const adminMetrics: AdminMetric[] = [
   {
     key: "open-claims",
     label: "Open Warranty Claims",
-    hint: "Claims awaiting a decision",
+    hint: "Claims not yet closed",
     href: "/admin/service/warranty",
   },
   {
     key: "low-stock",
     label: "Low Stock",
-    hint: "Variants below their stock threshold",
+    hint: "Variants below their low stock alert",
     href: "/admin/products",
   },
 ];

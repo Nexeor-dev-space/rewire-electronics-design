@@ -79,6 +79,13 @@ export const productVariantSchema = z
     price: minorUnitsValidator.min(1, "Enter a price above zero."),
     compareAtPrice: minorUnitsValidator.nullable().default(null),
     stock: stockValidator,
+    lowStockThreshold: z
+      .number()
+      .int("Use a whole number.")
+      .min(0, "The alert can't be negative.")
+      .max(MAX_STOCK, `The alert can't exceed ${MAX_STOCK}.`)
+      .nullable()
+      .default(null),
   })
   .superRefine((variant, ctx) => {
     if (variant.grade !== null && !GRADED_CONDITIONS.includes(variant.condition)) {
