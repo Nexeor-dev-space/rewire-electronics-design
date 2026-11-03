@@ -59,6 +59,13 @@ export const API_ENDPOINTS = {
       list: `${V1}/admin/coupons`,
       detail: (id: string) => `${V1}/admin/coupons/${id}`,
     },
+    campaigns: {
+      list: `${V1}/admin/campaigns`,
+      detail: (id: string) => `${V1}/admin/campaigns/${id}`,
+      status: (id: string) => `${V1}/admin/campaigns/${id}/status`,
+      types: `${V1}/admin/campaign-types`,
+      type: (id: string) => `${V1}/admin/campaign-types/${id}`,
+    },
     orders: {
       list: `${V1}/admin/orders`,
       detail: (number: string) => `${V1}/admin/orders/${number}`,

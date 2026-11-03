@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   products: adminPermission("catalogue", "products"),
   addOns: adminPermission("catalogue", "add-ons"),
   coupons: adminPermission("marketing", "coupons"),
+  /** Campaigns and their types. Publish covers publishing, pausing, resuming and cancelling. */
+  campaigns: adminPermission("marketing", "campaigns"),
   releases: adminPermission("sales", "releases"),
   orders: adminPermission("sales", "orders"),
   fulfilment: adminPermission("sales", "fulfilment"),
@@ -91,6 +93,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.warranty, label: "Warranty & Claims", actions: VIEW_EDIT },
   { key: PERMISSIONS.customers, label: "Customers", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
+  { key: PERMISSIONS.campaigns, label: "Campaigns", actions: ALL_ACTIONS },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
   { key: PERMISSIONS.vat, label: "VAT & Configuration", actions: VIEW_EDIT },
   { key: PERMISSIONS.reports, label: "Reports", actions: ["VIEW"] },

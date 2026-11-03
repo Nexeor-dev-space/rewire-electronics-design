@@ -41,6 +41,18 @@ export const MAX_COUPON_TARGETS = 50;
 export const COUPON_CODE_MIN_LENGTH = 3;
 export const COUPON_CODE_MAX_LENGTH = 32;
 export const COUPON_DESCRIPTION_MAX_LENGTH = 160;
+export const CAMPAIGN_NAME_MAX_LENGTH = 120;
+export const CAMPAIGN_DESCRIPTION_MAX_LENGTH = 1000;
+export const CAMPAIGN_SLUG_MAX_LENGTH = 140;
+export const CAMPAIGN_TYPE_NAME_MAX_LENGTH = 60;
+export const MAX_CAMPAIGN_PRODUCTS = 50;
+/** Caps the types so the type dropdown is one bounded query. */
+export const MAX_CAMPAIGN_TYPES = 50;
+/** A percent discount stops short of 100, so nothing is ever free. */
+export const CAMPAIGN_MAX_PERCENT = 99;
+/** Postgres advisory lock taken while checking that two campaigns don't overlap. */
+export const CAMPAIGN_DATES_LOCK_KEY = 7109;
+export const ADMIN_CAMPAIGNS_PATH = "/admin/marketing/campaigns";
 export const MAX_DELIVERY_DAYS = 30;
 export const DELIVERY_AREA_MAX_LENGTH = 100;
 /** Caps one emirate's areas so the checkout dropdown stays one bounded query. */
