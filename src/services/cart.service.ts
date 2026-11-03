@@ -28,10 +28,12 @@ import {
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { lineTotal } from "@/lib/pricing/arithmetic";
+import { campaignPrice, campaignVariantPrice, type CampaignDiscount } from "@/lib/pricing/campaign";
 import { COUPON_MESSAGES, COUPON_MINIMUM_TOKEN } from "@/lib/pricing/coupon";
 import { priceCart } from "@/lib/pricing/price-cart";
 import type { CartPricing, CouponRejection, CouponRule, PricingLine } from "@/lib/pricing/types";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
+import { liveCampaignDiscounts } from "@/services/campaign.service";
 import {
   OFFERED_ADD_ON_ORDER,
   PUBLISHED,
@@ -263,9 +265,17 @@ function assertAddOnsOffered(addOnIds: string[], offered: Map<string, number>) {
 
 /* ---------- mapping ---------- */
 
-function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine {
+function buildLine(
+  item: CartItemRow,
+  offeredRows: OfferedRow[],
+  discounts: Map<string, CampaignDiscount>,
+): PricedCartLine {
   const { variant } = item;
   const { product } = variant;
+  const { price: unitPrice, compareAtPrice, campaignDiscounted } = campaignVariantPrice(
+    variant,
+    discounts.get(product.id),
+  );
   const scope = addOnScopeOf(product);
   const offeredAddOns = offeredForLine(offeredRows, scope);
   const offeredPrices = new Map(offeredAddOns.map((addOn) => [addOn.id, addOn.price]));
@@ -283,12 +293,13 @@ function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine
     key: item.id,
     productId: product.id,
     categoryIds: scope.categoryIds,
-    unitPrice: variant.price,
+    unitPrice,
     addOnUnitPrice: addOns
       .filter((addOn) => addOn.available)
       .reduce((sum, addOn) => sum + addOn.price, 0),
     quantity: item.quantity,
     purchasable: visible && variant.stock > 0,
+    campaignDiscounted,
   };
 
   const image = pickLineImage(product.images, variant.colour);
@@ -307,9 +318,9 @@ function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine
     colour: variant.colour,
     quantity: item.quantity,
     maxQuantity: maxLineQuantity(variant.stock),
-    unitPrice: variant.price,
-    compareAtPrice: variant.compareAtPrice,
-    previousUnitPrice: variant.price !== item.seenUnitPrice ? item.seenUnitPrice : null,
+    unitPrice,
+    compareAtPrice,
+    previousUnitPrice: unitPrice !== item.seenUnitPrice ? item.seenUnitPrice : null,
     addOns: addOns.map(({ id, label, price, available }) => ({ id, label, price, available })),
     offeredAddOns,
     lineTotal: lineTotal(pricing),
@@ -317,7 +328,7 @@ function buildLine(item: CartItemRow, offeredRows: OfferedRow[]): PricedCartLine
       visible,
       stock: variant.stock,
       quantity: item.quantity,
-      unitPrice: variant.price,
+      unitPrice,
       seenUnitPrice: item.seenUnitPrice,
       addOns,
     }),
@@ -365,9 +376,10 @@ function priceRow(
   offeredRows: OfferedRow[],
   customerRedemptions: number,
   vatRatePercent: number,
+  discounts: Map<string, CampaignDiscount>,
   { deliveryFee, now }: PriceOptions,
 ): PricedCart {
-  const lines = row.items.map((item) => buildLine(item, offeredRows));
+  const lines = row.items.map((item) => buildLine(item, offeredRows, discounts));
   const couponRow = owner.kind === "user" ? row.coupon : null;
   const pricing = priceCart({
     lines: lines.map((entry) => entry.pricing),
@@ -398,6 +410,16 @@ function lineScopes(row: CartRow): AddOnScope[] {
   return row.items.map((item) => addOnScopeOf(item.variant.product));
 }
 
+function lineDiscounts(db: Tx, row: CartRow, now: Date) {
+  return liveCampaignDiscounts(db, row.items.map((item) => item.variant.product.id), now);
+}
+
+/** The price a shopper sees for one variant right now, stored as the line's seen price. */
+async function currentUnitPrice(price: number, productId: string) {
+  const discounts = await liveCampaignDiscounts(prisma, [productId], new Date());
+  return campaignPrice(price, discounts.get(productId));
+}
+
 async function loadCartRow(owner: Owner, db: Tx = prisma) {
   return db.cart.findUnique({ where: ownerWhere(owner), select: cartSelect });
 }
@@ -414,7 +436,8 @@ export async function loadPricedCart(db: Tx, owner: Owner, options: PriceOptions
   const customerRedemptions =
     owner.kind === "user" && row.coupon ? await countRedemptions(db, row.coupon.id, owner.userId) : 0;
   const vatRatePercent = await getVatRatePercent(db);
-  return priceRow(row, owner, offeredRows, customerRedemptions, vatRatePercent, options);
+  const discounts = await lineDiscounts(db, row, options.now);
+  return priceRow(row, owner, offeredRows, customerRedemptions, vatRatePercent, discounts, options);
 }
 
 export async function lockCart(tx: Tx, owner: Owner, now: Date): Promise<boolean> {
@@ -488,6 +511,7 @@ function findPurchasableVariant(variantId: string) {
       stock: true,
       product: {
         select: {
+          id: true,
           categoryId: true,
           category: { select: { parentId: true } },
           addOns: { select: { addOnId: true, priceOverride: true } },
@@ -511,6 +535,7 @@ function findOwnedLine(owner: Owner, itemId: string) {
           stock: true,
           product: {
             select: {
+              id: true,
               status: true,
               categoryId: true,
               category: {
@@ -555,6 +580,7 @@ export async function addCartItem(
   if (!variant) throw new ServiceError("NOT_FOUND", MESSAGE_ITEM_UNAVAILABLE, 404);
   const offered = await offeredPricesFor(addOnScopeOf(variant.product));
   assertAddOnsOffered(input.addOnIds, offered);
+  const seenUnitPrice = await currentUnitPrice(variant.price, variant.product.id);
 
   let target: Owner;
   let newGuestToken: string | null = null;
@@ -584,13 +610,13 @@ export async function addCartItem(
       ? (
           await tx.cartItem.update({
             where: { id: existing.id },
-            data: { quantity, seenUnitPrice: variant.price },
+            data: { quantity, seenUnitPrice },
             select: { id: true },
           })
         ).id
       : (
           await tx.cartItem.create({
-            data: { cartId, variantId: variant.id, quantity, seenUnitPrice: variant.price },
+            data: { cartId, variantId: variant.id, quantity, seenUnitPrice },
             select: { id: true },
           })
         ).id;
@@ -619,11 +645,12 @@ export async function updateCartItem(owner: CartOwner, itemId: string, input: Up
     stock: line.variant.stock,
     visible: isProductVisible(product),
   });
+  const seenUnitPrice = await currentUnitPrice(line.variant.price, product.id);
 
   await prisma.$transaction(async (tx) => {
     await tx.cartItem.update({
       where: { id: line.id },
-      data: { quantity, seenUnitPrice: line.variant.price },
+      data: { quantity, seenUnitPrice },
     });
     await writeLineAddOns(tx, line.id, input.addOnIds ?? line.addOns.map((link) => link.addOnId), offered);
     await touchCart(tx, line.cartId);
@@ -652,17 +679,20 @@ export async function acknowledgeCart(owner: CartOwner) {
   const row = await loadCartRow(owner);
   if (!row) return getCart(owner);
 
-  const lineUpdates = row.items
-    .filter((item) => item.seenUnitPrice !== item.variant.price)
-    .map((item) =>
+  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
+  const discounts = await lineDiscounts(prisma, row, new Date());
+  const lines = row.items.map((item) => buildLine(item, offeredRows, discounts));
+
+  const lineUpdates = lines
+    .filter(({ item, line }) => item.seenUnitPrice !== line.unitPrice)
+    .map(({ item, line }) =>
       prisma.cartItem.updateMany({
         where: { id: item.id },
-        data: { seenUnitPrice: item.variant.price },
+        data: { seenUnitPrice: line.unitPrice },
       }),
     );
-  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
-  const addOnUpdates = row.items.flatMap((item) => {
-    const prices = new Map(buildLine(item, offeredRows).line.addOns.map((addOn) => [addOn.id, addOn.price]));
+  const addOnUpdates = lines.flatMap(({ item, line }) => {
+    const prices = new Map(line.addOns.map((addOn) => [addOn.id, addOn.price]));
     return item.addOns
       .map((link) => ({ link, price: prices.get(link.addOn.id) ?? link.addOn.price }))
       .filter(({ link, price }) => link.seenPrice !== price)
@@ -693,12 +723,14 @@ export async function applyCartCoupon(userId: string, code: string) {
 
   const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
   const customerRedemptions = await countRedemptions(prisma, coupon.id, userId);
+  const now = new Date();
+  const discounts = await lineDiscounts(prisma, row, now);
   const pricing = priceCart({
-    lines: row.items.map((item) => buildLine(item, offeredRows).pricing),
+    lines: row.items.map((item) => buildLine(item, offeredRows, discounts).pricing),
     coupon: { rule: toCouponRule(coupon), customerRedemptions },
     deliveryFee: null,
     vatRatePercent: await getVatRatePercent(prisma),
-    now: new Date(),
+    now,
   });
   if (pricing.coupon && !pricing.coupon.ok) {
     throw couponRejected(couponMessage(pricing.coupon.reason, coupon.minOrderAmount));

@@ -144,6 +144,10 @@ The rules behind these figures:
    `priceCart`, which stays pure. See [VAT.md](VAT.md).
 4. **Bad input throws.** A negative or fractional price, fee or quantity
    throws a plain `Error`. That is a caller bug, not a shopper error.
+5. **A running campaign sets the unit price.** `unitPrice` and `seenUnitPrice`
+   hold the campaign price while a campaign discounts the product, so one
+   starting or stopping raises `PRICE_CHANGED`. See
+   [CAMPAIGNS.md](CAMPAIGNS.md) §4.
 
 ---
 
@@ -173,9 +177,11 @@ disabled code cannot be told apart from a made up one), and a guest is
 
 ### 4.2 What is discounted
 
-1. **Eligibility.** A line is eligible when the coupon `appliesToAll`, or
-   lists the line's product, or lists the line's category or that category's
-   parent. A parent category therefore covers its children.
+1. **Eligibility.** A line a running campaign discounts is never eligible
+   (`campaignDiscounted`, [CAMPAIGNS.md](CAMPAIGNS.md)). Otherwise a line is
+   eligible when the coupon `appliesToAll`, or lists the line's product, or
+   lists the line's category or that category's parent. A parent category
+   therefore covers its children.
 2. **Minimum on the whole cart.** Check 7 compares the whole purchasable
    subtotal, not just the eligible lines, with `minOrderAmount`.
 3. **Discount on eligible lines, add-ons included.** The eligible subtotal is

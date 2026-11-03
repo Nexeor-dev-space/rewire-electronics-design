@@ -138,6 +138,7 @@ What is recorded today:
 | Products | create, update (variant stock included), status change, delete (to Trash), restore, delete permanently |
 | Categories | create, update, status change, delete |
 | Brands, Add-ons, Discount Codes | create, update, delete |
+| Campaigns | create, update, status change, delete, and the same for campaign types (labelled "Type: {name}") |
 | Delivery Zones | update |
 | Homepage Builder | add, edit (including show or hide), delete, reorder, publish, discard |
 | Content & Policies | save (title, text, published, draft notice, blocks) |

@@ -6,6 +6,8 @@ export interface PricingLine {
   addOnUnitPrice: number;
   quantity: number;
   purchasable: boolean;
+  /** Priced by a running campaign, so no discount code applies to this line. */
+  campaignDiscounted?: boolean;
 }
 
 export type CouponType = "PERCENT" | "FIXED";

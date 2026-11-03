@@ -16,8 +16,10 @@ import {
   STOREFRONT_CATEGORIES_REVALIDATE_SECONDS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { campaignVariantPrice, type CampaignDiscount } from "@/lib/pricing/campaign";
 import { priceBands, type PriceBand } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
+import { liveCampaignDiscounts } from "@/services/campaign.service";
 import type { SpecGroup } from "@/types/commerce";
 import type {
   SearchSuggestions,
@@ -226,7 +228,7 @@ export async function searchSuggestions(q: string): Promise<SearchSuggestions> {
     }),
   ]);
 
-  return { products: products.map((row) => toCard(row)), brands, categories };
+  return { products: await toCards(products), brands, categories };
 }
 
 /* ---------- shop filters ---------- */
@@ -273,11 +275,12 @@ function matchesVariantFilters(variant: CardVariant, query: ShopQuery) {
   );
 }
 
-function toCard(row: CardRow, query?: ShopQuery): ShopCard {
+function toCard(row: CardRow, discount: CampaignDiscount | undefined, query?: ShopQuery): ShopCard {
   const matching = query
     ? row.variants.filter((variant) => matchesVariantFilters(variant, query))
     : row.variants;
   const shown = matching.find((variant) => variant.stock > 0) ?? matching[0] ?? row.variants[0];
+  const { price, compareAtPrice } = campaignVariantPrice(shown, discount);
   const image = row.images[0];
   return {
     id: row.id,
@@ -291,14 +294,19 @@ function toCard(row: CardRow, query?: ShopQuery): ShopCard {
     keySpec: row.highlights[0] ?? "",
     storage: shown.storage,
     variant: shown.colour,
-    price: shown.price,
-    originalPrice: shown.compareAtPrice,
+    price,
+    originalPrice: compareAtPrice,
     imageUrl: imageUrlOrNull(image?.mediaId ?? null),
     imageAlt: image?.alt || `${row.brand.name} ${row.name}`,
     stock: row.variants.reduce((sum, variant) => sum + variant.stock, 0),
     optionCount: row.variants.length,
     listedAt: row.publishedAt?.toISOString() ?? null,
   };
+}
+
+async function toCards(rows: CardRow[], query?: ShopQuery): Promise<ShopCard[]> {
+  const discounts = await liveCampaignDiscounts(prisma, rows.map((row) => row.id), new Date());
+  return rows.map((row) => toCard(row, discounts.get(row.id), query));
 }
 
 function groupSpecs(specs: DetailRow["specs"]): SpecGroup[] {
@@ -312,15 +320,21 @@ function groupSpecs(specs: DetailRow["specs"]): SpecGroup[] {
   return groups;
 }
 
-function toVariant({ condition, grade, ...variant }: DetailRow["variants"][number]): ShopVariant {
+function toVariant(
+  { condition, grade, ...variant }: DetailRow["variants"][number],
+  discount: CampaignDiscount | undefined,
+): ShopVariant {
+  const { price, compareAtPrice } = campaignVariantPrice(variant, discount);
   return {
     ...variant,
+    price,
+    compareAtPrice,
     condition: toShopCondition(condition),
     grade: grade ? toShopGrade(grade) : null,
   };
 }
 
-function toDetail(row: DetailRow): ShopProductDetail {
+function toDetail(row: DetailRow, discount: CampaignDiscount | undefined): ShopProductDetail {
   return {
     id: row.id,
     slug: row.slug,
@@ -338,7 +352,7 @@ function toDetail(row: DetailRow): ShopProductDetail {
       colour: image.colour,
     })),
     specs: groupSpecs(row.specs),
-    variants: row.variants.map(toVariant),
+    variants: row.variants.map((variant) => toVariant(variant, discount)),
     listedAt: row.publishedAt?.toISOString() ?? null,
     seo: {
       seoTitle: row.seoTitle,
@@ -457,7 +471,7 @@ export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
     facetsFor(query),
   ]);
 
-  return { items: rows.map((row) => toCard(row, query)), page, pageSize, total, facets };
+  return { items: await toCards(rows, query), page, pageSize, total, facets };
 }
 
 async function findShopProduct(slug: string): Promise<{ product: ShopProductDetail; picks: AddOnPick[] } | null> {
@@ -465,7 +479,9 @@ async function findShopProduct(slug: string): Promise<{ product: ShopProductDeta
     where: { slug, ...PUBLISHED },
     select: detailSelect,
   });
-  return row ? { product: toDetail(row), picks: row.addOns } : null;
+  if (!row) return null;
+  const discounts = await liveCampaignDiscounts(prisma, [row.id], new Date());
+  return { product: toDetail(row, discounts.get(row.id)), picks: row.addOns };
 }
 
 async function listRelatedShopProducts(product: ShopProductDetail, limit: number) {
@@ -475,7 +491,7 @@ async function listRelatedShopProducts(product: ShopProductDetail, limit: number
     orderBy: ORDER_BY.newest,
     take: limit,
   });
-  return rows.map((row) => toCard(row));
+  return toCards(rows);
 }
 
 export async function listNewestShopProducts(limit: number) {
@@ -485,7 +501,7 @@ export async function listNewestShopProducts(limit: number) {
     orderBy: ORDER_BY.newest,
     take: limit,
   });
-  return rows.map((row) => toCard(row));
+  return toCards(rows);
 }
 
 /**
@@ -500,7 +516,8 @@ export async function findShopCards(ids: string[]): Promise<Map<string, ShopCard
     where: { id: { in: ids }, ...PUBLISHED, variants: { some: {} } },
     select: cardSelect,
   });
-  return new Map(rows.map((row) => [row.id, toCard(row)]));
+  const cards = await toCards(rows);
+  return new Map(cards.map((card) => [card.id, card]));
 }
 
 export function offeredAddOnWhere(scopes: AddOnScope[]): Prisma.AddOnWhereInput {

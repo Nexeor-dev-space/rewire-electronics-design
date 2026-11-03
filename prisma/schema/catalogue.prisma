@@ -116,12 +116,13 @@ model Product {
   /// A site path (`/product/x`) or an absolute https URL.
   canonicalUrl    String?
 
-  variants ProductVariant[]
-  images   ProductImage[]
-  specs    ProductSpec[]
-  coupons  CouponProduct[]
-  addOns   ProductAddOn[]
-  releases Release[]
+  variants  ProductVariant[]
+  images    ProductImage[]
+  specs     ProductSpec[]
+  coupons   CouponProduct[]
+  addOns    ProductAddOn[]
+  releases  Release[]
+  campaigns CampaignProduct[]
 
   /// Homepage drops and Just Listed picks. Deleting the product for good
   /// deletes them; while it is unpublished or in Trash the homepage skips them.
