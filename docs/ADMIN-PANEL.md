@@ -346,6 +346,23 @@ seven zones once per database; note that `npm run db:seed` also overwrites
 policies and the homepage and resets the seeded Admin's password
 ([CART.md](CART.md) §5).
 
+## Campaigns
+
+Marketing → **Campaigns** (`/admin/marketing/campaigns`, `.../new`, `.../[id]`
+and `.../[id]/edit`). Permission key `marketing.campaigns`
+(`PERMISSIONS.campaigns`). Each page checks it with `hasPermission`, and the
+route is in `BUILT_ROUTES`.
+
+1. **The list** has search by name, status and type filters, sorting by created
+   and start date, and pagination. The name opens the details page. The
+   **Campaign types** button opens a dialog to add, rename and remove types.
+2. **The details page** shows the products and their discounts, the dates and
+   the URL, with Edit, Delete and the status buttons the campaign allows.
+3. **The form** saves a new campaign as a Draft; publishing happens on the
+   details page.
+
+The rules, endpoints and data model are in [CAMPAIGNS.md](CAMPAIGNS.md).
+
 ## Returns
 
 Service → **Returns** (`/admin/returns` and `/admin/returns/[number]`).

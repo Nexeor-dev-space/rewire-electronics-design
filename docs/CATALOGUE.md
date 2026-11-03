@@ -56,7 +56,10 @@ Rules the model encodes:
    so the list can sort and filter by price without joining variants. Never
    write it by hand.
 4. **Saving is derived**, never stored: `compareAtPrice` minus `price`, and only
-   when the compare at price is higher.
+   when the compare at price is higher. While a campaign discounts the product,
+   the storefront gets the campaign price as `price` and the regular price as
+   `compareAtPrice`; the stored values don't change ([CAMPAIGNS.md](CAMPAIGNS.md)
+   §4).
 5. **Availability is derived from stock.** `availabilityFromStock` in
    `src/types/commerce.ts` turns a stock count into in stock, low stock or sold
    out. Low stock is below `LOW_STOCK_THRESHOLD` (4).
@@ -656,6 +659,8 @@ All in `src/lib/constants.ts`.
 8. **`src/lib/categories.ts` is no longer read.** It held the old hardcoded
    menu categories and their studio photos; category images now come from the
    admin.
+9. **Price sort and the price filter ignore campaigns.** They read `minPrice`,
+   the regular price ([CAMPAIGNS.md](CAMPAIGNS.md) §9).
 9. **Search is not typo tolerant.** Every word must appear as typed, so
    "ipone" finds nothing. The trigram indexes are in place if fuzzy matching is
    added later.

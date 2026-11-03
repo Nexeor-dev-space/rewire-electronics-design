@@ -120,6 +120,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Returns | `service.returns` | View, Edit | No access, View, Edit |
 | Warranty & Claims | `service.warranty` | View, Edit | No access, View, Edit |
 | Discount Codes | `marketing.coupons` | View, Create, Edit, Delete | all |
+| Campaigns | `marketing.campaigns` | View, Create, Edit, Delete, Publish | all |
 | Orders | `sales.orders` | View, Edit | No access, View, Edit |
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
@@ -157,6 +158,10 @@ Reports (`PERMISSIONS.reports`) follows the same rule. View covers the page,
 every report and exporting them, and shows sales totals even without View on
 Orders. See [REPORTS.md](REPORTS.md) §6.
 
+Campaigns (`PERMISSIONS.campaigns`) follows the same rule. Publish covers
+publishing, pausing, resuming and cancelling, so it comes with Full access. See
+[CAMPAIGNS.md](CAMPAIGNS.md) §7.
+
 Admin only modules are never on a Staff role. The validator refuses a level a
 module doesn't offer, and an unknown module key.
 
@@ -175,7 +180,7 @@ not in `STAFF_MODULES`, so it grants nothing.
 | Create | `POST` that creates | Homepage: add section |
 | Edit | `PUT` / `PATCH` | Homepage: edit, show or hide, reorder. Products: variant stock, saved with the product |
 | Delete | `DELETE` | |
-| Publish | `PATCH …/status` (products, categories), `POST homepage/publish`, `POST homepage/discard` | See below for status set from a form |
+| Publish | `PATCH …/status` (products, categories, campaigns), `POST homepage/publish`, `POST homepage/discard` | See below for status set from a form |
 | Restore | `POST trash/…/restore` | Trash only; see [TRASH-AUDIT.md](TRASH-AUDIT.md) |
 
 Publish through a form:
@@ -252,6 +257,7 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Screen | Without the action |
 | --- | --- |
 | Products, Categories, Brands, Add-ons, Discount Codes | Add button, row Edit and row Delete are hidden; the status select is locked without Publish |
+| Campaigns | Add campaign and the add type form hidden without Create; row and details Edit and type rename hidden without Edit; Delete hidden without Delete; Publish, Pause, Resume and Cancel hidden without Publish |
 | Users → Customers | Add, Edit and Delete hidden |
 | Users → Staff | Admin only; the page answers Access denied to Staff |
 | Delivery Zones | Edit hidden |
