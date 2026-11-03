@@ -1,0 +1,58 @@
+/// What an admin last set. Scheduled, Active and Completed are worked out from
+/// this and the dates, so they change on time with nothing to run; see
+/// `campaignStatus` in `src/lib/pricing/campaign.ts`.
+enum CampaignState {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CANCELLED
+}
+
+model CampaignType {
+  id        String     @id @default(cuid())
+  name      String
+  /// Trimmed and lowercased, so names are unique ignoring case.
+  nameKey   String     @unique
+  campaigns Campaign[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("campaign_types")
+}
+
+model Campaign {
+  id          String            @id @default(cuid())
+  name        String
+  description String            @default("")
+  slug        String            @unique
+  typeId      String
+  type        CampaignType      @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  startsAt    DateTime
+  endsAt      DateTime
+  state       CampaignState     @default(DRAFT)
+  products    CampaignProduct[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([state, startsAt, endsAt])
+  @@index([typeId])
+  @@index([createdAt])
+  @@index([startsAt])
+  @@map("campaigns")
+}
+
+model CampaignProduct {
+  campaignId    String
+  campaign      Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  discountType  CouponType
+  /// A whole percent for PERCENT, fils for FIXED.
+  discountValue Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@id([campaignId, productId])
+  @@index([productId])
+  @@map("campaign_products")
+}
