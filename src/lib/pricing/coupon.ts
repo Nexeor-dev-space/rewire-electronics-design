@@ -40,6 +40,7 @@ export function couponStatus(rule: CouponRule, now: Date): CouponStatus {
 }
 
 export function isLineEligible(rule: CouponRule, line: PricingLine): boolean {
+  if (line.campaignDiscounted) return false;
   if (rule.appliesToAll) return true;
   if (rule.productIds.includes(line.productId)) return true;
   return line.categoryIds.some((id) => rule.categoryIds.includes(id));
