@@ -14,7 +14,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | --- | --- |
 | Prisma models, migrations, API routes, `api-endpoints.ts`, React Query hooks, or any component that loads or saves data | [docs/DATA-LAYER.md](docs/DATA-LAYER.md) |
 | Pages, components, styling, motion, loading states | [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) |
-| Admin console, sidebar, admin routes | [docs/ADMIN-PANEL.md](docs/ADMIN-PANEL.md) |
+| Admin console, sidebar, admin routes, the dashboard figures and `admin/dashboard`, the low stock threshold | [docs/ADMIN-PANEL.md](docs/ADMIN-PANEL.md) |
 | Roles, custom Staff roles and access levels, staff permissions, `authorizeApi` actions, the Roles screen, hiding admin buttons | [docs/PERMISSIONS.md](docs/PERMISSIONS.md) |
 | The change log, `recordAudit`, Trash, soft delete, restoring products or users | [docs/TRASH-AUDIT.md](docs/TRASH-AUDIT.md) |
 | Policy pages, rich text, the policy editor, policy SEO fields | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |

@@ -51,6 +51,10 @@ export const API_ENDPOINTS = {
       discard: `${V1}/admin/homepage/discard`,
       seo: `${V1}/admin/homepage/seo`,
     },
+    releases: {
+      list: `${V1}/admin/releases`,
+      detail: (id: string) => `${V1}/admin/releases/${id}`,
+    },
     coupons: {
       list: `${V1}/admin/coupons`,
       detail: (id: string) => `${V1}/admin/coupons/${id}`,
@@ -84,6 +88,7 @@ export const API_ENDPOINTS = {
       detail: (report: ReportKey) => `${V1}/admin/reports/${report}`,
     },
     storeSettings: `${V1}/admin/store-settings`,
+    dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,

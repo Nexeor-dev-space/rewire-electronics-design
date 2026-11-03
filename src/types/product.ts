@@ -39,6 +39,7 @@ export interface ProductVariantDetail {
   price: number;
   compareAtPrice: number | null;
   stock: number;
+  lowStockThreshold: number | null;
 }
 
 export interface ProductImageDetail {

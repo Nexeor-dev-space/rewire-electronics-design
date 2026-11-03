@@ -1,11 +1,10 @@
 /**
  * Admin console configuration — the chrome's copy and the dashboard's
- * placeholder tiles.
+ * tiles.
  *
  * Everything here is layout data, not business data. The dashboard tiles
- * declare what the console will report on and where each figure leads;
- * the figures themselves stay blank until the APIs behind them exist, so
- * nothing on this screen can quietly become a fake number.
+ * declare what each figure counts and where it leads; the figures come
+ * from `GET /api/v1/admin/dashboard`.
  */
 
 import { siteConfig } from "./site";
@@ -16,10 +15,12 @@ export const adminConsole = {
   label: "Admin",
 } as const;
 
+export type AdminMetricKey = "orders-today" | "live-release" | "open-claims" | "low-stock";
+
 export interface AdminMetric {
-  key: string;
+  key: AdminMetricKey;
   label: string;
-  /** One line saying what the figure will count once it is wired up. */
+  /** One line saying what the figure counts. */
   hint: string;
   /** The module that owns the figure. */
   href: string;
@@ -46,18 +47,18 @@ export const adminMetrics: AdminMetric[] = [
   {
     key: "open-claims",
     label: "Open Warranty Claims",
-    hint: "Claims awaiting a decision",
+    hint: "Claims not yet closed",
     href: "/admin/service/warranty",
   },
   {
     key: "low-stock",
     label: "Low Stock",
-    hint: "Variants below their stock threshold",
+    hint: "Variants below their low stock alert",
     href: "/admin/products",
   },
 ];
 
-/** Stands in for a figure whose API does not exist yet. */
+/** Stands in for a figure the viewer cannot see, or that failed to load. */
 export const METRIC_PLACEHOLDER = "—";
 
 /** The console's two palettes; no saved choice means follow the OS. */

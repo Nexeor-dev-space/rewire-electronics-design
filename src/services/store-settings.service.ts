@@ -2,7 +2,7 @@ import "server-only";
 
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
+import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { StoreSettingsView } from "@/types/return";
 import type { storeSettingsSchema } from "@/validators/return.validator";
@@ -32,6 +32,14 @@ function toView(row: SettingsRow | null): StoreSettingsView {
 export async function getStoreSettings(db: Prisma.TransactionClient = prisma): Promise<StoreSettingsView> {
   const row = await db.storeSettings.findUnique({ where: { id: SETTINGS_ID }, select: settingsSelect });
   return toView(row);
+}
+
+export async function getLowStockThreshold(): Promise<number> {
+  const row = await prisma.storeSettings.findUnique({
+    where: { id: SETTINGS_ID },
+    select: { lowStockThreshold: true },
+  });
+  return row?.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
 }
 
 /** The rate the cart and checkout price with; falls back to the default until one is saved. */

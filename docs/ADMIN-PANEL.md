@@ -19,7 +19,7 @@ Users module are described under [Access control](#access-control) and
 | File | Purpose |
 | --- | --- |
 | `src/lib/admin-nav.ts` | Central navigation config, route resolution, breadcrumbs |
-| `src/lib/admin-console.ts` | Console chrome copy and dashboard metric placeholders |
+| `src/lib/admin-console.ts` | Console chrome copy and the dashboard tiles |
 | `src/components/admin/admin-shell.tsx` | The frame: rail, drawer, header, content column |
 | `src/components/admin/admin-nav.tsx` | The navigation list, rendered from the config |
 | `src/components/admin/admin-breadcrumbs.tsx` | Breadcrumb trail derived from the current path |
@@ -492,10 +492,44 @@ A built module adds its route to `BUILT_ROUTES` so the catch-all stops listing i
 ## Dashboard
 
 Four operational indicators, declared in `src/lib/admin-console.ts`: Orders
-Today, Live Release, Open Warranty Claims and Low Stock. Each shows a placeholder
-figure rather than a number, so the screen cannot show a value it did not count.
-Wiring one up means replacing the placeholder with the module's own query.
-Reporting lives on its own screen, [REPORTS.md](REPORTS.md).
+Today, Live Release, Open Warranty Claims and Low Stock. Issue #102 connected
+them to live records. Reporting lives on its own screen, [REPORTS.md](REPORTS.md).
+
+### What each figure counts
+
+| Card | Count | Needs View on |
+| --- | --- | --- |
+| Orders Today | Every order created since midnight on the store clock (`startOfStoreDay` in `src/lib/dates.ts`), whatever its status, so it matches the Orders list | `PERMISSIONS.orders` |
+| Live Release | The release that is active, has started, has not ended and whose product is not in Trash; the latest start wins. Shows its title, product and end, or "No live release" | `PERMISSIONS.releases` |
+| Open Warranty Claims | Claims in `OPEN_WARRANTY_CLAIM_STATUSES`, through `openClaimWhere` in `warranty.service.ts` | `PERMISSIONS.warranty` |
+| Low Stock | Variants whose `stock` is below their own `lowStockThreshold`, or below the store default (`StoreSettings.lowStockThreshold`) when theirs is blank. Archived products and products in Trash are left out. Out of stock variants count | `PERMISSIONS.products` |
+
+A figure the viewer has no View on comes back `null` and the card shows the
+placeholder with the hint "No access".
+
+### API
+
+`GET /api/v1/admin/dashboard` answers any Admin or Staff user (401 without a
+session, 403 for a customer). It returns
+`{ ordersToday, openClaims, lowStock, liveRelease, canViewReleases }`: counts or
+`null`, the live release or `null`, and whether the viewer may see releases.
+`getDashboardMetrics` in `src/services/dashboard.service.ts` runs the four reads
+in parallel.
+
+### Screen
+
+`DashboardMetrics` (`src/components/admin/dashboard-metrics.tsx`) calls
+`useDashboardMetrics` (`src/hooks/use-dashboard.ts`). It shows a skeleton while
+loading, the placeholder plus a Try again line on error, and the figures once
+loaded. The query refetches every time the dashboard opens, and any release
+change invalidates it. There is no polling. The Open module links are unchanged.
+
+### Low stock threshold
+
+Each variant has an optional "Low stock alert" (`ProductVariant.lowStockThreshold`)
+on the product form. Blank means the store default,
+`StoreSettings.lowStockThreshold`, an `Int` defaulting to 5 and read by
+`getLowStockThreshold` on its own. No screen edits the store default yet.
 
 ## Known technical debt
 

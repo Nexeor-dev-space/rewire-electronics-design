@@ -29,6 +29,7 @@ export interface DraftVariant {
   price: string;
   compareAtPrice: string;
   stock: string;
+  lowStockThreshold: string;
 }
 
 let keyCount = 0;
@@ -46,11 +47,12 @@ export const emptyVariant = (from?: DraftVariant): DraftVariant => ({
   price: "",
   compareAtPrice: "",
   stock: "0",
+  lowStockThreshold: "",
 });
 
 type TextField = Exclude<keyof DraftVariant, "key" | "id" | "condition" | "grade">;
 
-const STATE_FIELDS = ["condition", "grade", "batteryHealth"] as const;
+const STATE_FIELDS = ["condition", "grade", "batteryHealth", "lowStockThreshold"] as const;
 
 const FIELDS: { name: TextField; label: string; inputMode?: "decimal" | "numeric" }[] = [
   { name: "sku", label: "SKU" },
@@ -103,7 +105,7 @@ export function ProductVariantsEditor({
 
           return (
             <li key={variant.key} className="rounded-xl border border-line bg-surface p-3">
-              <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <label className="flex flex-col gap-1 text-xs text-ink-muted">
                   Condition
                   <Select
@@ -150,6 +152,17 @@ export function ProductVariantsEditor({
                     inputMode="numeric"
                     onChange={(event) => update(variant.key, { batteryHealth: event.target.value })}
                     aria-invalid={errorAt(`variants.${index}.batteryHealth`) ? true : undefined}
+                    className="h-9 px-2 text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-ink-muted">
+                  Low stock alert
+                  <Input
+                    value={variant.lowStockThreshold}
+                    inputMode="numeric"
+                    placeholder="Store default"
+                    onChange={(event) => update(variant.key, { lowStockThreshold: event.target.value })}
+                    aria-invalid={errorAt(`variants.${index}.lowStockThreshold`) ? true : undefined}
                     className="h-9 px-2 text-sm"
                   />
                 </label>

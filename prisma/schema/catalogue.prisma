@@ -121,6 +121,7 @@ model Product {
   specs    ProductSpec[]
   coupons  CouponProduct[]
   addOns   ProductAddOn[]
+  releases Release[]
 
   /// Homepage drops and Just Listed picks. Deleting the product for good
   /// deletes them; while it is unpublished or in Trash the homepage skips them.
@@ -154,10 +155,11 @@ model ProductVariant {
   grade         ProductGrade?
   batteryHealth Int?
 
-  price          Int
-  compareAtPrice Int?
-  stock          Int  @default(0)
-  sortOrder      Int  @default(0)
+  price             Int
+  compareAtPrice    Int?
+  stock             Int  @default(0)
+  lowStockThreshold Int?
+  sortOrder         Int  @default(0)
 
   cartItems  CartItem[]
   orderItems OrderItem[]

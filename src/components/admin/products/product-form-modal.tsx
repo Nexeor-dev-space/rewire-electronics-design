@@ -146,6 +146,7 @@ function toDraftVariants(product?: ProductDetail): DraftVariant[] {
     price: fromMinorUnits(variant.price),
     compareAtPrice: fromMinorUnits(variant.compareAtPrice),
     stock: String(variant.stock),
+    lowStockThreshold: variant.lowStockThreshold === null ? "" : String(variant.lowStockThreshold),
   }));
 }
 
@@ -224,6 +225,7 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
         compareAtPrice:
           variant.compareAtPrice.trim() === "" ? null : (toMinorUnits(variant.compareAtPrice) ?? 0),
         stock: optionalNumber(variant.stock),
+        lowStockThreshold: optionalNumber(variant.lowStockThreshold),
       })),
       addOns: addOnPicks.map((pick) => ({
         addOnId: pick.addOnId,

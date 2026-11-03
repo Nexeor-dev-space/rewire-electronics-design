@@ -51,7 +51,9 @@ and `updatedAt`. Money is an `Int` in fils.
    (cascade), `status`, `note` (shown to the customer), `actorId` (nullable,
    `SetNull`; null means the customer). Index on `[returnRequestId, createdAt]`.
 4. **`StoreSettings`** (`store_settings`): a singleton. `id` is an `Int`
-   defaulting to 1, `returnWindowDays` (default 30), `updatedById` (nullable,
+   defaulting to 1, `returnWindowDays` (default 30), `vatRatePercent` (see
+   [VAT.md](VAT.md)), `lowStockThreshold` (default 5, see
+   [ADMIN-PANEL.md](ADMIN-PANEL.md) Dashboard), `updatedById` (nullable,
    `SetNull`). The service only upserts id 1. No row reads as the default
    `RETURN_WINDOW_DAYS`.
 5. **Enums:** `ReturnStatus` and `ReturnReason`, mirrored by `RETURN_STATUSES`
