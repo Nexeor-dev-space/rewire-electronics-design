@@ -292,8 +292,7 @@ export const adminNav: AdminNavSection[] = [
         key: "campaigns",
         label: "Campaigns",
         href: "/admin/marketing/campaigns",
-        description:
-          "Release campaigns and email automation, including waitlist messaging.",
+        description: "Scheduled campaigns and the product discounts they apply.",
       },
       {
         key: "messages",
