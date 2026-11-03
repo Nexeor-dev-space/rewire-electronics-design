@@ -45,6 +45,8 @@ model User {
   couponRedemptions CouponRedemption[]
   returnEvents      ReturnStatusEvent[]
   warrantyEvents    WarrantyClaimEvent[]
+  releaseTallies    ReleaseCustomerTally[]
+  waitlistEntries   WaitlistEntry[]
 
   storeSettingsUpdates StoreSettings[]
 
