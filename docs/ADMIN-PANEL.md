@@ -208,6 +208,13 @@ Governance → **Trash** (`/admin/trash/products`, `/admin/trash/users`,
 `governance.trash`) holds deleted products and accounts for restore. Both are
 described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
+## Releases
+
+Sales → **Releases** (`/admin/releases`, `/admin/releases/[id]`,
+`sales.releases`). Limited drops with their own schedule, products, stock set
+aside per variant and a purchase limit. Statuses, what can change when, the
+allocation rules and the API are in [RELEASES.md](RELEASES.md).
+
 ## Reports
 
 Governance → **Reports** (`/admin/reports`, `governance.reports`, View only).
@@ -517,7 +524,7 @@ them to live records. Reporting lives on its own screen, [REPORTS.md](REPORTS.md
 | Card | Count | Needs View on |
 | --- | --- | --- |
 | Orders Today | Every order created since midnight on the store clock (`startOfStoreDay` in `src/lib/dates.ts`), whatever its status, so it matches the Orders list | `PERMISSIONS.orders` |
-| Live Release | The release that is active, has started, has not ended and whose product is not in Trash; the latest start wins. Shows its title, product and end, or "No live release" | `PERMISSIONS.releases` |
+| Live Release | A published, not hidden release that has opened and not ended, with a product not in Trash; the latest opening wins. Shows its title, edition, units left of allocated, sold, end and "+N more live" when several overlap, or "No live release" ([RELEASES.md](RELEASES.md)) | `PERMISSIONS.releases` |
 | Open Warranty Claims | Claims in `OPEN_WARRANTY_CLAIM_STATUSES`, through `openClaimWhere` in `warranty.service.ts` | `PERMISSIONS.warranty` |
 | Low Stock | Variants whose `stock` is below their own `lowStockThreshold`, or below the store default (`StoreSettings.lowStockThreshold`) when theirs is blank. Archived products and products in Trash are left out. Out of stock variants count | `PERMISSIONS.products` |
 
