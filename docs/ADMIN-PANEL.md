@@ -365,10 +365,13 @@ route is in `BUILT_ROUTES`.
 1. **The list** has search by name, status and type filters, sorting by created
    and start date, and pagination. The name opens the details page. The
    **Campaign types** button opens a dialog to add, rename and remove types.
-2. **The details page** shows the products and their discounts, the dates and
-   the URL, with Edit, Delete and the status buttons the campaign allows.
-3. **The form** saves a new campaign as a Draft; publishing happens on the
-   details page.
+2. **The details page** shows the content, the products and their discounts, the
+   dates and the URL, with Edit, Delete and the status buttons the campaign
+   allows.
+3. **The form** holds the details, the content (banner, promotional text and
+   images, button, linked release) and the products, with a Preview of the
+   content as typed. A new campaign is saved as a Draft or published straight
+   away. The edit page shows the status and its actions at the top.
 
 The rules, endpoints and data model are in [CAMPAIGNS.md](CAMPAIGNS.md).
 

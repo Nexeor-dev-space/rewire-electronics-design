@@ -10,11 +10,12 @@ const UPLOAD_MODULES = [
   PERMISSIONS.products,
   PERMISSIONS.homepage,
   PERMISSIONS.content,
+  PERMISSIONS.campaigns,
 ];
 
 /**
- * The one image upload, shared by the category, brand, product, homepage
- * and policy forms. Open to anyone who can create or edit in one of them.
+ * The one image upload, shared by the category, brand, product, homepage,
+ * policy and campaign forms. Open to anyone who can create or edit in one of them.
  *
  * Takes `multipart/form-data` with a single `file` field, so there is no Zod
  * schema here — a `File` is validated by `saveImage` on type and size.

@@ -2,7 +2,8 @@
 
 Marketing → **Campaigns** (`/admin/marketing/campaigns`). A campaign puts a
 discount on chosen products for a set time. The discounts change real prices in
-the shop, the cart and checkout while the campaign runs.
+the shop, the cart and checkout while the campaign runs. It also holds the
+promotional content (section 4) that the later shopper page will show.
 
 Read this before changing campaign rules, campaign prices, or how a discount
 code treats a campaign item.
@@ -56,9 +57,26 @@ The start instant counts as live and the end instant as over.
 | Paused | Resume, Cancel |
 | Completed, Cancelled | None |
 
-A new campaign is always a Draft. There is no status field on the form, because
-going live needs its own permission and three of the statuses follow from the
-dates. A cancelled campaign can't be restarted; create a new one.
+A new campaign is always saved as a Draft. There is no free status dropdown,
+because going live needs its own permission and three of the statuses follow
+from the dates. Instead:
+
+| Screen | How the status changes |
+| --- | --- |
+| New campaign | **Save as draft**, or **Publish**, shown only with the Publish permission |
+| Edit campaign | The Status section shows the current status and the actions above |
+| Details | The same actions, in the page header |
+
+**Publish on the new campaign page** makes two calls: it saves the draft, then
+sends `PUBLISH`. If the second call fails, for example on an overlap, the draft
+is kept, the form stays open with the error, and pressing Publish again updates
+that draft rather than creating a second one. No products is refused before
+anything is saved.
+
+Actions on the edit page use the last saved details, not what is typed in the
+form, and leave the typed values in place. The page says so.
+
+A cancelled campaign can't be restarted; create a new one.
 
 ---
 
@@ -74,6 +92,10 @@ dates. A cancelled campaign can't be restarted; create a new one.
 | At least one product | Publish, Resume, and any save while published or paused | 422 on `products` |
 | The end date is still ahead | Publish, Resume | 422 on `endsAt` |
 | The dates don't overlap another campaign | Publish, Resume, and any save while published or paused | 409 on `startsAt`, naming the other campaign |
+| Button text and link are filled in together; the link is a site path or `https://` | Every save | 422 on `ctaLabel` or `ctaHref` |
+| The banner, images and linked release still exist | Every save | 422 on `bannerImageId`, `imageIds` or `releaseId` |
+| At most `MAX_CAMPAIGN_IMAGES` (6) images, each once | Every save | 422 on `imageIds` |
+| Promotional text is at most `CAMPAIGN_CONTENT_MAX_LENGTH` (5000) characters | Every save | 422 on `content` |
 
 **Overlaps.** Drafts can overlap anything. A Scheduled, Active or Paused
 campaign holds its dates, so a paused campaign can resume. Completed and
@@ -88,7 +110,33 @@ regular price. An item is never free.
 
 ---
 
-## 4. Prices
+## 4. Content
+
+All optional, so a campaign without content still saves and publishes.
+
+| Field | Notes |
+| --- | --- |
+| Banner | One image, through the shared `ImageField` |
+| Promotional text | Plain text; line breaks are kept |
+| Promotional images | Up to 6, kept in the order they were added |
+| Button text and link | Shown as the campaign's call to action |
+| Linked release | One release; a product list is already on the campaign |
+
+**Nothing here reaches shoppers yet.** The shopper page comes with a later
+issue. `CampaignContent` draws the content on the details page and in the form's
+Preview dialog. Preview uses the values as typed and saves nothing, and its
+button doesn't navigate.
+
+**Images.** Uploads go through `POST /api/v1/uploads/images`, which now accepts
+Campaigns permission. `campaignBanners` and `campaignImages` on `MediaAsset`
+count as references in `releaseImage` and `sweepOrphans`, so a campaign's images
+are never swept. Replacing or removing an image, or deleting the campaign,
+deletes the file once nothing else uses it. Deleting a release clears the link
+and keeps the campaign.
+
+---
+
+## 5. Prices
 
 `liveCampaignDiscounts(db, productIds, now)` in `campaign.service.ts` returns
 each product's discount from the running campaign. It is one indexed query per
@@ -111,9 +159,10 @@ variant has a higher `compareAtPrice` of its own.
 
 ---
 
-## 5. Data model
+## 6. Data model
 
-`prisma/schema/campaign.prisma`, plus the back relation `Product.campaigns`.
+`prisma/schema/campaign.prisma`, plus the back relations `Product.campaigns`,
+`Release.campaigns`, `MediaAsset.campaignBanners` and `MediaAsset.campaignImages`.
 
 ```prisma
 enum CampaignState { DRAFT PUBLISHED PAUSED CANCELLED }
@@ -130,6 +179,10 @@ model Campaign {
   typeId String                 // CampaignType, onDelete Restrict
   startsAt DateTime; endsAt DateTime
   state CampaignState @default(DRAFT)
+  content String @default("")
+  bannerImageId String?         // MediaAsset, onDelete SetNull
+  ctaLabel String?; ctaHref String?
+  releaseId String?             // Release, onDelete SetNull
   @@map("campaigns")
 }
 
@@ -141,10 +194,19 @@ model CampaignProduct {
   @@id([campaignId, productId])
   @@map("campaign_products")
 }
+
+model CampaignImage {
+  campaignId String             // onDelete Cascade
+  mediaId String                // MediaAsset, onDelete Cascade
+  sortOrder Int @default(0)
+  @@id([campaignId, mediaId])
+  @@map("campaign_images")
+}
 ```
 
-Migration: one, `20261103095747_add_campgain`, adding the three tables and the
-enum. No existing table changes.
+Migrations: `20261103095747_add_campgain` adds the first three tables and the
+enum. `20261103120717_add_campaign_pciture` adds the content columns and
+`campaign_images`; it only adds, and existing campaigns get empty content.
 
 Deleting a campaign is permanent; its last values stay readable in the Change
 Log. A type in use can't be removed: the API answers 409 with the count. At most
@@ -152,7 +214,7 @@ Log. A type in use can't be removed: the API answers 409 with the count. At most
 
 ---
 
-## 6. API
+## 7. API
 
 Paths are in `API_ENDPOINTS.admin.campaigns`; every write is recorded in the
 Change Log under Campaigns.
@@ -185,13 +247,23 @@ Change Log under Campaigns.
   "products": [
     { "productId": "cm…", "discountType": "PERCENT", "discountValue": 20 },
     { "productId": "cm…", "discountType": "FIXED", "discountValue": 20000 }
-  ]
+  ],
+  "content": "Up to 20% off selected phones.",
+  "bannerImageId": "cm…",
+  "imageIds": ["cm…", "cm…"],
+  "ctaLabel": "Shop the sale",
+  "ctaHref": "/collection",
+  "releaseId": "cm…"
 }
 ```
 
+The content fields can be left out. `AdminCampaign` also returns
+`bannerImageUrl`, `images` as `{ mediaId, url }[]` and `release` as
+`{ id, title }`.
+
 ---
 
-## 7. Permissions
+## 8. Permissions
 
 Module `marketing.campaigns` (`PERMISSIONS.campaigns`), with View, Create, Edit,
 Delete and Publish, on the Roles screen as Campaigns. Existing Staff roles hold
@@ -201,7 +273,7 @@ running campaign, just as Edit on Products can change a price.
 
 ---
 
-## 8. Files
+## 9. Files
 
 | File | Purpose |
 | --- | --- |
@@ -213,11 +285,11 @@ running campaign, just as Edit on Products can change a price.
 | `src/hooks/use-campaign.ts` | Queries and mutations; every mutation invalidates `["campaigns"]` |
 | `src/app/api/v1/admin/campaigns/`, `campaign-types/` | The routes |
 | `src/app/admin/marketing/campaigns/` | List, `new`, `[id]` and `[id]/edit` pages |
-| `src/components/admin/campaigns/` | Table, details, form, types dialog, status badge |
+| `src/components/admin/campaigns/` | Table, details, form, content fields, content view, status actions, types dialog, status badge |
 
 ---
 
-## 9. Known limits
+## 10. Known limits
 
 1. **Shop sort and price filter use the regular price.** They read
    `Product.minPrice`, so a phone normally AED 2,100 and now AED 1,800 is missed
@@ -230,3 +302,10 @@ running campaign, just as Edit on Products can change a price.
    removed, and it can be added back.
 5. **The details page breadcrumb shows the campaign's id**, because breadcrumbs
    are built from the path.
+6. **The release list needs its own permission.** Without View on Releases, the
+   Linked release field shows the error and offers only the release already
+   linked. The rest of the form still saves.
+7. **The release list holds the newest 100.** An older release already linked
+   stays selectable; a different older one can't be picked.
+8. **Preview is not the shopper page.** It shows the content, not the final
+   design, because that page doesn't exist yet.

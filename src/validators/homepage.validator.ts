@@ -36,7 +36,7 @@ function optionalText(max: number) {
 
 const SAFE_HREF_MESSAGE = "Use a site path such as /collection, or an https:// link.";
 
-function optionalHref(max: number) {
+export function optionalHref(max: number) {
   return optionalText(max).refine((value) => value === null || isSafeHref(value), SAFE_HREF_MESSAGE);
 }
 
