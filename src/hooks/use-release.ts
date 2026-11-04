@@ -5,6 +5,7 @@ import { dashboardKeys } from "@/hooks/use-dashboard";
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import type { Paginated } from "@/lib/api/api-response";
+import { WAITLIST_ADMIN_PAGE_SIZE } from "@/lib/constants";
 import type {
   AdminReleaseDetail,
   AdminReleaseRow,
@@ -13,14 +14,23 @@ import type {
   ReleaseInput,
   ReleaseStateInput,
 } from "@/types/release";
+import type { AdminWaitlistEntry } from "@/types/storefront-release";
 
 const releaseKeys = {
   all: ["releases"] as const,
   list: (filters: ReleaseFilters) => ["releases", "list", filters] as const,
   detail: (id: string) => ["releases", "detail", id] as const,
+  waitlist: (id: string, page: number) => ["releases", "waitlist", id, page] as const,
 };
 
 const endpoints = API_ENDPOINTS.admin.releases;
+
+function fetchReleaseWaitlist(id: string, page: number, signal?: AbortSignal) {
+  return apiRequest<Paginated<AdminWaitlistEntry>>(endpoints.waitlist(id), {
+    query: { page, pageSize: WAITLIST_ADMIN_PAGE_SIZE },
+    signal,
+  });
+}
 
 function useInvalidateReleases() {
   const queryClient = useQueryClient();
@@ -48,6 +58,24 @@ export function useGetRelease(id: string) {
     queryFn: ({ signal }) => apiRequest<AdminReleaseDetail>(endpoints.detail(id), { signal }),
     enabled: Boolean(id),
   });
+}
+
+export function useGetReleaseWaitlist(id: string, page = 1) {
+  return useQuery({
+    queryKey: releaseKeys.waitlist(id, page),
+    queryFn: ({ signal }) => fetchReleaseWaitlist(id, page, signal),
+    enabled: Boolean(id),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export async function fetchAllReleaseWaitlist(id: string): Promise<AdminWaitlistEntry[]> {
+  const entries: AdminWaitlistEntry[] = [];
+  for (let page = 1; ; page += 1) {
+    const result = await fetchReleaseWaitlist(id, page);
+    entries.push(...result.items);
+    if (entries.length >= result.total || result.items.length === 0) return entries;
+  }
 }
 
 export function useCreateRelease() {
