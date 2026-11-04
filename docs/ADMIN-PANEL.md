@@ -212,8 +212,10 @@ described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
 Sales → **Releases** (`/admin/releases`, `/admin/releases/[id]`,
 `sales.releases`). Limited drops with their own schedule, products, stock set
-aside per variant and a purchase limit. Statuses, what can change when, the
-allocation rules and the API are in [RELEASES.md](RELEASES.md).
+aside per variant and a purchase limit. A release's page also has its
+**Waitlist** panel, 50 people a page, with Export CSV. Statuses, what can
+change when, the allocation rules, the waitlists and the API are in
+[RELEASES.md](RELEASES.md).
 
 ## Reports
 

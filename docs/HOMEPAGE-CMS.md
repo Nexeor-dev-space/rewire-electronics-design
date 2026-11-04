@@ -40,7 +40,7 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/hooks/use-homepage.ts` | React Query hooks for the admin API. Key `["homepage"]`; a successful mutation writes the returned draft into the cache with no refetch, a failed one reloads the draft |
 | `src/lib/homepage-builder.ts` | Pure helpers for the builder: `swapItems`, `sectionToInput`, `itemToInput`, `emptySectionInput`, `emptyItemInput`, `validateSection`, `firstLine`, `flattenCategoryRefs`. Client-safe |
 | `src/lib/homepage-sections.test.ts` | Unit tests for the deals item rule, the Season deals schedule and the one per homepage rule |
-| `src/lib/dates.ts` | Store time helpers for drop release times and Season deals dates: `toStoreDateTimeInput`, `fromStoreDateTimeInput`, `formatStoreDateTime` (§4) |
+| `src/lib/dates.ts` | Store time helpers for Season deals dates and release opening times: `toStoreDateTimeInput`, `fromStoreDateTimeInput`, `formatStoreDateTime` (§4) |
 | `src/components/admin/homepage/` | The builder screen, the section form, the brand picker, the items editor, the product picker and the category picker |
 | `src/app/admin/storefront/homepage/page.tsx` | The builder route, guarded by `storefront.homepage` |
 | `src/app/(site)/preview/homepage/page.tsx` | The staff draft preview |
@@ -130,7 +130,7 @@ inputs to show.
 | Type (label) | Items come from | Editable fields | |
 | --- | --- | --- | --- |
 | `HERO` (Hero) | — | title\*, eyebrow, subtitle, description, button, image, mobile image | fixed |
-| `UPCOMING_DROPS` (Upcoming drops) | drop items → catalogue products (§4) | title\*, eyebrow, subtitle, button, drops | fixed |
+| `UPCOMING_DROPS` (Upcoming drops) | published releases (§4, [RELEASES.md](RELEASES.md) §12) | title\*, eyebrow, subtitle, button | fixed |
 | `BEST_SELLERS` (Just listed) | product picks, else the newest products (§4) | title\*, eyebrow, subtitle, button, products | fixed |
 | `CONDITIONS` (Conditions) | `CONDITION_META` | title\*, eyebrow, subtitle | fixed |
 | `TESTIMONIALS` (Reviews) | review items (§4) | title\*, subtitle, reviews | fixed |
@@ -154,14 +154,14 @@ button while one exists.
 the start; other types refuse them. The live homepage shows the section only
 from `startsAt` up to, not including, `endsAt` (`isWithinSchedule`), decided on
 the server per request. The preview ignores the dates so staff can check a
-campaign before it starts. The dates are typed in Dubai time, like drop
-release times (§4).
+campaign before it starts. The dates are typed in Dubai time (§4).
 
 - **Fixed** sections are part of the page: they can be moved and hidden, never
   added or deleted (a delete is 409). **Added** types can be created and
   deleted, up to 30 sections in all.
 - A fixed type exposes exactly the slots its component renders. The
-  Invitation's button opens the waitlist, so it has a label and no link.
+  Invitation's button always goes to `/releases`, so it has a label and no
+  link.
 - **Two enum values keep old names.** `BEST_SELLERS` is shown everywhere as
   "Just listed" and `TESTIMONIALS` as "Reviews" (`SECTION_RULES[type].label`).
   Renaming a Postgres enum value that rows already use needs a hand-edited
@@ -186,7 +186,7 @@ release times (§4).
 
 ---
 
-## 4. Items — drops, Just Listed picks, reviews and featured categories
+## 4. Items — Just Listed picks, deals, reviews and featured categories
 
 `HomepageSectionItem` rows hang off a section, in `sortOrder`, each with its
 own `visible`. What they hold is the section's `SECTION_RULES[type].items`, and
@@ -195,7 +195,6 @@ as sections. At most **12** per section.
 
 | Kind | Section | Fields | Required |
 | --- | --- | --- | --- |
-| `drops` | Upcoming drops | product, title, release date, button, image | a product, **or** title + image + release date |
 | `products` | Just listed, Best deals | product | product |
 | `deals` | Season deals | product, title, image, link (`ctaHref`) | a product alone, **or** title + image + link |
 | `reviews` | Reviews | quote (`body`), customer (`author`), product bought (`title`), rating 1–5, avatar (`image`) | quote, customer |
@@ -208,7 +207,7 @@ product can be kept: it stays off the storefront until it is listed again, and
 the builder badges it "Not on storefront".
 The same product can't be picked twice in one section.
 
-**No copied product data.** A drop or pick stores only `productId`. Name,
+**No copied product data.** A pick stores only `productId`. Name,
 picture, price and stock are read from the catalogue when the page renders,
 through `findShopCards` in `catalogue.service.ts` — the shop's own card, so
 only products the shop would list (published, not in Trash, visible category,
@@ -218,36 +217,46 @@ Trash) deletes the items that point at it, in both stages (`Cascade`) — an
 item left without its product would fail its kind's rules and block saving
 the section.
 
-**Drops.** A drop's status is worked out per request: `coming-soon` while its
-release date is in the future (countdown, waitlist), then `sold-out` /
-`almost-gone` / `available` from the product's stock (`availabilityFromStock`).
-Its title overrides the product's name. A button (label + link) replaces the
-card's own action. A drop **without a product** is a teaser for a release not
-in the catalogue yet: its own title, uploaded image and date, shown only until
-that date. The upload is offered only when there is no product, so a product's
-photo is never uploaded twice; it is also the fallback if a product has no
-photos, and a card with neither shows its bare plate. A drop whose product the
-shop wouldn't list is skipped; Upcoming drops with nothing left is not
-rendered.
+**Upcoming drops.** The section has no items. Its cards are the releases the
+storefront shows (published, not hidden, not completed, with at least one
+product not in Trash), earliest opening first, at most `HOMEPAGE_DROPS_LIMIT`
+(5). Staff manage them in Sales → Releases; the section form says so.
+`getHomepageSections` reads them with `listStorefrontReleases` only when the
+section is on the page, and `toPublishedDrop`
+(`src/services/release-storefront.service.ts`) turns each into a
+`PublishedDrop`:
 
-**Release times are Dubai time.** The release date and time is stored as one
-UTC instant (`releaseAt`). Every conversion to or from a clock time goes
+1. Upcoming is `coming-soon` (countdown and Notify me), Sold out is
+   `sold-out` (Notify me), Live is `almost-gone` or `available` from its units
+   left (`availabilityFromStock`).
+2. The card shows the release title, its edition (or its product names), the
+   cheapest variant's price, and links to `/releases/[slug]` ("View release").
+3. Notify me opens the waitlist dialog for that release ([RELEASES.md](RELEASES.md) §12).
+
+With no release to show, the section is not rendered.
+
+**Old drop items.** Before releases, staff picked drops by hand. Any such rows
+still stored are ignored: `withAllowedItems` empties the items of a section
+type that has none, on the builder read and the storefront read, so the next
+save of the section deletes them. Publishing before that save copies them to
+LIVE, where they are ignored too. `HomepageSectionItem.releaseAt` is no longer
+read or written; a later migration can drop it.
+
+**Times are Dubai time.** Every conversion to or from a clock time goes
 through `src/lib/dates.ts` on the store's clock, `STORE_TIME_ZONE`
 (`Asia/Dubai`, labelled `STORE_TIME_ZONE_LABEL`, "GST", both in
 `src/lib/constants.ts`), never the device's zone:
 
-1. The console's date and time field reads and writes Dubai time
+1. The console's date and time fields (Season deals) read and write Dubai time
    (`toStoreDateTimeInput`, `fromStoreDateTimeInput`), so 18:00 typed by staff
-   anywhere means 18:00 in Dubai. Below the field it repeats the result, for
-   example "Opens 14 Nov, 6:00 pm GST".
-2. The storefront card shows "Opens 14 Nov, 6:00 pm GST" while the drop is
+   anywhere means 18:00 in Dubai.
+2. A release card shows "Opens 14 Nov, 6:00 pm GST" while the release is
    still to open. That text (`PublishedDrop.opensAt`) is formatted once on the
    server by `formatStoreDateTime` and sent to the page as finished text, so
-   the server and the shopper's browser can never print it differently. After
-   the release it is not shown.
-3. Whether a drop has opened is decided on the server per request, against the
-   real current instant, so it does not depend on any device clock. The
-   countdown on the card only counts down to that same instant.
+   the server and the shopper's browser can never print it differently.
+3. Whether a release has opened is decided on the server per request, against
+   the real current instant. The countdown on the card only counts down to
+   that same instant.
 
 **Just listed.** Picks the shop can sell right now (listed and in stock) show
 in the chosen order. With no picks, or none of them sellable, the shelf shows
@@ -274,10 +283,10 @@ from the reviews shown; the rating is dropped when none has one. They are not
 tied to an order, so nothing claims a "verified purchase". Reviews with nothing
 visible are not rendered.
 
-**Still on `drops.ts`.** The Invitation, Savings, Scarcity and the header's
-mega menu still read the mock in `src/lib/drops.ts`. A Releases module (P3)
-would replace that; homepage drops would then point at releases instead of, or
-as well as, products.
+**Still on `drops.ts`.** Upcoming drops reads real releases, but the
+Invitation's ledger, Savings, Scarcity, the header's mega menu and the mobile
+drawer's drop list still read the mock in `src/lib/drops.ts`. Wiring them to
+releases is a follow up.
 
 **Featured categories.** Each item stores a `categoryId`, a real relation to
 `Category`. Its title, image and link replace the category's name, image and
@@ -305,7 +314,7 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
 ## 5. Images and references
 
 - `HomepageSection.imageId`, `HomepageSection.mobileImageId` (the Hero's
-  phone image) and `HomepageSectionItem.imageId` (a teaser drop's picture, a
+  phone image) and `HomepageSectionItem.imageId` (a deal tile's picture, a
   review's avatar, a featured category's replacement image) are relations to `MediaAsset`. Both the upload sweep and
   `releaseImage` count all three, from rows of **either** stage, as a
   reference, so an image replaced in the draft survives until a publish
@@ -314,7 +323,8 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
   images only the replaced rows used, after the copy.
 - An image id that no longer exists is refused on save (422 on that field,
   `items.N.imageId` for an item). A missing image on the storefront drops out
-  quietly: the Hero leaves its centrepiece out, a drop card shows its plate.
+  quietly: the Hero leaves its centrepiece out, a release card shows its
+  plate.
 - `refIds` holds a featured brands section's brand ids in display order,
   checked to exist on save (422 on the field otherwise), at most 12. A brand
   deleted later is **skipped** when the section renders; a section with
@@ -325,7 +335,8 @@ parent — the catalogue's `VISIBLE_CATEGORY`) are left out of the storefront.
   the same skipping rules) is **not cached**: the
   homepage renders per request (`force-dynamic`), so it reads the live rows
   each time. A renamed, unpublished or deleted brand, category or product
-  leaves the homepage immediately, a drop's status follows its stock and date,
+  leaves the homepage immediately, a release card's status follows its units
+  and dates,
   and a seed shows up without clearing anything. (An
   earlier cached version outlived the seed and served an empty homepage.)
 
@@ -363,8 +374,9 @@ overwrites anything changed through the API since. Images only the old rows
 referenced are collected by the upload sweep. Because the storefront read
 isn't cached, the seeded homepage shows up on the next page load.
 
-It runs after the catalogue seed: Upcoming drops gets the four newest
-published products, the last two opening 7 and 14 days after the seed. Reviews
+It runs after the catalogue seed. The seed still writes four drop items to
+Upcoming drops; they are ignored (§4), and the section shows only once a
+release is published. Reviews
 start empty — there are no real ones to seed, so the section stays off the
 storefront until staff add some. The Hero has no image until one is uploaded.
 
@@ -426,8 +438,9 @@ Policies, where the FAQ section's questions are edited.
 `SECTION_RULES` gives the type, with their length limits; the title is a
 textarea because a new line starts a new heading line. Promo banners get the
 shared image upload and a Seasonal checkbox; the Hero gets a desktop and a
-phone image; Featured brands get the brand picker; Upcoming drops, Just
-listed, Reviews and Featured categories get the items editor. Before sending, `validateSection` runs the
+phone image; Featured brands get the brand picker; Just listed, Best deals,
+Season deals, Reviews and Featured categories get the items editor; Upcoming
+drops gets a note linking to Sales → Releases instead. Before sending, `validateSection` runs the
 same schema and type rules as the API, so most mistakes show without a round
 trip; the API's 422 field errors land on the same inputs, an item's on its
 own card.
@@ -437,11 +450,9 @@ endpoints, one page of results (`PICKER_PAGE_SIZE`). Chosen items keep their
 order, can be moved and removed, up to 12.
 
 **Items editor.** One card per item with Visible, move up and down, and
-remove. Drops and Just listed add products through the **product picker**,
-which searches Catalogue → Products (any status; drafts are flagged "hidden on
-the storefront"). A drop card adds a title, a release date and time in Dubai time (§4) and a button, and
-"Add a release that isn't in the catalogue yet" adds one with its own image.
-A review card has the quote, customer, product bought, rating and photo.
+remove. Just listed and the deals sections add products through the
+**product picker**, which searches Catalogue → Products (any status; drafts
+are flagged "hidden on the storefront"). A review card has the quote, customer, product bought, rating and photo.
 Featured categories add categories through the **category picker**, which
 searches Catalogue → Categories (any status; subcategories show as
 "Parent › Child"). A category card has an optional title, link and image that
