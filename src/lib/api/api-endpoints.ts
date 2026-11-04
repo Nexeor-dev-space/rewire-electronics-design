@@ -38,6 +38,9 @@ export const API_ENDPOINTS = {
       detail: (id: string) => `${V1}/admin/products/${id}`,
       status: (id: string) => `${V1}/admin/products/${id}/status`,
     },
+    productImports: {
+      validate: `${V1}/admin/product-imports/validate`,
+    },
     addOns: {
       list: `${V1}/admin/add-ons`,
       detail: (id: string) => `${V1}/admin/add-ons/${id}`,

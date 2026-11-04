@@ -44,6 +44,8 @@ export const PERMISSIONS = {
   categories: adminPermission("catalogue", "categories"),
   brands: adminPermission("catalogue", "brands"),
   products: adminPermission("catalogue", "products"),
+  /** Bulk Product Upload: View opens the screen, Create runs a validation or an import. */
+  bulkUpload: adminPermission("catalogue", "bulk-upload"),
   addOns: adminPermission("catalogue", "add-ons"),
   coupons: adminPermission("marketing", "coupons"),
   /** Campaigns and their types. Publish covers publishing, pausing, resuming and cancelling. */
@@ -81,6 +83,7 @@ const VIEW_EDIT: readonly PermissionAction[] = ["VIEW", "EDIT"];
 /** Every module a permission can be granted on, in role form order. */
 export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.products, label: "Products", actions: ALL_ACTIONS },
+  { key: PERMISSIONS.bulkUpload, label: "Bulk Product Upload", actions: ["VIEW", "CREATE"] },
   { key: PERMISSIONS.categories, label: "Categories", actions: ALL_ACTIONS },
   { key: PERMISSIONS.brands, label: "Brands", actions: CRUD },
   { key: PERMISSIONS.addOns, label: "Add-ons", actions: CRUD },

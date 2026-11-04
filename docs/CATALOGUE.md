@@ -192,6 +192,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
     so the row does nothing. Change log entries recorded under it keep the
     "Inventory" label through `RETIRED_MODULE_LABELS` in `src/lib/audit.ts`.
 
+### Bulk upload
+
+Products and variants can also be created or updated from a CSV file. See [BULK-UPLOAD.md](BULK-UPLOAD.md).
+
 ### Add-on rules
 
 An add-on is offered on every product (`appliesToAll`) or on the categories it

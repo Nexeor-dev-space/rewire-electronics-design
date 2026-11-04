@@ -21,6 +21,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Homepage sections, the homepage CMS API, publishing, homepage SEO | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
 | Products, the Product API, shop and product pages, catalogue admin, add-ons and per-product picks, page metadata, SEO, Open Graph, noindex rules, the sitemap and robots | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
+| Bulk Product Upload, the CSV template, import validation and preview, `product-import` files | [docs/BULK-UPLOAD.md](docs/BULK-UPLOAD.md) |
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Warranty & Claims, device serials and IMEIs, warranty dates and status, warranty claims and their lifecycle | [docs/WARRANTY.md](docs/WARRANTY.md) |
 | Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens | [docs/RELEASES.md](docs/RELEASES.md) |

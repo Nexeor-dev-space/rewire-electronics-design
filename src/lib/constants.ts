@@ -193,3 +193,10 @@ export const NEXT_PATH_MAX_LENGTH = 512;
 export const HOMEPAGE_DROPS_LIMIT = 5;
 export const SITEMAP_RELEASE_LIMIT = 1000;
 export const ADMIN_RELEASES_PATH = "/admin/releases";
+
+/** Bulk product upload limits; see docs/BULK-UPLOAD.md. */
+export const PRODUCT_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+export const PRODUCT_IMPORT_MAX_ROWS = 500;
+export const PRODUCT_IMPORT_MAX_CELL_LENGTH = 5000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS = 3_000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_CONCURRENCY = 8;
