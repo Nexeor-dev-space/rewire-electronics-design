@@ -1,14 +1,3 @@
-model Release {
-  id        String    @id @default(cuid())
-  title     String
-  productId String
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  startsAt  DateTime
-  endsAt    DateTime?
-  active    Boolean   @default(true)
-  campaigns Campaign[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
 enum ReleaseHoldStatus {
   HELD
   ORDERED
@@ -51,6 +40,7 @@ model Release {
   waitlist    WaitlistEntry[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
+  campaigns   Campaign[]
 
   @@index([publishedAt, hidden, startsAt])
   @@index([completedAt, endsAt])

@@ -494,6 +494,23 @@ async function listRelatedShopProducts(product: ShopProductDetail, limit: number
   return toCards(rows);
 }
 
+/**
+ * The wishlist's products, in the order the browser saved them. Slugs that
+ * no longer match a published product are left out, which tells the
+ * browser to forget them (docs/WISHLIST.md).
+ */
+export async function listSavedShopProducts(slugs: string[]): Promise<ShopCard[]> {
+  if (slugs.length === 0) return [];
+  const rows = await prisma.product.findMany({
+    where: { ...PUBLISHED, slug: { in: slugs } },
+    select: cardSelect,
+    take: slugs.length,
+  });
+  const cards = await toCards(rows);
+  const position = new Map(slugs.map((slug, index) => [slug, index]));
+  return cards.sort((a, b) => position.get(a.slug)! - position.get(b.slug)!);
+}
+
 export async function listNewestShopProducts(limit: number) {
   const rows = await prisma.product.findMany({
     where: { ...PUBLISHED, variants: { some: { stock: { gt: 0 } } } },

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
+import { ConfettiBurst } from "@/components/ui/confetti-burst";
+import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { AVAILABILITY_LABELS } from "@/types";
@@ -89,16 +91,21 @@ export function AddToCartButton({
     ? cart.data?.items.find((item) => item.variantId === product.variantId)
     : undefined;
   const inCartQty = line?.quantity ?? 0;
-  const stepperBusy = updateCartItem.isPending || removeCartItem.isPending;
+  /** Bumped on each successful add: plays the confetti. */
+  const [celebrate, setCelebrate] = useState(0);
+  // Taps show at once; the quantity is saved after a short pause.
+  const stepper = useDebouncedQuantity(inCartQty, (quantity) =>
+    updateCartItem.mutateAsync({ id: line!.id, quantity }),
+  );
 
   function handleIncrement() {
-    if (!line || stepperBusy || inCartQty >= line.maxQuantity) return;
-    updateCartItem.mutate({ id: line.id, quantity: inCartQty + 1 });
+    if (!line || stepper.quantity >= line.maxQuantity) return;
+    stepper.set(stepper.quantity + 1);
   }
   function handleDecrement() {
-    if (!line || stepperBusy) return;
-    if (inCartQty <= 1) removeCartItem.mutate(line.id);
-    else updateCartItem.mutate({ id: line.id, quantity: inCartQty - 1 });
+    if (!line || removeCartItem.isPending) return;
+    if (stepper.quantity <= 1) removeCartItem.mutate(line.id);
+    else stepper.set(stepper.quantity - 1);
   }
 
   if (!product.variantId) {
@@ -123,7 +130,10 @@ export function AddToCartButton({
     event.preventDefault();
     event.stopPropagation();
     if (soldOut) return;
-    addCartItem.mutate({ variantId: product.variantId!, quantity: 1, addOnIds: [] });
+    addCartItem.mutate(
+      { variantId: product.variantId!, quantity: 1, addOnIds: [] },
+      { onSuccess: () => setCelebrate((count) => count + 1) },
+    );
   }
 
   if (cart.isPending) {
@@ -131,18 +141,22 @@ export function AddToCartButton({
   }
 
   if (!soldOut && line) {
+    // The confetti plays here: a successful add swaps the button for this stepper.
     return (
-      <QuantityStepper
-        value={inCartQty}
-        max={line.maxQuantity}
-        disabled={stepperBusy}
-        onIncrement={handleIncrement}
-        onDecrement={handleDecrement}
-        groupLabel={`${product.name} in cart`}
-        variant="filled"
-        size="md"
-        className={className}
-      />
+      <span className="relative block">
+        <ConfettiBurst trigger={celebrate} />
+        <QuantityStepper
+          value={stepper.quantity}
+          max={line.maxQuantity}
+          disabled={removeCartItem.isPending}
+          onIncrement={handleIncrement}
+          onDecrement={handleDecrement}
+          groupLabel={`${product.name} in cart`}
+          variant="filled"
+          size="md"
+          className={className}
+        />
+      </span>
     );
   }
 

@@ -1,12 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { getProductBySlug } from "@/lib/catalog";
-import { projectFromCatalog } from "@/lib/products";
 import { useAccount } from "@/components/providers/account-provider";
 import { Container } from "@/components/layout/container";
+import { Button } from "@/components/ui/button";
+import { useGetWishlistProducts } from "@/hooks/use-catalogue";
 import { fadeUp, staggerChildren, viewportOnce } from "@/lib/motion";
-import type { Product as CatalogProduct } from "@/types";
 import { WishlistCard } from "./wishlist-card";
 import { WishlistEmpty } from "./wishlist-empty";
 import { WishlistSkeleton } from "./wishlist-skeleton";
@@ -14,76 +14,65 @@ import { WishlistSkeleton } from "./wishlist-skeleton";
 /**
  * Wishlist page — "Saved for later".
  *
- * Three states, same shape as the cart: not-yet-hydrated (skeleton),
- * empty, populated. `ready` gates the switch so we never flash the empty
- * state before persisted slugs have been read.
+ * The saved slugs live in the browser (`useAccount`); the cards come from
+ * `GET /api/v1/wishlist`, so they show current prices and stock. States:
+ * loading (skeleton), error (retry), empty, populated. `ready` gates the
+ * switch so the empty state never flashes before the slugs are read.
  *
- * Slugs that no longer resolve in the catalogue are dropped silently
- * rather than shown as broken tiles — the reader can save something new,
- * and a next mutation will let them tidy up.
+ * A slug the server no longer returns (product deleted or unpublished) is
+ * forgotten through `retainSaved`, so the tab bar badge stays honest.
  */
 export function WishlistView() {
-  const { ready, wishlistSlugs } = useAccount();
+  const { ready, wishlistSlugs, retainSaved } = useAccount();
+  const products = useGetWishlistProducts(wishlistSlugs);
 
-  const resolved: CatalogProduct[] = wishlistSlugs
-    .map((slug) => getProductBySlug(slug))
-    .filter((product): product is CatalogProduct => Boolean(product));
+  /* Only a fresh answer for the current slugs may prune the list. */
+  const fresh = products.isSuccess && !products.isPlaceholderData;
+  useEffect(() => {
+    if (fresh) retainSaved(products.data.map((product) => product.slug));
+  }, [fresh, products.data, retainSaved]);
 
-  if (!ready) {
-    return (
-      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
-        <Container width="wide">
-          <WishlistHeader count={0} />
-          <WishlistSkeleton />
-        </Container>
-      </div>
-    );
-  }
-
-  if (resolved.length === 0) {
-    return (
-      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
-        <Container width="wide">
-          <WishlistHeader count={0} />
-          <WishlistEmpty />
-        </Container>
-      </div>
-    );
-  }
+  const loading = !ready || (wishlistSlugs.length > 0 && products.isPending);
+  const cards = wishlistSlugs.length > 0 ? (products.data ?? []) : [];
 
   return (
     <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
       <Container width="wide">
-        <WishlistHeader count={resolved.length} />
+        <WishlistHeader count={loading ? 0 : cards.length} />
 
-        <motion.ul
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={staggerChildren(0.06)}
-          aria-label="Saved products"
-          // Same grid rhythm as the Featured rail so this page reads as
-          // the shop it came from rather than a separate module.
-          className="mt-14 grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2 sm:gap-x-6 sm:gap-y-14 lg:grid-cols-3 xl:grid-cols-5 xl:gap-x-6"
-        >
-          {resolved.map((product, index) => (
-            <motion.li key={product.slug} variants={fadeUp}>
-              <WishlistCard
-                product={projectFromCatalog(product)}
-                catalogProduct={product}
-                priority={index < 4}
-              />
-            </motion.li>
-          ))}
-        </motion.ul>
+        {loading ? (
+          <WishlistSkeleton />
+        ) : products.isError && wishlistSlugs.length > 0 ? (
+          <div role="alert" className="mt-14 rounded-2xl border border-line bg-surface p-8 text-center">
+            <p className="text-sm text-ink-secondary">{products.error.message}</p>
+            <Button variant="outline" size="sm" className="mt-5" onClick={() => products.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : cards.length === 0 ? (
+          <WishlistEmpty />
+        ) : (
+          <motion.ul
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={staggerChildren(0.06)}
+            aria-label="Saved products"
+            // Same grid rhythm as the Featured rail so this page reads as
+            // the shop it came from rather than a separate module.
+            className="mt-14 grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2 sm:gap-x-6 sm:gap-y-14 lg:grid-cols-3 xl:grid-cols-5 xl:gap-x-6"
+          >
+            {cards.map((product, index) => (
+              <motion.li key={product.slug} variants={fadeUp}>
+                <WishlistCard product={product} priority={index < 4} />
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
       </Container>
     </div>
   );
 }
-
-/* ============================================================
-   Local: page header
-   ============================================================ */
 
 function WishlistHeader({ count }: { count: number }) {
   return (

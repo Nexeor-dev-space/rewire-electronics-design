@@ -69,6 +69,9 @@
      If scarcity ever needs to stand apart from the brand again, split
      this off to a warmer hue here without touching the call-sites. */
   --color-urgent: #3b404b;
+  /* A saved (wishlisted) heart, and its pop burst. Deliberately the one
+     saturated red on the site, so "saved" reads at a glance. */
+  --color-love: #e5484d;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
      Two families, no display face. Söhne carries everything structural
