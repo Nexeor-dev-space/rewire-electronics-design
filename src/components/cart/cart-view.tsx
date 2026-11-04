@@ -7,7 +7,7 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { fadeUp, staggerChildren, viewportOnce } from "@/lib/motion";
-import { CartLine } from "./cart-line";
+import { CartLine, toggledAddOnIds } from "./cart-line";
 import { CartSummary } from "./cart-summary";
 import { CartEmpty } from "./cart-empty";
 import { CartSkeleton } from "./cart-skeleton";
@@ -136,18 +136,9 @@ export function CartView() {
                       updateCartItem.mutateAsync({ id: line.id, quantity })
                     }
                     onRemove={() => removeCartItem.mutate(line.id)}
-                    onToggleAddOn={(addOnId) => {
-                      const offeredIds = new Set(
-                        line.offeredAddOns.map((addOn) => addOn.id),
-                      );
-                      const current = line.addOns
-                        .map((addOn) => addOn.id)
-                        .filter((id) => offeredIds.has(id) || id === addOnId);
-                      const next = current.includes(addOnId)
-                        ? current.filter((id) => id !== addOnId)
-                        : [...current, addOnId];
-                      updateCartItem.mutate({ id: line.id, addOnIds: next });
-                    }}
+                    onToggleAddOn={(addOnId) =>
+                      updateCartItem.mutate({ id: line.id, addOnIds: toggledAddOnIds(line, addOnId) })
+                    }
                   />
                 </li>
               ))}

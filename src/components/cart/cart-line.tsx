@@ -239,7 +239,23 @@ export function CartLine({
    what the line has actually chosen.
    ============================================================ */
 
-function LineAddOns({
+/**
+ * The line's add-on ids after ticking or unticking `addOnId`. Chosen add-ons
+ * no longer offered are dropped, except the one being toggled, so a stale
+ * add-on can still be removed.
+ */
+export function toggledAddOnIds(
+  line: Pick<CartLineData, "addOns" | "offeredAddOns">,
+  addOnId: string,
+): string[] {
+  const offeredIds = new Set(line.offeredAddOns.map((addOn) => addOn.id));
+  const current = line.addOns
+    .map((addOn) => addOn.id)
+    .filter((id) => offeredIds.has(id) || id === addOnId);
+  return current.includes(addOnId) ? current.filter((id) => id !== addOnId) : [...current, addOnId];
+}
+
+export function LineAddOns({
   offered,
   chosen,
   onToggle,

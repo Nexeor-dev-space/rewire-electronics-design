@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type MouseEvent } from "react";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
+import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,6 +86,7 @@ export function AddToCartButton({
   const updateCartItem = useUpdateCartItem();
   const removeCartItem = useRemoveCartItem();
   const cart = useGetCart();
+  const { notifyAdded } = useCartFeedback();
   const soldOut = product.soldOut === true;
 
   const line = product.variantId
@@ -132,7 +134,14 @@ export function AddToCartButton({
     if (soldOut) return;
     addCartItem.mutate(
       { variantId: product.variantId!, quantity: 1, addOnIds: [] },
-      { onSuccess: () => setCelebrate((count) => count + 1) },
+      {
+        onSuccess: (next) => {
+          setCelebrate((count) => count + 1);
+          // Cart extensions: offer this product's add-ons in the modal.
+          const added = next.items.find((item) => item.variantId === product.variantId);
+          if (added && added.offeredAddOns.length > 0) notifyAdded(added.id);
+        },
+      },
     );
   }
 

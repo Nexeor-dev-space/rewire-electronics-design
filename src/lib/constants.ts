@@ -118,6 +118,7 @@ export const REPORT_EXPORT_PAGE_SIZE = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
+export const CART_PAGE_PATH = "/cart";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
 export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
