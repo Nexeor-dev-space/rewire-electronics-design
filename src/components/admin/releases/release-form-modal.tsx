@@ -1,196 +1,253 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { FieldError } from "@/components/ui/label";
-import { useGetProducts } from "@/hooks/use-product";
-import { useCreateRelease, useUpdateRelease } from "@/hooks/use-release";
+import { Input, Textarea } from "@/components/ui/input";
+import { useCreateRelease } from "@/hooks/use-release";
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { PICKER_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
+import {
+  RELEASE_DESCRIPTION_MAX_LENGTH,
+  RELEASE_EDITION_MAX_LENGTH,
+  RELEASE_MAX_PER_CUSTOMER_DEFAULT,
+  RELEASE_MAX_PER_CUSTOMER_LIMIT,
+  RELEASE_TITLE_MAX_LENGTH,
+} from "@/lib/constants";
 import { formatStoreDateTime, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
-import type { AdminRelease } from "@/types/release";
+import type { ReleaseEdits } from "@/lib/releases";
+import type { AdminReleaseDetail, ReleaseInput } from "@/types/release";
 import { RELEASE_END_BEFORE_START, endsBeforeStart, releaseSchema } from "@/validators/release.validator";
+import { releaseAdminHref } from "./release-shared";
+
+export type FieldErrors = Record<string, string[] | undefined>;
+
+export interface ReleaseFormValues {
+  title: string;
+  edition: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  maxPerCustomer: string;
+  hidden: boolean;
+}
+
+export function releaseFormValues(release?: AdminReleaseDetail): ReleaseFormValues {
+  return {
+    title: release?.title ?? "",
+    edition: release?.edition ?? "",
+    description: release?.description ?? "",
+    startsAt: toStoreDateTimeInput(release?.startsAt ?? null),
+    endsAt: toStoreDateTimeInput(release?.endsAt ?? null),
+    maxPerCustomer: String(release?.maxPerCustomer ?? RELEASE_MAX_PER_CUSTOMER_DEFAULT),
+    hidden: release?.hidden ?? false,
+  };
+}
+
+export function parseReleaseForm(
+  values: ReleaseFormValues,
+  overrides: Partial<ReleaseInput> = {},
+): { data: ReleaseInput; errors?: undefined } | { data?: undefined; errors: FieldErrors } {
+  const parsed = releaseSchema.safeParse({
+    title: values.title,
+    edition: values.edition,
+    description: values.description,
+    startsAt: fromStoreDateTimeInput(values.startsAt),
+    endsAt: fromStoreDateTimeInput(values.endsAt),
+    maxPerCustomer: values.maxPerCustomer === "" ? undefined : Number(values.maxPerCustomer),
+    hidden: values.hidden,
+    ...overrides,
+  });
+
+  if (parsed.success) return { data: parsed.data };
+
+  const errors: FieldErrors = z.flattenError(parsed.error).fieldErrors;
+  if (!values.startsAt && overrides.startsAt === undefined) errors.startsAt = ["Enter an opening time."];
+  return { errors };
+}
 
 function saleWindow(startIso: string, endIso: string | null): string {
-  const until = endIso ? `until ${formatStoreDateTime(endIso)}` : "with no end date";
-  return `On sale from ${formatStoreDateTime(startIso)} ${until}.`;
+  const until = endIso ? `until ${formatStoreDateTime(endIso)}` : "with no end set yet";
+  return `Opens ${formatStoreDateTime(startIso)} ${until}.`;
 }
 
-export function ReleaseFormModal({ release, onClose }: { release?: AdminRelease; onClose: () => void }) {
-  return (
-    <Dialog open onClose={onClose} title={release ? "Edit release" : "Add release"}>
-      <ReleaseForm initial={release} onClose={onClose} />
-    </Dialog>
-  );
-}
-
-function ReleaseForm({ initial, onClose }: { initial?: AdminRelease; onClose: () => void }) {
+export function ReleaseFields({
+  values,
+  onChange,
+  errors,
+  edits,
+  autoFocus,
+}: {
+  values: ReleaseFormValues;
+  onChange: (values: ReleaseFormValues) => void;
+  errors: FieldErrors;
+  edits?: ReleaseEdits;
+  autoFocus?: boolean;
+}) {
   const id = useId();
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [product, setProduct] = useState(initial?.product ?? null);
-  const [startsAt, setStartsAt] = useState(toStoreDateTimeInput(initial?.startsAt ?? null));
-  const [endsAt, setEndsAt] = useState(toStoreDateTimeInput(initial?.endsAt ?? null));
-  const [active, setActive] = useState(initial?.active ?? true);
-  const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
-  const [productSearchInput, setProductSearchInput] = useState("");
-  const [productSearch, setProductSearch] = useState("");
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setProductSearch(productSearchInput.trim()), SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeout);
-  }, [productSearchInput]);
-
-  const products = useGetProducts({ pageSize: PICKER_PAGE_SIZE, search: productSearch || undefined });
-  const createRelease = useCreateRelease();
-  const updateRelease = useUpdateRelease();
-  const mutation = initial ? updateRelease : createRelease;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const parsed = releaseSchema.safeParse({
-      title,
-      productId: product?.id ?? "",
-      startsAt: fromStoreDateTimeInput(startsAt),
-      endsAt: fromStoreDateTimeInput(endsAt),
-      active,
-    });
-
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string[] | undefined> = z.flattenError(parsed.error).fieldErrors;
-      if (!startsAt) fieldErrors.startsAt = ["Enter a start date."];
-      setErrors(fieldErrors);
-      return;
-    }
-
-    setErrors({});
-    const callbacks = {
-      onSuccess: () => onClose(),
-      onError: (error: Error) => setErrors(apiFieldErrors(error)),
-    };
-
-    if (initial) updateRelease.mutate({ id: initial.id, ...parsed.data }, callbacks);
-    else createRelease.mutate(parsed.data, callbacks);
-  }
-
   const error = (field: string) => errors[field]?.[0];
-  const startIso = fromStoreDateTimeInput(startsAt);
-  const endIso = fromStoreDateTimeInput(endsAt);
+  const set = <K extends keyof ReleaseFormValues>(key: K, value: ReleaseFormValues[K]) =>
+    onChange({ ...values, [key]: value });
+  const locked = (key: keyof ReleaseEdits) => (edits ? !edits[key] : false);
+
+  const startIso = fromStoreDateTimeInput(values.startsAt);
+  const endIso = fromStoreDateTimeInput(values.endsAt);
   const windowInvalid = startIso !== null && endIso !== null && endsBeforeStart(startIso, endIso);
   const endsError = windowInvalid ? RELEASE_END_BEFORE_START : error("endsAt");
 
   return (
+    <div className="grid gap-5 sm:grid-cols-2">
+      <Field id={`${id}-title`} label="Title" error={error("title")}>
+        <Input
+          id={`${id}-title`}
+          data-autofocus={autoFocus || undefined}
+          value={values.title}
+          maxLength={RELEASE_TITLE_MAX_LENGTH}
+          disabled={locked("text")}
+          onChange={(event) => set("title", event.target.value)}
+          aria-invalid={error("title") ? true : undefined}
+          className="h-11"
+        />
+      </Field>
+
+      <Field id={`${id}-edition`} label="Edition" hint="Optional, e.g. Launch edition." error={error("edition")}>
+        <Input
+          id={`${id}-edition`}
+          value={values.edition}
+          maxLength={RELEASE_EDITION_MAX_LENGTH}
+          disabled={locked("text")}
+          onChange={(event) => set("edition", event.target.value)}
+          aria-invalid={error("edition") ? true : undefined}
+          className="h-11"
+        />
+      </Field>
+
+      <Field
+        id={`${id}-description`}
+        label="Description"
+        hint="Optional."
+        error={error("description")}
+        className="sm:col-span-2"
+      >
+        <Textarea
+          id={`${id}-description`}
+          value={values.description}
+          maxLength={RELEASE_DESCRIPTION_MAX_LENGTH}
+          disabled={locked("text")}
+          rows={3}
+          onChange={(event) => set("description", event.target.value)}
+          aria-invalid={error("description") ? true : undefined}
+        />
+      </Field>
+
+      <Field id={`${id}-starts`} label="Opens" hint="Store time (Dubai)." error={error("startsAt")}>
+        <Input
+          id={`${id}-starts`}
+          type="datetime-local"
+          value={values.startsAt}
+          disabled={locked("startsAt")}
+          onChange={(event) => set("startsAt", event.target.value)}
+          aria-invalid={error("startsAt") ? true : undefined}
+          className="h-11"
+        />
+      </Field>
+
+      <Field id={`${id}-ends`} label="Ends" hint="Store time (Dubai). Needed before publishing." error={endsError}>
+        <Input
+          id={`${id}-ends`}
+          type="datetime-local"
+          value={values.endsAt}
+          min={values.startsAt || undefined}
+          disabled={locked("endsAt")}
+          onChange={(event) => set("endsAt", event.target.value)}
+          aria-invalid={endsError ? true : undefined}
+          className="h-11"
+        />
+      </Field>
+
+      {startIso && !windowInvalid && (
+        <p className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-secondary sm:col-span-2">
+          {saleWindow(startIso, endIso)}
+        </p>
+      )}
+
+      <Field id={`${id}-max`} label="Max per customer" error={error("maxPerCustomer")}>
+        <Input
+          id={`${id}-max`}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={RELEASE_MAX_PER_CUSTOMER_LIMIT}
+          value={values.maxPerCustomer}
+          disabled={locked("maxPerCustomer")}
+          onChange={(event) => set("maxPerCustomer", event.target.value)}
+          aria-invalid={error("maxPerCustomer") ? true : undefined}
+          className="h-11"
+        />
+      </Field>
+
+      <label className="inline-flex items-center gap-2 self-end pb-3 text-sm text-ink-secondary">
+        <input
+          type="checkbox"
+          checked={values.hidden}
+          disabled={locked("hidden")}
+          onChange={(event) => set("hidden", event.target.checked)}
+        />
+        Hidden from the storefront
+      </label>
+    </div>
+  );
+}
+
+export function ReleaseFormModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Dialog open onClose={onClose} title="New release">
+      <ReleaseCreateForm onClose={onClose} />
+    </Dialog>
+  );
+}
+
+function ReleaseCreateForm({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const [values, setValues] = useState(() => releaseFormValues());
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const createRelease = useCreateRelease();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const parsed = parseReleaseForm(values);
+    if (parsed.errors) {
+      setErrors(parsed.errors);
+      return;
+    }
+
+    setErrors({});
+    createRelease.mutate(parsed.data, {
+      onSuccess: (release) => router.push(releaseAdminHref(release.id)),
+      onError: (error) => setErrors(apiFieldErrors(error)),
+    });
+  }
+
+  return (
     <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
       <DialogBody>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field id={`${id}-title`} label="Title" error={error("title")} className="sm:col-span-2">
-            <Input
-              id={`${id}-title`}
-              data-autofocus
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              aria-invalid={error("title") ? true : undefined}
-              className="h-11"
-            />
-          </Field>
-
-          <Field
-            id={`${id}-starts`}
-            label="Starts"
-            hint="Store time (Dubai)."
-            error={error("startsAt")}
-          >
-            <Input
-              id={`${id}-starts`}
-              type="datetime-local"
-              value={startsAt}
-              onChange={(event) => setStartsAt(event.target.value)}
-              aria-invalid={error("startsAt") ? true : undefined}
-              className="h-11"
-            />
-          </Field>
-
-          <Field id={`${id}-ends`} label="Ends" hint="Optional. Empty means no end." error={endsError}>
-            <Input
-              id={`${id}-ends`}
-              type="datetime-local"
-              value={endsAt}
-              min={startsAt || undefined}
-              onChange={(event) => setEndsAt(event.target.value)}
-              aria-invalid={endsError ? true : undefined}
-              className="h-11"
-            />
-          </Field>
-
-          {startIso && !windowInvalid && (
-            <p className="rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-secondary sm:col-span-2">
-              {saleWindow(startIso, endIso)}
-            </p>
-          )}
-
-          <label className="inline-flex items-center gap-2 text-sm text-ink-secondary sm:col-span-2">
-            <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
-            Active
-          </label>
-
-          <fieldset className="sm:col-span-2">
-            <legend className="eyebrow">Product</legend>
-            {product && (
-              <p className="mt-3 text-sm text-ink">
-                Selected: <span className="font-medium">{product.name}</span>
-              </p>
-            )}
-            <Input
-              type="search"
-              value={productSearchInput}
-              onChange={(event) => setProductSearchInput(event.target.value)}
-              placeholder="Search products by name"
-              aria-label="Search products"
-              className="mt-3 h-11"
-            />
-            {products.isPending ? (
-              <p className="mt-3 text-sm text-ink-muted">Loading…</p>
-            ) : products.isError ? (
-              <p className="mt-3 text-sm text-danger">{products.error.message}</p>
-            ) : products.data.items.length === 0 ? (
-              <p className="mt-3 text-sm text-ink-muted">No products match.</p>
-            ) : (
-              <ul className="mt-3 max-h-48 overflow-y-auto rounded-lg border border-line bg-surface p-3">
-                {products.data.items.map((item) => (
-                  <li key={item.id}>
-                    <label className="inline-flex items-center gap-2 py-1 text-sm text-ink-secondary">
-                      <input
-                        type="radio"
-                        name={`${id}-product`}
-                        checked={product?.id === item.id}
-                        onChange={() => setProduct({ id: item.id, name: item.name })}
-                      />
-                      {item.name}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <FieldError className="mt-2">{error("productId")}</FieldError>
-          </fieldset>
-        </div>
+        <ReleaseFields values={values} onChange={setValues} errors={errors} autoFocus />
       </DialogBody>
 
       <DialogFooter>
-        {mutation.isError && (
+        {createRelease.isError && (
           <p role="alert" className="mr-auto text-sm text-danger">
-            {mutation.error.message}
+            {createRelease.error.message}
           </p>
         )}
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" loading={mutation.isPending}>
-          {initial ? "Save changes" : "Add release"}
+        <Button type="submit" size="sm" loading={createRelease.isPending}>
+          Create release
         </Button>
       </DialogFooter>
     </form>

@@ -1,44 +1,59 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
+import { LoadError, Pager } from "@/components/admin/orders/order-shared";
 import { RowActions } from "@/components/admin/shared/row-actions";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteRelease, useGetReleases } from "@/hooks/use-release";
+import { useChangeReleaseState, useDeleteRelease, useGetReleases } from "@/hooks/use-release";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatStoreDateTime } from "@/lib/dates";
-import { RELEASE_STATUS_LABELS, type ReleaseStatus } from "@/lib/releases";
+import {
+  RELEASE_SORTS,
+  RELEASE_SORT_LABELS,
+  RELEASE_STATE_ACTION_LABELS,
+  RELEASE_STATUSES,
+  RELEASE_STATUS_LABELS,
+  canChangeState,
+  canDeleteRelease,
+  type ReleaseSort,
+  type ReleaseStatus,
+} from "@/lib/releases";
 import { cn } from "@/lib/utils";
-import type { AdminRelease } from "@/types/release";
+import type { AdminReleaseRow } from "@/types/release";
 import { ReleaseFormModal } from "./release-form-modal";
+import { ReleaseBadges, releaseAdminHref } from "./release-shared";
 
-const COLUMNS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_11rem_11rem_6rem_6rem]";
-
-const STATUS_VARIANTS: Record<ReleaseStatus, BadgeProps["variant"]> = {
-  LIVE: "live",
-  UPCOMING: "outline",
-  ENDED: "soldOut",
-  OFF: "default",
-};
-
-type Modal = { kind: "create" } | { kind: "edit"; release: AdminRelease } | null;
+const COLUMNS =
+  "lg:grid-cols-[minmax(0,1.4fr)_10rem_4.5rem_4.5rem_4.5rem_4.5rem_minmax(0,7rem)_minmax(0,9rem)]";
 
 export function ReleaseManagement() {
+  const router = useRouter();
   const access = useModuleAccess(PERMISSIONS.releases);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<ReleaseStatus | "">("");
+  const [sort, setSort] = useState<ReleaseSort>(RELEASE_SORTS[0]);
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState<Modal>(null);
-  const [toDelete, setToDelete] = useState<AdminRelease | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [toDelete, setToDelete] = useState<AdminReleaseRow | null>(null);
 
-  const releases = useGetReleases({ page, pageSize: ADMIN_PAGE_SIZE, search: search || undefined });
+  const releases = useGetReleases({
+    page,
+    pageSize: ADMIN_PAGE_SIZE,
+    search: search || undefined,
+    status: status || undefined,
+    sort,
+  });
   const deleteRelease = useDeleteRelease();
+  const changeState = useChangeReleaseState();
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -66,24 +81,19 @@ export function ReleaseManagement() {
     deleteRelease.reset();
   }
 
+  const filtered = Boolean(search || status);
+
   let content: ReactNode;
   if (releases.isPending) {
     content = <TableSkeleton />;
   } else if (releases.isError) {
-    content = (
-      <div role="alert" className="rounded-xl border border-line bg-surface-2 px-6 py-12 text-center">
-        <p className="text-sm text-ink-secondary">{releases.error.message}</p>
-        <Button variant="outline" size="sm" className="mt-5" onClick={() => releases.refetch()}>
-          Try again
-        </Button>
-      </div>
-    );
+    content = <LoadError message={releases.error.message} onRetry={() => releases.refetch()} />;
   } else if (releases.data.items.length === 0) {
     content = (
       <AdminEmptyState
-        title={search ? "No releases match" : "No releases yet"}
+        title={filtered ? "No releases match" : "No releases yet"}
         description={
-          search ? "Nothing matches this search." : "Add a release to put a product on sale for a set window."
+          filtered ? "Nothing matches these filters." : "Create a release to put stock on sale for a set window."
         }
       />
     );
@@ -91,9 +101,15 @@ export function ReleaseManagement() {
     const { items, total } = releases.data;
     const pages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
     const deletingId = deleteRelease.isPending ? deleteRelease.variables : undefined;
+    const publishingId = changeState.isPending ? changeState.variables.id : undefined;
 
     content = (
       <>
+        {changeState.isError && (
+          <p role="alert" className="mb-4 text-sm text-danger">
+            {changeState.error.message}
+          </p>
+        )}
         <div className="overflow-hidden rounded-xl border border-line">
           <TableHeader />
           <ul>
@@ -101,28 +117,23 @@ export function ReleaseManagement() {
               <li key={release.id} className="border-b border-line last:border-b-0">
                 <ReleaseRow
                   release={release}
-                  deleting={deletingId === release.id}
-                  onEdit={access.edit ? () => setModal({ kind: "edit", release }) : undefined}
-                  onDelete={access.delete ? () => setToDelete(release) : undefined}
+                  busy={deletingId === release.id || publishingId === release.id}
+                  onView={() => router.push(releaseAdminHref(release.id))}
+                  onPublish={
+                    access.edit && canChangeState(release.status, "PUBLISH")
+                      ? () => changeState.mutate({ id: release.id, action: "PUBLISH" })
+                      : undefined
+                  }
+                  onDelete={
+                    access.delete && canDeleteRelease(release.status) ? () => setToDelete(release) : undefined
+                  }
                 />
               </li>
             ))}
           </ul>
         </div>
 
-        {pages > 1 && (
-          <nav aria-label="Pagination" className="mt-4 flex items-center justify-end gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              Previous
-            </Button>
-            <span className="px-1 font-mono text-xs tabular-nums text-ink-secondary">
-              {page} / {pages}
-            </span>
-            <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-              Next
-            </Button>
-          </nav>
-        )}
+        <Pager page={page} pages={pages} onPage={setPage} />
       </>
     );
   }
@@ -130,39 +141,65 @@ export function ReleaseManagement() {
   return (
     <AdminPage
       title="Releases"
-      description="Products put on sale for a set window. The live one shows on the dashboard."
+      description="Limited drops with their own stock allocation and opening window."
       actions={
         access.create && (
-          <Button size="sm" onClick={() => setModal({ kind: "create" })}>
-            Add release
+          <Button size="sm" onClick={() => setCreating(true)}>
+            New release
           </Button>
         )
       }
     >
-      <div className="mb-5">
+      <div className="mb-5 flex flex-wrap gap-3">
         <Input
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search by title"
+          placeholder="Search by title or edition"
           aria-label="Search releases"
           className="h-10 sm:w-80"
         />
+        <Select
+          value={status}
+          onChange={(event) => {
+            setStatus(event.target.value as ReleaseStatus | "");
+            setPage(1);
+          }}
+          aria-label="Filter by status"
+          className="h-10 sm:w-48"
+        >
+          <option value="">All statuses</option>
+          {RELEASE_STATUSES.map((value) => (
+            <option key={value} value={value}>
+              {RELEASE_STATUS_LABELS[value]}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={sort}
+          onChange={(event) => {
+            setSort(event.target.value as ReleaseSort);
+            setPage(1);
+          }}
+          aria-label="Sort releases"
+          className="h-10 sm:w-56"
+        >
+          {RELEASE_SORTS.map((value) => (
+            <option key={value} value={value}>
+              {RELEASE_SORT_LABELS[value]}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {content}
 
-      {modal && (
-        <ReleaseFormModal
-          release={modal.kind === "edit" ? modal.release : undefined}
-          onClose={() => setModal(null)}
-        />
-      )}
+      {creating && <ReleaseFormModal onClose={() => setCreating(false)} />}
 
       <ConfirmDialog
         open={toDelete !== null}
         title={`Delete ${toDelete?.title ?? "release"}?`}
-        description="The release leaves the dashboard and this list. This can't be undone."
+        description="The release and its allocations are removed. This can't be undone."
         confirmLabel="Delete release"
         error={deleteRelease.isError ? deleteRelease.error.message : undefined}
         loading={deleteRelease.isPending}
@@ -175,40 +212,64 @@ export function ReleaseManagement() {
 
 function ReleaseRow({
   release,
-  deleting,
-  onEdit,
+  busy,
+  onView,
+  onPublish,
   onDelete,
 }: {
-  release: AdminRelease;
-  deleting: boolean;
-  onEdit?: () => void;
+  release: AdminReleaseRow;
+  busy: boolean;
+  onView: () => void;
+  onPublish?: () => void;
   onDelete?: () => void;
 }) {
   return (
-    <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS, deleting && "opacity-50")}>
-      <p className="truncate text-sm font-medium text-ink">{release.title}</p>
-      <p className="truncate text-sm text-ink-secondary">{release.product.name}</p>
-      <p className="text-sm tabular-nums text-ink-secondary">{formatStoreDateTime(release.startsAt)}</p>
-      <p className="text-sm tabular-nums text-ink-secondary">
-        {release.endsAt ? formatStoreDateTime(release.endsAt) : "No end"}
-      </p>
-      <div>
-        <Badge variant={STATUS_VARIANTS[release.status]} className="px-2 py-1 text-[0.625rem]">
-          {RELEASE_STATUS_LABELS[release.status]}
-        </Badge>
+    <div className={cn("grid gap-x-4 gap-y-1 px-5 py-4 lg:items-center", COLUMNS, busy && "opacity-50")}>
+      <div className="min-w-0">
+        <Link
+          href={releaseAdminHref(release.id)}
+          className="block truncate text-sm font-medium text-ink underline-offset-4 hover:underline"
+        >
+          {release.title}
+        </Link>
+        {release.edition && <p className="truncate text-xs text-ink-muted">{release.edition}</p>}
       </div>
-      <RowActions name={release.title} disabled={deleting} onEdit={onEdit} onDelete={onDelete} />
+      <p className="text-sm tabular-nums text-ink-secondary">{formatStoreDateTime(release.startsAt)}</p>
+      <Figure label="Products" value={release.productCount} />
+      <Figure label="Allocated" value={release.allocated} />
+      <Figure label="Sold" value={release.sold} />
+      <Figure label="Remaining" value={release.remaining} />
+      <ReleaseBadges status={release.status} hidden={release.hidden} />
+      <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+        {onPublish && (
+          <Button variant="outline" size="sm" disabled={busy} onClick={onPublish} className="mt-2 lg:mt-0">
+            {RELEASE_STATE_ACTION_LABELS.PUBLISH}
+          </Button>
+        )}
+        <RowActions name={release.title} disabled={busy} onEdit={onView} onDelete={onDelete} />
+      </div>
     </div>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <p className="text-sm tabular-nums text-ink-secondary">
+      <span className="text-ink-muted lg:sr-only">{label}: </span>
+      {value}
+    </p>
   );
 }
 
 function TableHeader() {
   return (
     <div className={cn("hidden gap-4 border-b border-line bg-surface-2 px-5 py-3 lg:grid", COLUMNS)}>
-      <p className="eyebrow">Title</p>
-      <p className="eyebrow">Product</p>
-      <p className="eyebrow">Starts</p>
-      <p className="eyebrow">Ends</p>
+      <p className="eyebrow">Name</p>
+      <p className="eyebrow">Opening</p>
+      <p className="eyebrow">Products</p>
+      <p className="eyebrow">Allocated</p>
+      <p className="eyebrow">Sold</p>
+      <p className="eyebrow">Remaining</p>
       <p className="eyebrow">Status</p>
       <span className="sr-only">Actions</span>
     </div>
@@ -225,9 +286,11 @@ function TableSkeleton() {
           className={cn("grid gap-x-4 gap-y-2 border-b border-line px-5 py-4 last:border-b-0", COLUMNS)}
         >
           <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-8" />
+          <Skeleton className="h-4 w-8" />
+          <Skeleton className="h-4 w-8" />
+          <Skeleton className="h-4 w-8" />
           <Skeleton className="h-5 w-16 rounded-full" />
           <Skeleton className="h-7 w-16" />
         </div>

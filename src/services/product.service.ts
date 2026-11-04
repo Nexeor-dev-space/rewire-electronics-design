@@ -230,6 +230,12 @@ export async function updateProduct(id: string, data: ProductData) {
       }
 
       const keptIds = data.variants.flatMap((variant) => (variant.id ? [variant.id] : []));
+      const inRelease = await tx.releaseAllocation.count({
+        where: { variant: { productId: id }, variantId: { notIn: keptIds } },
+      });
+      if (inRelease > 0) {
+        throw new ServiceError("CONFLICT", "A variant you removed is in a release. Take it out of the release first.", 409);
+      }
       await tx.productVariant.deleteMany({ where: { productId: id, id: { notIn: keptIds } } });
 
       for (const [index, variant] of data.variants.entries()) {
@@ -348,6 +354,10 @@ export async function purgeProduct(id: string) {
     });
     if (!current) throw notFound();
 
+    const inRelease = await tx.releaseAllocation.count({ where: { variant: { productId: id } } });
+    if (inRelease > 0) {
+      throw new ServiceError("CONFLICT", "This product is in a release. Take it out of the release first.", 409);
+    }
     await tx.product.delete({ where: { id } });
     for (const { mediaId } of current.images) await releaseImage(tx, mediaId);
     if (current.ogImageId !== null) await releaseImage(tx, current.ogImageId);
