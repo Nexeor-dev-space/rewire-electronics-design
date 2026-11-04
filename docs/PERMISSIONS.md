@@ -194,7 +194,8 @@ Publish through a form:
    without it. Editing text needs Edit.
 
 The image upload (`POST /api/v1/uploads/images`) is open to anyone with
-Create or Edit on Products, Categories, Brands or Homepage Builder.
+Create or Edit on Products, Categories, Brands, Homepage Builder, Content or
+Campaigns.
 
 **Accounts.** `accountModule(...roles)` picks the module for an account
 action: Customers when every role involved is Customer, otherwise Staff
