@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
-import { STORE_TIME_ZONE_LABEL } from "@/lib/constants";
-import { formatStoreDateTime, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
 import { emptyItemInput, swapItems, type SectionItemFormInput } from "@/lib/homepage-builder";
 import {
   ITEM_TEXT_LIMITS,
@@ -52,7 +50,6 @@ export function newItemDraft(
 }
 
 const HEADINGS: Record<SectionItemKind, string> = {
-  drops: "Drops",
   products: "Products",
   reviews: "Reviews",
   categories: "Categories",
@@ -69,8 +66,8 @@ interface SectionItemsEditorProps {
 }
 
 /**
- * The drops, Just Listed picks or reviews inside a section. Each can be
- * moved, hidden and removed; the list is saved with the section.
+ * The Just Listed picks, reviews, categories or deals inside a section. Each
+ * can be moved, hidden and removed; the list is saved with the section.
  */
 export function SectionItemsEditor({ type, kind, value, onChange, errors }: SectionItemsEditorProps) {
   const { discountHint } = SECTION_RULES[type];
@@ -147,9 +144,7 @@ export function SectionItemsEditor({ type, kind, value, onChange, errors }: Sect
         </div>
       ) : (
         <div>
-          <p className="text-sm text-ink-secondary">
-            {kind === "drops" ? "Add a drop from Catalogue → Products" : "Add from Catalogue → Products"}
-          </p>
+          <p className="text-sm text-ink-secondary">Add from Catalogue → Products</p>
           <ProductPicker
             chosenIds={chosenIds}
             canAdd={!full}
@@ -166,18 +161,6 @@ export function SectionItemsEditor({ type, kind, value, onChange, errors }: Sect
               onClick={() => onChange([...value, newItemDraft()])}
             >
               Add a promo tile
-            </Button>
-          )}
-          {kind === "drops" && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              disabled={full}
-              onClick={() => onChange([...value, newItemDraft()])}
-            >
-              Add a release that isn&rsquo;t in the catalogue yet
             </Button>
           )}
         </div>
@@ -219,7 +202,7 @@ function ItemCard({
     item.category?.name ??
     item.product?.name ??
     (kind === "reviews" ? input.author : input.title) ??
-    (kind === "reviews" ? "New review" : kind === "deals" ? "New promo tile" : "New release");
+    (kind === "reviews" ? "New review" : "New promo tile");
   const thumbnail = item.category ?? item.product;
 
   return (
@@ -357,84 +340,6 @@ function ItemCard({
             error={error("imageId")}
             onChange={(imageId, url) => onChange({ ...item, input: { ...input, imageId }, imageUrl: url })}
           />
-        </>
-      )}
-
-      {kind === "drops" && (
-        <>
-          <Field
-            id={`${id}-title`}
-            label={item.product ? "Title (optional)" : "Title"}
-            hint={item.product ? "Leave empty to use the product's name." : undefined}
-            error={error("title")}
-          >
-            <Input
-              id={`${id}-title`}
-              value={input.title ?? ""}
-              maxLength={ITEM_TEXT_LIMITS.title}
-              className="h-11"
-              onChange={(event) => set("title", event.target.value || null)}
-            />
-          </Field>
-
-          <Field
-            id={`${id}-release`}
-            label={`Release date and time, ${STORE_TIME_ZONE_LABEL} (${item.product ? "optional" : "required"})`}
-            hint={
-              (input.releaseAt ? `Opens ${formatStoreDateTime(input.releaseAt)}. ` : "") +
-              (item.product
-                ? "Until then the card counts down and offers the waitlist."
-                : "The card shows until then, then leaves the page.")
-            }
-            error={error("releaseAt")}
-          >
-            <Input
-              id={`${id}-release`}
-              type="datetime-local"
-              value={toStoreDateTimeInput(input.releaseAt)}
-              className="h-11"
-              onChange={(event) => set("releaseAt", fromStoreDateTimeInput(event.target.value))}
-            />
-          </Field>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id={`${id}-cta-label`} label="Button label (optional)" error={error("ctaLabel")}>
-              <Input
-                id={`${id}-cta-label`}
-                value={input.ctaLabel ?? ""}
-                maxLength={ITEM_TEXT_LIMITS.ctaLabel}
-                className="h-11"
-                onChange={(event) => set("ctaLabel", event.target.value || null)}
-              />
-            </Field>
-            <Field
-              id={`${id}-cta-href`}
-              label="Button link (optional)"
-              hint="Replaces the card's own action."
-              error={error("ctaHref")}
-            >
-              <Input
-                id={`${id}-cta-href`}
-                value={input.ctaHref ?? ""}
-                maxLength={ITEM_TEXT_LIMITS.ctaHref}
-                className="h-11"
-                onChange={(event) => set("ctaHref", event.target.value || null)}
-              />
-            </Field>
-          </div>
-
-          {/* A product brings its own picture; only a release without one needs an upload. */}
-          {!input.productId && (
-            <ImageField
-              label="Image"
-              value={input.imageId}
-              previewUrl={item.imageUrl}
-              error={error("imageId")}
-              onChange={(imageId, url) =>
-                onChange({ ...item, input: { ...input, imageId }, imageUrl: url })
-              }
-            />
-          )}
         </>
       )}
 

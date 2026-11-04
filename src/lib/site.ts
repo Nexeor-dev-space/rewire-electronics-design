@@ -1,3 +1,4 @@
+import { RELEASES_PAGE_PATH } from "./constants";
 import { policyLink } from "./policy-types";
 
 export const siteConfig = {
@@ -48,7 +49,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
   {
     title: "Shop",
     items: [
-      { label: "Live Drops", href: "/" },
+      { label: "Live Drops", href: RELEASES_PAGE_PATH },
       { label: "Collection", href: "/" },
       { label: "Archive", href: "/" },
     ],

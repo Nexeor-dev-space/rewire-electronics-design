@@ -186,3 +186,6 @@ export const CANONICAL_URL_MAX_LENGTH = 512;
 export const NOINDEX_ROBOTS = { index: false, follow: false } as const;
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;
+export const HOMEPAGE_DROPS_LIMIT = 5;
+export const SITEMAP_RELEASE_LIMIT = 1000;
+export const ADMIN_RELEASES_PATH = "/admin/releases";

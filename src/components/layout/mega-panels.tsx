@@ -12,6 +12,7 @@ import {
   SHOP_INDEX_HREF,
 } from "@/lib/route-map";
 import { shopHrefForTerm } from "@/lib/shop";
+import { RELEASES_PAGE_PATH } from "@/lib/constants";
 import { Countdown } from "@/components/ui/countdown";
 import { formatDropDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -24,15 +25,11 @@ import {
   MenuSupportBox,
 } from "./mega-primitives";
 
-export interface MegaPanelProps {
-  onJoinWaitlist: () => void;
-}
-
 /* ============================================================
    Upcoming Drops — the release calendar
    ============================================================ */
 
-export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
+export function DropsMenu() {
   const drops = getUpcomingDrops();
   const rest = drops.slice(0, 4);
 
@@ -57,7 +54,7 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
           gone.
         </p>
         <div className="mt-auto pt-8">
-          <MenuCta href={SHOP_INDEX_HREF}>View Upcoming Drops</MenuCta>
+          <MenuCta href={RELEASES_PAGE_PATH}>View Upcoming Drops</MenuCta>
         </div>
       </div>
 
@@ -147,9 +144,8 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={onJoinWaitlist}
+            <Link
+              href={RELEASES_PAGE_PATH}
               className={cn(
                 "mt-6 inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-full",
                 "bg-ink text-[0.8125rem] font-medium tracking-tight text-surface",
@@ -158,7 +154,7 @@ export function DropsMenu({ onJoinWaitlist }: MegaPanelProps) {
             >
               Join Waitlist
               <Arrow className="size-3" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

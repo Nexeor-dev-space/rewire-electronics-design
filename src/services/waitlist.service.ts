@@ -7,6 +7,7 @@ import { appUrl } from "@/lib/app-url";
 import type { Session } from "@/lib/auth/session";
 import { RELEASES_PAGE_PATH, WAITLIST_CONFIRM_PAGE_PATH, WAITLIST_LEAVE_PAGE_PATH } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { releaseHref } from "@/lib/releases";
 import { sendEmail } from "@/lib/email/send-email";
 import { waitlistConfirmMessage } from "@/lib/email/templates";
 import { readWaitlistToken, waitlistToken, type WaitlistLinkPurpose } from "@/lib/waitlist-links";
@@ -67,7 +68,7 @@ function tokenUrl(path: string, entryId: string, purpose: WaitlistLinkPurpose): 
 
 async function releaseLinks(release: LinkRelease, entryId: string) {
   const [url, leaveUrl] = await Promise.all([
-    appUrl(`${RELEASES_PAGE_PATH}/${release.slug ?? ""}`),
+    appUrl(release.slug ? releaseHref(release.slug) : RELEASES_PAGE_PATH),
     tokenUrl(WAITLIST_LEAVE_PAGE_PATH, entryId, "leave"),
   ]);
   return { title: release.title, url, leaveUrl };

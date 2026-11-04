@@ -49,14 +49,14 @@ function availabilityFor(drop: PublishedDrop): string | null {
  *   coming-soon      → countdown chip bottom-left of the plate
  *   primary action   → Add to cart (buyable) or Join Waitlist (not)
  *
- * Everything comes from the drop's product in the catalogue — its picture,
- * price and stock — or, for a release not in the catalogue yet, from the
- * drop's own title and image. A drop with its own button (`ctaLabel` +
- * `ctaHref`) offers that instead of the card's usual action.
+ * Everything comes from a release in Sales → Releases: its title, its
+ * cheapest variant's price, its units left and its first product picture.
+ * A drop with its own button (`ctaLabel` + `ctaHref`) offers that instead of
+ * the card's usual action.
  *
- * The whole plate is a link to the PDP when there is one; the wishlist and
- * cart controls sit above the stretched pseudo-element on `z-20` and cancel
- * the navigation on click.
+ * The whole plate is a link to the release page; the wishlist and cart
+ * controls sit above the stretched pseudo-element on `z-20` and cancel the
+ * navigation on click.
  */
 export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
   const isSoldOut = drop.status === "sold-out";
@@ -206,9 +206,9 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
           </p>
         )}
 
-        {/* Primary action — a link to the product page when the drop is
+        {/* Primary action — a link to the release page when the drop is
             buyable (this card has no real variant to add, so it hands
-            the shopper to the PDP's own Add to Cart), a waitlist button
+            the shopper to the release page), a waitlist button
             otherwise. Both share one visual shape so a grid of
             mixed-state cards has a single action bar rhythm. `z-20`
             keeps the control above the stretched plate link. */}
@@ -223,7 +223,7 @@ export function DropCard({ drop, priority, onJoinWaitlist }: DropCardProps) {
                 "hover:bg-accent-hover active:scale-[0.98]",
               )}
             >
-              {ownButton ? ownButton.label : <>View &amp; Buy</>}
+              {ownButton ? ownButton.label : "View release"}
               <svg
                 aria-hidden
                 viewBox="0 0 16 16"

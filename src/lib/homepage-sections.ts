@@ -72,7 +72,7 @@ export const MAX_SECTION_REFS = 12;
 export const MAX_SECTION_ITEMS = 12;
 
 /** What a section's `items` hold. */
-export type SectionItemKind = "drops" | "products" | "reviews" | "categories" | "deals";
+export type SectionItemKind = "products" | "reviews" | "categories" | "deals";
 
 export interface SectionTypeRule {
   label: string;
@@ -99,7 +99,7 @@ export interface SectionTypeRule {
 
 /**
  * A fixed type exposes exactly the slots its component renders. The
- * Invitation's button opens the waitlist, so it has a label and no link.
+ * Invitation's button opens the releases page, so it has a label and no link.
  */
 export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   HERO: {
@@ -120,7 +120,7 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
   },
   UPCOMING_DROPS: {
     label: "Upcoming drops",
-    description: "Products launching soon, with release dates.",
+    description: "Upcoming and live releases from Sales → Releases.",
     tone: 2,
     fixed: true,
     required: ["title"],
@@ -129,7 +129,7 @@ export const SECTION_RULES: Record<HomepageSectionType, SectionTypeRule> = {
     mobileImage: false,
     seasonal: false,
     refs: null,
-    items: "drops",
+    items: null,
     singleton: false,
     schedule: false,
     discountHint: false,
@@ -315,7 +315,6 @@ export type ItemField =
   | "productId"
   | "categoryId"
   | "rating"
-  | "releaseAt"
   | "imageId";
 
 const ITEM_FIELDS: readonly ItemField[] = [
@@ -323,7 +322,6 @@ const ITEM_FIELDS: readonly ItemField[] = [
   "productId",
   "categoryId",
   "rating",
-  "releaseAt",
   "imageId",
 ];
 
@@ -336,29 +334,21 @@ const ITEM_FIELD_NOUNS: Record<ItemField, string> = {
   productId: "product",
   categoryId: "category",
   rating: "rating",
-  releaseAt: "release date",
   imageId: "image",
 };
 
 export interface ItemKindRule {
-  /** One item, for messages: "drop", "product", "review". */
+  /** One item, for messages: "product", "review", "deal". */
   noun: string;
   fields: readonly ItemField[];
 }
 
 /**
- * - **Drops** take a product, which supplies the name, picture, price and
- *   stock; or, for a release not yet in the catalogue, a title, an image and
- *   a release date of their own.
  * - **Products** are Just Listed picks: a product and nothing else.
  * - **Reviews** are written in: quote and customer required, the product
  *   bought, a rating and an avatar optional.
  */
 export const ITEM_RULES: Record<SectionItemKind, ItemKindRule> = {
-  drops: {
-    noun: "drop",
-    fields: ["productId", "title", "releaseAt", "ctaLabel", "ctaHref", "imageId"],
-  },
   products: { noun: "product", fields: ["productId"] },
   reviews: { noun: "review", fields: ["body", "author", "title", "rating", "imageId"] },
   categories: { noun: "category", fields: ["categoryId", "title", "imageId", "ctaHref"] },
@@ -373,8 +363,6 @@ export interface SectionItemFieldsInput {
   body: string | null;
   author: string | null;
   rating: number | null;
-  /** ISO string. */
-  releaseAt: string | null;
   ctaLabel: string | null;
   ctaHref: string | null;
   imageId: string | null;
@@ -413,13 +401,6 @@ export function checkItemFields(
     if (!item.title) add("title", "Choose a product, or enter a title.");
     if (!item.imageId) add("imageId", "Choose a product, or upload an image.");
     if (!item.ctaHref) add("ctaHref", "Choose a product, or enter a link.");
-  }
-
-  if (kind === "drops" && !item.productId) {
-    // A release not in the catalogue yet: it needs its own name, picture and date.
-    if (!item.title) add("title", "Choose a product, or enter a title.");
-    if (!item.imageId) add("imageId", "Choose a product, or upload an image.");
-    if (!item.releaseAt) add("releaseAt", "Choose a product, or set a release date.");
   }
 
   if (kind === "reviews") {

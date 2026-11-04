@@ -2,10 +2,15 @@ import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
 import type { Paginated } from "@/lib/api/api-response";
+import { SITEMAP_RELEASE_LIMIT } from "@/lib/constants";
+import { formatStoreDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { releaseStatus } from "@/lib/releases";
+import type { DropStatus } from "@/lib/drops";
+import { releaseHref, releaseStatus } from "@/lib/releases";
 import { imageUrl } from "@/lib/storage/image-storage";
 import { notCompletedWhere } from "@/services/release.service";
+import { availabilityFromStock } from "@/types/commerce";
+import type { PublishedDrop } from "@/types/homepage";
 import type {
   StorefrontRelease,
   StorefrontReleaseImage,
@@ -155,4 +160,42 @@ export async function getStorefrontRelease(slug: string): Promise<StorefrontRele
   if (!row) return null;
   const products = groupProducts(row);
   return { ...toSummary(row, products, now), description: row.description, products };
+}
+
+export async function listSitemapReleases() {
+  return prisma.release.findMany({
+    where: visibleReleaseWhere(new Date()),
+    select: { slug: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+    take: SITEMAP_RELEASE_LIMIT,
+  });
+}
+
+function dropStatus({ status, totalAvailable }: StorefrontReleaseSummary): DropStatus {
+  if (status === "UPCOMING") return "coming-soon";
+  const availability = availabilityFromStock(totalAvailable);
+  if (status === "SOLD_OUT" || availability === "sold-out") return "sold-out";
+  return availability === "low-stock" ? "almost-gone" : "available";
+}
+
+export function toPublishedDrop(summary: StorefrontReleaseSummary): PublishedDrop {
+  return {
+    id: summary.id,
+    releaseSlug: summary.slug,
+    slug: null,
+    name: summary.title,
+    brand: null,
+    variant: summary.edition || summary.productNames.join(", ") || null,
+    status: dropStatus(summary),
+    price: summary.fromPrice,
+    originalPrice: summary.compareAtPrice,
+    unitsLeft: summary.totalAvailable,
+    releaseAt: summary.startsAt,
+    opensAt: summary.status === "UPCOMING" ? formatStoreDateTime(summary.startsAt) : null,
+    imageUrl: summary.image?.url ?? null,
+    imageAlt: summary.image?.alt ?? summary.title,
+    href: releaseHref(summary.slug),
+    ctaLabel: null,
+    ctaHref: null,
+  };
 }

@@ -1,4 +1,4 @@
-import { RELEASE_EARLY_END_OPENING_SHIFT_MS } from "./constants";
+import { RELEASE_EARLY_END_OPENING_SHIFT_MS, RELEASES_PAGE_PATH } from "./constants";
 
 export const RELEASE_STATUSES = ["DRAFT", "UPCOMING", "LIVE", "SOLD_OUT", "COMPLETED"] as const;
 
@@ -129,6 +129,10 @@ export function publishBlocker(release: PublishCheck, now: Date): string | null 
   if (release.endsAt <= now) return "The end time has passed. Set a later one before publishing.";
   if (release.maxPerCustomer < 1) return "Allow each customer at least one unit.";
   return null;
+}
+
+export function releaseHref(slug: string): string {
+  return `${RELEASES_PAGE_PATH}/${slug}`;
 }
 
 export function endedWindow(startsAt: Date, now: Date): { startsAt: Date; endsAt: Date } {

@@ -1,218 +1,255 @@
 "use client";
 
-import Image from "next/image";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { getWaitlistProducts } from "@/lib/waitlist";
-import { productHrefForDrop } from "@/lib/route-map";
-import { formatDropDate } from "@/lib/utils";
+import { z } from "zod";
+import { useDeleteMyWaitlist, useGetMyWaitlists, useUpdateMyWaitlist } from "@/hooks/use-waitlist";
+import { apiFieldErrors } from "@/lib/api/api-client";
+import { ACCOUNT_RECENT_ORDERS_LIMIT, RELEASES_PAGE_PATH } from "@/lib/constants";
+import { formatStoreDateTime } from "@/lib/dates";
+import { releaseHref } from "@/lib/releases";
+import { cn } from "@/lib/utils";
+import type { MyWaitlistEntry } from "@/types/storefront-release";
+import { updateWaitlistSchema } from "@/validators/waitlist.validator";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Countdown } from "@/components/ui/countdown";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { FieldError } from "@/components/ui/label";
+import { AccountPagination } from "./account-pagination";
+import { NotifyRow } from "./account-settings";
 import { AccountShell } from "./account-shell";
+import { StatusPill } from "./status-pill";
 
-/**
- * AccountWaitlists — the /account/waitlists surface.
- *
- * A shopper lands here from the account menu when they want to see
- * every drop they have registered interest in. Reads the catalogue in
- * `lib/waitlist.ts` and flattens the product → variant tree into one
- * row per registration, so the reader sees exactly what they signed
- * up for (Signal Phone Pro · Graphite · 512GB) rather than a
- * product-level summary they still have to expand.
- *
- * The prototype seeds every catalogue variant as "you are on this
- * list" — persistence lands when the waitlist form wires up a real
- * endpoint. When that happens, swap the flat list below for a filter
- * against the account provider's `joinedWaitlists` slugs; the tile,
- * the empty state and the shell need no changes.
- *
- * Each row carries the launch date, an inline countdown to the drop
- * opening, and the variant's allocated units — the three facts a
- * shopper checks before deciding whether to also set a calendar
- * reminder.
- */
-interface WaitlistRow {
-  productId: string;
-  productName: string;
-  productSlug: string;
-  productImage: { url: string; alt: string };
-  variantId: string;
-  variantLabel: string;
-  startsAt: string;
-  units: number;
-}
+type FieldErrors = Record<string, string[] | undefined>;
 
-function getJoinedWaitlists(): WaitlistRow[] {
-  return getWaitlistProducts().flatMap((product) =>
-    product.variants.map((variant) => ({
-      productId: product.id,
-      productName: product.name,
-      productSlug: product.id,
-      productImage: product.image,
-      variantId: variant.id,
-      variantLabel: variant.label,
-      startsAt: variant.startsAt,
-      units: variant.units,
-    })),
-  );
+interface Preferences {
+  emailOptIn: boolean;
+  whatsappOptIn: boolean;
+  phone: string;
 }
 
 export function AccountWaitlists() {
-  const rows = getJoinedWaitlists();
+  const [page, setPage] = useState(1);
+  const waitlists = useGetMyWaitlists(page);
+  const remove = useDeleteMyWaitlist();
+  const [leaving, setLeaving] = useState<MyWaitlistEntry | null>(null);
+
+  function closeLeave() {
+    setLeaving(null);
+    remove.reset();
+  }
+
+  function confirmLeave() {
+    if (!leaving) return;
+    const lastOnPage = waitlists.data?.items.length === 1 && page > 1;
+    remove.mutate(leaving.id, {
+      onSuccess: () => {
+        setLeaving(null);
+        if (lastOnPage) setPage(page - 1);
+      },
+    });
+  }
 
   return (
     <AccountShell
       title="My Waitlists"
-      subtitle="Every drop you have registered for. We hold your place and email the moment allocations open."
+      subtitle="Every release you have joined. Choose how we reach you, or leave a list you no longer need."
     >
-      {rows.length === 0 ? (
+      {waitlists.isPending ? (
+        <div aria-hidden className="flex flex-col gap-3">
+          {Array.from({ length: ACCOUNT_RECENT_ORDERS_LIMIT }, (_, index) => (
+            <div key={index} className="skeleton h-56 rounded-2xl" />
+          ))}
+        </div>
+      ) : waitlists.isError ? (
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-ink-secondary">{waitlists.error.message}</p>
+          <Button variant="outline" size="sm" className="mt-5" onClick={() => waitlists.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : waitlists.data.items.length === 0 ? (
         <EmptyState />
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:gap-5">
-          {rows.map((row) => (
-            <li key={`${row.productId}:${row.variantId}`}>
-              <WaitlistTile row={row} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul
+            aria-busy={waitlists.isPlaceholderData}
+            className={cn(
+              "flex flex-col gap-3 transition-opacity duration-(--duration-fast)",
+              waitlists.isPlaceholderData && "opacity-60",
+            )}
+          >
+            {waitlists.data.items.map((entry) => (
+              <li key={entry.id}>
+                <WaitlistCard entry={entry} onLeave={() => setLeaving(entry)} />
+              </li>
+            ))}
+          </ul>
+          <AccountPagination
+            page={page}
+            total={waitlists.data.total}
+            pageSize={waitlists.data.pageSize}
+            onPage={setPage}
+          />
+        </>
       )}
+
+      <ConfirmDialog
+        open={leaving !== null}
+        title={leaving ? `Leave the ${leaving.releaseTitle} waitlist?` : ""}
+        description="You will stop getting updates about this release. You can join again from its page while sign ups are open."
+        confirmLabel="Leave waitlist"
+        error={remove.isError ? remove.error.message : undefined}
+        loading={remove.isPending}
+        onCancel={closeLeave}
+        onConfirm={confirmLeave}
+      />
     </AccountShell>
   );
 }
 
-/**
- * WaitlistTile — one drop registration, presented as an editorial row.
- *
- * Split card mirroring the shape of the Savings tile so the two feel
- * like the same house pattern: cream photography plate on the left,
- * dark data panel on the right. On the plate: the product cutout
- * with `mix-blend-mode: multiply` so the baked-in white studio
- * background dissolves into the plate. On the panel: variant + name,
- * then a small fact grid (opens, allocation, position), then the
- * secondary actions.
- */
-function WaitlistTile({ row }: { row: WaitlistRow }) {
-  const opensDate = formatDropDate(row.startsAt);
+function WaitlistCard({ entry, onLeave }: { entry: MyWaitlistEntry; onLeave: () => void }) {
+  const update = useUpdateMyWaitlist();
+  const [values, setValues] = useState<Preferences>({
+    emailOptIn: entry.emailOptIn,
+    whatsappOptIn: entry.whatsappOptIn,
+    phone: entry.phone ?? "",
+  });
+  const [clientErrors, setClientErrors] = useState<FieldErrors>({});
+
+  const upcoming = Date.parse(entry.startsAt) > Date.now();
+  const phone = values.whatsappOptIn ? values.phone.trim() : "";
+  const dirty =
+    values.emailOptIn !== entry.emailOptIn ||
+    values.whatsappOptIn !== entry.whatsappOptIn ||
+    (values.whatsappOptIn && phone !== (entry.phone ?? ""));
+  const fields: FieldErrors = { ...clientErrors, ...apiFieldErrors(update.error) };
+  const phoneError = fields.phone?.[0];
+  const formError =
+    fields.emailOptIn?.[0] ??
+    fields.whatsappOptIn?.[0] ??
+    (update.isError && !phoneError ? update.error.message : undefined);
+  const phoneId = `waitlist-phone-${entry.id}`;
+
+  function change(next: Partial<Preferences>) {
+    if (update.isError || update.isSuccess) update.reset();
+    setClientErrors({});
+    setValues({ ...values, ...next });
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = updateWaitlistSchema.safeParse({
+      emailOptIn: values.emailOptIn,
+      whatsappOptIn: values.whatsappOptIn,
+      phone: phone || null,
+    });
+    if (!parsed.success) {
+      setClientErrors(z.flattenError(parsed.error).fieldErrors);
+      return;
+    }
+    setClientErrors({});
+    update.mutate({ id: entry.id, ...parsed.data });
+  }
 
   return (
-    <article className="group/tile relative flex flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface transition-colors duration-(--duration-base) ease-(--ease-out-expo) hover:border-white/[0.22] sm:flex-row">
-      {/* ---------- Photograph plate ---------- */}
-      <div className="relative aspect-[5/4] shrink-0 overflow-hidden bg-plate sm:aspect-auto sm:w-[38%] lg:w-[32%]">
-        <Image
-          src={row.productImage.url}
-          alt=""
-          fill
-          sizes="(max-width: 640px) 92vw, (max-width: 1024px) 34vw, 22vw"
-          className="object-cover [mix-blend-mode:multiply] transition-transform duration-(--duration-cinematic) ease-(--ease-out-expo) motion-safe:group-hover/tile:scale-[1.03]"
-        />
-      </div>
-
-      {/* ---------- Data panel ---------- */}
-      <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-8">
-        <div>
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-            {row.variantLabel}
+    <article className="rounded-2xl border border-line bg-surface p-5 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[clamp(1.125rem,1.5vw,1.375rem)] font-medium leading-tight tracking-[-0.02em] text-ink">
+            {entry.releaseSlug ? (
+              <Link
+                href={releaseHref(entry.releaseSlug)}
+                className="transition-colors duration-(--duration-fast) hover:text-accent"
+              >
+                {entry.releaseTitle}
+              </Link>
+            ) : (
+              entry.releaseTitle
+            )}
+          </h2>
+          <p className="mt-2 text-[0.8125rem] text-ink-secondary">
+            {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(entry.startsAt)}
           </p>
-          <h3 className="mt-2 text-[clamp(1.125rem,1.5vw,1.375rem)] font-medium leading-tight tracking-[-0.02em] text-ink">
-            <Link
-              href={productHrefForDrop(row.productSlug)}
-              className="after:absolute after:inset-0 after:content-['']"
-            >
-              {row.productName}
-            </Link>
-          </h3>
+          {upcoming && (
+            <Countdown
+              compact
+              target={entry.startsAt}
+              label={`${entry.releaseTitle} opens in`}
+              className="mt-1 block text-[0.75rem] text-accent"
+            />
+          )}
         </div>
-
-        {/* ---------- Fact strip ----------
-            Three quiet numbers on a hairline row: when the drop opens,
-            how many units the variant carries, and the reader's own
-            position. The countdown ticks live so a shopper who leaves
-            this page open still sees the clock. */}
-        <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-line pt-5 sm:mt-auto">
-          <div>
-            <dt className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-              Opens
-            </dt>
-            <dd className="mt-1.5 font-sans text-[0.9375rem] font-medium leading-tight tracking-[-0.01em] text-ink">
-              {opensDate}
-            </dd>
-            <dd className="mt-1 font-mono text-[0.6875rem] tabular-nums text-accent">
-              <Countdown
-                compact
-                target={row.startsAt}
-                label={`${row.productName} drop opens in`}
-              />
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-              Allocation
-            </dt>
-            <dd className="mt-1.5 font-sans text-[0.9375rem] font-medium leading-tight tracking-[-0.01em] tabular-nums text-ink">
-              {row.units} units
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-              Status
-            </dt>
-            <dd className="mt-1.5 flex items-center gap-2 font-sans text-[0.9375rem] font-medium leading-tight tracking-[-0.01em] text-ink">
-              <span
-                aria-hidden
-                className="size-1.5 shrink-0 animate-pulse-dot rounded-full bg-live"
-              />
-              Confirmed
-            </dd>
-          </div>
-        </dl>
-
-        {/* ---------- Secondary actions ----------
-            Live above the card link overlay via `z-10` so the two
-            buttons work independently of the tile-wide navigation. */}
-        <div className="relative z-10 mt-6 flex flex-wrap items-center gap-4">
-          <Link
-            href={productHrefForDrop(row.productSlug)}
-            className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:text-accent"
-          >
-            View device
-            <svg
-              aria-hidden
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-3"
-            >
-              <path d="M1.5 7h11M8.5 3.5L12 7l-3.5 3.5" />
-            </svg>
-          </Link>
-          <button
-            type="button"
-            className="text-[0.8125rem] font-medium text-ink-muted underline underline-offset-4 transition-colors duration-(--duration-fast) hover:text-ink"
-          >
-            Leave list
-          </button>
-        </div>
+        <StatusPill tone={entry.confirmed ? "live" : "warn"}>
+          {entry.confirmed ? "Confirmed" : "Confirm from your email"}
+        </StatusPill>
       </div>
+
+      <form onSubmit={handleSubmit} noValidate className="mt-5 border-t border-line pt-1">
+        <ul className="flex flex-col divide-y divide-line">
+          <NotifyRow
+            label="Email updates"
+            hint="News about this release by email."
+            checked={values.emailOptIn}
+            onChange={(emailOptIn) => change({ emailOptIn })}
+          />
+          <NotifyRow
+            label="WhatsApp updates"
+            hint="Updates about this release on WhatsApp."
+            checked={values.whatsappOptIn}
+            onChange={(whatsappOptIn) => change({ whatsappOptIn })}
+          />
+        </ul>
+
+        {values.whatsappOptIn && (
+          <Field id={phoneId} label="WhatsApp number" error={phoneError} className="mt-2 max-w-sm">
+            <Input
+              id={phoneId}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={values.phone}
+              onChange={(event) => change({ phone: event.target.value })}
+              aria-invalid={phoneError ? true : undefined}
+              className="h-11 bg-surface-2"
+            />
+          </Field>
+        )}
+
+        <FieldError className="mt-4">{formError}</FieldError>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Button type="submit" size="sm" loading={update.isPending} disabled={!dirty}>
+            Save preferences
+          </Button>
+          {update.isSuccess && !dirty && (
+            <p role="status" className="text-[0.8125rem] text-ink-secondary">
+              Preferences saved
+            </p>
+          )}
+          <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={onLeave}>
+            Leave
+          </Button>
+        </div>
+      </form>
     </article>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl border border-dashed border-line-strong bg-surface/60 p-12 text-center">
-      <p className="text-[1.0625rem] font-medium text-ink">
-        No waitlists yet
-      </p>
+    <div className="rounded-2xl border border-dashed border-line-strong bg-surface/60 p-10 text-center">
+      <p className="text-[1rem] font-medium text-ink">No waitlists yet</p>
       <p className="mx-auto mt-2 max-w-md text-[0.875rem] text-ink-secondary">
-        When you register for an upcoming drop, it appears here with a
-        live countdown to the opening — no need to check the calendar.
+        Join the waitlist for an upcoming release and it appears here, with a countdown to its opening.
       </p>
       <Link
-        href="/"
-        className="mt-6 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[0.8125rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-accent hover:text-accent"
+        href={RELEASES_PAGE_PATH}
+        className="mt-4 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[0.8125rem] font-medium text-ink hover:border-accent hover:text-accent"
       >
-        See upcoming drops
+        See upcoming releases
       </Link>
     </div>
   );

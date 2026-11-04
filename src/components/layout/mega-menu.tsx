@@ -4,13 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { MegaMenuId } from "@/lib/navigation";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import {
-  DropsMenu,
-  ShopMenu,
-  CategoriesMenu,
-  AboutMenu,
-  type MegaPanelProps,
-} from "./mega-panels";
+import { DropsMenu, ShopMenu, CategoriesMenu, AboutMenu } from "./mega-panels";
 
 export const megaMenuId = (id: MegaMenuId) => `mega-menu-${id}`;
 
@@ -19,7 +13,7 @@ export const megaMenuId = (id: MegaMenuId) => `mega-menu-${id}`;
  * merged into About, which now carries the policy links on the left and
  * the support box on the right.
  */
-const PANELS: Record<MegaMenuId, (props: MegaPanelProps) => React.ReactElement> = {
+const PANELS: Record<MegaMenuId, () => React.ReactElement> = {
   drops: DropsMenu,
   shop: ShopMenu,
   categories: CategoriesMenu,
@@ -42,12 +36,10 @@ export function MegaMenu({
   id,
   labelledBy,
   onPointerEnter,
-  onJoinWaitlist,
 }: {
   id: MegaMenuId;
   labelledBy: string;
   onPointerEnter: () => void;
-  onJoinWaitlist: () => void;
 }) {
   const prefersReducedMotion = useReducedMotion();
   const Panel = PANELS[id];
@@ -74,7 +66,7 @@ export function MegaMenu({
             "p-12 xl:p-16",
           )}
         >
-          <Panel onJoinWaitlist={onJoinWaitlist} />
+          <Panel />
         </div>
       </div>
     </motion.div>
