@@ -34,7 +34,7 @@ import {
   paysOnline,
   type PaymentMethod,
 } from "@/lib/orders";
-import { cn } from "@/lib/utils";
+import { cn, randomUuid } from "@/lib/utils";
 import type { DeliveryAreaOptions } from "@/types/delivery";
 import {
   CITY_REQUIRED_MESSAGE,
@@ -305,7 +305,7 @@ export function CheckoutView({ payment }: Props) {
     const choices = [paymentMethod, method, emirate, areaId].join("|");
     if (keyChoices.current !== choices) idempotencyKey.current = null;
     keyChoices.current = choices;
-    idempotencyKey.current ??= crypto.randomUUID();
+    idempotencyKey.current ??= randomUuid();
 
     placeOrder.mutate(
       {
