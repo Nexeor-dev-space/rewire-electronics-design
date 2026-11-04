@@ -5,6 +5,7 @@ import { useGetAccountOrder } from "@/hooks/use-order";
 import { ApiError } from "@/lib/api/api-client";
 import { ACCOUNT_ORDERS_PATH } from "@/lib/constants";
 import { formatOrderDate } from "@/lib/dates";
+import { invoiceHref } from "@/lib/orders";
 import { Button } from "@/components/ui/button";
 import {
   OrderDetailBody,
@@ -68,13 +69,12 @@ export function AccountOrderDetail({ number }: { number: string }) {
         order={data}
         returnLinks
         actions={
-          <button
-            type="button"
-            onClick={() => window.print()}
+          <Link
+            href={invoiceHref(data.number)}
             className="inline-flex h-11 items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
           >
             Download / view invoice
-          </button>
+          </Link>
         }
       />
     </AccountShell>

@@ -112,6 +112,9 @@ export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
 export const CART_PAGE_PATH = "/cart";
+/** The printable tax invoice of one account order: `/invoice/<order number>`. */
+export const ORDER_INVOICE_PATH = "/invoice";
+export const INVOICE_NUMBER_PREFIX = "INV-";
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
