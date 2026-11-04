@@ -27,7 +27,14 @@ function liveReleaseFigure(data: Metrics): Figure {
   const release = data.liveRelease;
   if (!release) return { value: METRIC_PLACEHOLDER, hint: NO_LIVE_RELEASE };
   const ends = release.endsAt ? `ends ${formatStoreDateTime(release.endsAt)}` : "no end date";
-  return { value: release.title, hint: `${release.productName} · ${ends}` };
+  const parts = [
+    release.edition,
+    `${release.remaining} of ${release.allocated} left`,
+    `${release.sold} sold`,
+    ends,
+    release.otherLive > 0 ? `+${release.otherLive} more live` : "",
+  ];
+  return { value: release.title, hint: parts.filter(Boolean).join(" · ") };
 }
 
 function figureFor(key: AdminMetricKey, data: Metrics): Figure {

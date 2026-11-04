@@ -243,8 +243,7 @@ a Customer and to Staff whose role opens no module (or who have no role).
 **Sidebar.** `visibleAdminNav(permissions)` hides a row that is a module the
 user can't view, and a section left empty. A row with children (Users) keeps
 only the children the user may see, and goes when none are left. Rows for
-modules not built yet (Releases and so on) stay visible, because they
-hold nothing.
+modules not built yet stay visible, because they hold nothing.
 
 A row that is another module's screen names that module in its `permission`
 field (`AdminNavItem` in `src/lib/admin-nav.ts`), and `visibleAdminNav` checks

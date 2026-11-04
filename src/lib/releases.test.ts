@@ -1,31 +1,118 @@
 import { describe, expect, it } from "vitest";
-import { releaseStatus } from "@/lib/releases";
+import {
+  allowedEdits,
+  canChangeState,
+  canDeleteRelease,
+  endedWindow,
+  publishBlocker,
+  releaseStatus,
+} from "@/lib/releases";
 
 const NOW = new Date("2026-11-02T10:00:00Z");
-const window = (startsAt: string, endsAt: string | null, active = true) => ({
-  active,
-  startsAt: new Date(startsAt),
-  endsAt: endsAt ? new Date(endsAt) : null,
-});
+const PAST = new Date("2026-11-01T10:00:00Z");
+const FUTURE = new Date("2026-11-05T10:00:00Z");
+const LATER = new Date("2026-11-08T10:00:00Z");
+
+const published = { publishedAt: PAST, completedAt: null, startsAt: PAST, endsAt: LATER };
 
 describe("releaseStatus", () => {
-  it("is live once started and before its end", () => {
-    expect(releaseStatus(window("2026-11-01T14:00:00Z", "2026-11-08T14:00:00Z"), NOW)).toBe("LIVE");
+  it("is draft without a publish date, whatever the dates", () => {
+    expect(releaseStatus({ ...published, publishedAt: null }, 5, NOW)).toBe("DRAFT");
+    expect(releaseStatus({ ...published, publishedAt: null, endsAt: PAST }, 0, NOW)).toBe("DRAFT");
   });
 
-  it("is live with no end date", () => {
-    expect(releaseStatus(window("2026-11-01T14:00:00Z", null), NOW)).toBe("LIVE");
+  it("is completed once completedAt is set or the end has passed", () => {
+    expect(releaseStatus({ ...published, completedAt: NOW }, 5, NOW)).toBe("COMPLETED");
+    expect(releaseStatus({ ...published, endsAt: NOW }, 5, NOW)).toBe("COMPLETED");
   });
 
-  it("is upcoming before its start", () => {
-    expect(releaseStatus(window("2026-11-15T14:00:00Z", null), NOW)).toBe("UPCOMING");
+  it("is upcoming before opening", () => {
+    expect(releaseStatus({ ...published, startsAt: FUTURE }, 5, NOW)).toBe("UPCOMING");
   });
 
-  it("is ended from its end time on", () => {
-    expect(releaseStatus(window("2026-10-20T14:00:00Z", "2026-11-02T10:00:00Z"), NOW)).toBe("ENDED");
+  it("is sold out when open with nothing available, and live otherwise", () => {
+    expect(releaseStatus(published, 0, NOW)).toBe("SOLD_OUT");
+    expect(releaseStatus(published, 3, NOW)).toBe("LIVE");
+    expect(releaseStatus({ ...published, endsAt: null }, 3, NOW)).toBe("LIVE");
+  });
+});
+
+describe("allowedEdits", () => {
+  it("allows everything for draft and upcoming", () => {
+    for (const status of ["DRAFT", "UPCOMING"] as const) {
+      expect(Object.values(allowedEdits(status)).every(Boolean)).toBe(true);
+    }
   });
 
-  it("is off when inactive, whatever the dates", () => {
-    expect(releaseStatus(window("2026-11-01T14:00:00Z", null, false), NOW)).toBe("OFF");
+  it("locks the opening time once open", () => {
+    for (const status of ["LIVE", "SOLD_OUT"] as const) {
+      expect(allowedEdits(status)).toEqual({
+        text: true,
+        hidden: true,
+        maxPerCustomer: true,
+        startsAt: false,
+        endsAt: true,
+        allocations: true,
+      });
+    }
+  });
+
+  it("allows only text and hidden when completed", () => {
+    expect(allowedEdits("COMPLETED")).toEqual({
+      text: true,
+      hidden: true,
+      maxPerCustomer: false,
+      startsAt: false,
+      endsAt: false,
+      allocations: false,
+    });
+  });
+});
+
+describe("state changes and delete", () => {
+  it("publishes drafts, unpublishes upcoming, ends upcoming live and sold out", () => {
+    expect(canChangeState("DRAFT", "PUBLISH")).toBe(true);
+    expect(canChangeState("UPCOMING", "PUBLISH")).toBe(false);
+    expect(canChangeState("UPCOMING", "UNPUBLISH")).toBe(true);
+    expect(canChangeState("LIVE", "UNPUBLISH")).toBe(false);
+    expect(canChangeState("SOLD_OUT", "END")).toBe(true);
+    expect(canChangeState("COMPLETED", "END")).toBe(false);
+  });
+
+  it("deletes only draft and upcoming", () => {
+    expect(canDeleteRelease("DRAFT")).toBe(true);
+    expect(canDeleteRelease("UPCOMING")).toBe(true);
+    expect(canDeleteRelease("LIVE")).toBe(false);
+    expect(canDeleteRelease("COMPLETED")).toBe(false);
+  });
+});
+
+describe("publishBlocker", () => {
+  const ready = { startsAt: FUTURE, endsAt: LATER, maxPerCustomer: 1, totalAllocated: 3 };
+
+  it("passes a release with units, a future end after opening and a cap", () => {
+    expect(publishBlocker(ready, NOW)).toBeNull();
+  });
+
+  it.each([
+    ["no units", { totalAllocated: 0 }],
+    ["no end", { endsAt: null }],
+    ["an end before opening", { endsAt: PAST }],
+    ["an end in the past", { startsAt: new Date("2026-10-01T10:00:00Z"), endsAt: PAST }],
+    ["a zero cap", { maxPerCustomer: 0 }],
+  ])("blocks %s", (_label, override) => {
+    expect(publishBlocker({ ...ready, ...override }, NOW)).not.toBeNull();
+  });
+});
+
+describe("endedWindow", () => {
+  it("ends now and keeps a past opening", () => {
+    expect(endedWindow(PAST, NOW)).toEqual({ startsAt: PAST, endsAt: NOW });
+  });
+
+  it("moves a future opening to just before now so the end stays after it", () => {
+    const window = endedWindow(FUTURE, NOW);
+    expect(window.endsAt).toEqual(NOW);
+    expect(window.startsAt.getTime()).toBeLessThan(NOW.getTime());
   });
 });

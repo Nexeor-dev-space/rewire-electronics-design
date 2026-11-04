@@ -33,17 +33,18 @@ model Order {
   user           User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   placedAsGuest  Boolean @default(false)
 
-  status          OrderStatus
-  paymentStatus   PaymentStatus @default(UNPAID)
-  paymentMethod   PaymentMethod
-  deliveredAt     DateTime?
-  returnableUntil DateTime?
-  trackingNumber  String        @default("")
-  staffNote       String        @default("")
+  status                  OrderStatus
+  paymentStatus           PaymentStatus @default(UNPAID)
+  paymentMethod           PaymentMethod
+  deliveredAt             DateTime?
+  returnableUntil         DateTime?
+  trackingNumber          String        @default("")
+  staffNote               String        @default("")
   /// Stripe PaymentIntent (`pi_…`) that paid the order; null for cash on delivery or unpaid. See docs/PAYMENTS.md.
-  stripePaymentIntentId String? @unique
+  stripePaymentIntentId   String?       @unique
   /// The order's current Stripe payment page (`cs_…`); a retry reuses it while open. See docs/PAYMENTS.md.
-  stripeCheckoutSessionId String? @unique
+  stripeCheckoutSessionId String?       @unique
+  releaseHoldUntil        DateTime?
 
   email      String
   phone      String
@@ -76,12 +77,14 @@ model Order {
   events           OrderStatusEvent[]
   couponRedemption CouponRedemption?
   returns          ReturnRequest[]
+  releaseHolds     ReleaseHold[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([status, releaseHoldUntil])
   @@index([paymentStatus, createdAt])
   @@index([createdAt])
   @@index([deliveryAreaId])
@@ -94,6 +97,8 @@ model OrderItem {
   order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variantId String?
   variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  releaseId String?
+  release   Release?        @relation(fields: [releaseId], references: [id], onDelete: Restrict)
   imageId   String?
   image     MediaAsset?     @relation(fields: [imageId], references: [id], onDelete: SetNull)
 
@@ -116,15 +121,16 @@ model OrderItem {
   quantity       Int
   lineTotal      Int
 
-  addOns         OrderItemAddOn[]
-  returnItems    ReturnItem[]
-  devices        Device[]
+  addOns      OrderItemAddOn[]
+  returnItems ReturnItem[]
+  devices     Device[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([orderId])
   @@index([variantId])
+  @@index([releaseId])
   @@index([imageId])
   @@map("order_items")
 }

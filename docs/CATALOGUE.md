@@ -146,7 +146,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    variants without one are created, and variants left out are deleted. This
    keeps a variant's identity stable for the cart and orders later. A deleted
    variant disappears from every cart that held it, without a notice; archive
-   the product instead and carts flag the line as unavailable.
+   the product instead and carts flag the line as unavailable. A variant that
+   has a release allocation can't be removed, and its product can't be deleted
+   for good from Trash, until it is taken out of the release (409,
+   [RELEASES.md](RELEASES.md) §6).
 4. **Images and specs are replaced on save.** An image dropped from a product
    releases its `MediaAsset` once nothing else uses it.
 5. **Publishing needs at least one image** (409 otherwise).

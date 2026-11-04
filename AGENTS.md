@@ -23,6 +23,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Products, the Product API, shop and product pages, catalogue admin, add-ons and per-product picks, page metadata, SEO, Open Graph, noindex rules, the sitemap and robots | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Warranty & Claims, device serials and IMEIs, warranty dates and status, warranty claims and their lifecycle | [docs/WARRANTY.md](docs/WARRANTY.md) |
+| Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens | [docs/RELEASES.md](docs/RELEASES.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Stripe, card and Apple Pay payment, `payment.service.ts`, `POST checkout/payment`, the Stripe webhook, the return from Stripe, `stripePaymentIntentId` | [docs/PAYMENTS.md](docs/PAYMENTS.md) |
 | The VAT rate setting, the VAT & Configuration admin screen, `admin/vat-settings` | [docs/VAT.md](docs/VAT.md) |
