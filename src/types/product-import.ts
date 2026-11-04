@@ -1,4 +1,4 @@
-import type { ImportColumnKey, ImportMode } from "@/lib/product-import";
+import type { ImportColumnKey, ImportMode, ImportRowStatus, ImportStatus } from "@/lib/product-import";
 
 export type ImportAction = "CREATE" | "UPDATE";
 
@@ -34,4 +34,27 @@ export interface ImportPreview {
   validRows: number;
   invalidRows: number;
   rows: ImportPreviewRow[];
+}
+
+export interface ProductImportItem {
+  id: string;
+  fileName: string;
+  mode: ImportMode;
+  status: ImportStatus;
+  totalRows: number;
+  importedRows: number;
+  failedRows: number;
+  uploadedByName: string;
+  /** ISO strings. */
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface ProductImportRowItem {
+  id: string;
+  rowNumber: number;
+  productName: string;
+  sku: string;
+  status: ImportRowStatus;
+  error: string | null;
 }

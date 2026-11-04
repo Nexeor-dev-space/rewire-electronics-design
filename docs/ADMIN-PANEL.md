@@ -75,7 +75,8 @@ A declared route owns itself and everything beneath it. `/admin/orders` owns
 resolve with the parent's navigation row active and a correct breadcrumb trail,
 without being declared. When two routes both match, the longer one wins, which
 is how `/admin/products/upload-products` is its own module while living under
-`/admin/products`.
+`/admin/products`. Bulk Product Upload and its history are built; see
+[BULK-UPLOAD.md](BULK-UPLOAD.md).
 
 Three helpers cover everything:
 

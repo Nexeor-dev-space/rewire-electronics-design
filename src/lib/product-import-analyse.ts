@@ -1,3 +1,4 @@
+import type { z } from "zod";
 import { fromMinorUnits, toMinorUnits } from "@/lib/money";
 import {
   IMPORT_LIST_SEPARATOR,
@@ -70,6 +71,44 @@ export interface ImportLookups {
   imageProblems: Map<string, string>;
 }
 
+export type ProductData = z.output<typeof productSchema>;
+
+/** What an Update Existing row will write: the merged variant, and the product cells when this row carries them. */
+export interface UpdatePlan {
+  sku: string;
+  variant: {
+    storage: string | null;
+    colour: string | null;
+    condition: ProductCondition;
+    grade: ProductGrade | null;
+    price: number;
+    compareAtPrice: number | null;
+    stock: number;
+  };
+  product: ProductPatch | null;
+  images: string[];
+  specs: { group: string; label: string; value: string }[];
+}
+
+export interface ProductPatch {
+  name?: string;
+  description?: string;
+  brandId?: string;
+  categoryId?: string;
+  status?: ProductStatus;
+  warrantyMonths?: number;
+}
+
+/**
+ * What the checks worked out, for the import to write: Create New products
+ * as the form's own schema parsed them (image addresses standing in for media
+ * ids), keyed by lowercase slug, and Update Existing rows keyed by row number.
+ */
+export interface ImportPlan {
+  creates: Map<string, { data: ProductData; status: ProductStatus | null }>;
+  updates: Map<number, UpdatePlan>;
+}
+
 interface Parsed {
   status: ProductStatus | null;
   condition: ProductCondition | null;
@@ -129,7 +168,12 @@ const keyOf = (value: string) => value.trim().toLowerCase();
 const enumKey = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/g, "_");
 const header = importColumnHeader;
 
-export function analyseImport(rows: readonly ImportRow[], mode: ImportMode, lookups: ImportLookups): ImportPreview {
+export function analyseImport(
+  rows: readonly ImportRow[],
+  mode: ImportMode,
+  lookups: ImportLookups,
+  plan?: ImportPlan,
+): ImportPreview {
   const items = rows.map((row): Item => {
     const item: Item = { row, out: previewRow(row), parsed: emptyParsed() };
     readCells(item, mode, lookups);
@@ -137,7 +181,7 @@ export function analyseImport(rows: readonly ImportRow[], mode: ImportMode, look
   });
 
   checkDuplicateSkus(items);
-  const groups = mode === "CREATE_NEW" ? analyseCreate(items, lookups) : analyseUpdate(items, lookups);
+  const groups = mode === "CREATE_NEW" ? analyseCreate(items, lookups, plan) : analyseUpdate(items, lookups, plan);
 
   for (const { out } of items) out.action = out.errors.length > 0 ? null : mode === "CREATE_NEW" ? "CREATE" : "UPDATE";
 
@@ -331,7 +375,7 @@ const hasErrors = (group: Item[]) => group.some((item) => item.out.errors.length
 
 /* ---------- Create New ---------- */
 
-function analyseCreate(items: Item[], lookups: ImportLookups): number {
+function analyseCreate(items: Item[], lookups: ImportLookups, plan?: ImportPlan): number {
   const groups = groupBy(items, (item) => keyOf(item.row.productSlug));
 
   for (const group of groups) {
@@ -399,6 +443,7 @@ function analyseCreate(items: Item[], lookups: ImportLookups): number {
       })),
     });
     if (!result.success) mapIssues(group, result.error.issues);
+    else if (!hasErrors(group)) plan?.creates.set(keyOf(first.row.productSlug), { data: result.data, status: first.parsed.status });
   }
 
   for (const item of items) {
@@ -410,7 +455,7 @@ function analyseCreate(items: Item[], lookups: ImportLookups): number {
 
 /* ---------- Update Existing ---------- */
 
-function analyseUpdate(items: Item[], lookups: ImportLookups): number {
+function analyseUpdate(items: Item[], lookups: ImportLookups, plan?: ImportPlan): number {
   const found = items.filter((item) => {
     if (!item.row.sku) return false;
     if (lookups.variantsBySku.has(keyOf(item.row.sku))) return true;
@@ -434,11 +479,21 @@ function analyseUpdate(items: Item[], lookups: ImportLookups): number {
     checkAgreement(group);
     const first = group[0];
     const product = first && lookups.variantsBySku.get(keyOf(first.row.sku))?.product;
-    if (first && product) updateProduct(first, product, lookups);
+    const patch = first && product ? updateProduct(first, product, lookups) : null;
 
     for (const item of group) {
       const stored = lookups.variantsBySku.get(keyOf(item.row.sku));
-      if (stored && item.out.errors.length === 0) updateVariant(item, stored);
+      if (!stored || item.out.errors.length > 0) continue;
+      const variant = updateVariant(item, stored);
+      if (!variant) continue;
+      const carriesProduct = item === first;
+      plan?.updates.set(item.row.rowNumber, {
+        sku: stored.sku,
+        variant,
+        product: carriesProduct ? patch : null,
+        images: carriesProduct ? item.parsed.images : [],
+        specs: carriesProduct ? item.parsed.specs : [],
+      });
     }
   }
   return groups.length;
@@ -455,7 +510,7 @@ function showStored(item: Item, stored: ExistingVariant) {
   item.out.stock = item.parsed.stock ?? stored.stock;
 }
 
-function updateProduct(first: Item, product: ExistingProduct, lookups: ImportLookups) {
+function updateProduct(first: Item, product: ExistingProduct, lookups: ImportLookups): ProductPatch | null {
   const { row, parsed } = first;
   const shape = productSchema.shape;
   const checks = [
@@ -479,7 +534,7 @@ function updateProduct(first: Item, product: ExistingProduct, lookups: ImportLoo
     fail(first, "productStatus", "This product has no images. Add images in the same row, or keep it a draft.");
   }
 
-  if (first.out.errors.length > 0) return;
+  if (first.out.errors.length > 0) return null;
   const change = (key: ImportColumnKey, before: string, after: string) => {
     if (after !== "" && after !== before) first.out.changes.push(`${header(key)}: ${before || "none"} → ${after}`);
   };
@@ -491,10 +546,19 @@ function updateProduct(first: Item, product: ExistingProduct, lookups: ImportLoo
   if (category && category.id !== product.categoryId) first.out.changes.push(`${header("category")}: ${row.category}`);
   if (parsed.images.length > 0) first.out.changes.push(`${header("images")}: replaced with ${parsed.images.length}`);
   if (parsed.specs.length > 0) first.out.changes.push(`${header("specifications")}: replaced with ${parsed.specs.length}`);
+
+  return {
+    ...(row.productName ? { name: row.productName } : {}),
+    ...(row.description ? { description: row.description } : {}),
+    ...(brandId ? { brandId } : {}),
+    ...(category ? { categoryId: category.id } : {}),
+    ...(parsed.status ? { status: parsed.status } : {}),
+    ...(parsed.warrantyMonths !== null ? { warrantyMonths: parsed.warrantyMonths } : {}),
+  };
 }
 
 /** The stored variant with the filled cells laid over it must still pass the form's variant rules. */
-function updateVariant(item: Item, stored: ExistingVariant) {
+function updateVariant(item: Item, stored: ExistingVariant): UpdatePlan["variant"] | null {
   const { row, parsed } = item;
   const merged = {
     sku: stored.sku,
@@ -515,7 +579,7 @@ function updateVariant(item: Item, stored: ExistingVariant) {
       const field = issue.path[0];
       fail(item, typeof field === "string" ? (VARIANT_FIELD_COLUMN[field] ?? null) : null, issue.message);
     }
-    return;
+    return null;
   }
 
   const money = (minor: number | null) => (minor === null ? "none" : fromMinorUnits(minor));
@@ -529,4 +593,14 @@ function updateVariant(item: Item, stored: ExistingVariant) {
   change("grade", stored.grade ?? "none", merged.grade ?? "none");
   change("storage", stored.storage ?? "none", merged.storage ?? "none");
   change("colour", stored.colour ?? "none", merged.colour ?? "none");
+
+  return {
+    storage: result.data.storage,
+    colour: result.data.colour,
+    condition: result.data.condition,
+    grade: result.data.grade,
+    price: result.data.price,
+    compareAtPrice: result.data.compareAtPrice,
+    stock: result.data.stock,
+  };
 }

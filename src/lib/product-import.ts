@@ -1,7 +1,9 @@
 import {
   PRODUCT_IMPORT_MAX_BYTES,
   PRODUCT_IMPORT_MAX_CELL_LENGTH,
+  PRODUCT_IMPORT_MAX_IMAGES,
   PRODUCT_IMPORT_MAX_ROWS,
+  PRODUCT_IMPORT_MAX_STALLED_CALLS,
 } from "@/lib/constants";
 import { toCsv } from "@/lib/csv";
 import { formatBytes } from "@/lib/media";
@@ -227,6 +229,12 @@ const isMarkRow = (record: readonly string[]) =>
   record.some((cell) => cell.trim() !== "") &&
   record.every((cell) => ["", REQUIRED_MARK.toLowerCase(), OPTIONAL_MARK.toLowerCase()].includes(cell.trim().toLowerCase()));
 
+/** Every distinct image address in the rows. */
+export function distinctImageUrls(rows: readonly { images: string }[]): string[] {
+  const urls = rows.flatMap((row) => row.images.split(IMPORT_LIST_SEPARATOR).map((url) => url.trim()));
+  return [...new Set(urls.filter(Boolean))];
+}
+
 export interface ParsedImportFile {
   /** The columns the file has, in the template's names. */
   columns: ImportColumnKey[];
@@ -240,7 +248,12 @@ export function parseImportFile(text: string): ParsedImportFile {
   const headerIndex = records.findIndex((record) => !isBlank(record));
   if (headerIndex === -1) throw new ImportFileError("That file is empty.");
 
-  const keys = (records[headerIndex] ?? []).map((cell) => {
+  const headerRecord = records[headerIndex] ?? [];
+  if (headerRecord.length === 1 && /[;\t]/.test(headerRecord[0] ?? "")) {
+    throw new ImportFileError("The columns must be separated by commas. In Excel, save the file as CSV (Comma delimited).");
+  }
+
+  const keys = headerRecord.map((cell) => {
     const header = cell.trim().toLowerCase();
     const key = HEADER_TO_KEY.get(header);
     if (!key) {
@@ -278,5 +291,58 @@ export function parseImportFile(text: string): ParsedImportFile {
   }
 
   if (rows.length === 0) throw new ImportFileError("The file has a header but no product rows.");
+  const images = distinctImageUrls(rows).length;
+  if (images > PRODUCT_IMPORT_MAX_IMAGES) {
+    throw new ImportFileError(
+      `That file lists ${images} different image addresses. The limit is ${PRODUCT_IMPORT_MAX_IMAGES} per file. Split it and upload the parts one at a time.`,
+    );
+  }
   return { columns: keys, rows };
+}
+
+/* ---------- saved imports ---------- */
+
+export const IMPORT_STATUSES = ["PENDING", "PROCESSING", "COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED"] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+
+export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
+  PENDING: "Pending",
+  PROCESSING: "Processing",
+  COMPLETED: "Completed",
+  COMPLETED_WITH_ERRORS: "Completed with Errors",
+  FAILED: "Failed",
+};
+
+export const IMPORT_ROW_STATUSES = ["PENDING", "IMPORTED", "FAILED"] as const;
+export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
+
+/** An import still has rows to save: Pending, or Processing after a break. */
+export const isImportUnfinished = (status: ImportStatus) => status === "PENDING" || status === "PROCESSING";
+
+export const ERROR_REPORT_HEADERS = ["Row", "SKU", "Product", "Reason"] as const;
+export const errorReportFilename = (id: string) => `import-${id}-errors.csv`;
+
+/**
+ * Asks for the next batch until the import has no rows left. Stops with an
+ * error when several batches in a row save nothing, which means the rest are
+ * stuck, rather than asking for ever.
+ */
+export async function runImportToEnd<T extends { id: string; status: ImportStatus; importedRows: number; failedRows: number }>(
+  start: T,
+  step: (id: string) => Promise<T>,
+  onProgress?: (record: T) => void,
+): Promise<T> {
+  let current = start;
+  let stalled = 0;
+  while (isImportUnfinished(current.status)) {
+    const next = await step(current.id);
+    const moved = next.importedRows + next.failedRows !== current.importedRows + current.failedRows;
+    stalled = moved || !isImportUnfinished(next.status) ? 0 : stalled + 1;
+    if (stalled >= PRODUCT_IMPORT_MAX_STALLED_CALLS) {
+      throw new Error("The import isn't making progress. Wait a few minutes, then resume it from Import history.");
+    }
+    current = next;
+    onProgress?.(current);
+  }
+  return current;
 }

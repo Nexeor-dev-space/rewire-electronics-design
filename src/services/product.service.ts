@@ -19,6 +19,7 @@ type Tx = Prisma.TransactionClient;
 type ProductData = z.output<typeof productSchema>;
 type ProductQuery = z.output<typeof productListQuerySchema>;
 type ProductStatusData = z.output<typeof productStatusSchema>;
+type ProductStatus = ProductStatusData["status"];
 type TrashQuery = { page: number; pageSize: number; search?: string };
 type VariantData = ProductData["variants"][number];
 
@@ -179,7 +180,8 @@ export async function getProduct(id: string, { inTrash = false } = {}) {
 
 /* ---------- writes ---------- */
 
-export async function createProduct(data: ProductData) {
+/** `status` is for the bulk import, which creates a product already published or archived. The form creates drafts. */
+export async function createProduct(data: ProductData, status?: ProductStatus) {
   const id = await prisma.$transaction(
     async (tx) => {
       await assertSlugFree(tx, data.slug);
@@ -189,6 +191,7 @@ export async function createProduct(data: ProductData) {
       const created = await tx.product.create({
         data: {
           ...productFields(data),
+          ...(status ? { status, ...(status === "PUBLISHED" ? { publishedAt: new Date() } : {}) } : {}),
           variants: { create: data.variants.map(variantFields) },
           images: { create: data.images.map(imageFields) },
           specs: { create: data.specs.map(specFields) },

@@ -11,9 +11,9 @@ Read this before you change the import columns, the validation rules or the Bulk
 | Part | State |
 | --- | --- |
 | Part 1: template, upload, validation, preview | Built. No database change |
-| Part 2: saving the import, progress, history, error report | Not built. Needs a migration that has not been approved |
+| Part 2: saving the import, progress, history, error report | Built. Migration `add_product_import` |
 
-Until Part 2 ships the screen stops at the preview. The Import button is disabled and nothing is written to the database.
+The preview saves nothing. Nothing reaches the catalogue until Import is clicked.
 
 ---
 
@@ -80,7 +80,25 @@ A file can only be imported when every row is valid.
 
 ---
 
-## 5. Files
+## 5. Saving and running an import
+
+1. **Import.** The screen sends the same rows again to `POST /api/v1/admin/product-imports`. The server runs the whole validation a second time and, only if every row is valid, stores one `product_imports` row (Pending) and one `product_import_rows` row per CSV row. Image addresses are not requested again here, since the preview has just checked them. Nothing is in the catalogue yet. From here the import survives a refresh.
+2. **Batches.** The screen then calls `POST /api/v1/admin/product-imports/[id]/process` again and again. Each call saves up to `PRODUCT_IMPORT_BATCH_SIZE` (20) products and answers with the import's counts, which drive the progress bar. There is no background worker and no polling job.
+3. **One product at a time.** Create New saves all rows of a product together through `createProduct`, in one transaction, so a product is saved whole or not at all. Update Existing saves one row at a time in one transaction. A product that fails is marked Failed with the reason, and the batch carries on.
+4. **Checked again at write time.** A slug or SKU can be taken between upload and import, so each product is validated again against what is stored now. A clash becomes a Failed row.
+5. **No double processing.** A row is claimed (its `productId` is set to `claimed`) before it is saved, and only Pending unclaimed rows are picked. A repeated or parallel call finds nothing to do, and a finished import answers with its result unchanged.
+6. **Images.** Each distinct address is downloaded once at import time with the same checks as the preview (public host, no redirect, image type, 2 MB) and stored as a `MediaAsset`. A product whose image fails is a failed product. An address used by several rows of a batch is downloaded once. The host is checked just before the download, but the download resolves it again, so the address is not pinned between the two.
+7. **Finish.** When no Pending row is left the status becomes Completed (no failures), Completed with Errors (some) or Failed (none imported). The one request that closes the import writes one Change Log entry under Bulk Product Upload and refreshes the storefront catalogue. Each product saved also gets its own Change Log entry under Products (Created or Updated), marked `source: Bulk Product Upload`, so a changed price can be traced to the product.
+8. **Resume.** If the tab closes midway the import stays Pending or Processing. Import history shows a Resume button that carries on with the rows that are left.
+9. **Error report.** The failed rows, with row number, SKU, product and reason, downloaded as a CSV from the screen or from Import history.
+
+If the server stops in the middle of saving a product, that product's rows stay claimed. A claim older than `PRODUCT_IMPORT_CLAIM_TIMEOUT_MS` (5 minutes, counted from the last batch) is released by the next call, and the rows are saved then. A request that is still running refreshes the import's `updatedAt` before each product, so its claims are not released.
+
+The screen and the Resume button stop asking after `PRODUCT_IMPORT_MAX_STALLED_CALLS` (3) batches in a row that save nothing, and say so. `runImportToEnd` in `src/lib/product-import.ts` does this for both.
+
+Create New can also set `product_status`. `createProduct` takes an optional status for this, so a published product is created in one step with its `publishedAt`.
+
+## 6. Files
 
 | File | Purpose |
 | --- | --- |
@@ -89,13 +107,24 @@ A file can only be imported when every row is valid.
 | `src/lib/public-address.ts` | Whether the server may fetch from a host |
 | `src/types/product-import.ts` | `ImportPreview`, `ImportPreviewRow` |
 | `src/validators/product-import.validator.ts` | Request schema |
-| `src/services/product-import.service.ts` | `validateImport` |
-| `src/app/api/v1/admin/product-imports/validate/route.ts` | `POST` validate |
-| `src/hooks/use-product-import.ts` | `useValidateProductImport` |
-| `src/components/admin/product-import/` | Screen, drop zone, preview table |
-| `src/app/admin/products/upload-products/page.tsx` | The page |
+| `src/services/product-import.service.ts` | `validateImport`, `loadLookups`, image address checks |
+| `src/services/product-import-run.service.ts` | `createImport`, `processImport`, `listImports`, `getImport`, `listImportRows`, `listFailedRows` |
+| `prisma/schema/product-import.prisma` | `ProductImport`, `ProductImportRow` |
+| `src/app/api/v1/admin/product-imports/` | The routes in section 7 |
+| `src/hooks/use-product-import.ts` | Queries and mutations for validate, create, process, history and the error report |
+| `src/components/admin/product-import/` | Upload screen, drop zone, preview table, history and detail |
+| `src/app/admin/products/upload-products/page.tsx`, `upload-history/page.tsx` | The pages |
 
-## 6. API
+## 7. API
+
+| Endpoint | Methods | Permission |
+| --- | --- | --- |
+| `/api/v1/admin/product-imports` | `GET` history (paginated, optional `status`), `POST` store a checked file | View, Create |
+| `/api/v1/admin/product-imports/validate` | `POST` check rows, save nothing | Create |
+| `/api/v1/admin/product-imports/[id]` | `GET` one import | View |
+| `/api/v1/admin/product-imports/[id]/rows` | `GET` its rows (paginated, optional `status`) | View |
+| `/api/v1/admin/product-imports/[id]/process` | `POST` save the next batch | Create |
+| `/api/v1/admin/product-imports/[id]/errors` | `GET` the failed rows, at most `PRODUCT_IMPORT_MAX_ROWS` | View |
 
 `POST /api/v1/admin/product-imports/validate`
 
@@ -103,12 +132,25 @@ Request body: `{ mode: "CREATE_NEW" | "UPDATE_EXISTING", columns: string[], rows
 
 Response: an `ImportPreview` with `totalRows`, `productCount`, `validRows`, `invalidRows` and one `ImportPreviewRow` per CSV row, each with its `action`, `changes` and `errors` (a column and a message). A 422 carries a file level message when a required column is missing.
 
-## 7. Permission
+## 8. Permission
 
 Module `catalogue.bulk-upload` with View and Create, in `PERMISSIONS.bulkUpload`. Admin has both. A Staff role gets View at the View level and Create at the Edit level. Without Create the page shows but the upload is hidden, and the route answers 403.
 
-## 8. Configuration, database and breaking changes
+An import changes products, so the module permission is not enough. `assertImportAccess` in `src/services/product-import.service.ts` also requires the Products permission the same change needs in the product form, and answers 403 with the reason when it is missing:
 
-1. No environment variable and no database change in Part 1.
-2. No breaking change.
-3. Known gaps: battery health, hex colour, low stock threshold, SEO fields and add on picks aren't CSV columns yet. Part 2 will fetch images at import time and must connect to the address it has just checked, so a host can't change its answer in between.
+| The import | Also needs on Products |
+| --- | --- |
+| Create New | Create |
+| Update Existing | Edit |
+| Any row setting `product_status`, except DRAFT in Create New | Publish |
+
+The check runs on validate, on saving the import, and when a batch is processed (the mode only).
+
+## 9. Configuration, database and breaking changes
+
+1. No environment variable.
+2. Database: migration `add_product_import` adds `product_imports` and `product_import_rows` and three enums. It changes no existing table. Rows keep the cells as JSON, so there is no cleanup job yet; deleting an import deletes its rows.
+3. No breaking change. `createProduct` gained an optional second argument.
+4. Constants in `src/lib/constants.ts`: `PRODUCT_IMPORT_MAX_BYTES` (2 MB), `PRODUCT_IMPORT_MAX_ROWS` (500), `PRODUCT_IMPORT_MAX_IMAGES` (100 distinct image addresses per file), `PRODUCT_IMPORT_BATCH_SIZE` (20), `PRODUCT_IMPORT_IMAGE_CHECK_CONCURRENCY`, `PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS`, `PRODUCT_IMPORT_IMAGE_FETCH_TIMEOUT_MS`, `PRODUCT_IMPORT_CLAIM_TIMEOUT_MS`, `PRODUCT_IMPORT_MAX_STALLED_CALLS`, `ADMIN_PRODUCT_IMPORT_HISTORY_PATH`.
+5. A CSV saved with semicolons or tabs is refused with a message to save it as CSV (Comma delimited).
+6. Known gaps: a product saved right before its row status update fails would show that row as Failed; the host of an image address can change its answer between the check and the download; battery health, hex colour, low stock threshold, SEO fields and add on picks aren't CSV columns yet, and a value can be replaced but not cleared by an update.

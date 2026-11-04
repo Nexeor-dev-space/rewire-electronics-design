@@ -2,17 +2,21 @@ import "server-only";
 
 import type { z } from "zod";
 import { ServiceError } from "@/lib/api/api-response";
+import { hasPermission, PERMISSIONS, type PermissionGrid } from "@/lib/auth/permissions";
 import {
   PRODUCT_IMPORT_IMAGE_CHECK_CONCURRENCY,
   PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS,
+  PRODUCT_IMPORT_MAX_IMAGES,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { MAX_IMAGE_BYTES, formatBytes, isImageMimeType } from "@/lib/media";
 import {
   IMPORT_COLUMN_KEYS,
-  IMPORT_LIST_SEPARATOR,
+  IMPORT_MODE_LABELS,
+  distinctImageUrls,
   importColumnHeader,
   missingColumns,
+  type ImportMode,
   type ImportRow,
 } from "@/lib/product-import";
 import {
@@ -34,7 +38,33 @@ const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
  * in a few batched queries, then hands the rows and the findings to
  * `analyseImport`. See docs/BULK-UPLOAD.md.
  */
-export async function validateImport({ mode, columns, rows: cells }: ValidateInput) {
+/**
+ * An import changes products, so the Bulk Product Upload permission alone is
+ * not enough: the caller also needs the Products permission the same change
+ * would need in the product form. Create New needs Create, Update Existing
+ * needs Edit, and setting a status other than a new draft needs Publish.
+ * With no rows only the mode is checked.
+ */
+export function assertImportAccess(permissions: PermissionGrid, mode: ImportMode, rows: ImportRow[] = []) {
+  const action = mode === "CREATE_NEW" ? "CREATE" : "EDIT";
+  if (!hasPermission(permissions, PERMISSIONS.products, action)) {
+    throw new ServiceError(
+      "FORBIDDEN",
+      `${IMPORT_MODE_LABELS[mode]} also needs ${action === "CREATE" ? "Create" : "Edit"} access to Products.`,
+      403,
+    );
+  }
+
+  const setsStatus = rows.some((row) => {
+    const status = row.productStatus.trim().toUpperCase();
+    return status !== "" && !(mode === "CREATE_NEW" && status === "DRAFT");
+  });
+  if (setsStatus && !hasPermission(permissions, PERMISSIONS.products, "PUBLISH")) {
+    throw new ServiceError("FORBIDDEN", "Setting a product status in an import also needs Publish access to Products.", 403);
+  }
+}
+
+export async function validateImport({ mode, columns, rows: cells }: ValidateInput, checkImages = true) {
   const absent = missingColumns(
     columns.filter((column): column is (typeof IMPORT_COLUMN_KEYS)[number] =>
       (IMPORT_COLUMN_KEYS as string[]).includes(column),
@@ -47,16 +77,24 @@ export async function validateImport({ mode, columns, rows: cells }: ValidateInp
   }
 
   const rows = cells as ImportRow[];
-  const lookups = await loadLookups(rows);
+  const images = distinctImageUrls(rows).length;
+  if (images > PRODUCT_IMPORT_MAX_IMAGES) {
+    throw new ServiceError(
+      "VALIDATION",
+      `That file lists ${images} different image addresses. The limit is ${PRODUCT_IMPORT_MAX_IMAGES} per file.`,
+      422,
+    );
+  }
+  const lookups = await loadLookups(rows, checkImages);
   return analyseImport(rows, mode, lookups);
 }
 
-async function loadLookups(rows: ImportRow[]): Promise<ImportLookups> {
+export async function loadLookups(rows: ImportRow[], checkImages: boolean): Promise<ImportLookups> {
   const slugs = unique(rows.map((row) => keyOf(row.productSlug)));
   const skus = unique(rows.map((row) => row.sku));
   const brandKeys = unique(rows.map((row) => keyOf(row.brand)));
   const categorySlugs = unique(rows.map((row) => keyOf(row.category)));
-  const imageUrls = unique(rows.flatMap((row) => row.images.split(IMPORT_LIST_SEPARATOR).map((url) => url.trim())));
+  const imageUrls = distinctImageUrls(rows);
 
   const [brands, categories, products, variants, imageProblems] = await Promise.all([
     prisma.brand.findMany({ where: { nameKey: { in: brandKeys } }, select: { id: true, nameKey: true } }),
@@ -99,7 +137,7 @@ async function loadLookups(rows: ImportRow[]): Promise<ImportLookups> {
         },
       },
     }),
-    checkImageUrls(imageUrls),
+    checkImages ? checkImageUrls(imageUrls) : new Map<string, string>(),
   ]);
 
   return {
@@ -157,15 +195,20 @@ async function imageProblem(url: string): Promise<string | null> {
       redirect: "manual",
       signal: AbortSignal.timeout(PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS),
     });
-    if (response.status >= 300 && response.status < 400) return "The address redirects. Use the final image address.";
-    if (!response.ok) return `The image couldn't be reached (HTTP ${response.status}).`;
-
-    const type = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
-    if (!isImageMimeType(type)) return "That address isn't a PNG, JPEG, WebP or AVIF image.";
-    const size = Number(response.headers.get("content-length"));
-    if (size > MAX_IMAGE_BYTES) return `The image is ${formatBytes(size)}. The limit is ${formatBytes(MAX_IMAGE_BYTES)}.`;
-    return null;
+    return imageResponseProblem(response);
   } catch {
     return "The image couldn't be reached.";
   }
+}
+
+/** Whether an answer from an image address can be used: no redirect, a real image, within the size limit. */
+export function imageResponseProblem(response: Response): string | null {
+  if (response.status >= 300 && response.status < 400) return "The address redirects. Use the final image address.";
+  if (!response.ok) return `The image couldn't be reached (HTTP ${response.status}).`;
+
+  const type = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
+  if (!isImageMimeType(type)) return "That address isn't a PNG, JPEG, WebP or AVIF image.";
+  const size = Number(response.headers.get("content-length"));
+  if (size > MAX_IMAGE_BYTES) return `The image is ${formatBytes(size)}. The limit is ${formatBytes(MAX_IMAGE_BYTES)}.`;
+  return null;
 }
