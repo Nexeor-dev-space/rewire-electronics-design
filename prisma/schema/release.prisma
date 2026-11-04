@@ -6,6 +6,7 @@ model Release {
   startsAt  DateTime
   endsAt    DateTime?
   active    Boolean   @default(true)
+  campaigns Campaign[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
