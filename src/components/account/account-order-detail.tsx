@@ -74,6 +74,7 @@ export function AccountOrderDetail({ number }: { number: string }) {
           isInvoiceable(data.status) ? (
             <InvoiceDownloadButton
               href={API_ENDPOINTS.account.orderInvoice(data.number)}
+              viewHref={API_ENDPOINTS.account.orderInvoice(data.number, true)}
               label="Download invoice (PDF)"
               className="inline-flex h-11 w-full items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
             />

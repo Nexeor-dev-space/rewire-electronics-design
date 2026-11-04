@@ -81,6 +81,7 @@ export function OrderDetailScreen({ number }: { number: string }) {
           {order.data && isInvoiceable(order.data.status) && (
             <InvoiceDownloadButton
               href={API_ENDPOINTS.admin.orders.invoice(order.data.number)}
+              viewHref={API_ENDPOINTS.admin.orders.invoice(order.data.number, true)}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             />
           )}

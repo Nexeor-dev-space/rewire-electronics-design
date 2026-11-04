@@ -58,9 +58,16 @@ Apple Pay not paid yet) and `CANCELLED`. So a cash on delivery order has an
 invoice as soon as it is placed; its Payment box shows **Unpaid** and a
 **Balance Due** until staff mark it paid.
 
-The download buttons only show for these orders. While the PDF is made the
-button reads "Preparing invoice…"; if the download fails, the error message
-shows under the button and no file is saved. The API answers 409
+The download buttons only show for these orders. They behave differently by
+device:
+
+| Device | What the button does |
+|---|---|
+| Touch (phones, tablets: `pointer: coarse`) | Opens the PDF in a new tab with `?inline=1`, so it shows in the browser's viewer with its own save and share. In-app browsers (a link opened from WhatsApp, Gmail…) ignore downloads a page starts itself but follow a link to a PDF. If the new tab is blocked it opens in the same tab |
+| Mouse (desktop) | Fetches the PDF and saves it. While it is made the button reads "Preparing invoice…"; if it fails, the error shows under the button and no file is saved |
+
+Over plain HTTP (testing on a LAN address) Chrome warns that the download is
+insecure; on the HTTPS site it does not. The API answers 409
 `CONFLICT` ("The invoice is available once the order is confirmed.") for any
 other.
 
@@ -153,8 +160,9 @@ Content-Disposition: attachment; filename="Rewire-INV-2026-000001.pdf"
 Cache-Control: private, no-store
 ```
 
-Errors use the normal envelope: 401, 404, or 409 when the order has no
-invoice yet.
+Add `?inline=1` to get `Content-Disposition: inline` instead, so the
+browser opens it in its viewer (the phone button does this). Errors use the
+normal envelope: 401, 404, or 409 when the order has no invoice yet.
 
 ### `GET /api/v1/admin/orders/[number]/invoice`
 

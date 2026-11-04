@@ -298,7 +298,9 @@ The UI downloads invoices through `downloadFile` in
 It reads the response first: a PDF is saved under the server's file name,
 and an error envelope throws the same `ApiError` as `apiRequest`, so the
 button shows the message. Do not use a bare `<a download>` for these
-endpoints: the browser would save an error as a stray `.json` file.
+endpoints: the browser would save an error as a stray `.json` file. On touch
+devices the button instead opens the endpoint with `?inline=1` in a new tab,
+because in-app browsers ignore page started downloads (docs/INVOICES.md §3).
 
 The matching client exception is `src/lib/api/upload-client.ts`: uploads go
 through `XMLHttpRequest` rather than `apiRequest`, because `fetch` cannot
