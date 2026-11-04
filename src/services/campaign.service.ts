@@ -6,6 +6,7 @@ import { ServiceError } from "@/lib/api/api-response";
 import { CAMPAIGN_DATES_LOCK_KEY, MAX_CAMPAIGN_TYPES } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import {
   ACTION_STATE,
   CAMPAIGN_STATUS_LABELS,
@@ -20,6 +21,7 @@ import type {
   campaignSchema,
   campaignTypeSchema,
 } from "@/validators/campaign.validator";
+import { imageExists, releaseImage } from "./media.service";
 
 type Tx = Prisma.TransactionClient;
 type CampaignData = z.output<typeof campaignSchema>;
@@ -41,6 +43,12 @@ const listSelect = {
 const detailSelect = {
   ...listSelect,
   description: true,
+  content: true,
+  bannerImageId: true,
+  ctaLabel: true,
+  ctaHref: true,
+  release: { select: { id: true, title: true } },
+  images: { select: { mediaId: true }, orderBy: { sortOrder: "asc" } },
   updatedAt: true,
   products: {
     select: {
@@ -84,6 +92,13 @@ function toDetail(row: DetailRow, now: Date) {
   return {
     ...toListItem(row, now),
     description: row.description,
+    content: row.content,
+    bannerImageId: row.bannerImageId,
+    bannerImageUrl: imageUrlOrNull(row.bannerImageId),
+    images: row.images.map(({ mediaId }) => ({ mediaId, url: imageUrl(mediaId) })),
+    ctaLabel: row.ctaLabel,
+    ctaHref: row.ctaHref,
+    release: row.release,
     updatedAt: row.updatedAt,
     products: row.products.map(({ discountType, discountValue, product }) => ({
       ...product,
@@ -195,6 +210,19 @@ async function assertProductsValid(tx: Tx, products: CampaignData["products"]) {
   }
 }
 
+async function assertContentValid(tx: Tx, data: CampaignData) {
+  if (data.bannerImageId !== null && !(await imageExists(tx, data.bannerImageId))) {
+    throw invalid("bannerImageId", "The banner no longer exists. Upload it again.");
+  }
+  const images = await tx.mediaAsset.count({ where: { id: { in: data.imageIds } } });
+  if (images !== data.imageIds.length) {
+    throw invalid("imageIds", "One of the images no longer exists. Upload it again.");
+  }
+  if (data.releaseId !== null && (await tx.release.count({ where: { id: data.releaseId } })) === 0) {
+    throw invalid("releaseId", "That release no longer exists.");
+  }
+}
+
 /**
  * Only one campaign can run at a time. Drafts and cancelled campaigns hold no
  * dates; a finished one holds none from now on. The lock makes two admins
@@ -232,15 +260,24 @@ function campaignFields(data: CampaignData) {
     slug: data.slug,
     startsAt: new Date(data.startsAt),
     endsAt: new Date(data.endsAt),
-    type: { connect: { id: data.typeId } },
-    products: {
-      create: data.products.map(({ productId, discountType, discountValue }) => ({
-        product: { connect: { id: productId } },
-        discountType,
-        discountValue,
-      })),
-    },
+    typeId: data.typeId,
+    content: data.content,
+    bannerImageId: data.bannerImageId,
+    ctaLabel: data.ctaLabel,
+    ctaHref: data.ctaHref,
+    releaseId: data.releaseId,
+    products: { create: data.products },
+    images: { create: data.imageIds.map((mediaId, sortOrder) => ({ mediaId, sortOrder })) },
   };
+}
+
+const campaignImagesSelect = {
+  bannerImageId: true,
+  images: { select: { mediaId: true } },
+} satisfies Prisma.CampaignSelect;
+
+function campaignImageIds(row: Prisma.CampaignGetPayload<{ select: typeof campaignImagesSelect }>) {
+  return [...(row.bannerImageId === null ? [] : [row.bannerImageId]), ...row.images.map((image) => image.mediaId)];
 }
 
 /** Always starts as a Draft; going live is a separate action with its own permission. */
@@ -249,6 +286,7 @@ export async function createCampaign(data: CampaignData) {
     await assertSlugFree(tx, data.slug);
     await assertTypeExists(tx, data.typeId);
     await assertProductsValid(tx, data.products);
+    await assertContentValid(tx, data);
     const created = await tx.campaign.create({ data: campaignFields(data), select: { id: true } });
     return created.id;
   });
@@ -257,19 +295,29 @@ export async function createCampaign(data: CampaignData) {
 
 export async function updateCampaign(id: string, data: CampaignData) {
   await prisma.$transaction(async (tx) => {
-    const current = await tx.campaign.findUnique({ where: { id }, select: { state: true } });
+    const current = await tx.campaign.findUnique({
+      where: { id },
+      select: { state: true, ...campaignImagesSelect },
+    });
     if (!current) throw notFound();
 
     await assertSlugFree(tx, data.slug, id);
     await assertTypeExists(tx, data.typeId);
     await assertProductsValid(tx, data.products);
+    await assertContentValid(tx, data);
     if (current.state === "PUBLISHED" || current.state === "PAUSED") {
       if (data.products.length === 0) throw invalid("products", "Add at least one product.");
       await assertDatesFree(tx, new Date(data.startsAt), new Date(data.endsAt), new Date(), id);
     }
 
     await tx.campaignProduct.deleteMany({ where: { campaignId: id } });
+    await tx.campaignImage.deleteMany({ where: { campaignId: id } });
     await tx.campaign.update({ where: { id }, data: campaignFields(data) });
+
+    const kept = new Set<string | null>([data.bannerImageId, ...data.imageIds]);
+    for (const mediaId of campaignImageIds(current)) {
+      if (!kept.has(mediaId)) await releaseImage(tx, mediaId);
+    }
   });
   return getCampaign(id);
 }
@@ -306,8 +354,13 @@ export async function setCampaignStatus(id: string, action: CampaignAction) {
 }
 
 export async function deleteCampaign(id: string) {
-  const { count } = await prisma.campaign.deleteMany({ where: { id } });
-  if (count === 0) throw notFound();
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.campaign.findUnique({ where: { id }, select: campaignImagesSelect });
+    if (!current) throw notFound();
+
+    await tx.campaign.delete({ where: { id } });
+    for (const mediaId of campaignImageIds(current)) await releaseImage(tx, mediaId);
+  });
   return { id };
 }
 
