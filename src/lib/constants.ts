@@ -45,6 +45,13 @@ export const RELEASE_MAX_PER_CUSTOMER_DEFAULT = 1;
 export const RELEASE_MAX_PER_CUSTOMER_LIMIT = 20;
 export const RELEASE_ALLOCATIONS_MAX = 50;
 export const RELEASE_EARLY_END_OPENING_SHIFT_MS = 1;
+export const RELEASES_PAGE_PATH = "/releases";
+export const RELEASES_PAGE_SIZE = 12;
+export const WAITLIST_CONFIRM_LINK_TTL_SECONDS = 60 * 60 * 48;
+export const WAITLIST_LEAVE_LINK_TTL_SECONDS = 60 * 60 * 24 * 180;
+export const WAITLIST_ADMIN_PAGE_SIZE = 50;
+export const WAITLIST_CONFIRM_PAGE_PATH = "/waitlist/confirm";
+export const WAITLIST_LEAVE_PAGE_PATH = "/waitlist/leave";
 export const MAX_COUPON_TARGETS = 50;
 export const COUPON_CODE_MIN_LENGTH = 3;
 export const COUPON_CODE_MAX_LENGTH = 32;
@@ -80,6 +87,7 @@ export const ORDER_NUMBER_PREFIX = "RW-";
 export const REFERENCE_NUMBER_DIGITS = 8;
 export const REFERENCE_NUMBER_ATTEMPTS = 3;
 export const ACCOUNT_LIST_PAGE_SIZE = 10;
+export const WAITLIST_PAGE_SIZE = ACCOUNT_LIST_PAGE_SIZE;
 export const ORDER_NOTE_MAX_LENGTH = 500;
 export const STAFF_NOTE_MAX_LENGTH = 1000;
 export const TRACKING_NUMBER_MAX_LENGTH = 64;
@@ -148,6 +156,7 @@ export const RATE_LIMITS = {
   trackOrder: { limit: 10, windowSeconds: 60 * 15 },
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
+  joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
@@ -181,3 +190,6 @@ export const CANONICAL_URL_MAX_LENGTH = 512;
 export const NOINDEX_ROBOTS = { index: false, follow: false } as const;
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;
+export const HOMEPAGE_DROPS_LIMIT = 5;
+export const SITEMAP_RELEASE_LIMIT = 1000;
+export const ADMIN_RELEASES_PATH = "/admin/releases";

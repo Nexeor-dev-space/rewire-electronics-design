@@ -243,11 +243,6 @@ export function Header() {
       <MobileDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onJoinWaitlist={() => {
-          /* Waitlist entry removed from the top bar — the drawer's
-             own footer CTA still opens it via the modal mounted by
-             the sections that need it. */
-        }}
         onOpenSearch={openSearch}
         isActive={isActive}
       />

@@ -40,7 +40,7 @@ export function optionalHref(max: number) {
   return optionalText(max).refine((value) => value === null || isSafeHref(value), SAFE_HREF_MESSAGE);
 }
 
-/** One drop, picked product, review or category. Which fields its kind may fill is `checkItemFields`. */
+/** One picked product, review, category or deal. Which fields its kind may fill is `checkItemFields`. */
 export const homepageSectionItemSchema = z.object({
   visible: z.boolean().default(true),
   productId: idValidator.nullable().default(null),
@@ -53,10 +53,6 @@ export const homepageSectionItemSchema = z.object({
     .int("Choose a whole number of stars.")
     .min(1, "Choose 1 to 5 stars.")
     .max(5, "Choose 1 to 5 stars.")
-    .nullable()
-    .default(null),
-  releaseAt: z.iso
-    .datetime({ offset: true, error: "Enter a valid date and time." })
     .nullable()
     .default(null),
   ctaLabel: optionalText(ITEM_TEXT_LIMITS.ctaLabel),

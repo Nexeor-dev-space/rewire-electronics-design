@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
-import { formatStoreDateTime } from "@/lib/dates";
+import { HOMEPAGE_DROPS_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import {
   MAX_HOMEPAGE_SECTIONS,
@@ -16,15 +16,12 @@ import {
   type HomepageSectionType,
 } from "@/lib/homepage-sections";
 import { SHOP_INDEX_HREF, productHrefForCategory } from "@/lib/route-map";
-import { productHref } from "@/lib/shop";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
-import { availabilityFromStock } from "@/types";
 import type { ShopCard } from "@/types/catalogue";
 import type {
   HomepageSectionItem,
   HomepageSeo,
   PublishedDeal,
-  PublishedDrop,
   PublishedItem,
   PublishedReview,
   PublishedSection,
@@ -45,13 +42,14 @@ import {
   isOnSale,
 } from "./catalogue.service";
 import { imageExists, releaseImage } from "./media.service";
+import { listStorefrontReleases, toPublishedDrop } from "./release-storefront.service";
 
 /**
  * The homepage as rows. Every section exists twice: DRAFT, which the console
  * edits, and LIVE, which the storefront reads. Publish replaces LIVE with a
  * copy of DRAFT and discard does the reverse, each in one transaction, so a
- * half-finished arrangement never reaches shoppers. A section's items (drops,
- * Just Listed picks, reviews, featured categories) belong to it and are
+ * half-finished arrangement never reaches shoppers. A section's items (Just
+ * Listed picks, reviews, featured categories, deals) belong to it and are
  * copied with it.
  *
  * Only DRAFT rows are ever addressed by id. A LIVE id answers 404.
@@ -74,7 +72,6 @@ const itemSelect = {
   body: true,
   author: true,
   rating: true,
-  releaseAt: true,
   ctaLabel: true,
   ctaHref: true,
   imageId: true,
@@ -133,7 +130,7 @@ const notFound = () =>
 /* ---------- console reads ---------- */
 
 export async function getHomepageDraft() {
-  const [rows, state] = await prisma.$transaction([
+  const [stored, state] = await prisma.$transaction([
     prisma.homepageSection.findMany({
       where: { stage: "DRAFT" },
       select: sectionSelect,
@@ -141,6 +138,7 @@ export async function getHomepageDraft() {
     }),
     prisma.homepageState.findUnique({ where: { id: STATE_ID } }),
   ]);
+  const rows = stored.map(withAllowedItems);
   const [refs, products, categories] = await Promise.all([
     loadRefs(rows),
     loadItemProducts(rows),
@@ -177,7 +175,6 @@ export async function getHomepageDraft() {
         body: item.body,
         author: item.author,
         rating: item.rating,
-        releaseAt: item.releaseAt?.toISOString() ?? null,
         ctaLabel: item.ctaLabel,
         ctaHref: item.ctaHref,
         imageId: item.imageId,
@@ -461,24 +458,29 @@ export function getPublishedHomepage(): Promise<PublishedSection[]> {
  * cache here outlived the seed (which runs outside Next and can't clear it)
  * and served an empty homepage. Reading fresh also means a renamed,
  * unpublished or deleted brand, category or product leaves the page
- * immediately, and a drop's status follows its stock and release date.
+ * immediately, and a release card's status follows its stock and dates.
  * DRAFT feeds the staff preview, LIVE the storefront.
  */
 export async function getHomepageSections(stage: Stage): Promise<PublishedSection[]> {
-  const rows = await prisma.homepageSection.findMany({
-    where: { stage, visible: true },
-    select: sectionSelect,
-    orderBy: { sortOrder: "asc" },
-  });
+  const rows = (
+    await prisma.homepageSection.findMany({
+      where: { stage, visible: true },
+      select: sectionSelect,
+      orderBy: { sortOrder: "asc" },
+    })
+  ).map(withAllowedItems);
 
   const productIds = rows.flatMap((row) =>
     row.items.flatMap((item) => (item.visible && item.productId ? [item.productId] : [])),
   );
-  const [refs, cards, categories] = await Promise.all([
+  const hasDrops = rows.some((row) => row.type === "UPCOMING_DROPS");
+  const [refs, cards, categories, releases] = await Promise.all([
     loadRefs(rows),
     findShopCards([...new Set(productIds)]),
     loadItemCategories(rows),
+    hasDrops ? listStorefrontReleases({ page: 1, pageSize: HOMEPAGE_DROPS_LIMIT }) : null,
   ]);
+  const releaseDrops = releases?.items.map(toPublishedDrop) ?? [];
   const now = new Date();
 
   return rows.flatMap((row) => {
@@ -501,8 +503,7 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
             imageUrl: imageUrlOrNull(ref.imageId),
             href: ref.href,
           }));
-    const drops =
-      itemKind === "drops" ? shown.flatMap((item) => toDrop(item, cards, now) ?? []) : [];
+    const drops = row.type === "UPCOMING_DROPS" ? releaseDrops : [];
     const reviews = itemKind === "reviews" ? shown.flatMap((item) => toReview(item) ?? []) : [];
     // Picks the shop can't sell right now are skipped; with none left the
     // shelf falls back to the newest products.
@@ -515,12 +516,12 @@ export async function getHomepageSections(stage: Stage): Promise<PublishedSectio
         : [];
     const deals = itemKind === "deals" ? shown.flatMap((item) => toDeal(item, cards) ?? []) : [];
 
-    // Every chosen brand deleted or category unpublished, every drop or
-    // review hidden or gone, or a title missing from a hand-edited row:
-    // render nothing rather than empty chrome.
+    // Every chosen brand deleted or category unpublished, no release to
+    // show, every review hidden or gone, or a title missing from a
+    // hand-edited row: render nothing rather than empty chrome.
     if (
       ((kind !== null || itemKind === "categories") && items.length === 0) ||
-      (itemKind === "drops" && drops.length === 0) ||
+      (row.type === "UPCOMING_DROPS" && drops.length === 0) ||
       (itemKind === "reviews" && reviews.length === 0) ||
       (itemKind === "deals" && deals.length === 0) ||
       !row.title
@@ -564,68 +565,6 @@ function toDeal(item: ItemRow, cards: Map<string, ShopCard>): PublishedDeal | nu
     title: item.title,
     imageUrl: imageUrlOrNull(item.imageId),
     href: item.ctaHref,
-  };
-}
-
-/**
- * A drop card from its product, read now: price, stock and picture are the
- * catalogue's, and the status follows the release date and stock. A drop
- * without a product is a teaser for a release not in the catalogue yet; it
- * shows only until its release date. Null when there is nothing to show — a
- * product the shop wouldn't list, or a teaser whose date has passed.
- */
-function toDrop(item: ItemRow, cards: Map<string, ShopCard>, now: Date): PublishedDrop | null {
-  const upcoming = item.releaseAt !== null && item.releaseAt > now;
-  const releaseAt = item.releaseAt?.toISOString() ?? null;
-  const shared = {
-    id: item.id,
-    releaseAt,
-    opensAt: upcoming && releaseAt ? formatStoreDateTime(releaseAt) : null,
-    ctaLabel: item.ctaLabel,
-    ctaHref: item.ctaHref,
-  };
-
-  if (item.productId) {
-    const card = cards.get(item.productId);
-    if (!card) return null;
-    const availability = availabilityFromStock(card.stock);
-    return {
-      ...shared,
-      slug: card.slug,
-      name: item.title ?? card.name,
-      brand: card.brand,
-      variant: [card.variant, card.storage].filter(Boolean).join(" · ") || null,
-      status: upcoming
-        ? "coming-soon"
-        : availability === "sold-out"
-          ? "sold-out"
-          : availability === "low-stock"
-            ? "almost-gone"
-            : "available",
-      price: card.price,
-      originalPrice: card.originalPrice,
-      unitsLeft: card.stock,
-      // The product's own picture; the item's upload only when it has none.
-      imageUrl: card.imageUrl ?? imageUrlOrNull(item.imageId),
-      imageAlt: card.imageAlt,
-      href: productHref(card),
-    };
-  }
-
-  if (!upcoming || !item.title) return null;
-  return {
-    ...shared,
-    slug: null,
-    name: item.title,
-    brand: null,
-    variant: null,
-    status: "coming-soon",
-    price: null,
-    originalPrice: null,
-    unitsLeft: null,
-    imageUrl: imageUrlOrNull(item.imageId),
-    imageAlt: item.title,
-    href: null,
   };
 }
 
@@ -743,12 +682,14 @@ function itemColumnsOf(
     body: item.body,
     author: item.author,
     rating: item.rating,
-    // A body carries an ISO string; a row being copied, a Date.
-    releaseAt: typeof item.releaseAt === "string" ? new Date(item.releaseAt) : item.releaseAt,
     ctaLabel: item.ctaLabel,
     ctaHref: item.ctaHref,
     imageId: item.imageId,
   };
+}
+
+function withAllowedItems(row: SectionRow): SectionRow {
+  return SECTION_RULES[row.type].items ? row : { ...row, items: [] };
 }
 
 /**

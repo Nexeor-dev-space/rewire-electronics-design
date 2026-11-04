@@ -224,7 +224,9 @@ request `Host` header, which an attacker controls (reset link poisoning).
 | `resendVerification` | 3 | 1 hour | per user (session user id) |
 
 `applyCoupon` and `guestCart` in the same object belong to the cart; see
-[CART.md](CART.md) §10.
+[CART.md](CART.md) §10. `joinWaitlist` (5 per 15 minutes, per user when
+signed in, else per IP) belongs to the release waitlists; see
+[RELEASES.md](RELEASES.md) §12.
 
 How it works:
 

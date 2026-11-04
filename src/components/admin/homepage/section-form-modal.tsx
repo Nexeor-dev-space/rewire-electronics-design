@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { RefPicker } from "@/components/admin/homepage/ref-picker";
 import { SectionItemsEditor, type ItemDraft } from "@/components/admin/homepage/section-items-editor";
 import { ImageField } from "@/components/admin/shared/image-field";
@@ -10,7 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { useAddHomepageSection, useUpdateHomepageSection } from "@/hooks/use-homepage";
 import { apiFieldErrors } from "@/lib/api/api-client";
-import { STORE_TIME_ZONE_LABEL } from "@/lib/constants";
+import { ADMIN_RELEASES_PATH, STORE_TIME_ZONE_LABEL } from "@/lib/constants";
 import { formatStoreDateTime, fromStoreDateTimeInput, toStoreDateTimeInput } from "@/lib/dates";
 import {
   emptySectionInput,
@@ -216,6 +217,16 @@ function SectionForm({
 
           {rule.refs && (
             <RefPicker value={refs} onChange={setRefs} error={error("refIds")} />
+          )}
+
+          {type === "UPCOMING_DROPS" && (
+            <p className="text-sm text-ink-secondary">
+              The cards come from{" "}
+              <Link href={ADMIN_RELEASES_PATH} className="text-ink underline-offset-4 hover:underline">
+                Sales → Releases
+              </Link>
+              : published releases that aren&rsquo;t hidden or ended, by opening time.
+            </p>
           )}
 
           {rule.items && (

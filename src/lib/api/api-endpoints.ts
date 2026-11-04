@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
       detail: (id: string) => `${V1}/admin/releases/${id}`,
       state: (id: string) => `${V1}/admin/releases/${id}/state`,
       allocations: (id: string) => `${V1}/admin/releases/${id}/allocations`,
+      waitlist: (id: string) => `${V1}/admin/releases/${id}/waitlist`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,
@@ -149,6 +150,15 @@ export const API_ENDPOINTS = {
     order: (number: string) => `${V1}/account/orders/${number}`,
     returns: `${V1}/account/returns`,
     returnsEligible: `${V1}/account/returns/eligible`,
+  },
+  storefrontReleases: {
+    waitlist: (slug: string) => `${V1}/releases/${slug}/waitlist`,
+  },
+  waitlist: {
+    confirm: `${V1}/waitlist/confirm`,
+    leave: `${V1}/waitlist/leave`,
+    mine: `${V1}/account/waitlists`,
+    entry: (id: string) => `${V1}/account/waitlists/${id}`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

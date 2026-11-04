@@ -20,7 +20,6 @@ function item(fields: Partial<SectionItemFieldsInput> = {}): SectionItemFieldsIn
     body: null,
     author: null,
     rating: null,
-    releaseAt: null,
     ctaLabel: null,
     ctaHref: null,
     imageId: null,
@@ -99,6 +98,16 @@ describe("season deals schedule", () => {
     expect(isWithinSchedule(start, end, end)).toBe(false);
     expect(isWithinSchedule(start, end, new Date("2026-10-31T23:59:59Z"))).toBe(false);
     expect(isWithinSchedule(null, end, start)).toBe(false);
+  });
+});
+
+describe("upcoming drops section", () => {
+  it("takes its cards from releases, so it holds no items", () => {
+    expect(SECTION_RULES.UPCOMING_DROPS.items).toBeNull();
+    expect(checkSectionFields("UPCOMING_DROPS", section())).toEqual({});
+    expect(
+      checkSectionFields("UPCOMING_DROPS", section({ items: [item({ productId: "p1" })] })),
+    ).toHaveProperty("items");
   });
 });
 

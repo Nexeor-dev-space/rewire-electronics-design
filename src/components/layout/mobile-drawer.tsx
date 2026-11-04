@@ -20,7 +20,6 @@ const ACCOUNT_PANEL_ID = "drawer-account";
 interface MobileDrawerProps {
   open: boolean;
   onClose: () => void;
-  onJoinWaitlist: () => void;
   /** Hands off to the header's search panel — the drawer has no field. */
   onOpenSearch: () => void;
   /** Marks the current route with the same indicator the bar uses. */
@@ -37,7 +36,6 @@ interface MobileDrawerProps {
 export function MobileDrawer({
   open,
   onClose,
-  onJoinWaitlist,
   onOpenSearch,
   isActive,
 }: MobileDrawerProps) {

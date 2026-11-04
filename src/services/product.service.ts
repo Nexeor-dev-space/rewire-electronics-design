@@ -13,6 +13,7 @@ import type {
 } from "@/validators/product.validator";
 import { SHOP_VARIANT_ORDER, isOnSale } from "./catalogue.service";
 import { imageExists, releaseImage } from "./media.service";
+import { dropVariantAllocations } from "./release-allocation.service";
 
 type Tx = Prisma.TransactionClient;
 type ProductData = z.output<typeof productSchema>;
@@ -230,10 +231,7 @@ export async function updateProduct(id: string, data: ProductData) {
       }
 
       const keptIds = data.variants.flatMap((variant) => (variant.id ? [variant.id] : []));
-      const inRelease = await tx.releaseAllocation.count({
-        where: { variant: { productId: id }, variantId: { notIn: keptIds } },
-      });
-      if (inRelease > 0) {
+      if (!(await dropVariantAllocations(tx, { productId: id, id: { notIn: keptIds } }))) {
         throw new ServiceError("CONFLICT", "A variant you removed is in a release. Take it out of the release first.", 409);
       }
       await tx.productVariant.deleteMany({ where: { productId: id, id: { notIn: keptIds } } });
@@ -354,10 +352,10 @@ export async function purgeProduct(id: string) {
     });
     if (!current) throw notFound();
 
-    const inRelease = await tx.releaseAllocation.count({ where: { variant: { productId: id } } });
-    if (inRelease > 0) {
+    if (!(await dropVariantAllocations(tx, { productId: id }))) {
       throw new ServiceError("CONFLICT", "This product is in a release. Take it out of the release first.", 409);
     }
+    await tx.release.updateMany({ where: { productId: id }, data: { productId: null } });
     await tx.product.delete({ where: { id } });
     for (const { mediaId } of current.images) await releaseImage(tx, mediaId);
     if (current.ogImageId !== null) await releaseImage(tx, current.ogImageId);

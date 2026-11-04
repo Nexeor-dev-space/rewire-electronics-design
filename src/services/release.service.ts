@@ -141,7 +141,7 @@ function toDetail(row: DetailRow, now: Date): AdminReleaseDetail {
   };
 }
 
-function notCompletedWhere(now: Date): Prisma.ReleaseWhereInput {
+export function notCompletedWhere(now: Date): Prisma.ReleaseWhereInput {
   return { completedAt: null, OR: [{ endsAt: null }, { endsAt: { gt: now } }] };
 }
 

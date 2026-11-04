@@ -11,7 +11,7 @@ import { RELEASE_SORTS, RELEASE_STATE_ACTIONS, RELEASE_STATUSES } from "@/lib/re
 import { idValidator, isoDateTimeValidator, paginationQueryValidator } from "./common/primitives.validator";
 import { MAX_STOCK } from "./product.validator";
 
-export const RELEASE_END_BEFORE_START = "End after the opening time.";
+export const RELEASE_END_BEFORE_START = "Choose an end time after the release opens.";
 
 export function endsBeforeStart(startsAt: string, endsAt: string): boolean {
   return Date.parse(endsAt) <= Date.parse(startsAt);

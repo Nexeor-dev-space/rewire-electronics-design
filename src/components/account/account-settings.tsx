@@ -268,7 +268,7 @@ function SettingsCard({
   );
 }
 
-function NotifyRow({
+export function NotifyRow({
   label,
   hint,
   checked,
