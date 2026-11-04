@@ -136,20 +136,3 @@ export interface CartTotals {
   total: number;
   currency: string;
 }
-
-/* ============================================================
-   Addresses
-   ============================================================ */
-
-export interface Address {
-  id: string;
-  label: string;
-  name: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  emirate: string;
-  postalCode?: string;
-  phone: string;
-  isDefault?: boolean;
-}

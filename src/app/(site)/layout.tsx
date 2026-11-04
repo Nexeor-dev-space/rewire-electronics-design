@@ -32,11 +32,11 @@ export default async function SiteLayout({
       <main id="main" className="flex-1">
         {children}
       </main>
-      {/* Bottom pad below `md` keeps the document's last content — the
+      {/* Bottom pad below `lg` keeps the document's last content — the
           footer's legal line — clear of the fixed tab bar. On the
           wrapper rather than on `<main>`, because the footer is the
           element the bar actually overlaps. */}
-      <div className="pb-16 md:pb-0">
+      <div className="pb-16 lg:pb-0">
         <Footer />
       </div>
       <MobileTabBar />

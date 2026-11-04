@@ -13,6 +13,7 @@ import { AdminAccessProvider } from "./admin-access";
 import { AdminNavList } from "./admin-nav";
 import { AdminThemeToggle } from "./admin-theme-toggle";
 import { AdminUserMenu } from "./admin-user-menu";
+import { Logo } from "@/components/layout/logo";
 
 /**
  * AdminShell — the frame every admin page sits in.
@@ -163,13 +164,10 @@ export function AdminShell({
               </svg>
             </button>
 
-            <Link
-              href={ADMIN_ROOT}
-              className="font-medium tracking-tight text-ink lg:hidden"
-            >
-              {adminConsole.name}
-              <span className="ml-1.5 text-ink-muted">{adminConsole.label}</span>
-            </Link>
+            <span className="flex items-center gap-2.5 lg:hidden">
+              <Logo href={ADMIN_ROOT} tone="auto" label="console home" className="h-7 md:h-7" />
+              <span className="text-sm text-ink-muted">{adminConsole.label}</span>
+            </span>
 
             <div className="ml-auto flex items-center gap-2">
               <Link
@@ -209,16 +207,10 @@ function RailContents({
     <>
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-3 lg:px-6">
         {!collapsed && (
-          <Link
-            href={ADMIN_ROOT}
-            onClick={onNavigate}
-            className="text-[1.0625rem] font-medium tracking-tight text-ink"
-          >
-            {adminConsole.name}
-            <span className="ml-1.5 font-normal text-ink-muted">
-              {adminConsole.label}
-            </span>
-          </Link>
+          <span className="flex items-center gap-2.5">
+            <Logo href={ADMIN_ROOT} tone="auto" label="console home" onClick={onNavigate} className="h-7 md:h-7" />
+            <span className="text-sm text-ink-muted">{adminConsole.label}</span>
+          </span>
         )}
         {onToggleCollapsed && (
           <button

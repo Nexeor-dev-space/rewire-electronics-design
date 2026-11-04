@@ -281,11 +281,24 @@ this list rather than returning another unbounded array.
 
 ### Binary responses
 
-`GET /api/v1/media/[id]` returns raw image bytes with a `Content-Type` header
-instead of the envelope, because an image cannot be wrapped in JSON. It is the
-only binary endpoint, and it still fails through `apiErrorFrom`, so a missing
-id answers in the standard error shape. Add to this list rather than inventing
-another convention.
+These endpoints return raw bytes with a `Content-Type` header instead of the
+envelope, because a file cannot be wrapped in JSON. Each still fails through
+`apiErrorFrom`, so an error answers in the standard error shape. Add to this
+list rather than inventing another convention.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/v1/media/[id]` | An uploaded image |
+| `GET /api/v1/account/orders/[number]/invoice` | The customer's tax invoice PDF ([INVOICES.md](INVOICES.md)) |
+| `GET /api/v1/admin/orders/[number]/invoice` | Any order's tax invoice PDF, for staff |
+
+The UI downloads invoices through `downloadFile` in
+`src/lib/api/download-client.ts` (wrapped by `useDownloadInvoice` in
+`src/hooks/use-order.ts`), not `apiRequest`, because success is raw bytes.
+It reads the response first: a PDF is saved under the server's file name,
+and an error envelope throws the same `ApiError` as `apiRequest`, so the
+button shows the message. Do not use a bare `<a download>` for these
+endpoints: the browser would save an error as a stray `.json` file.
 
 The matching client exception is `src/lib/api/upload-client.ts`: uploads go
 through `XMLHttpRequest` rather than `apiRequest`, because `fetch` cannot

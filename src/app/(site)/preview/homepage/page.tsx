@@ -30,7 +30,7 @@ export default async function HomepagePreview() {
       <HomepageSections sections={sections} />
       {/* Bottom, not top: the site header is fixed to the top. `bottom-20`
           clears the phone tab bar. */}
-      <div className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 md:bottom-6">
+      <div className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 lg:bottom-6">
         <p className="flex items-center gap-3 rounded-full border border-line-strong bg-surface px-5 py-2.5 text-sm text-ink shadow-(--shadow-float)">
           Draft preview, not published
           <Link href={HOMEPAGE_BUILDER_PATH} className="text-accent underline-offset-4 hover:underline">

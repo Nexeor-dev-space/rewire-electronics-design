@@ -6,30 +6,34 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "@/components/providers/account-provider";
 import { useGetMe } from "@/hooks/use-auth";
+import { useGetCart } from "@/hooks/use-cart";
 import { signInHref } from "@/lib/auth/next-path";
 import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { CategorySheet, GridIcon } from "./category-sheet";
 
 /**
- * MobileTabBar — the phone's persistent bottom navigation.
+ * MobileTabBar — the phone and tablet persistent bottom navigation.
  *
- * Fixed to the viewport foot below `md`; hidden entirely from `md` up,
+ * Fixed to the viewport foot below `lg`; hidden entirely from `lg` up,
  * where the header's category rail and utility cluster carry the same
- * destinations. Four tabs, the e-commerce canon: Home, Categories (the
- * shop index), Wishlist, and Account. Cart is deliberately absent — it
- * already sits in the top bar on every width, and repeating it here
- * would spend a tab on a control the thumb can already reach.
+ * destinations. Five tabs: Home, Categories, Cart, Wishlist and Account.
+ * Below `lg` the cart lives only here; the header shows its own cart
+ * button from `lg` up, so it is never on screen twice.
+ *
+ * Categories does not navigate: it opens `CategorySheet`, a bottom sheet
+ * listing the published categories with a "View all products" link.
  *
  * Active state is a colour shift plus a small accent dot above the
  * icon — colour alone would fail the "not colour alone" rule the site
- * holds for state elsewhere. The wishlist tab carries a count badge
- * when anything is saved, mirroring the cart button's pattern.
+ * holds for state elsewhere. Cart and Wishlist carry a count badge
+ * when they hold anything.
  *
  * The bar pads itself with `env(safe-area-inset-bottom)` so the tabs
- * clear the iOS home indicator, and `SiteLayout` gives `<main>` a
- * matching bottom pad below `md` so no page ends underneath the bar.
+ * clear the iOS home indicator, and `SiteLayout` gives the footer a
+ * matching bottom pad below `lg` so no page ends underneath the bar.
  *
  * ── The profile tab ─────────────────────────────────────────────────
  *
@@ -55,7 +59,8 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
 const TABS = [
   { href: "/", label: "Home", icon: HomeIcon, exact: true },
-  { href: SHOP_INDEX_HREF, label: "Categories", icon: GridIcon, exact: false },
+  { href: SHOP_INDEX_HREF, label: "Categories", icon: GridIcon, exact: false, opensSheet: true },
+  { href: "/cart", label: "Cart", icon: BagIcon, exact: false },
   { href: "/wishlist", label: "Wishlist", icon: HeartIcon, exact: false },
 ] as const;
 
@@ -64,12 +69,23 @@ const PROFILE_MENU_ID = "mobile-profile-menu";
 export function MobileTabBar() {
   const pathname = usePathname();
   const { wishlistSlugs } = useAccount();
+  const cart = useGetCart();
   const me = useGetMe();
   const signedIn = !me.isPending && Boolean(me.data);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
-  /* A route change closes the panel — the reader has arrived. */
-  useEffect(() => setProfileOpen(false), [pathname]);
+  /* A route change closes the panel and the sheet — the reader has arrived. */
+  useEffect(() => {
+    setProfileOpen(false);
+    setCategoriesOpen(false);
+  }, [pathname]);
+
+  /** Count badges: how many each tab holds, and how a screen reader hears it. */
+  const badges: Partial<Record<string, { count: number; noun: string }>> = {
+    Cart: { count: cart.isPending ? 0 : (cart.data?.itemCount ?? 0), noun: "in cart" },
+    Wishlist: { count: wishlistSlugs.length, noun: "saved" },
+  };
 
   /* Escape closes it, the same key that closes the drawer and search. */
   useEffect(() => {
@@ -100,7 +116,7 @@ export function MobileTabBar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.fast }}
-            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -108,7 +124,7 @@ export function MobileTabBar() {
       <nav
         aria-label="Primary (mobile)"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 md:hidden",
+          "fixed inset-x-0 bottom-0 z-40 lg:hidden",
           "border-t border-line bg-[var(--glass-bg-strong)] backdrop-blur-xl backdrop-saturate-150",
           "pb-[env(safe-area-inset-bottom)]",
         )}
@@ -165,49 +181,71 @@ export function MobileTabBar() {
 
         <ul className="flex h-16 items-stretch">
           {TABS.map((tab) => {
-            const active = tab.exact
+            const opensSheet = "opensSheet" in tab;
+            const onPage = tab.exact
               ? pathname === tab.href
               : pathname.startsWith(tab.href);
+            const active = onPage || (opensSheet && categoriesOpen);
             const Icon = tab.icon;
-            const badge =
-              tab.label === "Wishlist" && wishlistSlugs.length > 0
-                ? wishlistSlugs.length
-                : undefined;
+            const count = badges[tab.label]?.count ?? 0;
+            const badge = count > 0 ? count : undefined;
+            const className = cn(
+              "relative flex h-full w-full flex-col items-center justify-center gap-1",
+              "transition-colors duration-(--duration-fast)",
+              active ? "text-ink" : "text-ink-muted",
+            );
+
+            const content = (
+              <>
+                {/* Active marker — a dot above the icon, so state is
+                    carried by shape as well as colour. */}
+                <ActiveDot active={active} />
+
+                <span className="relative">
+                  <Icon className="size-[1.35rem]" />
+                  {badge !== undefined && (
+                    <span
+                      aria-hidden
+                      className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 font-mono text-[0.5625rem] leading-4 tabular-nums text-white"
+                    >
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
+                </span>
+
+                <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+                  {tab.label}
+                  {badge !== undefined && (
+                    <span className="sr-only">, {badge} {badges[tab.label]?.noun}</span>
+                  )}
+                </span>
+              </>
+            );
 
             return (
               <li key={tab.href} className="flex-1">
-                <Link
-                  href={tab.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "relative flex h-full flex-col items-center justify-center gap-1",
-                    "transition-colors duration-(--duration-fast)",
-                    active ? "text-ink" : "text-ink-muted",
-                  )}
-                >
-                  {/* Active marker — a dot above the icon, so state is
-                      carried by shape as well as colour. */}
-                  <ActiveDot active={active} />
-
-                  <span className="relative">
-                    <Icon className="size-[1.35rem]" />
-                    {badge !== undefined && (
-                      <span
-                        aria-hidden
-                        className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 font-mono text-[0.5625rem] leading-4 tabular-nums text-white"
-                      >
-                        {badge > 9 ? "9+" : badge}
-                      </span>
-                    )}
-                  </span>
-
-                  <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
-                    {tab.label}
-                    {badge !== undefined && (
-                      <span className="sr-only">, {badge} saved</span>
-                    )}
-                  </span>
-                </Link>
+                {opensSheet ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      setCategoriesOpen(true);
+                    }}
+                    aria-haspopup="dialog"
+                    aria-expanded={categoriesOpen}
+                    className={className}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <Link
+                    href={tab.href}
+                    aria-current={onPage ? "page" : undefined}
+                    className={className}
+                  >
+                    {content}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -253,6 +291,8 @@ export function MobileTabBar() {
           </li>
         </ul>
       </nav>
+
+      <CategorySheet open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </>
   );
 }
@@ -282,13 +322,11 @@ function HomeIcon({ className }: { className?: string }) {
   );
 }
 
-function GridIcon({ className }: { className?: string }) {
+function BagIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <rect x="4" y="4" width="7" height="7" rx="1.5" />
-      <rect x="13" y="4" width="7" height="7" rx="1.5" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" />
-      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      <path d="M4.5 7.5h15l-1.2 12H5.7l-1.2-12z" />
+      <path d="M9 7.5V6a3 3 0 0 1 6 0v1.5" />
     </svg>
   );
 }

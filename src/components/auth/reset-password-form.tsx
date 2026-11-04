@@ -9,8 +9,8 @@ import { FieldError, Label } from "@/components/ui/label";
 import { useResetPassword } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { FORGOT_PASSWORD_PAGE_PATH, PASSWORD_MIN_LENGTH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
-import { siteConfig } from "@/lib/site";
 import { resetPasswordSchema } from "@/validators/auth.validator";
+import { AuthLogo } from "./auth-logo";
 
 interface Props {
   token?: string;
@@ -53,7 +53,7 @@ export function ResetPasswordForm({ token }: Props) {
   if (!token || tokenError) {
     return (
       <div className="w-full max-w-sm text-center">
-        <p className="text-[1.0625rem] font-medium tracking-tight text-ink">{siteConfig.shortName}</p>
+        <AuthLogo />
         <div className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8">
           <h1 className="text-xl font-medium tracking-tight text-ink">Link expired</h1>
           <p className="mt-3 text-sm text-ink-secondary">
@@ -73,7 +73,7 @@ export function ResetPasswordForm({ token }: Props) {
   if (done) {
     return (
       <div className="w-full max-w-sm text-center">
-        <p className="text-[1.0625rem] font-medium tracking-tight text-ink">{siteConfig.shortName}</p>
+        <AuthLogo />
         <div className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8">
           <h1 className="text-xl font-medium tracking-tight text-ink">Password updated</h1>
           <p className="mt-3 text-sm text-ink-secondary">
@@ -92,9 +92,7 @@ export function ResetPasswordForm({ token }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
+      <AuthLogo />
 
       <form
         onSubmit={handleSubmit}

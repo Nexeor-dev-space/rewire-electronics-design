@@ -2,6 +2,7 @@ import Link from "next/link";
 import { footerNav, siteConfig } from "@/lib/site";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 import { Container } from "./container";
+import { Logo } from "./logo";
 
 export function Footer() {
   return (
@@ -9,9 +10,7 @@ export function Footer() {
       <Container width="wide" className="py-16 md:py-24">
         <div className="grid gap-12 md:grid-cols-12">
           <div className="md:col-span-5">
-            <p className="text-lg font-medium tracking-tighter">
-              Rewire<span className="text-accent">.</span>
-            </p>
+            <Logo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
               {siteConfig.tagline}
             </p>

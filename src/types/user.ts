@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { Role } from "@/lib/auth/permissions";
 import type { Emirate } from "@/lib/emirates";
 import type { NamedRef } from "@/types/product";
-import type { UserGroup, userSchema } from "@/validators/user.validator";
+import type { addressSchema, UserGroup, userSchema } from "@/validators/user.validator";
 
 export interface UserAddress {
   id: string;
@@ -40,3 +40,6 @@ export type UserFilters = {
 };
 
 export type UserInput = z.input<typeof userSchema>;
+
+/** One address in `PUT /api/v1/account/addresses`; `id` is absent for a new one. */
+export type AddressInput = z.input<typeof addressSchema>;

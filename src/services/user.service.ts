@@ -29,6 +29,16 @@ const userSelect = {
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
+const addressSelect = {
+  id: true,
+  emirate: true,
+  street: true,
+  landmark: true,
+  isPrimary: true,
+} satisfies Prisma.AddressSelect;
+
+const addressOrder: Prisma.AddressOrderByWithRelationInput[] = [{ createdAt: "asc" }, { id: "asc" }];
+
 const notFound = () =>
   new ServiceError("NOT_FOUND", "We couldn't find that account. It may have been deleted.", 404);
 
@@ -73,10 +83,7 @@ export async function getUser(id: string, { inTrash = false } = {}) {
     select: {
       ...userSelect,
       passwordHash: true,
-      addresses: {
-        select: { id: true, emirate: true, street: true, landmark: true, isPrimary: true },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      },
+      addresses: { select: addressSelect, orderBy: addressOrder },
     },
   });
   if (!user) throw notFound();
@@ -267,6 +274,17 @@ async function assertAnotherAdmin(tx: Tx, id: string) {
   if (others === 0) {
     throw new ServiceError("CONFLICT", "There must be at least one admin.", 409);
   }
+}
+
+/** The signed-in customer's own addresses, for the account page. */
+export async function listOwnAddresses(userId: string) {
+  return prisma.address.findMany({ where: { userId }, select: addressSelect, orderBy: addressOrder });
+}
+
+/** Replaces the signed-in customer's addresses and returns the saved list. */
+export async function replaceOwnAddresses(userId: string, list: UserData["addresses"]) {
+  await prisma.$transaction((tx) => saveAddresses(tx, userId, list));
+  return listOwnAddresses(userId);
 }
 
 /**

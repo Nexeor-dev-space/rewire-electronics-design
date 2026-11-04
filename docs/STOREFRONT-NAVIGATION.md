@@ -544,7 +544,8 @@ The cart is a server cart, read and changed only through
 
 | Surface | File | Source |
 |---|---|---|
-| Header cart count | `components/layout/cart-button.tsx` | `useGetCart().itemCount`; hidden while the query is pending, so no badge flash |
+| Header cart count (from `lg`) | `components/layout/cart-button.tsx` | `useGetCart().itemCount`; hidden while the query is pending, so no badge flash |
+| Tab bar Cart badge (below `lg`) | `components/layout/mobile-tab-bar.tsx` | `useGetCart().itemCount`; same rule, no badge while pending (§11) |
 | Cart page `/cart` | `components/cart/cart-view.tsx` | `useGetCart()`; lines, issues and totals as priced by the server |
 | Add to cart modal | `components/cart/add-to-cart-modal.tsx` | `useGetCart()` for the count and subtotal; the added line from the mutation response |
 | Product page buy panel | `components/product/detail/product-buy-panel.tsx` | `useGetCart()` for the selected variant's line; add, update and remove mutations; a skeleton fills the CTA slot while the cart query is pending so the button never flashes before the stepper |
@@ -569,7 +570,97 @@ order and empties the cart; the success page is `/checkout/success?order=…`
 
 ---
 
-## 11. Checklist for future changes
+## 11. Bottom tab bar, category sheet and logo
+
+### 11.1 The bottom tab bar
+
+**File: `src/components/layout/mobile-tab-bar.tsx`.**
+
+The bar shows below `lg` (phones and tablets) and is hidden from `lg` up,
+where the header's category rail and utility cluster take over. It has
+five tabs, in this order:
+
+| Tab | What it does |
+|---|---|
+| Home | Links to `/` |
+| Categories | Opens the category sheet (§11.2). It does not navigate |
+| Cart | Links to `/cart`, with the item count as a badge |
+| Wishlist | Links to `/wishlist`, with the saved count as a badge |
+| Account | Signed in, links to `/account`; signed out, opens the small sign in panel (§7) |
+
+The cart moved here from the top bar. `CartButton` in the header is now
+`hidden lg:flex`, so the cart is never shown twice. `SiteLayout` pads the
+footer by the bar's height below `lg` (`pb-16 lg:pb-0`), and the draft
+preview banner on `/preview/homepage` sits above the bar up to `lg`.
+
+Why: the cart is the control a shopper reaches for most on a phone, and
+the bottom of the screen is where the thumb already is.
+
+### 11.2 The category sheet
+
+**File: `src/components/layout/category-sheet.tsx`.**
+
+`CategorySheet` is built on the shared `Dialog`, so it is a bottom sheet
+on phones and a centred panel from `sm`, with the usual focus trap,
+Escape, backdrop close and scroll lock. It lists the same categories the
+header rail shows: published, top level, `showInNav` on. They come from
+`useStorefrontCategories()`, which `SiteLayout` already fills, so opening
+the sheet makes no request.
+
+Each row shows the category image (or a grid icon when there is none),
+the name and a chevron, and links to `/collection/<slug>`. The pinned
+**View all products** button links to `/collection`. Following any link,
+or any route change, closes the sheet. With no categories it says so
+instead of showing an empty list.
+
+To change what is listed, change the category in Admin Categories
+(status, parent, Show in navigation). No code change is needed.
+
+### 11.3 One logo
+
+**Files: `src/components/layout/logo.tsx`, `public/images/brand/`.**
+
+The logo is the brand image: `REWIRE.` over `ELECTRONICS`. It comes in two
+transparent PNG cuts, cut from the brand's light and dark JPGs, and both
+are described on `brandLogo` in `src/lib/site.ts`:
+
+| File | Ink | Used on |
+|---|---|---|
+| `rewire-logo-on-dark.png` | White wordmark | The storefront (always dark), checkout, the dark admin theme |
+| `rewire-logo-on-light.png` | Black wordmark | The light admin theme, the invoice PDF |
+
+Both are 395 × 101 px. The full stop is `#3a404c` (the site accent) and
+ELECTRONICS is `#73767b` in both cuts.
+
+`Logo` renders the image inside a link. It is used by the storefront header
+(`priority`, so it preloads), the footer, the checkout header, the admin
+sidebar and mobile top bar, and every auth page (sign in, register, forgot
+and reset password, verify email) through `AuthLogo` in
+`src/components/auth/auth-logo.tsx`, centred above the card and linking
+home, since those pages have no header.
+
+Brand wording in sentences ("New to Rewire?", "About Rewire"), the footer's
+faded "Rewire" watermark and the email sign off stay as text on purpose.
+
+| Prop | Default | What it does |
+|---|---|---|
+| `tone` | `"dark"` | `"dark"` shows the white cut. `"auto"` renders both cuts and the `.brand-logo-on-light` / `.brand-logo-on-dark` rules in `globals.css` show the one that suits the admin theme (OS setting or the theme toggle) |
+| `href` | `/` | Where the logo links. The admin passes `ADMIN_ROOT` |
+| `label` | `home` | Screen reader name: "Rewire Electronics, home" |
+| `priority` | `false` | Preloads the image |
+| `className` | `h-8 md:h-9` | Sets the height; the width follows the aspect ratio |
+
+Never draw the brand as text again. To change the logo, replace the two
+PNGs (keep them transparent) and update `brandLogo` if the size changes.
+
+The footer itself is already shared: every storefront page gets the one
+`Footer` from `src/app/(site)/layout.tsx`. Checkout keeps its quieter
+`TrustFooter` on purpose (no links out of the funnel), and the auth pages
+have no chrome at all (§9.1).
+
+---
+
+## 12. Checklist for future changes
 
 1. Adding or reordering a product family? Do it in the admin Categories
    screen. No code change.
@@ -590,3 +681,5 @@ order and empties the cart; the success page is `/checkout/success?order=…`
    `src/lib/seo.ts`, so it gets a canonical, Open Graph and a Twitter card.
    Set `noindex` if it is personal or a filtered view (docs/CATALOGUE.md,
    section 7).
+9. Showing the brand somewhere new? Use `Logo` from
+   `components/layout/logo.tsx`, never text (§11.3).

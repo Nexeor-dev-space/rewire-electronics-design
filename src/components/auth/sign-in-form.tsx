@@ -13,6 +13,7 @@ import { FORGOT_PASSWORD_PAGE_PATH, REGISTER_PAGE_PATH } from "@/lib/constants";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { siteConfig } from "@/lib/site";
 import { signInSchema } from "@/validators/auth.validator";
+import { AuthLogo } from "./auth-logo";
 
 interface Props {
   /** Where to land after a successful sign-in, if it's a safe path. */
@@ -53,9 +54,7 @@ export function SignInForm({ next, expired = false }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
+      <AuthLogo />
 
       <form
         onSubmit={handleSubmit}

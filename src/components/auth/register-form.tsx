@@ -11,8 +11,8 @@ import { useSignUp } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PASSWORD_MIN_LENGTH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { siteConfig } from "@/lib/site";
 import { signUpSchema } from "@/validators/auth.validator";
+import { AuthLogo } from "./auth-logo";
 
 interface Props {
   next?: string;
@@ -67,9 +67,7 @@ export function RegisterForm({ next }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
+      <AuthLogo />
 
       <form
         onSubmit={handleSubmit}

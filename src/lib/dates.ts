@@ -10,6 +10,16 @@ export function formatOrderDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** `04 November 2026`, on the store's clock: the dates printed on an invoice. */
+export function formatInvoiceDate(date: Date): string {
+  return new Intl.DateTimeFormat(LOCALE, {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: STORE_TIME_ZONE,
+  }).format(date);
+}
+
 export function formatOrderStamp(iso: string): string {
   return new Intl.DateTimeFormat(LOCALE, {
     day: "numeric",
