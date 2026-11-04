@@ -5,7 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
 import { DB_WRITE_TIMEOUT_MS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { RELEASE_STATUS_LABELS, allowedEdits, releaseStatus } from "@/lib/releases";
+import { RELEASE_STATUS_LABELS, allowedEdits, canDropAllocation, releaseStatus } from "@/lib/releases";
 import type { releaseAllocationsSchema } from "@/validators/release.validator";
 
 type AllocationRows = z.output<typeof releaseAllocationsSchema>["allocations"];
@@ -152,6 +152,35 @@ async function applyAllocation(tx: Db, releaseId: string, change: Change) {
     });
     if (count === 0) throw conflict(`Too few unsold units of ${change.sku} to take back.`, change.variantId);
   }
+}
+
+export async function dropVariantAllocations(tx: Db, variant: Prisma.ProductVariantWhereInput): Promise<boolean> {
+  const rows = await tx.releaseAllocation.findMany({
+    where: { variant },
+    select: {
+      id: true,
+      allocated: true,
+      reserved: true,
+      sold: true,
+      returned: true,
+      release: { select: { publishedAt: true, completedAt: true, startsAt: true, endsAt: true } },
+    },
+    orderBy: { id: "asc" },
+  });
+  const now = new Date();
+  if (!rows.every((row) => canDropAllocation(row, row.release, now))) return false;
+  if (rows.length === 0) return true;
+
+  const { count } = await tx.releaseAllocation.deleteMany({
+    where: {
+      reserved: 0,
+      sold: 0,
+      returned: 0,
+      OR: rows.map((row) => ({ id: row.id, allocated: row.allocated })),
+    },
+  });
+  if (count !== rows.length) throw conflict("A release changed while you were editing. Reload and try again.");
+  return true;
 }
 
 export async function setAllocations(releaseId: string, rows: AllocationRows): Promise<void> {

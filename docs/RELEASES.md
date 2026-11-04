@@ -129,9 +129,19 @@ release and variant), so two saves at once queue instead of deadlocking.
 Problems answer 409 with a message per row, keyed by variant id, and nothing
 is saved.
 
-**Products.** Removing a variant that is in a release, or deleting its product
-for good from Trash, answers 409 until it is taken out of the release
-(`src/services/product.service.ts`).
+**Products.** Removing a variant, or deleting its product for good from Trash,
+first runs `dropVariantAllocations` (`src/services/release-allocation.service.ts`)
+in the same transaction. It deletes the variant's allocations when every one
+of them can go (`canDropAllocation` in `src/lib/releases.ts`):
+
+1. nothing is reserved, sold or returned, and
+2. the row has no units (like the zero unit rows the backfill made), or its
+   release is Completed.
+
+If any row must stay, nothing is deleted and the save answers 409 until the
+variant is taken out of the release. A row that changes in between answers
+409 too. Deleting a product for good also clears the old `releases.productId`
+link first, so no release is deleted with it.
 
 ---
 

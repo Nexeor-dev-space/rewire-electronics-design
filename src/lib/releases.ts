@@ -103,6 +103,18 @@ export function canDeleteRelease(status: ReleaseStatus): boolean {
   return DELETABLE_STATUSES.includes(status);
 }
 
+export interface AllocationUnits {
+  allocated: number;
+  reserved: number;
+  sold: number;
+  returned: number;
+}
+
+export function canDropAllocation(units: AllocationUnits, release: ReleaseTimeline, now: Date): boolean {
+  if (units.reserved + units.sold + units.returned > 0) return false;
+  return units.allocated === 0 || releaseStatus(release, 0, now) === "COMPLETED";
+}
+
 export interface PublishCheck {
   startsAt: Date;
   endsAt: Date | null;
