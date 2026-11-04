@@ -25,6 +25,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Warranty & Claims, device serials and IMEIs, warranty dates and status, warranty claims and their lifecycle | [docs/WARRANTY.md](docs/WARRANTY.md) |
 | Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens | [docs/RELEASES.md](docs/RELEASES.md) |
+| The account Saved Addresses screen, `account/addresses`, `use-address.ts` | [docs/ACCOUNT-ADDRESSES.md](docs/ACCOUNT-ADDRESSES.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Stripe, card and Apple Pay payment, `payment.service.ts`, `POST checkout/payment`, the Stripe webhook, the return from Stripe, `stripePaymentIntentId` | [docs/PAYMENTS.md](docs/PAYMENTS.md) |
 | The VAT rate setting, the VAT & Configuration admin screen, `admin/vat-settings` | [docs/VAT.md](docs/VAT.md) |
