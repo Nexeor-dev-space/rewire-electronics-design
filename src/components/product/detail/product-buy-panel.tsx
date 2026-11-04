@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ProductOption } from "@/types";
 import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,14 @@ import { cn, savingsPercent } from "@/lib/utils";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
-import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
+import { ConfettiBurst } from "@/components/ui/confetti-burst";
+import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
 import { ProductAddOns } from "./product-add-ons";
+import { HeartIcon } from "@/components/product/heart-icon";
+import { useAccount } from "@/components/providers/account-provider";
 
 /**
  * ProductBuyPanel — the right-hand column on desktop, the second block on
@@ -38,6 +41,9 @@ const OPTION_UNSELECTABLE =
   "cursor-not-allowed border-line text-ink-muted line-through decoration-1";
 
 const inStock = (variant: ShopVariant) => variant.stock > 0;
+
+/** How long the add-ons stay ringed after Add to Cart scrolls to them. */
+const ADD_ONS_HIGHLIGHT_MS = 1600;
 
 type Axis = "state" | "storage" | "colour";
 const AXES: Axis[] = ["state", "storage", "colour"];
@@ -94,7 +100,8 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const stateOptions = optionsFor(variants, variant, "state");
   const storageOptions = optionsFor(variants, variant, "storage");
   const colorOptions = optionsFor(variants, variant, "colour");
-  const [saved, setSaved] = useState(false);
+  const { isSaved, toggleSaved } = useAccount();
+  const saved = isSaved(product.slug);
 
   function choose(axis: Axis, value: string) {
     const next = closestVariant(variants, variant, axis, value);
@@ -105,8 +112,12 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const addCartItem = useAddCartItem();
   const updateCartItem = useUpdateCartItem();
   const removeCartItem = useRemoveCartItem();
-  const { notifyAdded } = useCartFeedback();
   const cartLoading = cart.isPending;
+  /** Bumped on each successful add: plays the confetti. */
+  const [celebrate, setCelebrate] = useState(0);
+  /** Briefly true after an add: rings the add-ons the page scrolled to. */
+  const [highlightAddOns, setHighlightAddOns] = useState(false);
+  const addOnsRef = useRef<HTMLDivElement>(null);
 
   // The line for THIS variant, if any — drives the stepper and the
   // add-on checkboxes. Add-ons ticked before the line exists live in
@@ -159,29 +170,26 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
       ? "Join waitlist"
       : "Add to Cart";
 
-  const currentVariantLabel = [stateLabel(variant), variant.colour, variant.storage]
-    .filter(Boolean)
-    .join(" · ");
-
+  /**
+   * On the product page an add is confirmed in place, not by the "Added to
+   * cart" popup: a confetti pop from the button, then a smooth scroll to
+   * "Add to your order" with a brief highlight, so the shopper sees the
+   * extras next. Products without add-ons only get the confetti.
+   */
   function handleAddToCart() {
     if (!purchasable || addCartItem.isPending) return;
     addCartItem.mutate(
       { variantId: variant.id, quantity: 1, addOnIds: pendingAddOns },
       {
         onSuccess: (nextCart) => {
-          const added = nextCart.items.find((item) => item.variantId === variant.id);
-          if (!added) return;
+          if (!nextCart.items.some((item) => item.variantId === variant.id)) return;
           setPendingAddOns([]);
-          notifyAdded({
-            productSlug: product.slug,
-            productName: product.name,
-            brand: product.brand,
-            imageUrl: added.imageUrl,
-            imageAlt: added.imageAlt,
-            variantLabel: currentVariantLabel,
-            quantity: added.quantity,
-            unitPrice: added.unitPrice,
-          });
+          setCelebrate((count) => count + 1);
+          if (addOns.length > 0 && addOnsRef.current) {
+            addOnsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+            setHighlightAddOns(true);
+            window.setTimeout(() => setHighlightAddOns(false), ADD_ONS_HIGHLIGHT_MS);
+          }
         },
       },
     );
@@ -196,19 +204,19 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
     return [item];
   });
 
-  const stepperBusy = updateCartItem.isPending || removeCartItem.isPending;
+  // Taps show at once; the quantity is saved after a short pause.
+  const stepper = useDebouncedQuantity(inCartQty, (quantity) =>
+    updateCartItem.mutateAsync({ id: line!.id, quantity }),
+  );
 
   function handleIncrement() {
-    if (!line || inCartQty >= maxQuantity || stepperBusy) return;
-    updateCartItem.mutate({ id: line.id, quantity: inCartQty + 1 });
+    if (!line || stepper.quantity >= maxQuantity) return;
+    stepper.set(stepper.quantity + 1);
   }
   function handleDecrement() {
-    if (!line || stepperBusy) return;
-    if (inCartQty <= 1) {
-      removeCartItem.mutate(line.id);
-    } else {
-      updateCartItem.mutate({ id: line.id, quantity: inCartQty - 1 });
-    }
+    if (!line || removeCartItem.isPending) return;
+    if (stepper.quantity <= 1) removeCartItem.mutate(line.id);
+    else stepper.set(stepper.quantity - 1);
   }
 
   const cartError =
@@ -400,6 +408,68 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
         />
       )}
 
+      {/* ---------- CTA ----------
+          The page's one primary action, so it comes before the extras on
+          every width: full width and 64px (`xl`), with the warranty line
+          under it. One button until the item is added, then the same
+          footprint becomes a trash / qty / plus stepper (à la noon) at the
+          same height, so the row never jumps. The heart gets its own row
+          below, as a labelled "Save to wishlist". */}
+      <div className="relative mt-10 flex flex-col gap-2.5">
+        <ConfettiBurst trigger={celebrate} />
+        {cartLoading ? (
+          <Skeleton className="h-16 w-full rounded-full" />
+        ) : purchasable && inCartQty > 0 ? (
+          <QuantityStepper
+            value={stepper.quantity}
+            max={maxQuantity}
+            disabled={removeCartItem.isPending}
+            onIncrement={handleIncrement}
+            onDecrement={handleDecrement}
+            groupLabel={`${product.name} in cart`}
+            variant="filled"
+            size="xl"
+            className="w-full"
+          />
+        ) : (
+          <Button
+            size="xl"
+            variant="primary"
+            onClick={handleAddToCart}
+            loading={addCartItem.isPending}
+            className={cn("w-full", purchasable && "bg-accent text-white hover:bg-accent-hover")}
+            disabled={soldOut}
+          >
+            {cta}
+          </Button>
+        )}
+        <p className="flex items-center justify-center gap-1.5 text-[0.8125rem] text-ink-secondary">
+          <ShieldIcon />
+          {warrantyMonths} months warranty
+        </p>
+      </div>
+
+      {cartError && (
+        <p role="alert" className="mt-3 text-[0.8125rem] text-danger">
+          {cartError}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => toggleSaved(product.slug)}
+        aria-pressed={saved}
+        className={cn(
+          "mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full border text-sm font-medium transition-colors duration-(--duration-fast)",
+          saved
+            ? "border-love/50 text-ink"
+            : "border-line text-ink-secondary hover:border-line-strong hover:text-ink",
+        )}
+      >
+        <HeartIcon saved={saved} className="size-5" />
+        {saved ? "Saved to wishlist" : "Save to wishlist"}
+      </button>
+
       {/* ---------- Add to your order ----------
           The fourth axis after Storage / Colour / Grade: category-scoped
           extras (charger, sleeve, warranty extension, …) shown as
@@ -408,95 +478,23 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
           `product-add-ons.tsx` for the two rules the panel enforces
           (every row states its price; the total appears only after
           something is ticked). */}
-      <ProductAddOns
-        addOns={addOns}
-        selected={selectedAddOns}
-        onToggle={toggleAddOn}
-        basePrice={price}
-        currency={CURRENCY}
-        locale={LOCALE}
-      />
-
-      {/* ---------- CTA ----------
-          One button until the item is added, then the same footprint
-          becomes a trash / qty / plus stepper (à la noon). No separate
-          quantity picker in the panel — the stepper handles it.
-          Row layout at every width: on narrow phones stacking left an
-          orphaned 56px heart under a full-width CTA looked accidental.
-          Inline keeps the two actions reading as one control cluster. */}
-      <div className="mt-10 flex gap-3 sm:gap-4">
-        <div className="flex flex-1 flex-col gap-2.5">
-          {cartLoading ? (
-            <Skeleton className="h-14 flex-1 rounded-full" />
-          ) : purchasable && inCartQty > 0 ? (
-            <QuantityStepper
-              value={inCartQty}
-              max={maxQuantity}
-              disabled={stepperBusy}
-              onIncrement={handleIncrement}
-              onDecrement={handleDecrement}
-              groupLabel={`${product.name} in cart`}
-              variant="filled"
-              size="lg"
-              className="flex-1"
-            />
-          ) : (
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={handleAddToCart}
-              loading={addCartItem.isPending}
-              className={cn(
-                "flex-1",
-                purchasable &&
-                  "bg-accent text-white hover:bg-accent-hover",
-              )}
-              disabled={soldOut}
-            >
-              {cta}
-            </Button>
-          )}
-          <p className="flex items-center justify-center gap-1.5 text-[0.8125rem] text-ink-secondary">
-            <ShieldIcon />
-            {warrantyMonths} months warranty
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setSaved((s) => !s)}
-          aria-pressed={saved}
-          aria-label={
-            saved
-              ? `Remove ${product.name} from wishlist`
-              : `Save ${product.name} to wishlist`
-          }
-          className={cn(
-            "flex size-14 shrink-0 items-center justify-center rounded-full border transition-colors duration-(--duration-fast)",
-            saved
-              ? "border-line-strong text-urgent"
-              : "border-line text-ink-muted hover:border-line-strong hover:text-ink",
-          )}
-        >
-          <svg
-            aria-hidden
-            viewBox="0 0 24 24"
-            fill={saved ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-5"
-          >
-            <path d="M12 20.25S3.75 15.5 3.75 9.6A4.35 4.35 0 0 1 12 7.6a4.35 4.35 0 0 1 8.25 2c0 5.9-8.25 10.65-8.25 10.65Z" />
-          </svg>
-        </button>
+      <div
+        ref={addOnsRef}
+        className={cn(
+          "mt-10 scroll-mt-24 rounded-2xl transition-shadow duration-(--duration-slow)",
+          highlightAddOns && "ring-2 ring-accent ring-offset-4 ring-offset-void",
+        )}
+      >
+        <ProductAddOns
+          addOns={addOns}
+          selected={selectedAddOns}
+          onToggle={toggleAddOn}
+          basePrice={price}
+          currency={CURRENCY}
+          locale={LOCALE}
+        />
       </div>
 
-      {cartError && (
-        <p role="alert" className="mt-3 text-[0.8125rem] text-danger">
-          {cartError}
-        </p>
-      )}
 
       {/* ---------- Trust row ----------
           Rewritten to earn attention: two-column card grid on mobile,

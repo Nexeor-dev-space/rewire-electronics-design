@@ -137,6 +137,7 @@ export const API_ENDPOINTS = {
     detail: (slug: string) => `${V1}/products/${slug}`,
   },
   search: `${V1}/search`,
+  wishlist: `${V1}/wishlist`,
   cart: {
     root: `${V1}/cart`,
     items: `${V1}/cart/items`,

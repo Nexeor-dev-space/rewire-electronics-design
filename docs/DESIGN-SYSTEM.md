@@ -40,6 +40,7 @@ template patterns.
 | `live` | `#6f8d7a` | Certified · battery health · inspection passed · warranty active. |
 | `warn` | `#d08a34` | Low stock · limited drop · countdown urgency. Nothing else. |
 | `danger` | `#b4544e` | Errors, sold out. |
+| `love` | `#e5484d` | A saved (wishlisted) heart and its burst only. The one saturated red on the site, so "saved" reads at a glance. |
 
 The UI is ~95% neutral and ~5% accent. Separate cards with **borders first, shadow second**:
 a `1px solid line` edge plus `--shadow-soft` is the house card, and elevation only
@@ -143,7 +144,8 @@ Defined once in `src/lib/motion.ts` — never inline ad-hoc curves.
 4. **Reveal once.** Scroll entrances trigger a single time, ~12% before entering the viewport (`viewportOnce`). Never re-animate on scroll-up.
 5. **Transform + opacity only.** Never animate width/height/top/margin. GSAP is reserved for scroll-scrubbed choreography that Framer's `useScroll` cannot express — currently unused on the homepage; Framer Motion handles everything else. Where a section holds frames in place, pin with CSS `sticky`, not ScrollTrigger's `pin`, so Lenis stays authoritative over scroll position. Counters are the one place a number animates: drive them with `animate()` on a motion value, mark the animated numeral `aria-hidden`, and shadow it with an `sr-only` copy of the finished value. Disclosures are the one place `height` animates — a disclosure has to reflow what sits under it, and `scaleY` would distort the type. They share one pattern from `src/lib/motion.ts`: `collapsePanel` (height and opacity, opening slower than it closes) on an `overflow-hidden` wrapper, with `collapsePanelBody` on its content so it settles down into the opening panel. The FAQ items and the checkout steps use it. Do not write new height variants; reuse these. The shop filter panel (`components/shop/filter-panel.tsx`), the mobile drawer accordions and the admin nav still carry older inline copies and should move onto it when next touched.
 6. **Scroll.** Lenis (`lerp 0.1`) provides the glide; it uses native scroll position so anchors and a11y survive. Parallax stays subtle (≤10% travel).
-7. **Reduced motion is law.** Global CSS kill-switch + `MotionConfig reducedMotion="user"` + Lenis opt-out. Every custom effect must degrade to opacity or nothing.
+7. **Micro interactions.** Two small celebrations, both on the motion scale and both skipped under reduced motion: the **wishlist heart** (`components/product/heart-icon.tsx`) fills `love` red, pops 0.8 → 1.25 → 1 and bursts a ring and six dots when saved (unsaving only fades back); **add to cart** (`components/ui/confetti-burst.tsx`) throws about 14 tiny pieces up and out of the button for `slow`. Use these two components rather than new one off effects.
+8. **Reduced motion is law.** Global CSS kill-switch + `MotionConfig reducedMotion="user"` + Lenis opt-out. Every custom effect must degrade to opacity or nothing.
 
 ### Hover language
 - Cards lift 4–6px, the border darkens to `line-strong` and the shadow steps from `soft` to `float`.

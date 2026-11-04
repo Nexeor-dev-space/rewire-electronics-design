@@ -132,10 +132,9 @@ export function CartView() {
                       (updateCartItem.isPending && updateCartItem.variables?.id === line.id) ||
                       (removeCartItem.isPending && removeCartItem.variables === line.id)
                     }
-                    onQuantityChange={(quantity) => {
-                      if (quantity <= 0) removeCartItem.mutate(line.id);
-                      else updateCartItem.mutate({ id: line.id, quantity });
-                    }}
+                    onQuantityChange={(quantity) =>
+                      updateCartItem.mutateAsync({ id: line.id, quantity })
+                    }
                     onRemove={() => removeCartItem.mutate(line.id)}
                     onToggleAddOn={(addOnId) => {
                       const offeredIds = new Set(

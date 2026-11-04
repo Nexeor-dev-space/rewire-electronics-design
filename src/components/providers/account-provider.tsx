@@ -9,15 +9,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getWishlistSeed } from "@/lib/catalog";
+import { WISHLIST_MAX_ITEMS } from "@/lib/constants";
 
 /**
  * Wishlist state for the navigation and wishlist pages.
  *
- * ⚠ This is a front-end stand-in for the wishlist, not a real saved-items
- * store. It persists to localStorage so the wishlist pages are reviewable
- * today; every field and method below is shaped to be replaced by the
- * real wishlist adapter without touching a single component.
+ * The wishlist is a list of product slugs kept in this browser's
+ * localStorage (newest first, at most `WISHLIST_MAX_ITEMS`). The wishlist
+ * page turns the slugs into real product cards through
+ * `GET /api/v1/wishlist`, and calls `retainSaved` to forget products that
+ * no longer exist. See docs/WISHLIST.md.
  *
  * Session state (`user`, `signIn`, `signOut`) used to live here too, as a
  * demo stand-in; it is now real — see `useGetMe`/`useSignIn`/`useSignOut`
@@ -40,11 +41,19 @@ interface AccountContextValue {
   isSaved: (productSlug: string) => boolean;
   toggleSaved: (productSlug: string) => void;
   removeSaved: (productSlug: string) => void;
+  /** Keep only these slugs: the ones the server still knows. */
+  retainSaved: (productSlugs: string[]) => void;
 }
 
 const WISHLIST_KEY = "rewire.wishlist.v1";
-/** Same idea for the wishlist — one seed per browser, then hands off. */
-const WISHLIST_SEED_MARKER_KEY = "rewire.wishlist.seeded";
+
+/**
+ * Before the wishlist used real products, a first visit was seeded with
+ * four demo slugs and marked with this key. A browser that still has the
+ * marker drops those demo slugs once, keeping anything the shopper saved.
+ */
+const LEGACY_SEED_MARKER_KEY = "rewire.wishlist.seeded";
+const LEGACY_SEED_SLUGS = ["iphone-15-pro-max", "macbook-air-13-m2", "airpods-max", "galaxy-s22"];
 
 const AccountContext = createContext<AccountContextValue | null>(null);
 
@@ -55,20 +64,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // Read persisted state only after mount — see the hydration note above.
   useEffect(() => {
     try {
-      const storedWishlist = window.localStorage.getItem(WISHLIST_KEY);
-      if (storedWishlist) {
-        const parsed = JSON.parse(storedWishlist) as unknown;
-        if (Array.isArray(parsed)) {
-          setWishlistSlugs(parsed.filter((s): s is string => typeof s === "string"));
-        }
-      } else if (!window.localStorage.getItem(WISHLIST_SEED_MARKER_KEY)) {
-        // Same first-visit-only seeding pattern as the cart above, so the
-        // wishlist page is reviewable without hand-populating localStorage.
-        const seed = getWishlistSeed();
-        setWishlistSlugs(seed);
-        window.localStorage.setItem(WISHLIST_KEY, JSON.stringify(seed));
-        window.localStorage.setItem(WISHLIST_SEED_MARKER_KEY, "1");
+      const parsed = JSON.parse(window.localStorage.getItem(WISHLIST_KEY) ?? "[]") as unknown;
+      let slugs = Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
+      if (window.localStorage.getItem(LEGACY_SEED_MARKER_KEY)) {
+        slugs = slugs.filter((slug) => !LEGACY_SEED_SLUGS.includes(slug));
+        window.localStorage.setItem(WISHLIST_KEY, JSON.stringify(slugs));
+        window.localStorage.removeItem(LEGACY_SEED_MARKER_KEY);
       }
+      setWishlistSlugs(slugs.slice(0, WISHLIST_MAX_ITEMS));
     } catch {
       // Private mode, disabled storage — a signed-out shell is a fine default.
     }
@@ -82,19 +85,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       /* storage unavailable */
     }
   }, []);
-
-  const addSaved = useCallback(
-    (productSlug: string) => {
-      setWishlistSlugs((current) => {
-        if (current.includes(productSlug)) return current;
-        // Newest first — matches how any reader scans a saved-items list.
-        const next = [productSlug, ...current];
-        persistWishlist(next);
-        return next;
-      });
-    },
-    [persistWishlist],
-  );
 
   const removeSaved = useCallback(
     (productSlug: string) => {
@@ -111,9 +101,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const toggleSaved = useCallback(
     (productSlug: string) => {
       setWishlistSlugs((current) => {
+        // Newest first; past the cap the oldest saves drop off.
         const next = current.includes(productSlug)
           ? current.filter((slug) => slug !== productSlug)
-          : [productSlug, ...current];
+          : [productSlug, ...current].slice(0, WISHLIST_MAX_ITEMS);
+        persistWishlist(next);
+        return next;
+      });
+    },
+    [persistWishlist],
+  );
+
+  const retainSaved = useCallback(
+    (productSlugs: string[]) => {
+      setWishlistSlugs((current) => {
+        const next = current.filter((slug) => productSlugs.includes(slug));
+        if (next.length === current.length) return current;
         persistWishlist(next);
         return next;
       });
@@ -133,8 +136,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       isSaved,
       toggleSaved,
       removeSaved,
+      retainSaved,
     }),
-    [ready, wishlistSlugs, isSaved, toggleSaved, removeSaved],
+    [ready, wishlistSlugs, isSaved, toggleSaved, removeSaved, retainSaved],
   );
 
   return (
