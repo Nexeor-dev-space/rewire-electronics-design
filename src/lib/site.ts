@@ -13,6 +13,19 @@ export const siteConfig = {
   locale: "en_US",
 } as const;
 
+/**
+ * The Rewire logo (REWIRE. over ELECTRONICS), as transparent PNGs cut from
+ * the brand files. `onDark` has white ink for dark grounds (the storefront),
+ * `onLight` has black ink for light grounds (the light admin, invoices).
+ * Drawn only by `components/layout/logo.tsx` and the invoice PDF.
+ */
+export const brandLogo = {
+  onDark: "/images/brand/rewire-logo-on-dark.png",
+  onLight: "/images/brand/rewire-logo-on-light.png",
+  width: 395,
+  height: 101,
+} as const;
+
 export type NavItem = {
   label: string;
   href: string;

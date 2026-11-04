@@ -1,15 +1,26 @@
 /// Singleton. The service only ever upserts id 1; no row reads as the defaults.
 model StoreSettings {
-  id                       Int      @id @default(1)
-  returnWindowDays         Int      @default(30)
-  vatRatePercent           Int      @default(5)
-  lowStockThreshold        Int      @default(5)
-  releaseHoldMinutes       Int      @default(15)
-  releaseEmailGraceMinutes Int      @default(30)
-  updatedById              String?
-  updatedBy                User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                       Int @id @default(1)
+  returnWindowDays         Int @default(30)
+  vatRatePercent           Int @default(5)
+  lowStockThreshold        Int @default(5)
+  releaseHoldMinutes       Int @default(15)
+  releaseEmailGraceMinutes Int @default(30)
+
+  /// Seller block on tax invoices. See docs/INVOICES.md.
+  invoiceSellerName    String @default("")
+  invoiceSellerTrn     String @default("")
+  invoiceSellerAddress String @default("")
+  invoiceSellerEmail   String @default("")
+  /// Terms & Conditions printed on invoices, one point per line.
+  invoiceTerms         String @default("")
+  /// Last invoice sequence handed out; raised in the transaction that stamps an order.
+  lastInvoiceSequence  Int    @default(0)
+
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("store_settings")
 }

@@ -60,6 +60,13 @@ to the Change Log with the before and after rate.
 `PERMISSIONS.vat` (`governance.vat`) offers View and Edit and can be granted to
 a Staff role. See [PERMISSIONS.md](PERMISSIONS.md).
 
+## Invoice details
+
+The same screen has an **Invoice details** section: the seller's legal name,
+TRN, address, support email and the Terms & Conditions printed on every tax
+invoice. It uses the same permission as the VAT rate. See
+[INVOICES.md](INVOICES.md).
+
 ## 7. Database change
 
 One column on `StoreSettings`: `vatRatePercent Int @default(5)`. The migration
@@ -69,8 +76,7 @@ that has not had it applied, because the pull removes the column from the schema
 
 ## 8. Not covered
 
-1. Invoices and the TRN. No invoice feature exists yet.
-2. Decimal rates. `Order.vatRatePercent` is an `Int`, so rates are whole
+1. Decimal rates. `Order.vatRatePercent` is an `Int`, so rates are whole
    percentages.
 
 ## 9. Tests

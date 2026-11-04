@@ -3,6 +3,7 @@
  * inside hooks or components.
  */
 
+import { INVOICE_INLINE_PARAM } from "@/lib/constants";
 import type { Emirate } from "@/lib/emirates";
 import type { ReportKey } from "@/lib/reports";
 
@@ -82,6 +83,9 @@ export const API_ENDPOINTS = {
       detail: (number: string) => `${V1}/admin/orders/${number}`,
       status: (number: string) => `${V1}/admin/orders/${number}/status`,
       payment: (number: string) => `${V1}/admin/orders/${number}/payment`,
+      /** Serves a PDF, not the JSON envelope — see docs/INVOICES.md. */
+      invoice: (number: string, inline = false) =>
+        `${V1}/admin/orders/${number}/invoice${inline ? `?${INVOICE_INLINE_PARAM}=1` : ""}`,
     },
     fulfilment: {
       list: `${V1}/admin/fulfilment`,
@@ -108,6 +112,7 @@ export const API_ENDPOINTS = {
     storeSettings: `${V1}/admin/store-settings`,
     dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
+    invoiceSettings: `${V1}/admin/invoice-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
@@ -156,8 +161,12 @@ export const API_ENDPOINTS = {
   account: {
     orders: `${V1}/account/orders`,
     order: (number: string) => `${V1}/account/orders/${number}`,
+    /** Serves a PDF, not the JSON envelope — see docs/INVOICES.md. */
+    orderInvoice: (number: string, inline = false) =>
+      `${V1}/account/orders/${number}/invoice${inline ? `?${INVOICE_INLINE_PARAM}=1` : ""}`,
     returns: `${V1}/account/returns`,
     returnsEligible: `${V1}/account/returns/eligible`,
+    addresses: `${V1}/account/addresses`,
   },
   storefrontReleases: {
     waitlist: (slug: string) => `${V1}/releases/${slug}/waitlist`,

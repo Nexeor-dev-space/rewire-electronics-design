@@ -4,12 +4,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import type { Paginated } from "@/lib/api/api-response";
-import type { UserDetail, UserFilters, UserInput, UserListItem } from "@/types/user";
+import type {
+  AddressInput,
+  UserAddress,
+  UserDetail,
+  UserFilters,
+  UserInput,
+  UserListItem,
+} from "@/types/user";
 
 const userKeys = {
   all: ["users"] as const,
   list: (filters: UserFilters) => ["users", "list", filters] as const,
   detail: (id: string) => ["users", "detail", id] as const,
+  ownAddresses: ["users", "me", "addresses"] as const,
 };
 
 const endpoints = API_ENDPOINTS.admin.users;
@@ -60,5 +68,27 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => apiRequest<{ id: string }>(endpoints.detail(id), { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: userKeys.all }),
+  });
+}
+
+/* ---------- the signed-in customer's addresses ---------- */
+
+export function useGetOwnAddresses() {
+  return useQuery({
+    queryKey: userKeys.ownAddresses,
+    queryFn: ({ signal }) => apiRequest<UserAddress[]>(API_ENDPOINTS.account.addresses, { signal }),
+  });
+}
+
+/** Saves the full list; addresses left out are removed. */
+export function useSaveOwnAddresses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (addresses: AddressInput[]) =>
+      apiRequest<UserAddress[]>(API_ENDPOINTS.account.addresses, {
+        method: "PUT",
+        body: { addresses },
+      }),
+    onSuccess: (saved) => queryClient.setQueryData(userKeys.ownAddresses, saved),
   });
 }

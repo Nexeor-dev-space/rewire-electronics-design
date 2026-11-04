@@ -10,7 +10,7 @@
 import { siteConfig } from "./site";
 
 export const adminConsole = {
-  /** Wordmark in the sidebar head. Follows the storefront's brand name. */
+  /** Used in the page title; the sidebar head shows the logo image. */
   name: siteConfig.shortName,
   label: "Admin",
 } as const;

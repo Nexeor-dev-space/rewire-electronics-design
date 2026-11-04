@@ -385,6 +385,30 @@
     color-scheme: dark;
   }
 
+  /* `<Logo tone="auto">` renders both logo cuts; show the one that suits
+     the admin palette, on the same signals as `color-scheme` above. */
+  .admin-theme .brand-logo-on-dark {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .admin-theme:not([data-theme="light"]) .brand-logo-on-light {
+      display: none;
+    }
+
+    .admin-theme:not([data-theme="light"]) .brand-logo-on-dark {
+      display: block;
+    }
+  }
+
+  .admin-theme[data-theme="dark"] .brand-logo-on-light {
+    display: none;
+  }
+
+  .admin-theme[data-theme="dark"] .brand-logo-on-dark {
+    display: block;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

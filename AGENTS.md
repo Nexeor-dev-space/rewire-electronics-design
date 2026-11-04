@@ -19,7 +19,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | The change log, `recordAudit`, Trash, soft delete, restoring products or users | [docs/TRASH-AUDIT.md](docs/TRASH-AUDIT.md) |
 | Policy pages, rich text, the policy editor, policy SEO fields | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
 | Homepage sections, the homepage CMS API, publishing, homepage SEO | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
-| Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
+| Header, footer, the logo, menus, the bottom tab bar and category sheet, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
 | Products, the Product API, shop and product pages, catalogue admin, add-ons and per-product picks, page metadata, SEO, Open Graph, noindex rules, the sitemap and robots | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
 | Bulk Product Upload, the CSV template, import validation and preview, `product-import` files | [docs/BULK-UPLOAD.md](docs/BULK-UPLOAD.md) |
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
@@ -28,9 +28,11 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Stripe, card and Apple Pay payment, `payment.service.ts`, `POST checkout/payment`, the Stripe webhook, the return from Stripe, `stripePaymentIntentId` | [docs/PAYMENTS.md](docs/PAYMENTS.md) |
 | The VAT rate setting, the VAT & Configuration admin screen, `admin/vat-settings` | [docs/VAT.md](docs/VAT.md) |
+| Tax invoices, the invoice PDF, invoice numbers, `invoice.service.ts`, the Invoice details settings, `@react-pdf/renderer` | [docs/INVOICES.md](docs/INVOICES.md) |
 | The Reports screen, `admin/reports`, what counts as a sale, report filters and CSV export | [docs/REPORTS.md](docs/REPORTS.md) |
 | Campaigns, campaign types, campaign discounts and how they change prices, `campaign.service.ts`, `src/lib/pricing/campaign.ts` | [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) |
 | The cart and its API, `src/lib/pricing/`, VAT, discount codes, delivery zones, the guest cart cookie and merge, the checkout summary | [docs/CART.md](docs/CART.md) |
+| The account Saved addresses page, `account/addresses` API, `useGetOwnAddresses` / `useSaveOwnAddresses` | [docs/ACCOUNT-ADDRESSES.md](docs/ACCOUNT-ADDRESSES.md) |
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate | [docs/AUTH.md](docs/AUTH.md) |
 | Env vars, `src/lib/env.ts`, email (SMTP), the site address, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |
 | The `Dockerfile`, `.dockerignore`, standalone output, the Node version, Coolify build settings | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |

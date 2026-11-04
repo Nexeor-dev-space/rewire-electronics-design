@@ -84,6 +84,16 @@ export const RETURN_WINDOW_MAX_DAYS = 365;
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export const ORDER_NUMBER_PREFIX = "RW-";
+
+/** Tax invoices: `INV-<year>-<sequence>`, see docs/INVOICES.md. */
+export const INVOICE_NUMBER_PREFIX = "INV-";
+export const INVOICE_SEQUENCE_DIGITS = 6;
+export const INVOICE_TITLE = "Tax Invoice";
+export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice. No signature required.";
+export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
+export const INVOICE_TERMS_MAX_LENGTH = 2000;
+/** `?inline=1` on an invoice endpoint serves the PDF to open in the browser's viewer instead of as a download. */
+export const INVOICE_INLINE_PARAM = "inline";
 export const REFERENCE_NUMBER_DIGITS = 8;
 export const REFERENCE_NUMBER_ATTEMPTS = 3;
 export const ACCOUNT_LIST_PAGE_SIZE = 10;

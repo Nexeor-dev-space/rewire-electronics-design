@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useGetAccountOrder } from "@/hooks/use-order";
 import { ApiError } from "@/lib/api/api-client";
+import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import { ACCOUNT_ORDERS_PATH } from "@/lib/constants";
 import { formatOrderDate } from "@/lib/dates";
+import { isInvoiceable } from "@/lib/invoice";
 import { Button } from "@/components/ui/button";
 import {
   OrderDetailBody,
@@ -12,6 +14,7 @@ import {
   OrderStatusPill,
   orderEtaLabel,
 } from "@/components/order/order-detail-body";
+import { InvoiceDownloadButton } from "@/components/order/invoice-download-button";
 import { AccountShell } from "./account-shell";
 
 export function AccountOrderDetail({ number }: { number: string }) {
@@ -68,13 +71,14 @@ export function AccountOrderDetail({ number }: { number: string }) {
         order={data}
         returnLinks
         actions={
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex h-11 items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
-          >
-            Download / view invoice
-          </button>
+          isInvoiceable(data.status) ? (
+            <InvoiceDownloadButton
+              href={API_ENDPOINTS.account.orderInvoice(data.number)}
+              viewHref={API_ENDPOINTS.account.orderInvoice(data.number, true)}
+              label="Download invoice (PDF)"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full border border-line-strong text-[0.875rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:border-ink"
+            />
+          ) : undefined
         }
       />
     </AccountShell>
