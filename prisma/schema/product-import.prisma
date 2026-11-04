@@ -1,0 +1,76 @@
+/// How an import treats SKUs that already exist; see docs/BULK-UPLOAD.md.
+enum ProductImportMode {
+  CREATE_NEW
+  UPDATE_EXISTING
+}
+
+enum ProductImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
+enum ProductImportRowStatus {
+  PENDING
+  IMPORTED
+  FAILED
+}
+
+/// One bulk product upload: the file, who ran it, and how it went. Kept as
+/// the history of every run; never edited from the console.
+model ProductImport {
+  id       String              @id @default(cuid())
+  fileName String
+  mode     ProductImportMode
+  status   ProductImportStatus @default(PENDING)
+
+  /// CSV rows, one per variant. Product counts are worked out from the rows.
+  totalRows    Int
+  importedRows Int @default(0)
+  failedRows   Int @default(0)
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  /// Snapshot, so history still reads right after the user changes or goes.
+  uploadedByName String
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  rows ProductImportRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("product_imports")
+}
+
+/// One validated CSV row, stored so a large file can be imported in batches
+/// and a repeated request finds nothing left to do.
+model ProductImportRow {
+  id       String        @id @default(cuid())
+  importId String
+  import   ProductImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  /// The row's number in the spreadsheet, header included.
+  rowNumber   Int
+  productName String
+  sku         String
+  /// The row's cells as read from the file.
+  data        Json
+
+  status ProductImportRowStatus @default(PENDING)
+  error  String?
+  /// Plain id, not a relation, so purging a product never breaks history.
+  productId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([importId, rowNumber])
+  @@index([importId, status])
+  @@map("product_import_rows")
+}

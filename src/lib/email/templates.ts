@@ -1,4 +1,4 @@
-import { RESET_TOKEN_TTL_SECONDS, VERIFY_TOKEN_TTL_SECONDS } from "@/lib/constants";
+import { RESET_TOKEN_TTL_SECONDS, VERIFY_TOKEN_TTL_SECONDS, WAITLIST_CONFIRM_LINK_TTL_SECONDS } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { PAYMENT_METHOD_LABELS, PAYMENT_PENDING_NOTICE, paysOnline, type PaymentMethod } from "@/lib/orders";
 import { siteConfig } from "@/lib/site";
@@ -15,7 +15,15 @@ interface OrderConfirmationInput extends LinkEmailInput {
   paymentMethod: PaymentMethod;
 }
 
+interface WaitlistConfirmInput {
+  title: string;
+  url: string;
+  leaveUrl: string;
+  confirmUrl: string;
+}
+
 const SECONDS_PER_HOUR = 60 * 60;
+const WAITLIST_GREETING_NAME = "there";
 
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
@@ -95,5 +103,15 @@ export function orderConfirmationMessage({ number, total, paymentMethod, ...link
     `Thanks for your order. Your order number is ${number} and the total is ${formatMoney(total)}, VAT included. ${payment}`,
     "Track my order",
     "Keep this email: the link above shows the latest status of your order.",
+  );
+}
+
+export function waitlistConfirmMessage({ title, url, leaveUrl, confirmUrl }: WaitlistConfirmInput): EmailContent {
+  return linkEmail(
+    `Confirm your place on the ${title} waitlist`,
+    { name: WAITLIST_GREETING_NAME, url: confirmUrl },
+    `Please confirm you want updates about ${title} from ${siteConfig.name}. The release page is ${url}`,
+    "Confirm my place",
+    `This link expires in ${hoursLabel(WAITLIST_CONFIRM_LINK_TTL_SECONDS)}. If you didn't ask for this, you can ignore this email. To leave the waitlist, open ${leaveUrl}`,
   );
 }

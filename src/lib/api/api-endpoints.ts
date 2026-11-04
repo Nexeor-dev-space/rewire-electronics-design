@@ -39,6 +39,14 @@ export const API_ENDPOINTS = {
       detail: (id: string) => `${V1}/admin/products/${id}`,
       status: (id: string) => `${V1}/admin/products/${id}/status`,
     },
+    productImports: {
+      list: `${V1}/admin/product-imports`,
+      validate: `${V1}/admin/product-imports/validate`,
+      detail: (id: string) => `${V1}/admin/product-imports/${id}`,
+      rows: (id: string) => `${V1}/admin/product-imports/${id}/rows`,
+      process: (id: string) => `${V1}/admin/product-imports/${id}/process`,
+      errors: (id: string) => `${V1}/admin/product-imports/${id}/errors`,
+    },
     addOns: {
       list: `${V1}/admin/add-ons`,
       detail: (id: string) => `${V1}/admin/add-ons/${id}`,
@@ -57,6 +65,7 @@ export const API_ENDPOINTS = {
       detail: (id: string) => `${V1}/admin/releases/${id}`,
       state: (id: string) => `${V1}/admin/releases/${id}/state`,
       allocations: (id: string) => `${V1}/admin/releases/${id}/allocations`,
+      waitlist: (id: string) => `${V1}/admin/releases/${id}/waitlist`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,
@@ -158,6 +167,15 @@ export const API_ENDPOINTS = {
     returns: `${V1}/account/returns`,
     returnsEligible: `${V1}/account/returns/eligible`,
     addresses: `${V1}/account/addresses`,
+  },
+  storefrontReleases: {
+    waitlist: (slug: string) => `${V1}/releases/${slug}/waitlist`,
+  },
+  waitlist: {
+    confirm: `${V1}/waitlist/confirm`,
+    leave: `${V1}/waitlist/leave`,
+    mine: `${V1}/account/waitlists`,
+    entry: (id: string) => `${V1}/account/waitlists/${id}`,
   },
   uploads: {
     images: `${V1}/uploads/images`,

@@ -14,7 +14,7 @@ export interface SectionRef {
   name: string;
 }
 
-/** The product a drop or Just Listed pick points at, as the builder shows it. */
+/** The product a Just Listed pick or deal points at, as the builder shows it. */
 export interface SectionItemProduct {
   id: string;
   name: string;
@@ -44,8 +44,6 @@ export interface HomepageSectionItem {
   body: string | null;
   author: string | null;
   rating: number | null;
-  /** ISO string. */
-  releaseAt: string | null;
   ctaLabel: string | null;
   ctaHref: string | null;
   imageId: string | null;
@@ -76,7 +74,7 @@ export interface HomepageSection {
   endsAt: string | null;
   /** Chosen brands or categories that still exist, in display order. */
   refs: SectionRef[];
-  /** Drops, Just Listed picks or reviews, in display order. */
+  /** Just Listed picks, reviews, categories or deals, in display order. */
   items: HomepageSectionItem[];
   /** ISO string. */
   updatedAt: string;
@@ -110,17 +108,17 @@ export interface PublishedItem {
   href: string;
 }
 
-/** A drop card on the storefront, built from its product or its own fields. */
+/** A drop card on the storefront, built from a visible release. */
 export interface PublishedDrop {
   id: string;
-  /** For the wishlist; null for a release not in the catalogue yet. */
+  releaseSlug: string;
+  /** For the wishlist. */
   slug: string | null;
   name: string;
   brand: string | null;
-  /** Finish and capacity, e.g. "Graphite · 512GB". */
   variant: string | null;
   status: DropStatus;
-  /** Minor units; null without a product. */
+  /** Minor units. */
   price: number | null;
   originalPrice: number | null;
   unitsLeft: number | null;
@@ -134,7 +132,6 @@ export interface PublishedDrop {
   opensAt: string | null;
   imageUrl: string | null;
   imageAlt: string;
-  /** The product page, or null without a product. */
   href: string | null;
   ctaLabel: string | null;
   ctaHref: string | null;

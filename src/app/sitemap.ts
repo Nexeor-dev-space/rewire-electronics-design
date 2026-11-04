@@ -1,20 +1,27 @@
 import type { MetadataRoute } from "next";
-import { ABOUT_PAGE_PATH, SUPPORT_PAGE_PATH } from "@/lib/constants";
+import { ABOUT_PAGE_PATH, RELEASES_PAGE_PATH, SUPPORT_PAGE_PATH } from "@/lib/constants";
 import { listPolicies } from "@/lib/policies";
 import { POLICY_ROUTES } from "@/lib/policy-types";
+import { releaseHref } from "@/lib/releases";
 import { productHrefForCategory, SHOP_INDEX_HREF } from "@/lib/route-map";
 import { absoluteUrl, isSelfCanonical } from "@/lib/seo";
 import { productHref } from "@/lib/shop";
 import { listSitemapEntries } from "@/services/catalogue.service";
+import { listSitemapReleases } from "@/services/release-storefront.service";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [{ products, categories }, policies] = await Promise.all([listSitemapEntries(), listPolicies()]);
+  const [{ products, categories }, policies, releases] = await Promise.all([
+    listSitemapEntries(),
+    listPolicies(),
+    listSitemapReleases(),
+  ]);
 
   return [
     { url: absoluteUrl("/") },
     { url: absoluteUrl(SHOP_INDEX_HREF) },
+    { url: absoluteUrl(RELEASES_PAGE_PATH) },
     { url: absoluteUrl(ABOUT_PAGE_PATH) },
     { url: absoluteUrl(SUPPORT_PAGE_PATH) },
     ...policies
@@ -32,5 +39,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: absoluteUrl(productHref(product)),
       lastModified: product.updatedAt,
     })),
+    ...releases.flatMap((release) =>
+      release.slug ? [{ url: absoluteUrl(releaseHref(release.slug)), lastModified: release.updatedAt }] : [],
+    ),
   ];
 }

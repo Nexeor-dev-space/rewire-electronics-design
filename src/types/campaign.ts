@@ -31,8 +31,20 @@ export interface AdminCampaignListItem {
   createdAt: string;
 }
 
+export interface AdminCampaignImage {
+  mediaId: string;
+  url: string;
+}
+
 export interface AdminCampaign extends AdminCampaignListItem {
   description: string;
+  content: string;
+  bannerImageId: string | null;
+  bannerImageUrl: string | null;
+  images: AdminCampaignImage[];
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  release: { id: string; title: string } | null;
   products: AdminCampaignProduct[];
   updatedAt: string;
 }

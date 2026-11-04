@@ -45,6 +45,13 @@ export const RELEASE_MAX_PER_CUSTOMER_DEFAULT = 1;
 export const RELEASE_MAX_PER_CUSTOMER_LIMIT = 20;
 export const RELEASE_ALLOCATIONS_MAX = 50;
 export const RELEASE_EARLY_END_OPENING_SHIFT_MS = 1;
+export const RELEASES_PAGE_PATH = "/releases";
+export const RELEASES_PAGE_SIZE = 12;
+export const WAITLIST_CONFIRM_LINK_TTL_SECONDS = 60 * 60 * 48;
+export const WAITLIST_LEAVE_LINK_TTL_SECONDS = 60 * 60 * 24 * 180;
+export const WAITLIST_ADMIN_PAGE_SIZE = 50;
+export const WAITLIST_CONFIRM_PAGE_PATH = "/waitlist/confirm";
+export const WAITLIST_LEAVE_PAGE_PATH = "/waitlist/leave";
 export const MAX_COUPON_TARGETS = 50;
 export const COUPON_CODE_MIN_LENGTH = 3;
 export const COUPON_CODE_MAX_LENGTH = 32;
@@ -53,6 +60,10 @@ export const CAMPAIGN_NAME_MAX_LENGTH = 120;
 export const CAMPAIGN_DESCRIPTION_MAX_LENGTH = 1000;
 export const CAMPAIGN_SLUG_MAX_LENGTH = 140;
 export const CAMPAIGN_TYPE_NAME_MAX_LENGTH = 60;
+export const CAMPAIGN_CONTENT_MAX_LENGTH = 5000;
+export const CAMPAIGN_CTA_LABEL_MAX_LENGTH = 40;
+export const CAMPAIGN_CTA_HREF_MAX_LENGTH = 300;
+export const MAX_CAMPAIGN_IMAGES = 6;
 export const MAX_CAMPAIGN_PRODUCTS = 50;
 /** Caps the types so the type dropdown is one bounded query. */
 export const MAX_CAMPAIGN_TYPES = 50;
@@ -86,6 +97,7 @@ export const INVOICE_INLINE_PARAM = "inline";
 export const REFERENCE_NUMBER_DIGITS = 8;
 export const REFERENCE_NUMBER_ATTEMPTS = 3;
 export const ACCOUNT_LIST_PAGE_SIZE = 10;
+export const WAITLIST_PAGE_SIZE = ACCOUNT_LIST_PAGE_SIZE;
 export const ORDER_NOTE_MAX_LENGTH = 500;
 export const STAFF_NOTE_MAX_LENGTH = 1000;
 export const TRACKING_NUMBER_MAX_LENGTH = 64;
@@ -154,6 +166,7 @@ export const RATE_LIMITS = {
   trackOrder: { limit: 10, windowSeconds: 60 * 15 },
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
+  joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
@@ -187,3 +200,23 @@ export const CANONICAL_URL_MAX_LENGTH = 512;
 export const NOINDEX_ROBOTS = { index: false, follow: false } as const;
 export const FULL_NAME_MAX_LENGTH = 120;
 export const NEXT_PATH_MAX_LENGTH = 512;
+export const HOMEPAGE_DROPS_LIMIT = 5;
+export const SITEMAP_RELEASE_LIMIT = 1000;
+export const ADMIN_RELEASES_PATH = "/admin/releases";
+
+/** Bulk product upload limits; see docs/BULK-UPLOAD.md. */
+export const PRODUCT_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+export const PRODUCT_IMPORT_MAX_ROWS = 500;
+export const PRODUCT_IMPORT_MAX_CELL_LENGTH = 5000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS = 3_000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_CONCURRENCY = 8;
+/** Products an import saves per request, and how long one image download may take. */
+export const PRODUCT_IMPORT_BATCH_SIZE = 20;
+/** Distinct image addresses in one file; each is checked and downloaded, so the file is capped. */
+export const PRODUCT_IMPORT_MAX_IMAGES = 100;
+/** A claimed row older than this was left by a request that died, and is picked up again. */
+export const PRODUCT_IMPORT_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+/** Batches in a row that save nothing before the screen gives up asking. */
+export const PRODUCT_IMPORT_MAX_STALLED_CALLS = 3;
+export const PRODUCT_IMPORT_IMAGE_FETCH_TIMEOUT_MS = 10_000;
+export const ADMIN_PRODUCT_IMPORT_HISTORY_PATH = "/admin/products/upload-history";

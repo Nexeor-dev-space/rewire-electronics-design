@@ -85,6 +85,7 @@ Rules the model encodes:
 | `add_category_cms_fields` | `CategoryStatus` enum; `description`, `status` (default `PUBLISHED`), `showInNav` (default true) and `sortOrder` (default 0) on `categories` |
 | `move_condition_to_variants` | Adds `condition`, `grade` and `batteryHealth` to `product_variants`, copies each product's values onto its variants, then drops the three columns from `products` |
 | `add_product_add_ons_and_warranty` | `product_add_ons` table; `extraWarrantyMonths` (default 0) on `add_ons`; order line serial and warranty dates (docs/ORDERS.md) |
+| `add_product_import` | `product_imports` and `product_import_rows`, with the `ProductImportMode`, `ProductImportStatus` and `ProductImportRowStatus` enums (docs/BULK-UPLOAD.md) |
 | `add_page_seo_fields` | Nullable `seoTitle` and `metaDescription` on `categories`; the same two plus `ogImageId` on `policies` and `homepage_state` (docs/POLICY-CMS.md, docs/HOMEPAGE-CMS.md) |
 
 ---
@@ -146,10 +147,11 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
    variants without one are created, and variants left out are deleted. This
    keeps a variant's identity stable for the cart and orders later. A deleted
    variant disappears from every cart that held it, without a notice; archive
-   the product instead and carts flag the line as unavailable. A variant that
-   has a release allocation can't be removed, and its product can't be deleted
-   for good from Trash, until it is taken out of the release (409,
-   [RELEASES.md](RELEASES.md) §6).
+   the product instead and carts flag the line as unavailable. A variant still
+   needed by a release can't be removed, and its product can't be deleted for
+   good from Trash, until it is taken out of the release (409,
+   [RELEASES.md](RELEASES.md) §6). Allocations with no units, or on a
+   completed release with nothing held, sold or returned, are removed with it.
 4. **Images and specs are replaced on save.** An image dropped from a product
    releases its `MediaAsset` once nothing else uses it.
 5. **Publishing needs at least one image** (409 otherwise).
@@ -190,6 +192,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
     `catalogue.inventory` row; `gridFromLevels` ignores keys it does not know,
     so the row does nothing. Change log entries recorded under it keep the
     "Inventory" label through `RETIRED_MODULE_LABELS` in `src/lib/audit.ts`.
+
+### Bulk upload
+
+Products and variants can also be created or updated from a CSV file. See [BULK-UPLOAD.md](BULK-UPLOAD.md).
 
 ### Add-on rules
 
@@ -467,7 +473,7 @@ the admin picks the new colour on them.
 
 | Piece | File |
 | --- | --- |
-| Sitemap | `src/app/sitemap.ts`. Home, the shop, About, Support, every published policy page, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`) |
+| Sitemap | `src/app/sitemap.ts`. Home, the shop, About, Support, every published policy page, every category with published products, and up to `SITEMAP_PRODUCT_LIMIT` (1000) products, most recently updated first. A product whose canonical points to another page is left out (`isSelfCanonical`). Also `/releases` and up to `SITEMAP_RELEASE_LIMIT` (1000) release pages the storefront shows ([RELEASES.md](RELEASES.md) §12) |
 | Robots | `src/app/robots.ts`. Keeps `/admin`, `/api`, `/account`, `/cart`, `/checkout` and `/search` out, except `/api/v1/media/` so product images stay crawlable, and points to the sitemap |
 | Product JSON-LD | `productJsonLd` in `src/lib/seo.ts`, rendered on the product page |
 | Page title, description, canonical, Open Graph, Twitter card | `pageMetadata` in `src/lib/seo.ts`, called from each page's `metadata` or `generateMetadata` |
@@ -622,6 +628,7 @@ All in `src/lib/constants.ts`.
 | `MAX_WARRANTY_MONTHS` | 60 | Product warranty and an add-on's extra months |
 | `FEATURED_PRODUCTS_LIMIT` | 4 | Homepage shelf |
 | `SITEMAP_PRODUCT_LIMIT` | 1000 | Products in the sitemap |
+| `SITEMAP_RELEASE_LIMIT` | 1000 | Release pages in the sitemap |
 | `NAV_CATEGORY_LIMIT` | 8 | Categories in the header, menus and drawer |
 | `HOME_CATEGORY_LIMIT` | 4 | Categories in the home strip |
 | `STOREFRONT_CATEGORIES_REVALIDATE_SECONDS` | 300 | Longest the cached menu categories live |
@@ -654,8 +661,9 @@ All in `src/lib/constants.ts`.
    with `generateSitemaps`.
 5. **No product feed** (Google Merchant or Meta) is generated yet.
 6. **Drop links** in `src/lib/route-map.ts` point at the product slugs the
-   sample seed creates. If those products are deleted, the links fall back to a
-   404 until the drops have their own pages.
+   sample seed creates, for the menus still on mock `src/lib/drops.ts`. If those
+   products are deleted, the links fall back to a 404. Real releases have their
+   own pages at `/releases/[slug]`.
 7. **The sample catalogue** comes from `prisma/seed-catalogue.ts`, run through
    `npm run db:seed`. Staging has no products until it is run. Each sample
    product has one variant carrying its condition.

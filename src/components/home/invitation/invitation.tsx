@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
+import { buttonVariants } from "@/components/ui/button";
+import { RELEASES_PAGE_PATH } from "@/lib/constants";
 import { getNextDrop } from "@/lib/drops";
 import { headingLines } from "@/lib/homepage-sections";
 import type { PublishedSection } from "@/types/homepage";
@@ -30,7 +30,6 @@ const rise = {
  */
 export function Invitation({ section }: { section: PublishedSection }) {
   const nextDrop = getNextDrop();
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   const ledger = [
     { label: "Next release", value: nextDrop.drop.edition },
@@ -39,80 +38,62 @@ export function Invitation({ section }: { section: PublishedSection }) {
   ];
 
   return (
-    <>
-      <section
-        aria-labelledby="invitation-heading"
-        // The page's one dark band, and its last word. `theme-dark` inverts
-        // the palette tokens on this scope, so every child — ink, hairlines,
-        // the CTA — resolves from the dark palette with no hard-coded colour.
-        // Flat by intent: no wash, no glow, no gradient behind the statement.
-        //
-        // Carries the full rhythm on both sides: the section above closes on
-        // a flush-edge photograph with no bottom padding of its own.
-        className="theme-dark relative bg-void py-(--spacing-section-sm)"
+    <section
+      aria-labelledby="invitation-heading"
+      // The page's one dark band, and its last word. `theme-dark` inverts
+      // the palette tokens on this scope, so every child — ink, hairlines,
+      // the CTA — resolves from the dark palette with no hard-coded colour.
+      // Flat by intent: no wash, no glow, no gradient behind the statement.
+      //
+      // Carries the full rhythm on both sides: the section above closes on
+      // a flush-edge photograph with no bottom padding of its own.
+      className="theme-dark relative bg-void py-(--spacing-section-sm)"
+    >
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOnce}
+        variants={rise}
+        className="relative mx-auto w-full max-w-[110rem] px-(--spacing-gutter) text-center"
       >
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={rise}
-          className="relative mx-auto w-full max-w-[110rem] px-(--spacing-gutter) text-center"
+        <h2
+          id="invitation-heading"
+          className="mx-auto max-w-3xl font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
         >
-          <h2
-            id="invitation-heading"
-            className="mx-auto max-w-3xl font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.04] tracking-[-0.035em] text-ink"
-          >
-            {headingLines(section.title).map((line, index) => (
-              <span key={index} className="block">
-                {line}
-              </span>
-            ))}
-          </h2>
-          {section.subtitle && (
-            <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-secondary">
-              {section.subtitle}
-            </p>
-          )}
+          {headingLines(section.title).map((line, index) => (
+            <span key={index} className="block">
+              {line}
+            </span>
+          ))}
+        </h2>
+        {section.subtitle && (
+          <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-secondary">
+            {section.subtitle}
+          </p>
+        )}
 
-          {section.ctaLabel && (
-            <div className="mt-11 flex justify-center">
-              <Button
-                variant="accent"
-                size="lg"
-                onClick={() => setWaitlistOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={waitlistOpen}
-              >
-                {section.ctaLabel}
-              </Button>
+        {section.ctaLabel && (
+          <div className="mt-11 flex justify-center">
+            <Link href={RELEASES_PAGE_PATH} className={buttonVariants({ variant: "accent", size: "lg" })}>
+              {section.ctaLabel}
+            </Link>
+          </div>
+        )}
+
+        {/* The facts, set wide and quiet beneath the ask */}
+        <dl className="mx-auto mt-20 grid max-w-4xl grid-cols-1 gap-y-8 border-t border-line pt-10 sm:grid-cols-3 sm:gap-x-10">
+          {ledger.map((item) => (
+            <div key={item.label} className="text-center">
+              <dt className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-muted">
+                {item.label}
+              </dt>
+              <dd className="mt-3 text-lg font-medium tracking-[-0.01em] text-ink">
+                {item.value}
+              </dd>
             </div>
-          )}
-
-          {/* The facts, set wide and quiet beneath the ask */}
-          <dl className="mx-auto mt-20 grid max-w-4xl grid-cols-1 gap-y-8 border-t border-line pt-10 sm:grid-cols-3 sm:gap-x-10">
-            {ledger.map((item) => (
-              <div key={item.label} className="text-center">
-                <dt className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-muted">
-                  {item.label}
-                </dt>
-                <dd className="mt-3 text-lg font-medium tracking-[-0.01em] text-ink">
-                  {item.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </motion.div>
-      </section>
-
-      {/* Outside the dark band on purpose: the modal must look the same here
-          as it does opened from the header or the hero. */}
-      {/* Section CTA — general waitlist. The section is about "the next
-          one goes quickly too", not any specific device, so the modal
-          opens with device + variant selects rather than a preselect. */}
-      <WaitlistModal
-        open={waitlistOpen}
-        onClose={() => setWaitlistOpen(false)}
-      />
-    </>
+          ))}
+        </dl>
+      </motion.div>
+    </section>
   );
 }

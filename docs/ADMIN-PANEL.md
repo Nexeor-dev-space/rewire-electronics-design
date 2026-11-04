@@ -75,7 +75,8 @@ A declared route owns itself and everything beneath it. `/admin/orders` owns
 resolve with the parent's navigation row active and a correct breadcrumb trail,
 without being declared. When two routes both match, the longer one wins, which
 is how `/admin/products/upload-products` is its own module while living under
-`/admin/products`.
+`/admin/products`. Bulk Product Upload and its history are built; see
+[BULK-UPLOAD.md](BULK-UPLOAD.md).
 
 Three helpers cover everything:
 
@@ -212,8 +213,10 @@ described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 
 Sales → **Releases** (`/admin/releases`, `/admin/releases/[id]`,
 `sales.releases`). Limited drops with their own schedule, products, stock set
-aside per variant and a purchase limit. Statuses, what can change when, the
-allocation rules and the API are in [RELEASES.md](RELEASES.md).
+aside per variant and a purchase limit. A release's page also has its
+**Waitlist** panel, 50 people a page, with Export CSV. Statuses, what can
+change when, the allocation rules, the waitlists and the API are in
+[RELEASES.md](RELEASES.md).
 
 ## Reports
 
@@ -363,10 +366,13 @@ route is in `BUILT_ROUTES`.
 1. **The list** has search by name, status and type filters, sorting by created
    and start date, and pagination. The name opens the details page. The
    **Campaign types** button opens a dialog to add, rename and remove types.
-2. **The details page** shows the products and their discounts, the dates and
-   the URL, with Edit, Delete and the status buttons the campaign allows.
-3. **The form** saves a new campaign as a Draft; publishing happens on the
-   details page.
+2. **The details page** shows the content, the products and their discounts, the
+   dates and the URL, with Edit, Delete and the status buttons the campaign
+   allows.
+3. **The form** holds the details, the content (banner, promotional text and
+   images, button, linked release) and the products, with a Preview of the
+   content as typed. A new campaign is saved as a Draft or published straight
+   away. The edit page shows the status and its actions at the top.
 
 The rules, endpoints and data model are in [CAMPAIGNS.md](CAMPAIGNS.md).
 

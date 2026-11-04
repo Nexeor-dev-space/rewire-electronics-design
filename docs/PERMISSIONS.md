@@ -111,6 +111,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Module | Key | Actions | Levels offered |
 | --- | --- | --- | --- |
 | Products | `catalogue.products` | View, Create, Edit, Delete, Publish | all |
+| Bulk Product Upload | `catalogue.bulk-upload` | View, Create | all |
 | Categories | `catalogue.categories` | View, Create, Edit, Delete, Publish | all |
 | Brands | `catalogue.brands` | View, Create, Edit, Delete | all |
 | Add-ons | `catalogue.add-ons` | View, Create, Edit, Delete | all |
@@ -194,7 +195,8 @@ Publish through a form:
    without it. Editing text needs Edit.
 
 The image upload (`POST /api/v1/uploads/images`) is open to anyone with
-Create or Edit on Products, Categories, Brands or Homepage Builder.
+Create or Edit on Products, Categories, Brands, Homepage Builder, Content or
+Campaigns.
 
 **Accounts.** `accountModule(...roles)` picks the module for an account
 action: Customers when every role involved is Customer, otherwise Staff

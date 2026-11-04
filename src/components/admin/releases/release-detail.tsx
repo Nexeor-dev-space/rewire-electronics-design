@@ -42,6 +42,7 @@ import {
   type FieldErrors,
 } from "./release-form-modal";
 import { RELEASES_ADMIN_PATH, ReleaseBadges } from "./release-shared";
+import { ReleaseWaitlist } from "./release-waitlist";
 
 const NO_EDITS: ReleaseEdits = {
   text: false,
@@ -202,6 +203,9 @@ function ReleaseDetailBody({ release, access }: { release: AdminReleaseDetail; a
           hint={`Units of each variant set aside for this release. Up to ${RELEASE_ALLOCATIONS_MAX} variants.`}
         >
           <AllocationsPanel release={release} canEdit={access.edit} />
+        </Panel>
+        <Panel title="Waitlist" hint="Everyone who joined this release, oldest first.">
+          <ReleaseWaitlist release={release} />
         </Panel>
       </div>
 

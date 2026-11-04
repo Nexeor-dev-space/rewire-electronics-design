@@ -4,10 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { headingLines } from "@/lib/homepage-sections";
-import type { PublishedDrop, PublishedSection } from "@/types/homepage";
-import { resolveWaitlistPreselect } from "@/lib/waitlist";
+import type { PublishedSection } from "@/types/homepage";
 import { buttonVariants } from "@/components/ui/button";
-import { WaitlistModal } from "@/components/home/hero/waitlist-modal";
+import { WaitlistModal, type WaitlistRelease } from "@/components/home/hero/waitlist-modal";
 import { DropCard } from "./drop-card";
 import { cn } from "@/lib/utils";
 import {
@@ -37,24 +36,16 @@ const lineClip = {
  * The release calendar, read as a shopping decision: an oversized
  * statement, then plates that each answer what it is, what it costs, what
  * that saves, whether any are left, and what to do — with nothing
- * important hidden behind a hover. The drops are the section's items in
- * Homepage Builder; their products, pictures and stock are the catalogue's.
+ * important hidden behind a hover. The cards are the visible releases from
+ * Sales → Releases, soonest first.
  *
  * The unbuyable states (upcoming, sold out) share one waitlist dialog
  * owned here rather than one per card, so four cards cannot mount four
- * modals. The dialog still opens *for the card that was clicked*: state
- * holds the drop itself rather than a bare boolean, and its name +
- * variant resolve to the waitlist catalogue's `preselect` pair so the
- * modal opens straight to email/phone instead of asking the shopper to
- * pick, from a dropdown, the exact device they just clicked "Join
- * Waitlist" on.
+ * modals. The dialog still opens *for the card that was clicked*.
  */
 export function UpcomingDrops({ section }: { section: PublishedSection }) {
   const { drops } = section;
-  const [waitlistDrop, setWaitlistDrop] = useState<PublishedDrop | null>(null);
-  const preselect = waitlistDrop
-    ? resolveWaitlistPreselect(waitlistDrop.name, waitlistDrop.variant ?? "")
-    : undefined;
+  const [waitlistRelease, setWaitlistRelease] = useState<WaitlistRelease | null>(null);
 
   return (
     <section
@@ -101,7 +92,7 @@ export function UpcomingDrops({ section }: { section: PublishedSection }) {
                 </span>
               </>
             )}
-            {String(drops.length).padStart(2, "0")} devices
+            {String(drops.length).padStart(2, "0")} {drops.length === 1 ? "release" : "releases"}
           </motion.p>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-6">
@@ -156,7 +147,7 @@ export function UpcomingDrops({ section }: { section: PublishedSection }) {
               <DropCard
                 drop={drop}
                 priority={i === 0}
-                onJoinWaitlist={() => setWaitlistDrop(drop)}
+                onJoinWaitlist={() => setWaitlistRelease({ slug: drop.releaseSlug, title: drop.name })}
               />
             </motion.li>
           ))}
@@ -197,17 +188,7 @@ export function UpcomingDrops({ section }: { section: PublishedSection }) {
         )}
       </div>
 
-      {/* Section-shared modal, per-card content: `preselect` is derived
-          from whichever drop set `waitlistDrop`, so the dialog always
-          matches the card that opened it. `undefined` only if a future
-          catalogue entry drifts out of sync with `lib/waitlist.ts` (see
-          `resolveWaitlistPreselect`) — the modal degrades to its general
-          form rather than preselecting the wrong device. */}
-      <WaitlistModal
-        open={!!waitlistDrop}
-        onClose={() => setWaitlistDrop(null)}
-        preselect={preselect}
-      />
+      <WaitlistModal release={waitlistRelease} onClose={() => setWaitlistRelease(null)} />
     </section>
   );
 }

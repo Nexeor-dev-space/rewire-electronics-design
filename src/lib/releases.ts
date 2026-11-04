@@ -1,4 +1,4 @@
-import { RELEASE_EARLY_END_OPENING_SHIFT_MS } from "./constants";
+import { RELEASE_EARLY_END_OPENING_SHIFT_MS, RELEASES_PAGE_PATH } from "./constants";
 
 export const RELEASE_STATUSES = ["DRAFT", "UPCOMING", "LIVE", "SOLD_OUT", "COMPLETED"] as const;
 
@@ -103,6 +103,18 @@ export function canDeleteRelease(status: ReleaseStatus): boolean {
   return DELETABLE_STATUSES.includes(status);
 }
 
+export interface AllocationUnits {
+  allocated: number;
+  reserved: number;
+  sold: number;
+  returned: number;
+}
+
+export function canDropAllocation(units: AllocationUnits, release: ReleaseTimeline, now: Date): boolean {
+  if (units.reserved + units.sold + units.returned > 0) return false;
+  return units.allocated === 0 || releaseStatus(release, 0, now) === "COMPLETED";
+}
+
 export interface PublishCheck {
   startsAt: Date;
   endsAt: Date | null;
@@ -117,6 +129,10 @@ export function publishBlocker(release: PublishCheck, now: Date): string | null 
   if (release.endsAt <= now) return "The end time has passed. Set a later one before publishing.";
   if (release.maxPerCustomer < 1) return "Allow each customer at least one unit.";
   return null;
+}
+
+export function releaseHref(slug: string): string {
+  return `${RELEASES_PAGE_PATH}/${slug}`;
 }
 
 export function endedWindow(startsAt: Date, now: Date): { startsAt: Date; endsAt: Date } {

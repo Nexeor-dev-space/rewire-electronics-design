@@ -449,7 +449,8 @@ built so its four cards show four different availability states.
 Re-casting two of them means inventing product names, prices and
 photography, which is a content decision rather than a navigation
 cleanup. Raise it as its own change if the calendar should show only
-primary families.
+primary families. Real releases now have their own pages (§12); the
+homepage's Upcoming drops reads them, the menus still read this mock.
 
 ### The footer
 
@@ -683,3 +684,33 @@ have no chrome at all (§9.1).
    section 7).
 9. Showing the brand somewhere new? Use `Logo` from
    `components/layout/logo.tsx`, never text (§11.3).
+
+---
+
+## 12. Release pages and waitlist links (#117)
+
+Releases have real storefront pages. What they show and the waitlist rules
+are in [RELEASES.md](RELEASES.md) §12.
+
+| Route | File | Role |
+|---|---|---|
+| `/releases` | `src/app/(site)/releases/page.tsx` | Every release the storefront shows, earliest opening first. Noindex when `page` or `pageSize` is in the URL |
+| `/releases/[slug]` | `src/app/(site)/releases/[slug]/page.tsx` | One release; 404 when it isn't shown |
+| `/waitlist/confirm` | `src/app/(site)/waitlist/confirm/page.tsx` | The link in the confirm email. Noindex |
+| `/waitlist/leave` | `src/app/(site)/waitlist/leave/page.tsx` | The leave link. Noindex |
+
+The path is `RELEASES_PAGE_PATH` and one release's is `releaseHref(slug)`
+(`src/lib/releases.ts`), never a typed string.
+
+Links that now go to `/releases`:
+
+1. `upcomingDropsLink`, the drawer's Upcoming Drops heading and "View all
+   upcoming drops" (`src/lib/navigation.ts`).
+2. The Drops mega panel's "View Upcoming Drops" and "Join Waitlist"
+   (`src/components/layout/mega-panels.tsx`). The header, category bar and
+   mega menu no longer pass a do nothing `onJoinWaitlist` down.
+3. The footer's "Live Drops" (`src/lib/site.ts`).
+4. The Invitation's button (`src/components/home/invitation/invitation.tsx`).
+
+The mega panel's and the drawer's drop lists themselves still read mock
+`src/lib/drops.ts` (§8); wiring them to releases is a follow up.

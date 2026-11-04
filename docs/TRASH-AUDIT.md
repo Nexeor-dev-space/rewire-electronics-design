@@ -85,6 +85,8 @@ enum PermissionAction { VIEW CREATE EDIT DELETE PUBLISH RESTORE }
 3. Entries are kept forever and are never edited or deleted from the
    console. Updates store only the fields that changed, so rows stay small.
 
+Bulk Product Upload writes one entry per import under its own module, and one Created or Updated entry per product it saves under Products ([BULK-UPLOAD.md](BULK-UPLOAD.md)).
+
 Migration: one, adding `audit_logs`, `products.deletedAt` and the `RESTORE`
 value (run by the developer with `npm run db:migrate -- --name add_audit_log_and_trash`).
 

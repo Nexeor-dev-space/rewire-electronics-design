@@ -68,6 +68,20 @@ The standalone folder leaves out `public/` and `.next/static/`, so the
 Tracing only finds imported files. A file the server reads from disk at
 runtime must be added with `outputFileTracingIncludes` in `next.config.ts`.
 
+### Build memory
+
+The `build` stage sets `NODE_OPTIONS=--max-old-space-size=2048`. Without it the
+build failed on Coolify with `JavaScript heap out of memory` at about 768 MB.
+Type checking the project alone uses about 785 to 935 MB.
+
+1. The value is a ceiling, not a reservation. The build only uses what it needs.
+2. It applies to the `build` stage only and does not reach the runtime image.
+3. Next removes this flag from its static page workers, so it only raises the
+   limit for the main build process and the type checking worker. If the heap
+   error returns after this, look at the static page workers first.
+4. If the build is killed with exit code `137` instead of a heap error, the
+   server itself ran out of memory, and a higher value will not help.
+
 ### Runtime settings
 
 | Variable | Value | Why |

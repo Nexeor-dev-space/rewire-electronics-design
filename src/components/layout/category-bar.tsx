@@ -317,7 +317,6 @@ function MegaMenuItem({
             id={menuId}
             labelledBy={triggerId}
             onPointerEnter={onHover}
-            onJoinWaitlist={() => {}}
           />
         )}
       </AnimatePresence>

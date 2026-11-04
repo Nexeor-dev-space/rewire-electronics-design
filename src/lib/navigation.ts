@@ -1,4 +1,4 @@
-import { ABOUT_PAGE_PATH } from "@/lib/constants";
+import { ABOUT_PAGE_PATH, RELEASES_PAGE_PATH } from "@/lib/constants";
 import type { StorefrontCategory } from "@/types/catalogue";
 import { getUpcomingDrops } from "./drops";
 import {
@@ -92,7 +92,7 @@ export function categoryNavIsActive(pathname: string, slug: string): boolean {
 
 export const upcomingDropsLink = {
   label: "Upcoming Drops",
-  href: SHOP_INDEX_HREF,
+  href: RELEASES_PAGE_PATH,
   live: true,
 };
 
@@ -153,12 +153,12 @@ export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSec
 
   return [
     {
-      label: "Upcoming Drops",
-      href: SHOP_INDEX_HREF,
+      label: upcomingDropsLink.label,
+      href: upcomingDropsLink.href,
       badge: "live",
       items: [
         ...drops,
-        { label: "View all upcoming drops", href: SHOP_INDEX_HREF },
+        { label: "View all upcoming drops", href: RELEASES_PAGE_PATH },
       ],
     },
     ...categories,

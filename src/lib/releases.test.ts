@@ -3,6 +3,7 @@ import {
   allowedEdits,
   canChangeState,
   canDeleteRelease,
+  canDropAllocation,
   endedWindow,
   publishBlocker,
   releaseStatus,
@@ -84,6 +85,32 @@ describe("state changes and delete", () => {
     expect(canDeleteRelease("UPCOMING")).toBe(true);
     expect(canDeleteRelease("LIVE")).toBe(false);
     expect(canDeleteRelease("COMPLETED")).toBe(false);
+  });
+});
+
+describe("canDropAllocation", () => {
+  const empty = { allocated: 0, reserved: 0, sold: 0, returned: 0 };
+  const draft = { ...published, publishedAt: null };
+  const completed = { ...published, endsAt: PAST, startsAt: new Date("2026-10-01T10:00:00Z") };
+
+  it("drops a zero unit row on any release", () => {
+    expect(canDropAllocation(empty, draft, NOW)).toBe(true);
+    expect(canDropAllocation(empty, published, NOW)).toBe(true);
+  });
+
+  it("drops unsold units of a completed release", () => {
+    expect(canDropAllocation({ ...empty, allocated: 4 }, completed, NOW)).toBe(true);
+  });
+
+  it("keeps a row with held, sold or returned units", () => {
+    expect(canDropAllocation({ ...empty, allocated: 4, sold: 1 }, completed, NOW)).toBe(false);
+    expect(canDropAllocation({ ...empty, allocated: 4, reserved: 1 }, completed, NOW)).toBe(false);
+    expect(canDropAllocation({ ...empty, allocated: 4, returned: 1 }, completed, NOW)).toBe(false);
+  });
+
+  it("keeps units on a release that hasn't completed", () => {
+    expect(canDropAllocation({ ...empty, allocated: 4 }, published, NOW)).toBe(false);
+    expect(canDropAllocation({ ...empty, allocated: 4 }, draft, NOW)).toBe(false);
   });
 });
 
