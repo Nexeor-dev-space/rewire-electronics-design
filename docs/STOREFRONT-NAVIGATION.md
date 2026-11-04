@@ -621,3 +621,34 @@ Links that now go to `/releases`:
 
 The mega panel's and the drawer's drop lists themselves still read mock
 `src/lib/drops.ts` (§8); wiring them to releases is a follow up.
+
+---
+
+## 13. Logo, footer, category popup and mobile cart (#122)
+
+### 13.1 One logo
+
+`Logo` (`src/components/layout/logo.tsx`) is the only place the Rewire
+wordmark is drawn: `REWIRE` with the accent full stop, and a small mono
+caption under it. It renders its own link home.
+
+| Where | Caption |
+|---|---|
+| `Header` | Electronics (default) |
+| `CheckoutHeader` | Checkout |
+| `Footer` | Electronics (default) |
+
+Before this the footer drew its own lowercase `Rewire.` in a different size
+and tracking, so the brand looked different at the top and bottom of every
+page. To change the mark, change `Logo`; never copy its markup.
+
+### 13.2 One footer
+
+`Footer` (`src/components/layout/footer.tsx`) is rendered once, by the
+`(site)` layout, so every storefront page shares it. Pages never render their
+own footer. Checkout and the auth pages keep their reduced chrome on purpose
+(`TrustFooter` on checkout, nothing on auth).
+
+The footer grid is two link columns side by side on phones with the brand
+block above them, and the twelve column row from `md`. The large ghost word
+at the foot is uppercase to match the logo and stays `aria-hidden`.
