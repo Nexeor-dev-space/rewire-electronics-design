@@ -20,6 +20,8 @@ COPY . .
 # Required while collecting page data; set as a build variable in Coolify.
 ARG DATABASE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+# Type checking runs out of memory on the default heap. See docs/DEPLOYMENT.md.
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 # ---- runtime ----

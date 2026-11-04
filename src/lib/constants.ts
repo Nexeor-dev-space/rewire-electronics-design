@@ -53,6 +53,10 @@ export const CAMPAIGN_NAME_MAX_LENGTH = 120;
 export const CAMPAIGN_DESCRIPTION_MAX_LENGTH = 1000;
 export const CAMPAIGN_SLUG_MAX_LENGTH = 140;
 export const CAMPAIGN_TYPE_NAME_MAX_LENGTH = 60;
+export const CAMPAIGN_CONTENT_MAX_LENGTH = 5000;
+export const CAMPAIGN_CTA_LABEL_MAX_LENGTH = 40;
+export const CAMPAIGN_CTA_HREF_MAX_LENGTH = 300;
+export const MAX_CAMPAIGN_IMAGES = 6;
 export const MAX_CAMPAIGN_PRODUCTS = 50;
 /** Caps the types so the type dropdown is one bounded query. */
 export const MAX_CAMPAIGN_TYPES = 50;

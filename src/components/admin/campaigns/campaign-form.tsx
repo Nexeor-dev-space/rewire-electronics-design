@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { z } from "zod";
+import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
 import { Section } from "@/components/admin/shared/detail-section";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
@@ -14,10 +16,13 @@ import {
   useCreateCampaign,
   useGetCampaign,
   useGetCampaignTypes,
+  useSetCampaignStatus,
   useUpdateCampaign,
 } from "@/hooks/use-campaign";
 import { useGetProducts } from "@/hooks/use-product";
+import { useGetReleases } from "@/hooks/use-release";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   ADMIN_CAMPAIGNS_PATH,
   CAMPAIGN_DESCRIPTION_MAX_LENGTH,
@@ -33,11 +38,16 @@ import type { CouponType } from "@/lib/pricing/types";
 import { slugify } from "@/lib/utils";
 import type { AdminCampaign } from "@/types/campaign";
 import { campaignSchema } from "@/validators/campaign.validator";
+import { CampaignContent } from "./campaign-content";
+import { CampaignContentFields, type CampaignContentDraft } from "./campaign-content-fields";
 import { CampaignDetailError, CampaignDetailSkeleton } from "./campaign-detail";
 import { campaignHref } from "./campaign-management";
+import { CampaignStatusActions } from "./campaign-status-actions";
+import { CampaignStatusBadge } from "./campaign-status-badge";
 
 const DATE_REQUIRED = "Enter a date and time.";
 const DISCOUNT_REQUIRED = "Enter a discount for every product.";
+const PRODUCTS_REQUIRED = "Add at least one product before publishing.";
 
 interface ProductRow {
   id: string;
@@ -49,7 +59,7 @@ interface ProductRow {
 
 export function CampaignFormPage() {
   return (
-    <AdminPage title="New campaign" description="Saved as a draft. Publish it from its details page.">
+    <AdminPage title="New campaign" description="Save it as a draft, or publish it straight away.">
       <CampaignForm />
     </AdminPage>
   );
@@ -100,6 +110,19 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
         product.discountType === "PERCENT" ? String(product.discountValue) : fromMinorUnits(product.discountValue),
     })),
   );
+  const [contentDraft, setContentDraft] = useState<CampaignContentDraft>({
+    content: initial?.content ?? "",
+    bannerImageId: initial?.bannerImageId ?? null,
+    bannerImageUrl: initial?.bannerImageUrl ?? null,
+    images: initial?.images ?? [],
+    ctaLabel: initial?.ctaLabel ?? "",
+    ctaHref: initial?.ctaHref ?? "",
+    releaseId: initial?.release?.id ?? "",
+  });
+  /** Set once a new campaign is saved, so publishing again after a failure updates that draft. */
+  const [savedId, setSavedId] = useState(initial?.id ?? null);
+  const [publishing, setPublishing] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [productSearchInput, setProductSearchInput] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -111,9 +134,20 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
 
   const types = useGetCampaignTypes();
   const products = useGetProducts({ pageSize: PICKER_PAGE_SIZE, search: productSearch || undefined });
+  const releases = useGetReleases({ pageSize: PICKER_PAGE_SIZE });
+  const access = useModuleAccess(PERMISSIONS.campaigns);
   const createCampaign = useCreateCampaign();
   const updateCampaign = useUpdateCampaign();
-  const mutation = initial ? updateCampaign : createCampaign;
+  const setStatus = useSetCampaignStatus();
+  const mutation = savedId ? updateCampaign : createCampaign;
+  const busy = mutation.isPending || setStatus.isPending;
+
+  // The picker holds the newest releases, so an older linked one is added to stay selectable.
+  const releaseItems = releases.data?.items ?? [];
+  const releaseOptions =
+    initial?.release && !releaseItems.some((release) => release.id === initial.release?.id)
+      ? [initial.release, ...releaseItems]
+      : releaseItems;
 
   function changeName(value: string) {
     setName(value);
@@ -121,6 +155,7 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
   }
 
   function toggleProduct(productId: string, productName: string, checked: boolean) {
+    setErrors((current) => ({ ...current, products: undefined }));
     setRows((current) =>
       checked
         ? [...current, { id: productId, name: productName, discountType: "PERCENT", discountValue: "" }]
@@ -132,9 +167,7 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
     setRows((current) => current.map((row) => (row.id === productId ? { ...row, ...change } : row)));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  function save(publish: boolean) {
     const discounts = rows.map((row) =>
       row.discountType === "PERCENT" ? Number(row.discountValue || NaN) : toMinorUnits(row.discountValue),
     );
@@ -154,6 +187,12 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
         discountType: row.discountType,
         discountValue: discounts[index] ?? 0,
       })),
+      content: contentDraft.content,
+      bannerImageId: contentDraft.bannerImageId,
+      imageIds: contentDraft.images.map((image) => image.mediaId),
+      ctaLabel: contentDraft.ctaLabel,
+      ctaHref: contentDraft.ctaHref,
+      releaseId: contentDraft.releaseId || null,
     });
 
     const localErrors: Record<string, string[] | undefined> = parsed.success
@@ -163,19 +202,40 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
     if (!endIso) localErrors.endsAt = [DATE_REQUIRED];
     if (!typeId) localErrors.typeId = ["Choose a campaign type."];
     if (!discountsValid) localErrors.products = [DISCOUNT_REQUIRED];
-    if (!parsed.success || !discountsValid) {
+    if (publish && rows.length === 0) localErrors.products = [PRODUCTS_REQUIRED];
+    if (!parsed.success || !discountsValid || (publish && rows.length === 0)) {
       setErrors(localErrors);
       return;
     }
 
     setErrors({});
+    setPublishing(publish);
+    setStatus.reset();
     const callbacks = {
-      onSuccess: (saved: AdminCampaign) => router.push(campaignHref(saved.id)),
+      onSuccess: (saved: AdminCampaign) => {
+        setSavedId(saved.id);
+        if (!publish) {
+          router.push(campaignHref(saved.id));
+          return;
+        }
+        setStatus.mutate(
+          { id: saved.id, action: "PUBLISH" },
+          {
+            onSuccess: () => router.push(campaignHref(saved.id)),
+            onError: (error) => setErrors(apiFieldErrors(error)),
+          },
+        );
+      },
       onError: (error: Error) => setErrors(apiFieldErrors(error)),
     };
 
-    if (initial) updateCampaign.mutate({ id: initial.id, ...parsed.data }, callbacks);
+    if (savedId) updateCampaign.mutate({ id: savedId, ...parsed.data }, callbacks);
     else createCampaign.mutate(parsed.data, callbacks);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    save(false);
   }
 
   const error = (field: string) => errors[field]?.[0];
@@ -185,6 +245,19 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+      {initial && (
+        <Section title="Status">
+          <div className="flex flex-wrap items-center gap-3">
+            <CampaignStatusBadge status={initial.status} />
+            <CampaignStatusActions campaign={initial} />
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            These actions use the last saved details, so save your changes first. Scheduled, Active and Completed
+            follow the dates.
+          </p>
+        </Section>
+      )}
+
       <Section title="Campaign details">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field id={`${id}-name`} label="Campaign name" error={error("name")}>
@@ -286,6 +359,14 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
         </div>
       </Section>
 
+      <CampaignContentFields
+        draft={contentDraft}
+        setDraft={setContentDraft}
+        releases={releaseOptions}
+        releasesError={releases.isError ? releases.error.message : undefined}
+        error={error}
+      />
+
       <Section title="Products and discounts">
         <p className="text-sm text-ink-secondary">
           Each discount applies to all of that product&apos;s variants. While the campaign runs, discount codes
@@ -356,8 +437,16 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
       </Section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="sm" loading={mutation.isPending}>
+        <Button type="submit" size="sm" loading={busy && !publishing} disabled={busy}>
           {initial ? "Save changes" : "Save as draft"}
+        </Button>
+        {!initial && access.publish && (
+          <Button type="button" size="sm" loading={busy && publishing} disabled={busy} onClick={() => save(true)}>
+            Publish
+          </Button>
+        )}
+        <Button type="button" variant="outline" size="sm" onClick={() => setPreviewing(true)}>
+          Preview
         </Button>
         <Link
           href={initial ? campaignHref(initial.id) : ADMIN_CAMPAIGNS_PATH}
@@ -370,7 +459,43 @@ function CampaignForm({ initial }: { initial?: AdminCampaign }) {
             {mutation.error.message}
           </p>
         )}
+        {setStatus.isError && (
+          <p role="alert" className="w-full text-sm text-danger">
+            Saved as a draft, but not published. {setStatus.error.message}
+          </p>
+        )}
       </div>
+
+      <Dialog
+        open={previewing}
+        onClose={() => setPreviewing(false)}
+        title={name.trim() || "Untitled campaign"}
+        description="A preview of the content as typed. The shopper page comes with a later update."
+      >
+        <DialogBody>
+          <CampaignContent
+            description={description.trim()}
+            content={contentDraft.content.trim()}
+            bannerUrl={contentDraft.bannerImageUrl}
+            imageUrls={contentDraft.images.map((image) => image.url)}
+            ctaLabel={contentDraft.ctaLabel.trim() || null}
+            ctaHref={contentDraft.ctaHref.trim() || null}
+            releaseTitle={
+              releaseOptions.find((release) => release.id === contentDraft.releaseId)?.title ?? null
+            }
+          />
+          {rows.length > 0 && (
+            <p className="mt-4 text-sm text-ink-secondary">
+              Products: {rows.map((row) => row.name).join(", ")}
+            </p>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button type="button" variant="outline" size="sm" onClick={() => setPreviewing(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </form>
   );
 }

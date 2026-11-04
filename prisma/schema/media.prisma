@@ -16,6 +16,8 @@ model MediaAsset {
   orderItems             OrderItem[]
   policyOgImages         Policy[]
   homepageOgImages       HomepageState[]
+  campaignBanners        Campaign[]
+  campaignImages         CampaignImage[]
 
   @@map("media_assets")
 }
