@@ -85,6 +85,7 @@ Rules the model encodes:
 | `add_category_cms_fields` | `CategoryStatus` enum; `description`, `status` (default `PUBLISHED`), `showInNav` (default true) and `sortOrder` (default 0) on `categories` |
 | `move_condition_to_variants` | Adds `condition`, `grade` and `batteryHealth` to `product_variants`, copies each product's values onto its variants, then drops the three columns from `products` |
 | `add_product_add_ons_and_warranty` | `product_add_ons` table; `extraWarrantyMonths` (default 0) on `add_ons`; order line serial and warranty dates (docs/ORDERS.md) |
+| `add_product_import` | `product_imports` and `product_import_rows`, with the `ProductImportMode`, `ProductImportStatus` and `ProductImportRowStatus` enums (docs/BULK-UPLOAD.md) |
 | `add_page_seo_fields` | Nullable `seoTitle` and `metaDescription` on `categories`; the same two plus `ogImageId` on `policies` and `homepage_state` (docs/POLICY-CMS.md, docs/HOMEPAGE-CMS.md) |
 
 ---
@@ -191,6 +192,10 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
     `catalogue.inventory` row; `gridFromLevels` ignores keys it does not know,
     so the row does nothing. Change log entries recorded under it keep the
     "Inventory" label through `RETIRED_MODULE_LABELS` in `src/lib/audit.ts`.
+
+### Bulk upload
+
+Products and variants can also be created or updated from a CSV file. See [BULK-UPLOAD.md](BULK-UPLOAD.md).
 
 ### Add-on rules
 

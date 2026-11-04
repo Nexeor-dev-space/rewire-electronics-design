@@ -193,3 +193,20 @@ export const NEXT_PATH_MAX_LENGTH = 512;
 export const HOMEPAGE_DROPS_LIMIT = 5;
 export const SITEMAP_RELEASE_LIMIT = 1000;
 export const ADMIN_RELEASES_PATH = "/admin/releases";
+
+/** Bulk product upload limits; see docs/BULK-UPLOAD.md. */
+export const PRODUCT_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+export const PRODUCT_IMPORT_MAX_ROWS = 500;
+export const PRODUCT_IMPORT_MAX_CELL_LENGTH = 5000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_TIMEOUT_MS = 3_000;
+export const PRODUCT_IMPORT_IMAGE_CHECK_CONCURRENCY = 8;
+/** Products an import saves per request, and how long one image download may take. */
+export const PRODUCT_IMPORT_BATCH_SIZE = 20;
+/** Distinct image addresses in one file; each is checked and downloaded, so the file is capped. */
+export const PRODUCT_IMPORT_MAX_IMAGES = 100;
+/** A claimed row older than this was left by a request that died, and is picked up again. */
+export const PRODUCT_IMPORT_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+/** Batches in a row that save nothing before the screen gives up asking. */
+export const PRODUCT_IMPORT_MAX_STALLED_CALLS = 3;
+export const PRODUCT_IMPORT_IMAGE_FETCH_TIMEOUT_MS = 10_000;
+export const ADMIN_PRODUCT_IMPORT_HISTORY_PATH = "/admin/products/upload-history";

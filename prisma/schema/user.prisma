@@ -52,6 +52,7 @@ model User {
 
   staffRoleUpdates StaffRole[] @relation("StaffRoleUpdatedBy")
   auditLogs        AuditLog[]
+  productImports   ProductImport[]
 
   @@index([state, updatedAt])
   @@index([staffRoleId])

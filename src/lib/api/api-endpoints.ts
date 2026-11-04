@@ -38,6 +38,14 @@ export const API_ENDPOINTS = {
       detail: (id: string) => `${V1}/admin/products/${id}`,
       status: (id: string) => `${V1}/admin/products/${id}/status`,
     },
+    productImports: {
+      list: `${V1}/admin/product-imports`,
+      validate: `${V1}/admin/product-imports/validate`,
+      detail: (id: string) => `${V1}/admin/product-imports/${id}`,
+      rows: (id: string) => `${V1}/admin/product-imports/${id}/rows`,
+      process: (id: string) => `${V1}/admin/product-imports/${id}/process`,
+      errors: (id: string) => `${V1}/admin/product-imports/${id}/errors`,
+    },
     addOns: {
       list: `${V1}/admin/add-ons`,
       detail: (id: string) => `${V1}/admin/add-ons/${id}`,
