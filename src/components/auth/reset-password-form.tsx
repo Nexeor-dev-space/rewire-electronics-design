@@ -3,6 +3,7 @@
 import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { z } from "zod";
+import { LogoMark } from "@/components/layout/logo-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
@@ -92,9 +93,7 @@ export function ResetPasswordForm({ token }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
+      <LogoMark className="mx-auto h-10" />
 
       <form
         onSubmit={handleSubmit}

@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { LogoMark } from "@/components/layout/logo-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
@@ -11,7 +12,6 @@ import { useSignUp } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PASSWORD_MIN_LENGTH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { siteConfig } from "@/lib/site";
 import { signUpSchema } from "@/validators/auth.validator";
 
 interface Props {
@@ -67,9 +67,7 @@ export function RegisterForm({ next }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
+      <LogoMark className="mx-auto h-10" />
 
       <form
         onSubmit={handleSubmit}

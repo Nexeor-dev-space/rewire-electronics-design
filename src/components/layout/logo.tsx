@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { LogoMark } from "./logo-mark";
 
 /**
- * Logo — the Rewire wordmark, linked home.
+ * Logo — the Rewire logo, linked home.
  *
- * The one source of the brand mark: the header, the checkout header and the
- * footer all render this, so its proportions, colour and spacing can never
- * drift between pages. `caption` is the small mono line under the mark —
- * "Electronics" by default, "Checkout" in the checkout's reduced chrome.
+ * `variant="mark"` (the default) is the logo artwork, `LogoMark`, used by
+ * the header, the checkout header and the invoice. `variant="text"` is the
+ * typeset wordmark the footer keeps on purpose. Either way this is the one
+ * place the brand is drawn, so it can never drift between pages.
  */
 export function Logo({
-  caption = "Electronics",
+  variant = "mark",
   className,
 }: {
-  caption?: string;
+  variant?: "mark" | "text";
   className?: string;
 }) {
   return (
@@ -26,12 +27,18 @@ export function Logo({
         className,
       )}
     >
-      <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
-        REWIRE<span className="text-accent">.</span>
-      </span>
-      <span className="mt-1 hidden font-mono text-[0.75rem] uppercase leading-none tracking-[0.42em] text-ink-muted sm:block">
-        {caption}
-      </span>
+      {variant === "mark" ? (
+        <LogoMark className="h-8 md:h-9" />
+      ) : (
+        <>
+          <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
+            REWIRE<span className="text-accent">.</span>
+          </span>
+          <span className="mt-1 hidden font-mono text-[0.75rem] uppercase leading-none tracking-[0.42em] text-ink-muted sm:block">
+            Electronics
+          </span>
+        </>
+      )}
     </Link>
   );
 }

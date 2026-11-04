@@ -12,7 +12,7 @@ export function Footer() {
             them; the full twelve column row from `md`. */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-12">
           <div className="col-span-2 md:col-span-5">
-            <Logo />
+            <Logo variant="text" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
               {siteConfig.tagline}
             </p>

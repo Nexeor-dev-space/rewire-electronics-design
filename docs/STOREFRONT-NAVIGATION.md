@@ -628,19 +628,27 @@ The mega panel's and the drawer's drop lists themselves still read mock
 
 ### 13.1 One logo
 
-`Logo` (`src/components/layout/logo.tsx`) is the only place the Rewire
-wordmark is drawn: `REWIRE` with the accent full stop, and a small mono
-caption under it. It renders its own link home.
+The company logo is `LogoMark` (`src/components/layout/logo-mark.tsx`): an
+inline SVG of REWIRE with a square full stop over ELECTRONICS, redrawn from the
+supplied artwork. It is transparent and coloured with theme tokens
+(`fill-ink` for REWIRE, `fill-ink-muted` for ELECTRONICS, `fill-accent` for
+the full stop), so the same mark is white lettering on dark grounds and black
+lettering on light ones. Size it with a height class.
 
-| Where | Caption |
+`Logo` (`src/components/layout/logo.tsx`) wraps it in a link home.
+`variant="text"` instead draws the typeset wordmark, which only the footer
+uses.
+
+| Where | What |
 |---|---|
-| `Header` | Electronics (default) |
-| `CheckoutHeader` | Checkout |
-| `Footer` | Electronics (default) |
+| `Header`, `CheckoutHeader` | `<Logo />` |
+| Tax invoice (`OrderInvoice`) | `<Logo />` on the light sheet, so black lettering |
+| Sign in, register, forgot and reset password, verify email | `LogoMark` above the card |
+| Admin console rail head and mobile bar | `LogoMark` beside the "Admin" label; follows the admin light or dark theme |
+| `Footer` | `<Logo variant="text" />`, kept as text on purpose |
 
-Before this the footer drew its own lowercase `Rewire.` in a different size
-and tracking, so the brand looked different at the top and bottom of every
-page. To change the mark, change `Logo`; never copy its markup.
+To change the logo, change `LogoMark`; never copy its markup or add an image
+file of it.
 
 ### 13.2 One footer
 
