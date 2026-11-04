@@ -20,7 +20,8 @@ import { Logo } from "./logo";
  * Header — the site's persistent chrome, two levels deep.
  *
  * Row 1 (all widths): logo · centered search · account · cart
- *   Below `md` the mobile bar folds: hamburger · logo · search icon · cart.
+ *   Below `md` the mobile bar folds: hamburger · logo · search icon.
+ *   Below `lg` the cart moves to the bottom tab bar (`MobileTabBar`).
  *   The hamburger itself stays to `lg`, because the category rail only
  *   appears from `lg` — tablets reach navigation through `MobileDrawer`.
  * Row 2 (from `lg`): the category rail (`CategoryBar`) — real e-commerce
@@ -195,7 +196,8 @@ export function Header() {
               <div className="hidden md:block">
                 <AccountMenu />
               </div>
-              <CartButton />
+              {/* Below `lg` the cart sits in the bottom tab bar instead. */}
+              <CartButton className="hidden lg:flex" />
             </div>
           </div>
 

@@ -7,29 +7,42 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "@/components/providers/account-provider";
 import { useGetMe } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
-import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
+import { useGetCart } from "@/hooks/use-cart";
+import {
+  ACCOUNT_HOME_PATH,
+  CART_PAGE_PATH,
+  ORDER_TRACK_PAGE_PATH,
+  WISHLIST_PAGE_PATH,
+} from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
+import { CartIcon } from "./cart-button";
+import { CategoriesDialog, GridIcon } from "./categories-popup";
 
 /**
  * MobileTabBar — the phone's persistent bottom navigation.
  *
- * Fixed to the viewport foot below `md`; hidden entirely from `md` up,
- * where the header's category rail and utility cluster carry the same
- * destinations. Four tabs, the e-commerce canon: Home, Categories (the
- * shop index), Wishlist, and Account. Cart is deliberately absent — it
- * already sits in the top bar on every width, and repeating it here
- * would spend a tab on a control the thumb can already reach.
+ * Fixed to the viewport foot below `lg` (phones and smaller tablets);
+ * hidden from `lg` up, where the header's category rail and utility
+ * cluster carry the same destinations. Five tabs: Home, Categories,
+ * Cart, Wishlist and Account.
+ *
+ * Cart lives here, not in the top bar, below `lg`: the header hides its
+ * cart button at those widths and the thumb reaches the bag from the
+ * foot of the screen while scrolling. Its badge is the live cart count
+ * from `useGetCart`, the same source the desktop cart button reads.
+ *
+ * Categories is a button, not a link: it opens `CategoriesDialog`, the
+ * same category list the desktop rail's Categories popup shows.
  *
  * Active state is a colour shift plus a small accent dot above the
  * icon — colour alone would fail the "not colour alone" rule the site
- * holds for state elsewhere. The wishlist tab carries a count badge
- * when anything is saved, mirroring the cart button's pattern.
+ * holds for state elsewhere. Cart and Wishlist carry a count badge.
  *
  * The bar pads itself with `env(safe-area-inset-bottom)` so the tabs
- * clear the iOS home indicator, and `SiteLayout` gives `<main>` a
- * matching bottom pad below `md` so no page ends underneath the bar.
+ * clear the iOS home indicator, and `SiteLayout` gives the footer a
+ * matching bottom pad below `lg` so no page ends underneath the bar.
  *
  * ── The profile tab ─────────────────────────────────────────────────
  *
@@ -53,23 +66,24 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
  * dropdown can never trap a reader away from Home.
  */
 
-const TABS = [
-  { href: "/", label: "Home", icon: HomeIcon, exact: true },
-  { href: SHOP_INDEX_HREF, label: "Categories", icon: GridIcon, exact: false },
-  { href: "/wishlist", label: "Wishlist", icon: HeartIcon, exact: false },
-] as const;
 
 const PROFILE_MENU_ID = "mobile-profile-menu";
 
 export function MobileTabBar() {
   const pathname = usePathname();
   const { wishlistSlugs } = useAccount();
+  const cart = useGetCart();
+  const cartCount = cart.isPending ? 0 : (cart.data?.itemCount ?? 0);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const me = useGetMe();
   const signedIn = !me.isPending && Boolean(me.data);
   const [profileOpen, setProfileOpen] = useState(false);
 
   /* A route change closes the panel — the reader has arrived. */
-  useEffect(() => setProfileOpen(false), [pathname]);
+  useEffect(() => {
+    setProfileOpen(false);
+    setCategoriesOpen(false);
+  }, [pathname]);
 
   /* Escape closes it, the same key that closes the drawer and search. */
   useEffect(() => {
@@ -100,7 +114,7 @@ export function MobileTabBar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.fast }}
-            className="fixed inset-0 z-30 bg-black/50 md:hidden"
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -108,7 +122,7 @@ export function MobileTabBar() {
       <nav
         aria-label="Primary (mobile)"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 md:hidden",
+          "fixed inset-x-0 bottom-0 z-40 lg:hidden",
           "border-t border-line bg-[var(--glass-bg-strong)] backdrop-blur-xl backdrop-saturate-150",
           "pb-[env(safe-area-inset-bottom)]",
         )}
@@ -164,70 +178,56 @@ export function MobileTabBar() {
         </AnimatePresence>
 
         <ul className="flex h-16 items-stretch">
-          {TABS.map((tab) => {
-            const active = tab.exact
-              ? pathname === tab.href
-              : pathname.startsWith(tab.href);
-            const Icon = tab.icon;
-            const badge =
-              tab.label === "Wishlist" && wishlistSlugs.length > 0
-                ? wishlistSlugs.length
-                : undefined;
+          <li className="flex-1">
+            <TabLink href="/" label="Home" icon={HomeIcon} active={pathname === "/"} />
+          </li>
 
-            return (
-              <li key={tab.href} className="flex-1">
-                <Link
-                  href={tab.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "relative flex h-full flex-col items-center justify-center gap-1",
-                    "transition-colors duration-(--duration-fast)",
-                    active ? "text-ink" : "text-ink-muted",
-                  )}
-                >
-                  {/* Active marker — a dot above the icon, so state is
-                      carried by shape as well as colour. */}
-                  <ActiveDot active={active} />
+          <li className="flex-1">
+            <button
+              type="button"
+              onClick={() => setCategoriesOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={categoriesOpen}
+              className={cn(TAB_CLASS, categoriesOpen || pathname.startsWith(SHOP_INDEX_HREF) ? "text-ink" : "text-ink-muted")}
+            >
+              <ActiveDot active={categoriesOpen || pathname.startsWith(SHOP_INDEX_HREF)} />
+              <GridIcon className="size-[1.35rem]" />
+              <TabLabel>Categories</TabLabel>
+            </button>
+          </li>
 
-                  <span className="relative">
-                    <Icon className="size-[1.35rem]" />
-                    {badge !== undefined && (
-                      <span
-                        aria-hidden
-                        className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 font-mono text-[0.5625rem] leading-4 tabular-nums text-white"
-                      >
-                        {badge > 9 ? "9+" : badge}
-                      </span>
-                    )}
-                  </span>
+          <li className="flex-1">
+            <TabLink
+              href={CART_PAGE_PATH}
+              label="Cart"
+              icon={CartIcon}
+              active={pathname.startsWith(CART_PAGE_PATH)}
+              badge={cartCount}
+              badgeNoun={cartCount === 1 ? "item" : "items"}
+            />
+          </li>
 
-                  <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
-                    {tab.label}
-                    {badge !== undefined && (
-                      <span className="sr-only">, {badge} saved</span>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          <li className="flex-1">
+            <TabLink
+              href={WISHLIST_PAGE_PATH}
+              label="Wishlist"
+              icon={HeartIcon}
+              active={pathname.startsWith(WISHLIST_PAGE_PATH)}
+              badge={wishlistSlugs.length}
+              badgeNoun="saved"
+            />
+          </li>
 
           <li className="flex-1">
             {signedIn ? (
               <Link
                 href={ACCOUNT_HOME_PATH}
                 aria-current={pathname === ACCOUNT_HOME_PATH ? "page" : undefined}
-                className={cn(
-                  "relative flex h-full w-full flex-col items-center justify-center gap-1",
-                  "transition-colors duration-(--duration-fast)",
-                  profileActive ? "text-ink" : "text-ink-muted",
-                )}
+                className={cn(TAB_CLASS, profileActive ? "text-ink" : "text-ink-muted")}
               >
                 <ActiveDot active={profileActive} />
                 <PersonIcon className="size-[1.35rem]" />
-                <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
-                  Account
-                </span>
+                <TabLabel>Account</TabLabel>
               </Link>
             ) : (
               <button
@@ -237,23 +237,78 @@ export function MobileTabBar() {
                 aria-haspopup="menu"
                 aria-controls={PROFILE_MENU_ID}
                 aria-label={profileOpen ? "Close account menu" : "Open account menu"}
-                className={cn(
-                  "relative flex h-full w-full flex-col items-center justify-center gap-1",
-                  "transition-colors duration-(--duration-fast)",
-                  profileActive || profileOpen ? "text-ink" : "text-ink-muted",
-                )}
+                className={cn(TAB_CLASS, profileActive || profileOpen ? "text-ink" : "text-ink-muted")}
               >
                 <ActiveDot active={profileActive || profileOpen} />
                 <PersonIcon className="size-[1.35rem]" />
-                <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
-                  Account
-                </span>
+                <TabLabel>Account</TabLabel>
               </button>
             )}
           </li>
         </ul>
       </nav>
+
+      <CategoriesDialog open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </>
+  );
+}
+
+const TAB_CLASS = cn(
+  "relative flex h-full w-full flex-col items-center justify-center gap-1",
+  "transition-colors duration-(--duration-fast)",
+);
+
+function TabLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+      {children}
+    </span>
+  );
+}
+
+/** A link tab, with an optional count badge on its icon. */
+function TabLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  badge = 0,
+  badgeNoun,
+}: {
+  href: string;
+  label: string;
+  icon: (props: { className?: string }) => React.ReactNode;
+  active: boolean;
+  badge?: number;
+  badgeNoun?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(TAB_CLASS, active ? "text-ink" : "text-ink-muted")}
+    >
+      {/* Active marker — a dot above the icon, so state is
+          carried by shape as well as colour. */}
+      <ActiveDot active={active} />
+
+      <span className="relative">
+        <Icon className="size-[1.35rem]" />
+        {badge > 0 && (
+          <span
+            aria-hidden
+            className="absolute -right-2 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 font-mono text-[0.5625rem] leading-4 tabular-nums text-white"
+          >
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
+
+      <TabLabel>
+        {label}
+        {badge > 0 && <span className="sr-only">, {badge} {badgeNoun}</span>}
+      </TabLabel>
+    </Link>
   );
 }
 
@@ -278,17 +333,6 @@ function HomeIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d="M4 11.5 12 4l8 7.5" />
       <path d="M6 10v9.5h4.5V14h3v5.5H18V10" />
-    </svg>
-  );
-}
-
-function GridIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <rect x="4" y="4" width="7" height="7" rx="1.5" />
-      <rect x="13" y="4" width="7" height="7" rx="1.5" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" />
-      <rect x="13" y="13" width="7" height="7" rx="1.5" />
     </svg>
   );
 }

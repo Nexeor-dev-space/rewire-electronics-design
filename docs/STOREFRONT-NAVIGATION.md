@@ -43,8 +43,8 @@ an admin change reaches all of them at once, with no code change:
 
 | Surface | Component | How it reads the list |
 |---|---|---|
-| Navbar rail | `components/layout/category-bar.tsx` | `categoryNav(useStorefrontCategories())` in `lib/navigation.ts` |
-| Category panel | `components/layout/category-mega-panel.tsx` | The same list, by slug: description, image, brand counts |
+| Navbar rail | `components/layout/category-bar.tsx` | The Categories button, see §13.3 |
+| Category popup | `components/layout/categories-popup.tsx` | `categoryNav(useStorefrontCategories())` in `lib/navigation.ts`, with brand counts |
 | Shop and Categories menus | `components/layout/mega-panels.tsx` | `shopBrowseLinks()` and the list itself |
 | Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories)` |
 | Homepage strip | `components/home/hero/category-strip.tsx` | The first `HOME_CATEGORY_LIMIT` (4) |
@@ -652,3 +652,50 @@ own footer. Checkout and the auth pages keep their reduced chrome on purpose
 The footer grid is two link columns side by side on phones with the brand
 block above them, and the twelve column row from `md`. The large ghost word
 at the foot is uppercase to match the logo and stays `aria-hidden`.
+
+### 13.3 Category popup
+
+Clicking Categories opens a popup listing every storefront category,
+following the Wishmaster reference: one row per category with a grid icon,
+the name in capitals and a chevron, then an All devices row. Selecting a row
+goes to that category's listing and closes the popup.
+
+| Width | Trigger | Shell |
+|---|---|---|
+| From `lg` | The Categories button, first in the category bar | `CategoriesDropdown`: a plate under the button. Pointing at a category with more than one brand opens a flyout beside it listing those brands with counts |
+| Below `lg` | The Categories tab in the bottom tab bar | `CategoriesDialog`: the shared `Dialog`, a bottom sheet on phones and a centred panel on tablets |
+
+Closing: a click outside, Escape or a route change closes the dropdown; the
+dialog closes from its close icon, its backdrop, Escape or a route change.
+The dropdown opens on click only, never on hover, so it never covers the page
+by accident.
+
+The category bar no longer lists each category inline, and
+`category-mega-panel.tsx` was removed. Upcoming Drops and About keep their
+hover menus.
+
+Both shells live in `src/components/layout/categories-popup.tsx` and read the
+same `categoryNav()` list, so an admin change to the storefront categories
+reaches both.
+
+### 13.4 Mobile cart
+
+Below `lg` (phones and smaller tablets) the cart is a tab in the fixed bottom
+tab bar, not an icon in the top bar:
+
+1. The tab bar now shows below `lg` (it was below `md`) and has five tabs:
+   Home, Categories, Cart, Wishlist, Account.
+2. The Cart tab's badge is the live `itemCount` from `useGetCart`, the same
+   source as the desktop `CartButton`, and its accessible name includes the
+   count.
+3. The header hides `CartButton` below `lg`; from `lg` the desktop layout is
+   unchanged.
+4. The `(site)` layout pads the footer wrapper `pb-16` below `lg` so no page
+   content ends under the bar, and the homepage draft preview banner sits
+   above the bar below `lg`.
+5. The cart icon is `CartIcon`, exported from `cart-button.tsx` and shared by
+   both. `/cart` and `/wishlist` are `CART_PAGE_PATH` and
+   `WISHLIST_PAGE_PATH` in `src/lib/constants.ts`.
+
+Checkout and the auth pages have no tab bar, so the checkout's own fixed
+bottom bar never meets it.
