@@ -728,8 +728,3 @@ export function getProductBySlug(slug: string): Product | undefined {
 export function getProductsByCategory(categorySlug: string): Product[] {
   return products.filter((product) => product.categorySlug === categorySlug);
 }
-
-/** Seeds the wishlist so the page is reviewable before anything is saved. */
-export function getWishlistSeed(): string[] {
-  return ["iphone-15-pro-max", "macbook-air-13-m2", "airpods-max", "galaxy-s22"];
-}

@@ -32,6 +32,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | The VAT rate setting, the VAT & Configuration admin screen, `admin/vat-settings` | [docs/VAT.md](docs/VAT.md) |
 | The Reports screen, `admin/reports`, what counts as a sale, report filters and CSV export | [docs/REPORTS.md](docs/REPORTS.md) |
 | Campaigns, campaign types, campaign discounts and how they change prices, `campaign.service.ts`, `src/lib/pricing/campaign.ts` | [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) |
+| The wishlist, saved products, `AccountProvider`, `GET wishlist`, the heart and its animation | [docs/WISHLIST.md](docs/WISHLIST.md) |
 | The cart and its API, `src/lib/pricing/`, VAT, discount codes, delivery zones, the guest cart cookie and merge, the checkout summary | [docs/CART.md](docs/CART.md) |
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate | [docs/AUTH.md](docs/AUTH.md) |
 | Env vars, `src/lib/env.ts`, email (SMTP), the site address, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |

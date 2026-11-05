@@ -62,6 +62,8 @@ const buttonVariants = cva(
         sm: "h-10 px-5 text-sm",
         md: "h-12 px-7 text-sm",
         lg: "h-14 px-9 text-base",
+        /** The product page's Add to Cart: the one primary action on the page. */
+        xl: "h-16 px-10 text-lg font-semibold",
       },
     },
     defaultVariants: {

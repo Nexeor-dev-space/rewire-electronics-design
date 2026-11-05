@@ -2,30 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  type KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { getProductBySlug } from "@/lib/catalog";
-import { getCrossSell } from "@/lib/cross-sell";
-import { useGetCart } from "@/hooks/use-cart";
-import { useCartFeedback } from "./cart-feedback-provider";
+import { useGetCart, useUpdateCartItem } from "@/hooks/use-cart";
+import { CART_PAGE_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
-import type { Product } from "@/types";
+import type { CartLine } from "@/types/cart";
+import { useCartFeedback } from "./cart-feedback-provider";
+import { LineAddOns, toggledAddOnIds } from "./cart-line";
 
 /**
- * AddToCartModal — the confirmation that opens after every Add to Cart.
+ * AddToCartModal — the cart extensions shown after a product card's Add to
+ * cart, when that product offers add-ons.
  *
- * Mounted once at the root of the tree. Reads the last `notifyAdded`
- * signal off the CartFeedbackProvider, resolves the product from the
- * catalogue, and renders the polished dark panel: confirmation, up to
- * three contextual add-ons, running cart summary, and the two
- * decisive actions.
+ * Mounted once at the root of the tree. Reads the last `notifyAdded` line
+ * id off the CartFeedbackProvider and that line live from `useGetCart`:
+ * the confirmation, the line's add-ons as the same "Complete the setup"
+ * chips the cart page shows (ticking one updates the line at once), the
+ * running cart summary, and Continue Shopping / View Cart. The product
+ * page does not open it: it confirms in place and scrolls to its own
+ * add-ons.
  *
  * The panel adopts the user-specified dark palette by scoping the
  * design-token CSS variables inside its own subtree — every Tailwind
@@ -44,25 +41,14 @@ const FOCUSABLE =
 export function AddToCartModal() {
   const { latest, isOpen, close } = useCartFeedback();
   const cart = useGetCart();
+  const updateCartItem = useUpdateCartItem();
   const prefersReduced = useReducedMotion();
 
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  // Cross-sell recommendations still come from the mock catalogue's
-  // category map — there is no real recommendation source yet. A slug
-  // that does not resolve there (any real product not mirrored in the
-  // mock catalogue) just means an empty rail, never a broken modal: the
-  // confirmation above it is built entirely from the real cart line.
-  const crossSellAnchor = useMemo<Product | null>(
-    () => (latest ? (getProductBySlug(latest.productSlug) ?? null) : null),
-    [latest],
-  );
-
-  const addons = useMemo(
-    () => (crossSellAnchor ? getCrossSell(crossSellAnchor, 3) : []),
-    [crossSellAnchor],
-  );
+  // A line removed elsewhere while the modal is open simply closes it.
+  const line = latest ? cart.data?.items.find((item) => item.id === latest.lineId) : undefined;
 
   /* ---------- Focus management + Escape + body lock ---------- */
   useEffect(() => {
@@ -107,11 +93,11 @@ export function AddToCartModal() {
     [close],
   );
 
-  const showPanel = isOpen && Boolean(latest);
+  const showPanel = isOpen && Boolean(latest && line);
 
   return (
     <AnimatePresence>
-      {showPanel && latest && (
+      {showPanel && latest && line && (
         <motion.div
           aria-hidden={false}
           className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
@@ -174,27 +160,21 @@ export function AddToCartModal() {
             */}
             <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain">
               <div className="px-5 pb-2 sm:px-7">
-                <AddedProduct
-                  productName={latest.productName}
-                  brand={latest.brand}
-                  imageUrl={latest.imageUrl}
-                  imageAlt={latest.imageAlt}
-                  variantLabel={latest.variantLabel}
-                  quantity={latest.quantity}
-                  unitPrice={latest.unitPrice}
-                />
+                <AddedProduct line={line} />
 
-                {addons.length > 0 && (
-                  <div className="mt-8 border-t border-line pt-6">
-                    <AddonsHeader />
-                    <ul className="mt-4 flex flex-col gap-2.5">
-                      {addons.map((addon) => (
-                        <li key={addon.slug}>
-                          <AddonRow addon={addon} onNavigate={close} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                <LineAddOns
+                  offered={line.offeredAddOns}
+                  chosen={line.addOns}
+                  disabled={updateCartItem.isPending}
+                  productName={line.productName}
+                  onToggle={(addOnId) =>
+                    updateCartItem.mutate({ id: line.id, addOnIds: toggledAddOnIds(line, addOnId) })
+                  }
+                />
+                {updateCartItem.isError && (
+                  <p role="alert" className="mt-3 text-[0.8125rem] text-danger">
+                    {updateCartItem.error.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -251,23 +231,9 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
    The product that was just added
    ============================================================ */
 
-function AddedProduct({
-  productName,
-  brand,
-  imageUrl,
-  imageAlt,
-  variantLabel,
-  quantity,
-  unitPrice,
-}: {
-  productName: string;
-  brand: string;
-  imageUrl: string | null;
-  imageAlt: string;
-  variantLabel: string;
-  quantity: number;
-  unitPrice: number;
-}) {
+function AddedProduct({ line }: { line: CartLine }) {
+  const { productName, brand, imageUrl, imageAlt, quantity } = line;
+  const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
   return (
     <article className="flex items-start gap-4 sm:gap-5">
       <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:size-28">
@@ -295,7 +261,7 @@ function AddedProduct({
 
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <p className="text-[1.125rem] font-medium tabular-nums text-ink">
-            {formatMoney(unitPrice * quantity)}
+            {formatMoney(line.lineTotal)}
           </p>
           {quantity > 1 && (
             <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
@@ -338,83 +304,6 @@ function AddedBadge() {
 }
 
 /* ============================================================
-   Add-ons — the Complete Your Setup rail
-   ============================================================ */
-
-function AddonsHeader() {
-  return (
-    <div>
-      <p className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-secondary">
-        Complete your setup
-      </p>
-      <p className="mt-1.5 text-[0.875rem] text-ink-muted">
-        Make the most of your new device.
-      </p>
-    </div>
-  );
-}
-
-/**
- * AddonRow — a companion product, linking to its own page rather than
- * adding it directly. These recommendations come from the mock
- * catalogue's category map (see `lib/cross-sell.ts`), which carries no
- * real variant to add — see Q7 in `docs/CART.md`.
- */
-function AddonRow({ addon, onNavigate }: { addon: Product; onNavigate: () => void }) {
-  const image = addon.images[0];
-
-  return (
-    <Link
-      href={`/product/${addon.slug}`}
-      onClick={onNavigate}
-      className={cn(
-        "group/addon flex items-center gap-3 rounded-2xl border border-line bg-surface-2/60 p-3",
-        "transition-[background-color,border-color] duration-(--duration-fast) hover:border-line-strong",
-      )}
-    >
-      <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-surface-3">
-        {image && (
-          <Image
-            src={image.url}
-            alt=""
-            fill
-            sizes="56px"
-            className={
-              image.fit === "cover" ? "object-cover" : "object-contain p-1.5"
-            }
-          />
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[0.875rem] font-medium text-ink">
-          {addon.name}
-        </p>
-        <p className="mt-0.5 truncate text-[0.75rem] text-ink-muted">
-          {addon.variant}
-        </p>
-        <p className="mt-1 font-mono text-[0.8125rem] tabular-nums text-ink">
-          {formatMoney(addon.price)}
-        </p>
-      </div>
-
-      <svg
-        aria-hidden
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="size-3.5 shrink-0 text-ink-muted transition-[transform,color] duration-(--duration-fast) group-hover/addon:translate-x-1 group-hover/addon:text-ink"
-      >
-        <path d="M3 8h10M9 4l4 4-4 4" />
-      </svg>
-    </Link>
-  );
-}
-
-/* ============================================================
    Footer — running total + primary/secondary actions
    ============================================================ */
 
@@ -450,7 +339,7 @@ function ModalFooter({
           Continue Shopping
         </button>
         <Link
-          href="/cart"
+          href={CART_PAGE_PATH}
           onClick={onContinue}
           className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-white transition-colors duration-(--duration-fast) hover:bg-accent-hover"
         >

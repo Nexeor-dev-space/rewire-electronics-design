@@ -9,10 +9,12 @@ import { LineBreakdown } from "@/components/order/line-breakdown";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
+import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 
 interface CartLineProps {
   line: CartLineData;
-  onQuantityChange: (quantity: number) => void;
+  /** Saves a new quantity; the stepper debounces taps before calling it. */
+  onQuantityChange: (quantity: number) => Promise<unknown>;
   onRemove: () => void;
   /** Add or remove one of this line's offered add-ons. */
   onToggleAddOn: (addOnId: string) => void;
@@ -52,6 +54,8 @@ export function CartLine({
   const grade = line.grade ? GRADE_META[line.grade].label : undefined;
   const conditionLabel = CONDITION_META[line.condition].label;
   const blocking = line.issues.some((issue) => BLOCKING_CART_LINE_ISSUES.includes(issue));
+  // Taps show at once; the quantity is saved after a short pause.
+  const stepper = useDebouncedQuantity(line.quantity, onQuantityChange);
 
   return (
     <article className="flex flex-col gap-6 py-8 sm:flex-row sm:gap-8">
@@ -170,12 +174,11 @@ export function CartLine({
           {/* ---------- Quantity + Remove ---------- */}
           <div className="mt-5 flex items-center gap-5">
             <QuantityStepper
-              value={line.quantity}
+              value={stepper.quantity}
               max={line.maxQuantity}
-              disabled={busy}
-              canDecrement={line.quantity > 1}
-              onIncrement={() => onQuantityChange(Math.min(line.maxQuantity, line.quantity + 1))}
-              onDecrement={() => onQuantityChange(Math.max(1, line.quantity - 1))}
+              canDecrement={stepper.quantity > 1}
+              onIncrement={() => stepper.set(Math.min(line.maxQuantity, stepper.quantity + 1))}
+              onDecrement={() => stepper.set(Math.max(1, stepper.quantity - 1))}
               itemLabel={line.productName}
             />
 
@@ -236,7 +239,23 @@ export function CartLine({
    what the line has actually chosen.
    ============================================================ */
 
-function LineAddOns({
+/**
+ * The line's add-on ids after ticking or unticking `addOnId`. Chosen add-ons
+ * no longer offered are dropped, except the one being toggled, so a stale
+ * add-on can still be removed.
+ */
+export function toggledAddOnIds(
+  line: Pick<CartLineData, "addOns" | "offeredAddOns">,
+  addOnId: string,
+): string[] {
+  const offeredIds = new Set(line.offeredAddOns.map((addOn) => addOn.id));
+  const current = line.addOns
+    .map((addOn) => addOn.id)
+    .filter((id) => offeredIds.has(id) || id === addOnId);
+  return current.includes(addOnId) ? current.filter((id) => id !== addOnId) : [...current, addOnId];
+}
+
+export function LineAddOns({
   offered,
   chosen,
   onToggle,
