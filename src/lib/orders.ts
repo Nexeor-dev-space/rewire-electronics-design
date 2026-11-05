@@ -1,4 +1,4 @@
-import { INVOICE_NUMBER_PREFIX, MS_PER_DAY, ORDER_INVOICE_PATH } from "@/lib/constants";
+import { MS_PER_DAY } from "@/lib/constants";
 
 export const ORDER_STATUSES = [
   "PENDING_PAYMENT",
@@ -49,11 +49,6 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 /** Card and Apple Pay are paid on Stripe's hosted page (docs/PAYMENTS.md). */
 export const PAYMENT_REDIRECT_NOTICE = "After you place your order, you'll pay on Stripe's secure page.";
-/** An order's tax invoice number: one invoice per order, so it follows the order number. */
-export const invoiceNumber = (orderNumber: string) => `${INVOICE_NUMBER_PREFIX}${orderNumber}`;
-
-export const invoiceHref = (orderNumber: string) => `${ORDER_INVOICE_PATH}/${encodeURIComponent(orderNumber)}`;
-
 export const PAYMENT_PENDING_NOTICE = "We'll confirm your order as soon as your payment goes through.";
 export const PAYMENT_RECEIVED_NOTE = "Payment received";
 export const PLACED_STEP_LABEL = "Placed";

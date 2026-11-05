@@ -450,13 +450,6 @@
    UTILITIES
    ============================================================ */
 
-/* Printed pages (the order invoice, `/invoice/[number]`): A4 with a quiet
-   margin, so "Save as PDF" gives a standard sheet. */
-@page {
-  size: A4;
-  margin: 12mm;
-}
-
 @utility glass {
   /* Frosted panel — use sparingly: header, overlays, floating chrome */
   background-color: var(--glass-bg);

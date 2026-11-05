@@ -5,8 +5,6 @@ import {
   PAYMENT_LINK_NOTICE,
   accountOrdersWhere,
   initialStatus,
-  invoiceHref,
-  invoiceNumber,
   lineWarrantyMonths,
   nextStatuses,
   orderTimeline,
@@ -185,12 +183,5 @@ describe("lineWarrantyMonths", () => {
   it("adds the months of every add-on on the line", () => {
     const addOns = [{ extraWarrantyMonths: 12 }, { extraWarrantyMonths: 0 }];
     expect(lineWarrantyMonths({ warrantyMonths: 12, addOns })).toBe(24);
-  });
-});
-
-describe("invoice helpers", () => {
-  it("numbers the invoice after the order and links to its page", () => {
-    expect(invoiceNumber("RW-123")).toBe("INV-RW-123");
-    expect(invoiceHref("RW-123")).toBe("/invoice/RW-123");
   });
 });

@@ -25,7 +25,7 @@ levels. This document covers what is specific to orders.
 | Validators | `placeOrderSchema` in `checkout.validator.ts`, `src/validators/order.validator.ts` |
 | Types and hooks | `src/types/order.ts`, `src/hooks/use-checkout.ts`, `src/hooks/use-order.ts` |
 | API | `/api/v1/checkout`, `orders/track`, `account/orders`, `admin/orders`, `admin/fulfilment` |
-| Screens | `/checkout`, `/checkout/success`, `/order/track`, `/account/orders`, `/account/orders/[number]`, `/invoice/[number]`, `/admin/orders`, `/admin/orders/[number]`, `/admin/fulfilment` |
+| Screens | `/checkout`, `/checkout/success`, `/order/track`, `/account/orders`, `/account/orders/[number]`, `/admin/orders`, `/admin/orders/[number]`, `/admin/fulfilment` |
 
 Card and Apple Pay orders are created unpaid and paid on Stripe's hosted page;
 coming back from Stripe marks them paid ([PAYMENTS.md](PAYMENTS.md)). Staff can
@@ -485,44 +485,10 @@ closed". Track Order shows no return links; on a returnable order it tells the
 guest to create an account with the order email (or reset its password) and
 verify it, then request the return from the account.
 
-**Tax invoice** (`/invoice/[number]`, `OrderInvoice`, issue #122). The order
-detail's "Download / view invoice" button links here (`invoiceHref(number)` in
-`src/lib/orders.ts`). The page sits outside the `(site)` chrome so it is only
-the invoice sheet, and is gated like `/account/*`: signed out it renders
-`SignInRedirect`. It reads `useGetAccountOrder(number)`, so ownership and the
-"Order not found" case are the same as the order detail; nothing on the sheet
-is typed in.
-
-The layout follows the Wishmaster invoice:
-
-1. The Rewire `Logo`, the customer's name, address and phone, and a support
-   link; beside them a dark Tax Invoice box with Issue Date (the order date),
-   Invoice No (`invoiceNumber(number)`, `INVOICE_NUMBER_PREFIX` + the order
-   number) and Total Payable.
-2. Billing Address, Delivery Address (the order's one address for both) and
-   Sold by (`siteConfig.name`, `supportContact.email`, `siteConfig.url`).
-3. Order Information: order date, order number, delivered on (when set),
-   payment method and payment status.
-4. Invoice Detail: one row per line with the name, brand, storage, colour,
-   condition, grade, SKU and add ons; quantity; unit price excluding VAT; VAT
-   rate; unit VAT; unit price including VAT (item plus add ons); and the line
-   total. Unit VAT is `vatIncludedIn(unit, totals.vatRatePercent)`, the same
-   helper the cart uses.
-5. Totals: subtotal, discount with the coupon code, delivery, VAT included,
-   Total Payable, and Refunded when anything was refunded. These are the
-   stored order totals, not recomputed.
-
-"Download PDF" calls `window.print()`; the browser's Save as PDF gives the
-file, named after the page title `Invoice INV-<number>`. The `@page` rule in
-`globals.css` sets A4 with a 12mm margin, the toolbar is `print:hidden`, rows
-and the totals block never split across pages, and long names and addresses
-wrap instead of widening the table. The sheet always renders in the light
-palette (`admin-theme` with `data-theme="light"`), whatever the storefront
-theme.
-
-Not on the invoice yet: the seller's legal address and VAT registration
-number (TRN). There is nowhere to store them; adding them needs new
-`StoreSettings` columns, so a migration.
+**Tax invoice.** The account order detail and the admin order screen have a
+"Download invoice" button for any order past payment; it downloads a PDF
+built on the server. Layout, numbering and the seller settings are in
+[INVOICES.md](INVOICES.md).
 
 ---
 
@@ -545,7 +511,6 @@ In `src/lib/constants.ts`.
 | `RETURN_WINDOW_DAYS` | 30 | Default window when no store settings row exists; the live value is `StoreSettings.returnWindowDays` |
 | `MS_PER_DAY` | 86 400 000 | `returnableUntil` |
 | `ORDER_TRACK_PAGE_PATH`, `ACCOUNT_ORDERS_PATH` | `/order/track`, `/account/orders` | Links |
-| `ORDER_INVOICE_PATH`, `INVOICE_NUMBER_PREFIX` | `/invoice`, `INV-` | The tax invoice page and its number |
 | `RATE_LIMITS.placeOrder` | 10 per 10 minutes, per user, else per IP | `POST checkout` |
 | `RATE_LIMITS.trackOrder` | 10 per 15 minutes, per IP | `POST orders/track` |
 

@@ -112,9 +112,13 @@ export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
 export const CART_PAGE_PATH = "/cart";
-/** The printable tax invoice of one account order: `/invoice/<order number>`. */
-export const ORDER_INVOICE_PATH = "/invoice";
+/** Tax invoices: `INV-<year>-<sequence>`, see docs/INVOICES.md. */
 export const INVOICE_NUMBER_PREFIX = "INV-";
+export const INVOICE_SEQUENCE_DIGITS = 6;
+export const INVOICE_TITLE = "Tax Invoice";
+export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice - No signature required";
+export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
+export const INVOICE_TERMS_MAX_LENGTH = 2000;
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
