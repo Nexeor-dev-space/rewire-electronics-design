@@ -45,7 +45,7 @@ second in development, less in production.
 | Buttons | `InvoiceDownloadButton` in `src/components/order/invoice-download-button.tsx`, used by `account-order-detail.tsx` and `admin/orders/order-detail.tsx` |
 | Download | `downloadFile` in `src/lib/api/download-client.ts`; `useDownloadInvoice` in `src/hooks/use-order.ts` |
 | Constants | `INVOICE_*` in `src/lib/constants.ts`; `formatInvoiceDate` in `src/lib/dates.ts` |
-| Logo | `brandLogo.onLight` in `src/lib/site.ts` (see [STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md) §11.3) |
+| Logo | `brandLogo.onLight` in `src/lib/site.ts`: a PNG of the logo with black ink, because the PDF draws images, not the site's inline `LogoMark` |
 
 **New dependency:** `@react-pdf/renderer` 4.9.0.
 
@@ -55,8 +55,8 @@ second in development, less in production.
 
 `isInvoiceable(status)`: every status except `PENDING_PAYMENT` (card or
 Apple Pay not paid yet) and `CANCELLED`. So a cash on delivery order has an
-invoice as soon as it is placed; its Payment box shows **Unpaid** and a
-**Balance Due** until staff mark it paid.
+invoice as soon as it is placed; its Payment Status reads **Unpaid** until
+staff mark it paid.
 
 The download buttons only show for these orders. While the PDF is made the
 button reads "Preparing invoice…"; if the download fails, the error message
@@ -104,7 +104,7 @@ Rows come from the stored order, never from the live catalogue:
 |---|---|
 | Product | Brand, product name, then storage, colour, condition and grade; SKU under it |
 | Add on | One row per add on, `<name> (add-on)`, same quantity as its product |
-| Delivery | The delivery method label (Standard or Express) and `deliveryFee`; hidden when free |
+| Delivery | `Shipping Charges` and `deliveryFee`, on a tinted row; hidden when free |
 | Discount | `Discount (<code>)` and `discount`; hidden when zero |
 
 The template's sample invoice is a test case: `src/lib/invoice.test.ts`
@@ -114,27 +114,36 @@ checks it to the fil (AED 1,208.55 + VAT 60.45 = AED 1,269.00).
 
 ## 5. Layout
 
-Same order as the Wishmaster template, top to bottom:
+Matches the Wishmaster sample invoice (November 2026), top to bottom:
 
-1. The black ink Rewire logo, the customer name and delivery address in
-   capitals, and a "For questions about your order" link to `/support`.
-   On the right, the title box: Tax Invoice, Issue Date, Invoice No,
-   Total Payable.
-2. **Delivery Address** and **Sold by**. Rewire only stores a delivery
-   address, so the template's separate Billing column is left out.
+1. The black ink Rewire logo, the customer name in bold capitals and the
+   delivery address in capitals, and a "For questions about your order"
+   link to `/support`. On the right, the title box in the Rewire slate
+   (`#3b404b`, the `--color-accent` token): Tax Invoice, Issue Date,
+   Invoice No, Total Payable.
+2. Three columns: **Billing Address**, **Delivery Address** and **Sold by**.
+   Rewire stores one address per order, so Billing and Delivery show the
+   same address. Sold by is the legal name, address, `VAT: <TRN>`, email and
+   website, each from the Invoice details settings and hidden when empty.
 3. **Order Information**: order date, order number, delivered on (when
-   delivered).
-4. **Invoice Detail** table. Rows never split across pages; the header row
-   repeats on each page.
-5. **Payment** (method, status badge, Stripe reference, amount paid or
-   balance due, refunded amount if any) and **Terms & Conditions**, beside
-   **Total Payable** and the **VAT Summary**. This block stays together.
-6. A footer on every page: seller name and address, TRN, email and website,
-   and "Computer-generated tax invoice. No signature required."
+   delivered), payment method and payment status.
+4. **Invoice Detail** table: the items, then a `Shipping Charges` row when
+   delivery was charged and a negative `Discount (<code>)` row when a coupon
+   applied. Rows never split across pages; the header row repeats on each
+   page.
+5. **Total Payable** and the **VAT Summary** (rate, subtotal excluding VAT,
+   VAT, and a Total line) in a box on the right. When an admin has set
+   Terms & Conditions they sit to its left. This block stays together, so
+   on a long invoice it moves to the next page rather than splitting.
+6. A footer on every page: seller name and address on the left, `VAT:
+   <TRN>` and `email | website` on the right, and "Computer-generated tax
+   invoice - No signature required" (`INVOICE_FOOTER_NOTE`).
 
-Colours are neutral ink, so it prints well in black and white; the status
-badge keeps the template's green, amber and red. Bank details were left out
-on purpose.
+What changed from the first version (issue #122 follow up): the Billing
+column was added, Payment moved from its own box into Order Information,
+the delivery row reads `Shipping Charges`, the TRN line reads `VAT:`, the
+country line was dropped from the address, and the title box uses the brand
+slate instead of near black. Bank details are left out on purpose.
 
 ---
 
@@ -198,17 +207,18 @@ Migration `20261104120000_add_invoices`, additive only:
 | `orders` | `invoiceNumber` | `TEXT`, unique |
 | `orders` | `invoiceIssuedAt` | `TIMESTAMP(3)` |
 
-The SQL was generated with `prisma migrate diff`, without touching any
-database. **Apply it with `npm run db:deploy` before running this code
-against a database.** The Prisma client now expects these columns, so
-order screens and checkout fail on a database that does not have them yet.
+It was first written on the old `feat/#122` branch and is already applied to
+the staging database; `prisma migrate status` reports it up to date. **Apply
+it with `npm run db:deploy` before running this code against any other
+database.** The Prisma client expects these columns, so order screens and
+checkout fail on a database that does not have them yet.
 
 ---
 
 ## 8. Not covered
 
-1. Credit notes. A refund shows on the invoice's Payment box but no separate
-   credit note is issued.
+1. Credit notes and refunds. A refund changes the Payment Status, but no
+   refunded amount is printed and no separate credit note is issued.
 2. Emailing the invoice. The PDF is only downloaded; attaching it to the
    order email would reuse `renderInvoice`.
 3. Guests. Track Order does not offer the invoice.

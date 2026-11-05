@@ -11,7 +11,6 @@ import { conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { INVOICE_FOOTER_NOTE, INVOICE_TITLE, SUPPORT_PAGE_PATH } from "@/lib/constants";
 import { formatInvoiceDate, storeToday } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { DELIVERY_METHOD_LABELS } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
 import {
   computeInvoice,
@@ -33,7 +32,8 @@ import type { InvoiceSettingsView } from "@/types/invoice";
  */
 
 const TAX_NAME = "VAT";
-const COUNTRY = "United Arab Emirates";
+/** The delivery row's label, as on the Wishmaster invoice. */
+const SHIPPING_LABEL = "Shipping Charges";
 /** The PDF is rendered on the server, so the logo is read from `public/` once, on first use. */
 let logo: Buffer | null = null;
 function logoBytes(): Buffer {
@@ -47,7 +47,6 @@ const invoiceOrderSelect = {
   status: true,
   paymentStatus: true,
   paymentMethod: true,
-  stripePaymentIntentId: true,
   createdAt: true,
   deliveredAt: true,
   firstName: true,
@@ -61,8 +60,6 @@ const invoiceOrderSelect = {
   deliveryFee: true,
   discount: true,
   couponCode: true,
-  total: true,
-  refundedAmount: true,
   vatRatePercent: true,
   invoiceNumber: true,
   invoiceIssuedAt: true,
@@ -177,20 +174,6 @@ function itemLines(order: InvoiceOrder): InvoiceLineInput[] {
   });
 }
 
-function paymentBlock(order: InvoiceOrder): InvoiceDocumentData["payment"] {
-  const settled = order.paymentStatus !== "UNPAID";
-  const lines = [
-    ...(order.stripePaymentIntentId ? [`Reference: ${order.stripePaymentIntentId}`] : []),
-    settled ? `Amount Paid: ${formatInvoiceMoney(order.total)}` : `Balance Due: ${formatInvoiceMoney(order.total)}`,
-    ...(order.refundedAmount > 0 ? [`Refunded: ${formatInvoiceMoney(order.refundedAmount)}`] : []),
-  ];
-  return {
-    method: PAYMENT_METHOD_LABELS[order.paymentMethod],
-    status: PAYMENT_STATUS_LABELS[order.paymentStatus],
-    tone: order.paymentStatus === "PAID" ? "paid" : settled ? "partial" : "unpaid",
-    lines,
-  };
-}
 
 function toDocumentData(
   order: InvoiceOrder,
@@ -200,7 +183,7 @@ function toDocumentData(
   const totals = computeInvoice({
     lines: itemLines(order),
     deliveryFee: order.deliveryFee,
-    deliveryLabel: DELIVERY_METHOD_LABELS[order.deliveryMethod],
+    deliveryLabel: SHIPPING_LABEL,
     discount: order.discount,
     discountLabel: order.couponCode ? `Discount (${order.couponCode})` : "Discount",
     ratePercent: order.vatRatePercent,
@@ -208,7 +191,7 @@ function toDocumentData(
 
   const sellerName = settings.sellerName || siteConfig.name;
   const website = siteConfig.url.replace(/^https?:\/\//, "");
-  const trn = settings.sellerTrn ? `${TAX_NAME} TRN: ${settings.sellerTrn}` : null;
+  const vat = settings.sellerTrn ? `${TAX_NAME}: ${settings.sellerTrn}` : null;
   const contact = [settings.sellerEmail, website].filter(Boolean).join(" | ");
 
   return {
@@ -221,21 +204,19 @@ function toDocumentData(
     deliveredOn: order.deliveredAt ? formatInvoiceDate(order.deliveredAt) : null,
     customer: {
       name: `${order.firstName} ${order.lastName}`.trim(),
-      lines: [order.address1, order.address2, order.city, emirateLabel(order.emirate), COUNTRY, order.phone].filter(Boolean),
+      lines: [order.address1, order.address2, order.city, emirateLabel(order.emirate), order.phone].filter(Boolean),
     },
     seller: {
       name: sellerName,
-      lines: [
-        settings.sellerAddress,
-        trn,
-        settings.sellerEmail ? `Email: ${settings.sellerEmail}` : null,
-      ].filter((line): line is string => Boolean(line)),
+      address: settings.sellerAddress,
+      vat,
+      email: settings.sellerEmail,
       website,
       supportUrl: `${siteConfig.url}${SUPPORT_PAGE_PATH}`,
     },
     footer: {
       left: [sellerName, settings.sellerAddress].filter(Boolean),
-      right: [trn ?? "", contact].filter(Boolean),
+      right: [vat ?? "", contact].filter(Boolean),
       note: INVOICE_FOOTER_NOTE,
     },
     taxName: TAX_NAME,
@@ -244,7 +225,10 @@ function toDocumentData(
     delivery: totals.delivery,
     discount: totals.discount,
     totals: { excl: totals.totalExcl, vat: totals.totalVat, payable: totals.totalPayable },
-    payment: paymentBlock(order),
+    payment: {
+      method: PAYMENT_METHOD_LABELS[order.paymentMethod],
+      status: PAYMENT_STATUS_LABELS[order.paymentStatus],
+    },
     terms: settings.terms
       .split("\n")
       .map((term) => term.trim())

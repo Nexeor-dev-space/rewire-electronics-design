@@ -4,11 +4,12 @@ import type { InvoiceRow } from "@/lib/invoice";
 /**
  * InvoiceDocument — the Rewire tax invoice, drawn with @react-pdf/renderer.
  *
- * Follows the Wishmaster invoice layout (docs/INVOICES.md §3): header with
- * the customer and the title box, a Delivery / Sold by row, order
- * information, the item table, then Payment and Terms beside the total and
- * VAT summary. The footer repeats on every page; item rows never split
- * across pages, and the table header repeats on each page.
+ * Follows the Wishmaster invoice layout (docs/INVOICES.md §5): header with
+ * the customer and the title box, a Billing / Delivery / Sold by row, order
+ * information, the item table with shipping and discount rows, then the
+ * Total Payable and VAT summary box on the right (Terms beside it when an
+ * admin has set any). The footer repeats on every page; item rows never
+ * split across pages, and the table header repeats on each page.
  *
  * Server only. Every figure arrives already formatted by
  * `src/services/invoice.service.ts`; this file only lays them out.
@@ -24,7 +25,7 @@ export interface InvoiceDocumentData {
   orderDate: string;
   deliveredOn: string | null;
   customer: { name: string; lines: string[] };
-  seller: { name: string; lines: string[]; website: string; supportUrl: string };
+  seller: { name: string; address: string; vat: string | null; email: string; website: string; supportUrl: string };
   footer: { left: string[]; right: string[]; note: string };
   taxName: string;
   ratePercent: number;
@@ -32,7 +33,7 @@ export interface InvoiceDocumentData {
   delivery: InvoiceRow | null;
   discount: InvoiceRow | null;
   totals: { excl: number; vat: number; payable: number };
-  payment: { method: string; status: string; tone: "paid" | "partial" | "unpaid"; lines: string[] };
+  payment: { method: string; status: string };
   terms: string[];
   money: (minor: number) => string;
 }
@@ -44,12 +45,9 @@ const INK_MUTED = "#6b7078";
 const RULE = "#e0e0e0";
 const RULE_SOFT = "#f0f0f0";
 const PANEL = "#f6f6f4";
-const HIGHLIGHT = "#f1f2f4";
-const BADGE = {
-  paid: { backgroundColor: "#e6f6ec", color: "#1e7b45" },
-  partial: { backgroundColor: "#fff4e0", color: "#9a5b00" },
-  unpaid: { backgroundColor: "#fdecea", color: "#b3261e" },
-} as const;
+const HIGHLIGHT = "#eef2f7";
+/** The Rewire brand slate (`--color-accent` in globals.css): the title box and links. */
+const BRAND = "#3b404b";
 
 /** Wishmaster's columns, with money columns widened so AED 0,000.00 fits on one line. */
 const COLUMNS = { description: "26%", qty: "6%", excl: "15%", rate: "8%", vat: "13%", incl: "16%", total: "16%" };
@@ -58,19 +56,21 @@ const COLUMNS = { description: "26%", qty: "6%", excl: "15%", rate: "8%", vat: "
 Font.registerHyphenationCallback((word) => [word]);
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 28, paddingBottom: 72, paddingHorizontal: 40, fontFamily: "Helvetica", fontSize: 9, color: INK, lineHeight: 1.4 },
+  page: { paddingTop: 28, paddingBottom: 90, paddingHorizontal: 40, fontFamily: "Helvetica", fontSize: 9, color: INK, lineHeight: 1.4 },
   header: { flexDirection: "row", justifyContent: "space-between", paddingBottom: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: RULE },
   headerLeft: { maxWidth: "55%" },
   logo: { width: 110, marginBottom: 12 },
-  customerLine: { textTransform: "uppercase", fontFamily: "Helvetica-Bold", marginBottom: 2 },
+  customerName: { textTransform: "uppercase", fontFamily: "Helvetica-Bold", marginBottom: 2 },
+  customerLine: { textTransform: "uppercase", marginBottom: 2 },
   muted: { color: INK_MUTED },
-  titleBox: { backgroundColor: INK, color: "#ffffff", padding: 12, borderRadius: 4, minWidth: 190 },
+  titleBox: { backgroundColor: BRAND, color: "#ffffff", padding: 12, borderRadius: 4, minWidth: 190 },
+  link: { color: BRAND, textDecoration: "underline" },
   titleText: { fontFamily: "Helvetica-Bold", fontSize: 14, marginBottom: 6 },
   titleLine: { marginBottom: 2 },
   bold: { fontFamily: "Helvetica-Bold" },
   addressRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: RULE, paddingBottom: 12, marginBottom: 12 },
-  addressBox: { flex: 1, paddingRight: 12 },
-  addressBoxDivided: { flex: 1, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: RULE_SOFT },
+  addressBox: { flex: 1, paddingHorizontal: 12 },
+  addressBoxDivided: { flex: 1, paddingHorizontal: 12, borderLeftWidth: 1, borderLeftColor: RULE_SOFT },
   boxTitle: { fontFamily: "Helvetica-Bold", marginBottom: 5 },
   sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 10, textTransform: "uppercase", marginTop: 6, marginBottom: 6, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: RULE },
   kv: { flexDirection: "row", marginBottom: 4 },
@@ -82,13 +82,12 @@ const styles = StyleSheet.create({
   num: { textAlign: "right" },
   ctr: { textAlign: "center" },
   sku: { fontSize: 7.5, color: INK_MUTED, marginTop: 1 },
-  bottom: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+  bottom: { flexDirection: "row", justifyContent: "space-between", marginTop: 12 },
   leftCol: { width: "48%" },
   rightCol: { width: "48%" },
   box: { borderWidth: 1, borderColor: RULE, borderRadius: 4, padding: 10, marginBottom: 8 },
   summaryBox: { borderWidth: 1, borderColor: RULE, borderRadius: 4, padding: 10, backgroundColor: PANEL },
   totalLine: { flexDirection: "row", justifyContent: "space-between", fontFamily: "Helvetica-Bold", fontSize: 12, paddingBottom: 8, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: RULE },
-  badge: { fontFamily: "Helvetica-Bold", fontSize: 7, textTransform: "uppercase", paddingVertical: 1, paddingHorizontal: 5, borderRadius: 6 },
   terms: { fontSize: 7.5, color: INK_SECONDARY },
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, borderTopWidth: 1, borderTopColor: RULE, paddingTop: 6, fontSize: 7, color: INK_MUTED },
   footerRow: { flexDirection: "row", justifyContent: "space-between" },
@@ -124,12 +123,12 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }) {
           <View style={styles.headerLeft}>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
             <Image src={{ data: data.logo, format: "png" }} style={styles.logo} />
-            <Text style={styles.customerLine}>{data.customer.name}</Text>
+            <Text style={styles.customerName}>{data.customer.name}</Text>
             {data.customer.lines.map((line, index) => (
               <Text key={index} style={styles.customerLine}>{line}</Text>
             ))}
             <Text style={[styles.muted, { marginTop: 8 }]}>
-              For questions about your order, visit {data.seller.supportUrl}
+              For questions about your order, visit <Text style={styles.link}>{data.seller.supportUrl}</Text>
             </Text>
           </View>
           <View>
@@ -142,22 +141,19 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }) {
           </View>
         </View>
 
-        {/* Delivery address and seller. */}
+        {/* Billing and delivery (the order's one address), and the seller. */}
         <View style={styles.addressRow}>
-          <View style={styles.addressBox}>
-            <Text style={styles.boxTitle}>Delivery Address</Text>
-            <Text>{data.customer.name}</Text>
-            {data.customer.lines.map((line, index) => (
-              <Text key={index}>{line}</Text>
-            ))}
-          </View>
+          <AddressColumn title="Billing Address" customer={data.customer} />
+          <AddressColumn title="Delivery Address" customer={data.customer} divided />
           <View style={styles.addressBoxDivided}>
             <Text style={styles.boxTitle}>Sold by</Text>
-            <Text style={styles.bold}>{data.seller.name}</Text>
-            {data.seller.lines.map((line, index) => (
-              <Text key={index}>{line}</Text>
-            ))}
-            <Text>Website: {data.seller.website}</Text>
+            <Text>{data.seller.name}</Text>
+            {data.seller.address ? <Text>{data.seller.address}</Text> : null}
+            {data.seller.vat ? <Text>{data.seller.vat}</Text> : null}
+            {data.seller.email ? (
+              <Text>Email: <Text style={styles.link}>{data.seller.email}</Text></Text>
+            ) : null}
+            <Text>Website: <Text style={styles.link}>{data.seller.website}</Text></Text>
           </View>
         </View>
 
@@ -168,6 +164,8 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }) {
           {data.deliveredOn && (
             <View style={styles.kv}><Text style={styles.kvKey}>Delivered On</Text><Text style={styles.bold}>{data.deliveredOn}</Text></View>
           )}
+          <View style={styles.kv}><Text style={styles.kvKey}>Payment Method</Text><Text style={styles.bold}>{data.payment.method}</Text></View>
+          <View style={styles.kv}><Text style={styles.kvKey}>Payment Status</Text><Text style={styles.bold}>{data.payment.status}</Text></View>
         </View>
 
         <Text style={styles.sectionTitle}>Invoice Detail</Text>
@@ -188,20 +186,9 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }) {
           {data.discount && <Row row={data.discount} rate={data.ratePercent} signed={signed} bold />}
         </View>
 
-        {/* Payment and terms beside the total and VAT summary; kept together. */}
+        {/* Terms (only when set) beside the total and VAT summary; kept together. */}
         <View style={styles.bottom} wrap={false}>
           <View style={styles.leftCol}>
-            <View style={styles.box}>
-              <Text style={styles.boxTitle}>Payment</Text>
-              <Text>Method: <Text style={styles.bold}>{data.payment.method}</Text></Text>
-              <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 2 }}>
-                <Text>Status: </Text>
-                <Text style={[styles.badge, BADGE[data.payment.tone]]}>{data.payment.status}</Text>
-              </View>
-              {data.payment.lines.map((line, index) => (
-                <Text key={index}>{line}</Text>
-              ))}
-            </View>
             {data.terms.length > 0 && (
               <View style={[styles.box, styles.terms]}>
                 <Text style={[styles.boxTitle, { color: INK }]}>Terms &amp; Conditions</Text>
@@ -239,6 +226,26 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }) {
         </View>
       </Page>
     </Document>
+  );
+}
+
+function AddressColumn({
+  title,
+  customer,
+  divided = false,
+}: {
+  title: string;
+  customer: InvoiceDocumentData["customer"];
+  divided?: boolean;
+}) {
+  return (
+    <View style={divided ? styles.addressBoxDivided : styles.addressBox}>
+      <Text style={styles.boxTitle}>{title}</Text>
+      <Text>{customer.name}</Text>
+      {customer.lines.map((line, index) => (
+        <Text key={index}>{line}</Text>
+      ))}
+    </View>
   );
 }
 
