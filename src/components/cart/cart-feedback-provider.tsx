@@ -10,36 +10,21 @@ import {
 } from "react";
 
 /**
- * CartFeedbackProvider — the channel between a buy panel and the global
- * Add-to-Cart modal.
+ * CartFeedbackProvider — the channel between an Add to cart button and the
+ * global Add-to-Cart modal.
  *
- * Kept intentionally separate from the AccountProvider (which owns cart
- * *state*) because this one owns cart *UI*. When AccountProvider is
- * later swapped for a real cart adapter — Payload, Shopify, whatever —
- * this file does not have to change: the buy panel still calls
- * `notifyAdded` with the same shape, and the modal still listens on the
- * same context.
+ * Kept separate from the cart query because this one owns cart *UI*: a
+ * product card calls `notifyAdded(lineId)` after a successful add, and the
+ * modal reads that line live from `useGetCart`, so ticking an add-on in the
+ * modal shows straight away.
  *
- * `nonce` is bumped every time a product is added, so the modal can
- * re-run its enter animation when the same product is added twice in a
- * row (a bare object equality check would consider it "unchanged" and
- * not re-mount the confirmation).
- *
- * Every field comes straight off the `CartLine` the add-item mutation
- * returned — no mock-catalogue slug lookup, so the modal always shows
- * exactly what actually landed in the real cart.
+ * `nonce` is bumped every time a product is added, so the modal re-runs its
+ * enter animation when the same line is added to twice in a row.
  */
 
 export interface AddedFeedback {
-  productSlug: string;
-  productName: string;
-  brand: string;
-  imageUrl: string | null;
-  imageAlt: string;
-  variantLabel: string;
-  quantity: number;
-  /** Unit price paid, in minor units, at the moment of add. */
-  unitPrice: number;
+  /** The cart line the add landed on. */
+  lineId: string;
   /** Bumped on each notify so React re-runs the modal transition. */
   nonce: number;
 }
@@ -47,7 +32,7 @@ export interface AddedFeedback {
 interface CartFeedbackContextValue {
   latest: AddedFeedback | null;
   isOpen: boolean;
-  notifyAdded: (input: Omit<AddedFeedback, "nonce">) => void;
+  notifyAdded: (lineId: string) => void;
   close: () => void;
 }
 
@@ -57,13 +42,10 @@ export function CartFeedbackProvider({ children }: { children: ReactNode }) {
   const [latest, setLatest] = useState<AddedFeedback | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const notifyAdded = useCallback(
-    (input: Omit<AddedFeedback, "nonce">) => {
-      setLatest((prev) => ({ ...input, nonce: (prev?.nonce ?? 0) + 1 }));
-      setIsOpen(true);
-    },
-    [],
-  );
+  const notifyAdded = useCallback((lineId: string) => {
+    setLatest((prev) => ({ lineId, nonce: (prev?.nonce ?? 0) + 1 }));
+    setIsOpen(true);
+  }, []);
 
   const close = useCallback(() => setIsOpen(false), []);
 

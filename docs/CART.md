@@ -594,6 +594,15 @@ old mock are abandoned: they held mock slugs with no database variant.
 | `useRemoveCoupon()` | `DELETE cart/coupon` |
 | `useAcknowledgeCart()` | `POST cart/acknowledge` |
 
+**Quantity steppers answer instantly.** On the product page, product cards
+and the cart page, + and − change the number at once through
+`useDebouncedQuantity` (`src/hooks/use-debounced-quantity.ts`). The new
+quantity is sent once nobody has tapped for `CART_QUANTITY_DEBOUNCE_MS`
+(400 ms), so fast taps are one `PATCH`, not one each. When it settles the
+stepper shows the server's quantity again: the new one, or the old one with
+the error if the server refused (stock, limits). Going to 0 removes the line
+at once, without the pause.
+
 Every mutation writes the returned cart straight into the cache
 (`setQueryData`) and invalidates the quotes, instead of invalidating the cart
 (see [DATA-LAYER.md](DATA-LAYER.md) §6).
@@ -602,16 +611,16 @@ Every mutation writes the returned cart straight into the cache
 | --- | --- | --- |
 | Header count | `components/layout/cart-button.tsx` | `useGetCart().itemCount`, hidden while pending |
 | Cart page | `components/cart/cart-view.tsx`, `cart-line.tsx`, `cart-summary.tsx` | `useGetCart`. Line issues on each row; a "price changed" notice with "Got it" (`useAcknowledgeCart`); add-on chips from `offeredAddOns`, plus any chosen add-on no longer offered so it can be removed; Proceed to checkout disabled with "Remove unavailable items to continue." when `!canCheckout`. Delivery reads "Calculated at checkout" |
-| Add to cart modal | `components/cart/add-to-cart-modal.tsx`, `cart-feedback-provider.tsx` | Opens after a product page add. Item count and subtotal from `useGetCart`; the confirmation from the returned line. The cross sell rail still comes from the mock catalogue and links to product pages |
-| Product page | `components/product/detail/product-buy-panel.tsx` | The line for the selected variant; Add to cart sends the selected add-ons; the stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
-| Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy". An out of stock card shows a disabled "Out of stock" button; the product page does the same for an out of stock variant. `POST cart.items` also rejects it with 409 "This item is out of stock." |
+| Add to cart modal | `components/cart/add-to-cart-modal.tsx`, `cart-feedback-provider.tsx` | The cart extensions after a **product card** add (issue #127). Opens only when the add succeeded and the line has `offeredAddOns`; otherwise the card only plays the confetti. `notifyAdded(lineId)` stores the line id and the modal reads that line live from `useGetCart`: the product, its line total, the line's add-ons as the cart page's "Complete the setup" chips (`LineAddOns`, toggled with `toggledAddOnIds` through `useUpdateCartItem`, so ticking one updates the line at once), the cart's item count and subtotal, Continue Shopping and View Cart. A bottom sheet on phones, a centred panel from `sm`; Escape, the backdrop and the close button close it, and a line removed elsewhere closes it. The product page never opens it (next row) |
+| Product page | `components/product/detail/product-buy-panel.tsx` | Order on every width: options, then a full width 64px Add to Cart (`Button size="xl"`, or the stepper at `size="xl"` once added), the warranty line, a full width "Save to wishlist" heart, then "Add to your order". The line for the selected variant; Add to cart sends the selected add-ons. A successful add plays a small confetti pop from the button (`components/ui/confetti-burst.tsx`) and smoothly scrolls to "Add to your order", ringing it for `ADD_ONS_HIGHLIGHT_MS` (1.6 s); with no add-ons it only plays the confetti. The stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
+| Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons, plays the confetti pop and, when the new line has `offeredAddOns`, opens the Add to cart modal with them; the button is disabled while the add is in flight, so a double click is one add; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy". An out of stock card shows a disabled "Out of stock" button; the product page does the same for an out of stock variant. `POST cart.items` also rejects it with 409 "This item is out of stock." |
 | Home setup kit, drop cards | `components/home/setup/setup.tsx`, `components/home/upcoming-drops/drop-card.tsx` | No cart call: they link to the product page |
 | Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, areaId, method)`, default Dubai, no area and Standard. Emirates from `EMIRATES`. The field after Emirate is an **Area** dropdown when `useGetDeliveryAreaOptions(emirate).required`, otherwise the free text **City**; changing the emirate clears the area. While the areas load the dropdown is disabled ("Loading areas…"); an emirate whose areas are all off shows "We don't deliver to that emirate yet." under it. If a quote fails while an area is picked (for example it was switched off mid checkout), Try again clears the area and quotes again. The coupon field shows for guests too; Enter in it applies the code. While `couponsAllowed` is false (a guest), Apply shows "Sign in to use a promo code." with a Sign in link and sends no request. VAT reads "Includes VAT 5%". The steps are in §9.1 |
 
 Place Order calls `usePlaceOrder` (`POST checkout.place`) with the
 information fields, the delivery and payment method, `expectedTotal` (the
 total on screen) and an `idempotencyKey`. The key lives in a ref
-(`crypto.randomUUID`): it is reused after a network error or a 5xx, so a retry
+(`randomUuid` in `src/lib/utils.ts`, because browsers only offer `crypto.randomUUID` on HTTPS or localhost): it is reused after a network error or a 5xx, so a retry
 returns the same order, and renewed after a 4xx or a success. A 409 refetches
 the cart and quote and shows the message under Place Order; field errors
 (`fields.email`, `fields.emirate`, …) reopen Information and show under their
@@ -712,6 +721,7 @@ In `src/lib/constants.ts`.
 | `VAT_RATE_MAX_PERCENT` | 100 | Upper bound of the VAT rate validator |
 | `CART_MAX_LINES` | 20 | Lines per cart, merge cap, read limit |
 | `CART_MAX_LINE_QUANTITY` | 5 | Quantity per line, validator, stepper maximum |
+| `CART_QUANTITY_DEBOUNCE_MS` | 400 | Pause after the last stepper tap before the quantity is saved |
 | `CART_COOKIE_MAX_AGE_SECONDS` | 30 days | Cookie lifetime and stale guest sweep |
 | `MAX_COUPON_TARGETS` | 50 | Products and categories per coupon |
 | `COUPON_CODE_MIN_LENGTH`, `COUPON_CODE_MAX_LENGTH` | 3, 32 | Coupon code |
@@ -764,9 +774,9 @@ kept so references still hold.
 5. **The guest cart rate limit is per IP.** Many shoppers behind one address
    (an office or a mobile carrier) share 10 new guest carts an hour; the 429
    message is the generic "Too many attempts." one.
-6. **The add to cart modal's cross sell rail** still reads the mock catalogue
-   (`src/lib/catalog.ts`, `src/lib/cross-sell.ts`) and links to product pages.
-   A real product with no mock twin shows no rail.
+6. **The add to cart modal shows add-ons only**, not related products: there is
+   no real recommendation source yet. The old mock cross sell rail
+   (`src/lib/cross-sell.ts`) was removed with issue #127.
 7. **Before zones are seeded**, every quote answers 404, so checkout shows its
    error state. Run the seed once per database, or set the zones on the admin
    screen.

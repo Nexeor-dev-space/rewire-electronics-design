@@ -4,6 +4,8 @@ import {
   SHOP_MAX_FILTER_VALUES,
   SHOP_MAX_PAGE_SIZE,
   SHOP_PAGE_SIZE,
+  WISHLIST_MAX_ITEMS,
+  WISHLIST_SLUGS_MAX_LENGTH,
 } from "@/lib/constants";
 import {
   conditions,
@@ -50,6 +52,21 @@ export const shopQuerySchema = z.object({
     .optional()
     .transform((value): SortId =>
       SORT_IDS.includes(value as SortId) ? (value as SortId) : "newest",
+    ),
+});
+
+/** `GET /api/v1/wishlist?slugs=a,b`: the browser's saved product slugs, newest first. */
+export const wishlistQuerySchema = z.object({
+  slugs: z
+    .string()
+    .trim()
+    .max(WISHLIST_SLUGS_MAX_LENGTH)
+    .optional()
+    .transform((value) =>
+      [...new Set((value ?? "").split(",").map((slug) => slug.trim()).filter(Boolean))].slice(
+        0,
+        WISHLIST_MAX_ITEMS,
+      ),
     ),
 });
 

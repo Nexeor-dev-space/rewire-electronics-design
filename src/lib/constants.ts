@@ -4,6 +4,11 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
+/** A browser keeps at most this many saved products; the newest win. See docs/WISHLIST.md. */
+export const WISHLIST_MAX_ITEMS = 24;
+const PRODUCT_SLUG_MAX_LENGTH = 120;
+/** The longest `?slugs=` list `GET /api/v1/wishlist` accepts. */
+export const WISHLIST_SLUGS_MAX_LENGTH = WISHLIST_MAX_ITEMS * (PRODUCT_SLUG_MAX_LENGTH + 1);
 export const SHOP_MAX_FILTER_VALUES = 50;
 export const RELATED_PRODUCTS_LIMIT = 5;
 export const FEATURED_PRODUCTS_LIMIT = 4;
@@ -78,6 +83,8 @@ export const DELIVERY_AREA_MAX_LENGTH = 100;
 export const MAX_DELIVERY_AREAS_PER_EMIRATE = 300;
 export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
+/** Quantity taps show at once; the new quantity is sent after this pause, see `useDebouncedQuantity`. */
+export const CART_QUANTITY_DEBOUNCE_MS = 400;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const RETURN_WINDOW_DAYS = 30;
 export const RETURN_WINDOW_MAX_DAYS = 365;
@@ -111,6 +118,7 @@ export const REPORT_EXPORT_PAGE_SIZE = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
+export const CART_PAGE_PATH = "/cart";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
 export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
