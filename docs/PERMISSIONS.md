@@ -120,6 +120,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Returns | `service.returns` | View, Edit | No access, View, Edit |
 | Warranty & Claims | `service.warranty` | View, Edit | No access, View, Edit |
+| Support Tickets | `service.support` | View, Create, Edit, Delete | No access, View, Edit, Full access (see docs/SUPPORT.md) |
 | Discount Codes | `marketing.coupons` | View, Create, Edit, Delete | all |
 | Campaigns | `marketing.campaigns` | View, Create, Edit, Delete, Publish | all |
 | Orders | `sales.orders` | View, Edit | No access, View, Edit |

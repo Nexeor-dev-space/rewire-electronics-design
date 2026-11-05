@@ -56,6 +56,8 @@ export const PERMISSIONS = {
   returns: adminPermission("service", "returns"),
   /** Warranty & Claims: warranty records per device and the claims against them. */
   warranty: adminPermission("service", "warranty"),
+  /** Support Tickets: Edit replies and updates; Full access also assigns to anyone and manages categories (DELETE). */
+  support: adminPermission("service", "support"),
   deliveryZones: adminPermission("governance", "delivery"),
   /** VAT & Configuration: the VAT rate the cart and checkout price with. */
   vat: adminPermission("governance", "vat"),
@@ -94,6 +96,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.fulfilment, label: "Fulfilment", actions: VIEW_EDIT },
   { key: PERMISSIONS.returns, label: "Returns", actions: VIEW_EDIT },
   { key: PERMISSIONS.warranty, label: "Warranty & Claims", actions: VIEW_EDIT },
+  { key: PERMISSIONS.support, label: "Support Tickets", actions: CRUD },
   { key: PERMISSIONS.customers, label: "Customers", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.campaigns, label: "Campaigns", actions: ALL_ACTIONS },

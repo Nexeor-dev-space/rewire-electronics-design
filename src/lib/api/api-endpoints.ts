@@ -93,6 +93,17 @@ export const API_ENDPOINTS = {
       status: (number: string) => `${V1}/admin/returns/${number}/status`,
       refund: (number: string) => `${V1}/admin/returns/${number}/refund`,
     },
+    support: {
+      list: `${V1}/admin/support`,
+      detail: (number: string) => `${V1}/admin/support/${number}`,
+      status: (number: string) => `${V1}/admin/support/${number}/status`,
+      priority: (number: string) => `${V1}/admin/support/${number}/priority`,
+      assignee: (number: string) => `${V1}/admin/support/${number}/assignee`,
+      messages: (number: string) => `${V1}/admin/support/${number}/messages`,
+      assignees: `${V1}/admin/support/assignees`,
+      categories: `${V1}/admin/support/categories`,
+      category: (id: string) => `${V1}/admin/support/categories/${id}`,
+    },
     warranties: {
       list: `${V1}/admin/warranties`,
       detail: (id: string) => `${V1}/admin/warranties/${id}`,

@@ -115,3 +115,39 @@ export function waitlistConfirmMessage({ title, url, leaveUrl, confirmUrl }: Wai
     `This link expires in ${hoursLabel(WAITLIST_CONFIRM_LINK_TTL_SECONDS)}. If you didn't ask for this, you can ignore this email. To leave the waitlist, open ${leaveUrl}`,
   );
 }
+
+interface TicketEmailInput {
+  name: string;
+  number: string;
+  subject: string;
+  intro: string;
+  /** A quoted message, shown under the intro. */
+  quote?: string;
+  /** Where staff open the ticket. Left out for customers, who have no ticket page. */
+  url?: string;
+}
+
+export function ticketEmailMessage({ name, number, subject, intro, quote, url }: TicketEmailInput): EmailContent {
+  const html = [
+    `<p>Hi ${escapeHtml(name)},</p>`,
+    `<p>${escapeHtml(intro)}</p>`,
+    quote ? `<blockquote style="white-space:pre-line">${escapeHtml(quote)}</blockquote>` : "",
+    url ? `<p><a href="${escapeHtml(url)}">Open the ticket</a></p>` : "",
+    `<p>Ticket ${escapeHtml(number)}: ${escapeHtml(subject)}</p>`,
+    `<p>${escapeHtml(siteConfig.name)}</p>`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const text = [
+    `Hi ${name},`,
+    "",
+    intro,
+    ...(quote ? ["", quote] : []),
+    ...(url ? ["", `Open the ticket: ${url}`] : []),
+    "",
+    `Ticket ${number}: ${subject}`,
+    "",
+    siteConfig.name,
+  ].join("\n");
+  return { subject: `[${number}] ${subject}`, html, text };
+}
