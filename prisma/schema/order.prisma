@@ -77,7 +77,8 @@ model Order {
   events           OrderStatusEvent[]
   couponRedemption CouponRedemption?
   returns          ReturnRequest[]
-  releaseHolds     ReleaseHold[]
+  supportTickets   SupportTicket[]
+  releaseHolds    ReleaseHold[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
