@@ -13,7 +13,8 @@ import { CART_QUANTITY_DEBOUNCE_MS } from "@/lib/constants";
  * to showing the server's `value`: the new number on success, the old one
  * if it was refused (the caller shows the mutation's error).
  *
- * Removing a line (going to 0) is not debounced; callers do that directly.
+ * Removing a line (going to 0) is not debounced; callers do that directly,
+ * calling `cancel` first so a pending tap is not sent for a removed line.
  */
 export function useDebouncedQuantity(value: number, commit: (quantity: number) => Promise<unknown>) {
   const [draft, setDraft] = useState<number | null>(null);
@@ -33,5 +34,10 @@ export function useDebouncedQuantity(value: number, commit: (quantity: number) =
     }, CART_QUANTITY_DEBOUNCE_MS);
   }
 
-  return { quantity: draft ?? value, set };
+  function cancel() {
+    clearTimeout(timer.current);
+    setDraft(null);
+  }
+
+  return { quantity: draft ?? value, set, cancel };
 }
