@@ -23,8 +23,6 @@ export const cartKeys = {
 
 const endpoints = API_ENDPOINTS.cart;
 
-const CART_MUTATION_SCOPE = { id: "cart" };
-
 /* ---------- queries ---------- */
 
 export function useGetCart() {
@@ -55,7 +53,6 @@ function useCartMutation<TInput>(mutationFn: (input: TInput) => Promise<Cart>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
-    scope: CART_MUTATION_SCOPE,
     onSuccess: (cart) => {
       queryClient.setQueryData(cartKeys.detail, cart);
       queryClient.invalidateQueries({ queryKey: cartKeys.quotes });

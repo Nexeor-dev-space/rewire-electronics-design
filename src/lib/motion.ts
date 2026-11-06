@@ -87,13 +87,6 @@ export const overlayFade: Variants = {
   exit: { opacity: 0, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
 };
 
-/** One control replacing another in the same slot (Add to cart becoming the stepper). */
-export const controlSwap: Variants = {
-  hidden: { opacity: 0, scale: 0.96 },
-  visible: { opacity: 1, scale: 1, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
-  exit: { opacity: 0, scale: 0.96, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
-};
-
 /** Disclosure panel: height and opacity collapse. Pair with an overflow-hidden element. */
 export const collapsePanel: Variants = {
   hidden: {

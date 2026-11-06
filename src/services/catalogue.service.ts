@@ -502,7 +502,7 @@ async function listRelatedShopProducts(product: ShopProductDetail, limit: number
 export async function listSavedShopProducts(slugs: string[]): Promise<ShopCard[]> {
   if (slugs.length === 0) return [];
   const rows = await prisma.product.findMany({
-    where: { ...PUBLISHED, slug: { in: slugs }, variants: { some: {} } },
+    where: { ...PUBLISHED, slug: { in: slugs } },
     select: cardSelect,
     take: slugs.length,
   });
