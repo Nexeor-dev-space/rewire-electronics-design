@@ -217,6 +217,11 @@ function UserRow({
           <span className="truncate">{user.fullName}</span>
           {user.id === viewer.id && <span className="text-xs text-ink-muted">(you)</span>}
           {user.isGuest && <GuestBadge />}
+          {user.role === "CUSTOMER" && !user.isGuest && !user.emailVerifiedAt && (
+            <Badge variant="outline" className="px-2 py-1 text-[0.625rem]">
+              Unverified
+            </Badge>
+          )}
         </p>
         <p className="truncate text-sm text-ink-secondary">{user.email}</p>
         <div>
