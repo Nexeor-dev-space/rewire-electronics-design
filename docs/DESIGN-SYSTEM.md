@@ -129,6 +129,8 @@ before launch.
 - **Badge** — mono voice; `default/outline/accent/live/warn/soldOut`; `live` carries a pulsing dot.
 - **Card** — `surface/sheen/glass/plain` + `floating` + `interactive` (lift −4px on hover).
 - **Input / Textarea / Select / Label / FieldError** — hairline fields; accent focus border; error state driven by `aria-invalid`. `Select` is the native element in the same field style, so touch devices keep the platform picker.
+- **PasswordInput** (`components/ui/password-input.tsx`) — `Input` with an eye / eye off button on the right that switches `type` between `password` and `text`. Same props as `Input` minus `type`; the button's label reads "Show password" or "Hide password".
+- **Wordmark** (`components/layout/wordmark.tsx`) — the REWIRE. wordmark linking home, with a mono tagline from `sm` (`Electronics` in the header and on auth pages, `Checkout` in the checkout header). Use it instead of copying the markup.
 - **Dialog** — modal panel for forms (`ConfirmDialog` stays for yes/no). Same contract as the other dialogs: focus in on open and back on close, Escape and backdrop close, Tab trapped, scroll locked. Compose with `DialogBody` (scrolls) and `DialogFooter` (pinned), so a long form never hides its Save button; `data-autofocus` marks the field that takes focus. A bottom sheet on phones, centred from `sm`.
 - **Countdown** — full stat row (drop pages) or `compact` chip (cards); mono `tabular-nums` so digits never jitter.
 - **Skeleton** — shimmer on surface tones; compose layout-accurate ghosts (see `ProductCardSkeleton`) so hydration causes zero CLS.

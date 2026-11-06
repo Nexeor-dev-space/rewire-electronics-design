@@ -253,6 +253,15 @@ and the `OAuthProvider` enum. A customer
 who only ever signed in with Google has no password; they sign in again by
 setting one through forgot password.
 
+The sign in and register pages show a **Continue with Google** button
+(`src/components/auth/google-auth-button.tsx`). It is a placeholder only:
+there are no Google credentials and no route behind it. Clicking it shows
+"Google sign-in isn't available yet. Use your email and password instead."
+in a `role="status"` line and sends no request. Wiring real Google sign in
+means adding an OAuth route, its env credentials (ask first, see
+[INTEGRATIONS.md](INTEGRATIONS.md)) and the `OAuthAccount` link, then
+replacing the button's click handler.
+
 ---
 
 ## 9. Storefront
@@ -261,6 +270,13 @@ setting one through forgot password.
 
 All five live in `src/app/(auth)/`, a route group with no header, footer or
 tab bar, on storefront tokens. Every page sets `robots: noindex, nofollow`.
+The group layout renders the shared `Wordmark`
+(`src/components/layout/wordmark.tsx`, tagline "Electronics") above every
+page, linking home, so the forms carry no brand line of their own.
+Password fields on sign in and register (password and confirm) use
+`PasswordInput` (`src/components/ui/password-input.tsx`), which adds a show
+or hide eye button. Toggling only switches the input `type`; the value is
+owned by the form and never changes.
 
 1. `/sign-in?next=`: `SignInForm`, links to register and forgot password. On success it goes to
    `safeNextPath(next)` or the returned `redirectTo`. A signed-in visitor is
