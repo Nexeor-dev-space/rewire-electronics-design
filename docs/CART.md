@@ -601,7 +601,25 @@ quantity is sent once nobody has tapped for `CART_QUANTITY_DEBOUNCE_MS`
 (400 ms), so fast taps are one `PATCH`, not one each. When it settles the
 stepper shows the server's quantity again: the new one, or the old one with
 the error if the server refused (stock, limits). Going to 0 removes the line
-at once, without the pause.
+at once, without the pause. Removing a line first calls the hook's `cancel()`,
+so a tap still waiting on its pause is never sent for a line that is gone
+(that used to answer 404 "That item isn't in your cart.").
+
+**Cart mutations run one at a time.** Every mutation from `useCartMutation`
+shares the React Query mutation scope `CART_MUTATION_SCOPE` (`{ id: "cart" }`
+in `src/hooks/use-cart.ts`), so an add, a quantity change and a remove are
+sent in the order they were made and each answer lands in that order. The
+cached cart, and so the header count, the modal's subtotal and every stepper,
+always end on the latest answer, never on an older one that arrived late.
+
+**Add to cart and the stepper swap smoothly.** On cards and the product page
+the button and the stepper replace each other in the same slot with
+`AnimatePresence mode="popLayout"` and the `controlSwap` movement
+(`src/lib/motion.ts`: fade and scale from 0.96 over `DURATION.fast`), so the
+row never jumps. A click while an add is in flight is ignored through a ref
+guard, not only `isPending` (which React Query reports a tick late), so
+rapid clicks are one add. The confetti plays only from the add's
+`onSuccess`, never on a failed add.
 
 Every mutation writes the returned cart straight into the cache
 (`setQueryData`) and invalidates the quotes, instead of invalidating the cart
@@ -613,7 +631,7 @@ Every mutation writes the returned cart straight into the cache
 | Cart page | `components/cart/cart-view.tsx`, `cart-line.tsx`, `cart-summary.tsx` | `useGetCart`. Line issues on each row; a "price changed" notice with "Got it" (`useAcknowledgeCart`); add-on chips from `offeredAddOns`, plus any chosen add-on no longer offered so it can be removed; Proceed to checkout disabled with "Remove unavailable items to continue." when `!canCheckout`. Delivery reads "Calculated at checkout" |
 | Add to cart modal | `components/cart/add-to-cart-modal.tsx`, `cart-feedback-provider.tsx` | The cart extensions after a **product card** add (issue #127). Opens only when the add succeeded and the line has `offeredAddOns`; otherwise the card only plays the confetti. `notifyAdded(lineId)` stores the line id and the modal reads that line live from `useGetCart`: the product, its line total, the line's add-ons as the cart page's "Complete the setup" chips (`LineAddOns`, toggled with `toggledAddOnIds` through `useUpdateCartItem`, so ticking one updates the line at once), the cart's item count and subtotal, Continue Shopping and View Cart. A bottom sheet on phones, a centred panel from `sm`; Escape, the backdrop and the close button close it, and a line removed elsewhere closes it. The product page never opens it (next row) |
 | Product page | `components/product/detail/product-buy-panel.tsx` | Order on every width: options, then a full width 64px Add to Cart (`Button size="xl"`, or the stepper at `size="xl"` once added), the warranty line, a full width "Save to wishlist" heart, then "Add to your order". The line for the selected variant; Add to cart sends the selected add-ons. A successful add plays a small confetti pop from the button (`components/ui/confetti-burst.tsx`) and smoothly scrolls to "Add to your order", ringing it for `ADD_ONS_HIGHLIGHT_MS` (1.6 s); with no add-ons it only plays the confetti. The stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
-| Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons, plays the confetti pop and, when the new line has `offeredAddOns`, opens the Add to cart modal with them; the button is disabled while the add is in flight, so a double click is one add; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy". An out of stock card shows a disabled "Out of stock" button; the product page does the same for an out of stock variant. `POST cart.items` also rejects it with 409 "This item is out of stock." |
+| Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons, plays the confetti pop and, when the new line has `offeredAddOns`, opens the Add to cart modal with them; while the add is in flight the button stays at full strength with a spinner in place of its label and ignores further clicks, so rapid clicks are one add; a quantity or remove error (for example "Only 2 left in stock.") shows under the stepper, the same way an add error shows under the button; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy". An out of stock card shows a disabled "Out of stock" button; the product page does the same for an out of stock variant. `POST cart.items` also rejects it with 409 "This item is out of stock." |
 | Home setup kit, drop cards | `components/home/setup/setup.tsx`, `components/home/upcoming-drops/drop-card.tsx` | No cart call: they link to the product page |
 | Checkout | `components/checkout/checkout-view.tsx`, `checkout-section.tsx`, `checkout-progress.tsx`, `field.tsx`, `option-list.tsx`, `order-summary.tsx`; `src/validators/checkout.validator.ts` | Lines, totals, coupon and delivery options all from `useGetCartQuote(emirate, areaId, method)`, default Dubai, no area and Standard. Emirates from `EMIRATES`. The field after Emirate is an **Area** dropdown when `useGetDeliveryAreaOptions(emirate).required`, otherwise the free text **City**; changing the emirate clears the area. While the areas load the dropdown is disabled ("Loading areas…"); an emirate whose areas are all off shows "We don't deliver to that emirate yet." under it. If a quote fails while an area is picked (for example it was switched off mid checkout), Try again clears the area and quotes again. The coupon field shows for guests too; Enter in it applies the code. While `couponsAllowed` is false (a guest), Apply shows "Sign in to use a promo code." with a Sign in link and sends no request. VAT reads "Includes VAT 5%". The steps are in §9.1 |
 

@@ -1,12 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { ProductOption } from "@/types";
 import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
+import { controlSwap } from "@/lib/motion";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
 import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
@@ -118,6 +120,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   /** Briefly true after an add: rings the add-ons the page scrolled to. */
   const [highlightAddOns, setHighlightAddOns] = useState(false);
   const addOnsRef = useRef<HTMLDivElement>(null);
+  const addInFlight = useRef(false);
 
   // The line for THIS variant, if any — drives the stepper and the
   // add-on checkboxes. Add-ons ticked before the line exists live in
@@ -177,7 +180,8 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
    * extras next. Products without add-ons only get the confetti.
    */
   function handleAddToCart() {
-    if (!purchasable || addCartItem.isPending) return;
+    if (!purchasable || addInFlight.current) return;
+    addInFlight.current = true;
     addCartItem.mutate(
       { variantId: variant.id, quantity: 1, addOnIds: pendingAddOns },
       {
@@ -190,6 +194,9 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
             setHighlightAddOns(true);
             window.setTimeout(() => setHighlightAddOns(false), ADD_ONS_HIGHLIGHT_MS);
           }
+        },
+        onSettled: () => {
+          addInFlight.current = false;
         },
       },
     );
@@ -215,8 +222,10 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   }
   function handleDecrement() {
     if (!line || removeCartItem.isPending) return;
-    if (stepper.quantity <= 1) removeCartItem.mutate(line.id);
-    else stepper.set(stepper.quantity - 1);
+    if (stepper.quantity <= 1) {
+      stepper.cancel();
+      removeCartItem.mutate(line.id);
+    } else stepper.set(stepper.quantity - 1);
   }
 
   const cartError =
@@ -419,29 +428,37 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
         <ConfettiBurst trigger={celebrate} />
         {cartLoading ? (
           <Skeleton className="h-16 w-full rounded-full" />
-        ) : purchasable && inCartQty > 0 ? (
-          <QuantityStepper
-            value={stepper.quantity}
-            max={maxQuantity}
-            disabled={removeCartItem.isPending}
-            onIncrement={handleIncrement}
-            onDecrement={handleDecrement}
-            groupLabel={`${product.name} in cart`}
-            variant="filled"
-            size="xl"
-            className="w-full"
-          />
         ) : (
-          <Button
-            size="xl"
-            variant="primary"
-            onClick={handleAddToCart}
-            loading={addCartItem.isPending}
-            className={cn("w-full", purchasable && "bg-accent text-white hover:bg-accent-hover")}
-            disabled={soldOut}
-          >
-            {cta}
-          </Button>
+          <AnimatePresence initial={false} mode="popLayout">
+            {purchasable && inCartQty > 0 ? (
+              <motion.div key="stepper" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
+                <QuantityStepper
+                  value={stepper.quantity}
+                  max={maxQuantity}
+                  disabled={removeCartItem.isPending}
+                  onIncrement={handleIncrement}
+                  onDecrement={handleDecrement}
+                  groupLabel={`${product.name} in cart`}
+                  variant="filled"
+                  size="xl"
+                  className="w-full"
+                />
+              </motion.div>
+            ) : (
+              <motion.div key="add" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
+                <Button
+                  size="xl"
+                  variant="primary"
+                  onClick={handleAddToCart}
+                  loading={addCartItem.isPending}
+                  className={cn("w-full", purchasable && "bg-accent text-white hover:bg-accent-hover")}
+                  disabled={soldOut}
+                >
+                  {cta}
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         )}
         <p className="flex items-center justify-center gap-1.5 text-[0.8125rem] text-ink-secondary">
           <ShieldIcon />

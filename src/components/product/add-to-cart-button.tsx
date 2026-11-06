@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { controlSwap } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { AVAILABILITY_LABELS } from "@/types";
 
@@ -88,6 +91,7 @@ export function AddToCartButton({
   const cart = useGetCart();
   const { notifyAdded } = useCartFeedback();
   const soldOut = product.soldOut === true;
+  const addInFlight = useRef(false);
 
   const line = product.variantId
     ? cart.data?.items.find((item) => item.variantId === product.variantId)
@@ -106,8 +110,10 @@ export function AddToCartButton({
   }
   function handleDecrement() {
     if (!line || removeCartItem.isPending) return;
-    if (stepper.quantity <= 1) removeCartItem.mutate(line.id);
-    else stepper.set(stepper.quantity - 1);
+    if (stepper.quantity <= 1) {
+      stepper.cancel();
+      removeCartItem.mutate(line.id);
+    } else stepper.set(stepper.quantity - 1);
   }
 
   if (!product.variantId) {
@@ -131,7 +137,8 @@ export function AddToCartButton({
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    if (soldOut) return;
+    if (soldOut || addInFlight.current) return;
+    addInFlight.current = true;
     addCartItem.mutate(
       { variantId: product.variantId!, quantity: 1, addOnIds: [] },
       {
@@ -141,6 +148,9 @@ export function AddToCartButton({
           const added = next.items.find((item) => item.variantId === product.variantId);
           if (added && added.offeredAddOns.length > 0) notifyAdded(added.id);
         },
+        onSettled: () => {
+          addInFlight.current = false;
+        },
       },
     );
   }
@@ -149,51 +159,62 @@ export function AddToCartButton({
     return <Skeleton className={cn(className, "h-11 rounded-full")} />;
   }
 
-  if (!soldOut && line) {
-    // The confetti plays here: a successful add swaps the button for this stepper.
-    return (
-      <span className="relative block">
-        <ConfettiBurst trigger={celebrate} />
-        <QuantityStepper
-          value={stepper.quantity}
-          max={line.maxQuantity}
-          disabled={removeCartItem.isPending}
-          onIncrement={handleIncrement}
-          onDecrement={handleDecrement}
-          groupLabel={`${product.name} in cart`}
-          variant="filled"
-          size="md"
-          className={className}
-        />
-      </span>
-    );
-  }
+  const stepperLine = soldOut ? undefined : line;
+  const adding = addCartItem.isPending;
+  const error = stepperLine
+    ? (updateCartItem.error?.message ?? removeCartItem.error?.message)
+    : addCartItem.error?.message;
 
   return (
-    <span className="relative block">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={soldOut || addCartItem.isPending}
-        aria-busy={addCartItem.isPending || undefined}
-        aria-label={
-          soldOut
-            ? `${product.name} is out of stock`
-            : `Add ${product.name} to cart`
-        }
-        className={cn(className, BUTTON_CLASS)}
-      >
-        <CartIcon />
-        {soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}
-      </button>
-      {addCartItem.isError && (
+    <div className="relative">
+      <AnimatePresence initial={false} mode="popLayout">
+        {stepperLine ? (
+          <motion.div key="stepper" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
+            <QuantityStepper
+              value={stepper.quantity}
+              max={stepperLine.maxQuantity}
+              disabled={removeCartItem.isPending}
+              onIncrement={handleIncrement}
+              onDecrement={handleDecrement}
+              groupLabel={`${product.name} in cart`}
+              variant="filled"
+              size="md"
+              className={className}
+            />
+          </motion.div>
+        ) : (
+          <motion.div key="add" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
+            <button
+              type="button"
+              onClick={handleClick}
+              disabled={soldOut}
+              aria-disabled={adding || undefined}
+              aria-busy={adding || undefined}
+              aria-label={
+                soldOut
+                  ? `${product.name} is out of stock`
+                  : `Add ${product.name} to cart`
+              }
+              className={cn(className, BUTTON_CLASS, "relative")}
+            >
+              {adding && <Spinner className="absolute size-4" />}
+              <span className={cn("inline-flex items-center gap-2", adding && "opacity-0")}>
+                <CartIcon />
+                {soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <ConfettiBurst trigger={celebrate} />
+      {error && (
         <span
           role="alert"
           className="absolute inset-x-0 top-full z-30 mt-1.5 truncate text-center font-mono text-[0.625rem] text-danger"
         >
-          {addCartItem.error.message}
+          {error}
         </span>
       )}
-    </span>
+    </div>
   );
 }
