@@ -485,6 +485,11 @@ closed". Track Order shows no return links; on a returnable order it tells the
 guest to create an account with the order email (or reset its password) and
 verify it, then request the return from the account.
 
+**Tax invoice.** The account order detail and the admin order screen have a
+"Download invoice" button for any order past payment; it downloads a PDF
+built on the server. Layout, numbering and the seller settings are in
+[INVOICES.md](INVOICES.md).
+
 ---
 
 ## 12. Constants and rate limits

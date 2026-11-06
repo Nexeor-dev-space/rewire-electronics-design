@@ -82,6 +82,8 @@ export const API_ENDPOINTS = {
       detail: (number: string) => `${V1}/admin/orders/${number}`,
       status: (number: string) => `${V1}/admin/orders/${number}/status`,
       payment: (number: string) => `${V1}/admin/orders/${number}/payment`,
+      /** Serves a PDF, not the JSON envelope — see docs/INVOICES.md. */
+      invoice: (number: string) => `${V1}/admin/orders/${number}/invoice`,
     },
     fulfilment: {
       list: `${V1}/admin/fulfilment`,
@@ -108,6 +110,7 @@ export const API_ENDPOINTS = {
     storeSettings: `${V1}/admin/store-settings`,
     dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
+    invoiceSettings: `${V1}/admin/invoice-settings`,
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
@@ -157,8 +160,11 @@ export const API_ENDPOINTS = {
   account: {
     orders: `${V1}/account/orders`,
     order: (number: string) => `${V1}/account/orders/${number}`,
+    /** Serves a PDF, not the JSON envelope — see docs/INVOICES.md. */
+    orderInvoice: (number: string) => `${V1}/account/orders/${number}/invoice`,
     returns: `${V1}/account/returns`,
     returnsEligible: `${V1}/account/returns/eligible`,
+    addresses: `${V1}/account/addresses`,
   },
   storefrontReleases: {
     waitlist: (slug: string) => `${V1}/releases/${slug}/waitlist`,

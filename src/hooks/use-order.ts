@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
+import { downloadFile } from "@/lib/api/download-client";
 import type { Paginated } from "@/lib/api/api-response";
 import type {
   AdminOrderDetail,
@@ -137,4 +138,13 @@ export function useUpdateFulfilment() {
       body: input,
     }),
   );
+}
+
+/**
+ * Downloads an order's tax invoice PDF. Pass the account or admin invoice
+ * endpoint. Nothing on screen shows the invoice number, so nothing to
+ * invalidate.
+ */
+export function useDownloadInvoice() {
+  return useMutation({ mutationFn: (url: string) => downloadFile(url) });
 }
