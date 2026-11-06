@@ -184,7 +184,10 @@ export function CartLine({
 
             <button
               type="button"
-              onClick={onRemove}
+              onClick={() => {
+                stepper.cancel();
+                onRemove();
+              }}
               disabled={busy}
               className={cn(
                 "text-[0.8125rem] font-medium text-ink-secondary underline-offset-4",

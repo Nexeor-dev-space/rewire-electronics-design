@@ -20,7 +20,7 @@ import { AccountShell } from "./account-shell";
 export function AccountWishlist() {
   const { ready, wishlistSlugs } = useAccount();
   const products = useGetWishlistProducts(wishlistSlugs);
-  const resolved = wishlistSlugs.length > 0 ? (products.data ?? []) : [];
+  const resolved = (products.data ?? []).filter((product) => wishlistSlugs.includes(product.slug));
 
   if (!ready || (wishlistSlugs.length > 0 && products.isPending)) {
     return (

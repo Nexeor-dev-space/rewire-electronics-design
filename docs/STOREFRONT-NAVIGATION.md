@@ -389,6 +389,21 @@ quick actions, which now also link My Waitlists, Support and Profile.
 (`components/account/account-settings.tsx`) and the mobile drawer's
 account block (below). The header and the tab bar no longer offer it.
 
+**The account nav** (`components/account/account-nav.tsx`) has two shapes.
+From `lg` it is the `AccountSidebar` rail. Below `lg` it is `AccountTopNav`,
+a horizontally scrolling strip of the same links, with the active link
+underlined and carrying `aria-current="page"`. Since issue #132 the strip
+also:
+
+1. Shows the current section above the tabs, as "Your account · Wishlist".
+   The label is the active link's own label from `LINKS`, matched with the
+   same `isActive` rule as the tabs, so an order detail page reads
+   "My Orders".
+2. Scrolls itself, not the page, so the active tab sits in the middle of the
+   strip on every page (`nav.scrollTo`, run when the path changes). Before
+   this, sections near the end, such as Account Settings, opened with their
+   tab scrolled out of view.
+
 `accountNav` in `src/lib/site.ts` now feeds only the drawer's account
 block. Its `Profile` entry points to `/account/settings`.
 
