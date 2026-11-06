@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { FieldError, Label } from "@/components/ui/label";
 import { useSignUp } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PASSWORD_MIN_LENGTH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { siteConfig } from "@/lib/site";
 import { signUpSchema } from "@/validators/auth.validator";
 
 interface Props {
@@ -67,16 +68,14 @@ export function RegisterForm({ next }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
-
       <form
         onSubmit={handleSubmit}
         noValidate
         className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8"
       >
         <h1 className="text-xl font-medium tracking-tight text-ink">Create an account</h1>
+
+        <GoogleAuthButton />
 
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -122,9 +121,8 @@ export function RegisterForm({ next }: Props) {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${id}-password`}>Password</Label>
-            <Input
+            <PasswordInput
               id={`${id}-password`}
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -140,9 +138,8 @@ export function RegisterForm({ next }: Props) {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${id}-confirm`}>Confirm password</Label>
-            <Input
+            <PasswordInput
               id={`${id}-confirm`}
-              type="password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

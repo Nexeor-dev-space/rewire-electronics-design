@@ -9,7 +9,6 @@ import { FieldError, Label } from "@/components/ui/label";
 import { useForgotPassword } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
-import { siteConfig } from "@/lib/site";
 import { forgotPasswordSchema } from "@/validators/auth.validator";
 
 /**
@@ -50,10 +49,6 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
-
       <div className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8">
         <h1 className="text-xl font-medium tracking-tight text-ink">Reset your password</h1>
 

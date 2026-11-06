@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useVerifyEmail } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { ACCOUNT_HOME_PATH, FORGOT_PASSWORD_PAGE_PATH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
-import { siteConfig } from "@/lib/site";
 
 interface Props {
   token?: string;
@@ -87,7 +86,6 @@ export function VerifyEmailConfirm({ token }: Props) {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="w-full max-w-sm text-center">
-      <p className="text-[1.0625rem] font-medium tracking-tight text-ink">{siteConfig.shortName}</p>
       <div className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8">
         <h1 className="text-xl font-medium tracking-tight text-ink">{title}</h1>
         {children}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { siteConfig } from "@/lib/site";
+import { Wordmark } from "@/components/layout/wordmark";
 
 /**
  * CheckoutHeader — the site nav's stunt double.
@@ -19,18 +19,7 @@ export function CheckoutHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-void/90 backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex h-16 max-w-[110rem] items-center justify-between gap-6 px-(--spacing-gutter) md:h-20">
-        <Link
-          href="/"
-          aria-label={`${siteConfig.name} — home`}
-          className="-my-2 shrink-0 py-2 transition-opacity duration-(--duration-fast) hover:opacity-70"
-        >
-          <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
-            REWIRE<span className="text-accent">.</span>
-          </span>
-          <span className="mt-1 hidden font-mono text-[0.75rem] uppercase leading-none tracking-[0.42em] text-ink-muted sm:block">
-            Checkout
-          </span>
-        </Link>
+        <Wordmark tagline="Checkout" />
 
         <div className="flex items-center gap-3 sm:gap-5">
           <span className="hidden items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary sm:inline-flex">
