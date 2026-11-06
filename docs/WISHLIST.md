@@ -44,12 +44,8 @@ The list is per device and works signed out.
 ## 3. Showing the products
 
 `GET /api/v1/wishlist?slugs=a,b,c` (public, like the shop) returns the
-`ShopCard` for each slug that is a published product with at least one
-variant, in the order given. Unknown, deleted or unpublished slugs, and
-products with no variants, are left out. At most 24 slugs are read. The
-variant rule matters: a card is built from a variant, so before issue #132 one
-published product without variants failed the whole request and the page
-showed its error state instead of the other saved products.
+`ShopCard` for each slug that is a published product, in the order given.
+Unknown, deleted or unpublished slugs are left out. At most 24 slugs are read.
 
 ```json
 { "success": true, "data": [ { "slug": "google-pixel-8", "name": "Pixel 8", "price": 174900, "...": "..." } ] }
@@ -66,10 +62,6 @@ showed its error state instead of the other saved products.
 | Card | `WishlistCard`: the shop's `ShopProductCard` plus a Remove link |
 
 Both pages handle loading (skeleton), error (Try again), empty and data.
-Both show only the cards whose slug is still saved. The hook keeps the
-previous answer on screen while a new one loads (`keepPreviousData`), so
-without that filter a removed product stayed visible until the refetch
-returned; now it disappears the moment Remove or the heart is tapped.
 When a fresh answer leaves a slug out, the wishlist page calls `retainSaved`,
 so a deleted product stops counting in the tab bar badge.
 

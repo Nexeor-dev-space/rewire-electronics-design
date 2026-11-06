@@ -33,7 +33,7 @@ export function WishlistView() {
   }, [fresh, products.data, retainSaved]);
 
   const loading = !ready || (wishlistSlugs.length > 0 && products.isPending);
-  const cards = (products.data ?? []).filter((product) => wishlistSlugs.includes(product.slug));
+  const cards = wishlistSlugs.length > 0 ? (products.data ?? []) : [];
 
   return (
     <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
