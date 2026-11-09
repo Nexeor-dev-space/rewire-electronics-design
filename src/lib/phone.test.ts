@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { composePhone, OTHER_COUNTRY_MESSAGE, parsePhone, SAUDI_PHONE, splitPhone, UAE_PHONE } from "./phone";
+import {
+  composePhone,
+  OTHER_COUNTRY_MESSAGE,
+  parsePhone,
+  phoneSearchTerms,
+  SAUDI_PHONE,
+  splitPhone,
+  UAE_PHONE,
+} from "./phone";
 
 const UAE_PROBLEM = UAE_PHONE.invalidMessage;
 const SAUDI_PROBLEM = SAUDI_PHONE.invalidMessage;
@@ -107,5 +115,31 @@ describe("parsePhone", () => {
       const { country, number } = splitPhone(typed, UAE_PHONE);
       expect(parsePhone(composePhone(country, number)).problem).toBe(OTHER_COUNTRY_MESSAGE);
     }
+  });
+});
+
+describe("phoneSearchTerms", () => {
+  it("looks for a local number under both countries", () => {
+    expect(phoneSearchTerms("0501234567")).toEqual(["+971501234567", "+966501234567"]);
+    expect(phoneSearchTerms("050 123 4567")).toEqual(["+971501234567", "+966501234567"]);
+  });
+
+  it("looks for a number with a country code under that country only", () => {
+    expect(phoneSearchTerms("+971 50 123 4567")).toEqual(["+971501234567"]);
+    expect(phoneSearchTerms("00966501234567")).toEqual(["+966501234567"]);
+  });
+
+  it("finds the start of a local number", () => {
+    expect(phoneSearchTerms("050 123")).toEqual(["+97150123", "+96650123"]);
+  });
+
+  it("adds nothing for a search that is not a number", () => {
+    expect(phoneSearchTerms("john")).toEqual([]);
+    expect(phoneSearchTerms("john 050")).toEqual([]);
+  });
+
+  it("adds nothing that would match every number", () => {
+    expect(phoneSearchTerms("0")).toEqual([]);
+    expect(phoneSearchTerms("+971")).toEqual([]);
   });
 });

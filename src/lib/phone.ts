@@ -37,6 +37,7 @@ const INTERNATIONAL_PREFIX = /^(\+|00)/;
 const SEPARATORS = /[\s\-.()]/g;
 const SHORTEST_NATIONAL_DIGITS = 8;
 const LOCAL_PREFIX = "0";
+const PHONE_SEARCH_TERM = /^\+?\d+$/;
 
 const compact = (value: string) => value.replace(SEPARATORS, "");
 
@@ -78,4 +79,13 @@ export function parsePhone(value: string): ParsedPhone {
   return national !== null && country.nationalNumber.test(national)
     ? { e164: `${country.dialCode}${national}`, problem: null }
     : { e164: null, problem: country.invalidMessage };
+}
+
+export function phoneSearchTerms(value: string): string[] {
+  if (!PHONE_SEARCH_TERM.test(compact(value))) return [];
+  const terms = PHONE_COUNTRIES.map((country) => {
+    const parts = splitPhone(value, country);
+    return composePhone(parts.country, parts.number);
+  });
+  return [...new Set(terms)].filter(Boolean);
 }

@@ -6,6 +6,7 @@ import { ServiceError } from "@/lib/api/api-response";
 import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
+import { phoneSearchTerms } from "@/lib/phone";
 import { assertStaffRoleExists } from "@/services/staff-role.service";
 import type { addressListSchema, userListQuerySchema, userSchema } from "@/validators/user.validator";
 
@@ -59,6 +60,7 @@ export async function listUsers({
             { fullName: { contains: search, mode: "insensitive" } },
             { email: { contains: search, mode: "insensitive" } },
             { phone: { contains: search } },
+            ...phoneSearchTerms(search).map((term) => ({ phone: { contains: term } })),
           ],
         }
       : {}),

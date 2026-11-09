@@ -66,3 +66,14 @@ form shows the message as soon as it opens, and cannot be saved until the
 number is replaced or, where the phone is optional, cleared.
 
 Delivery is still UAE only, so a Saudi number can sit on a UAE address.
+
+## 5. Admin search
+
+The admin Users search (`listUsers` in `src/services/user.service.ts`) matches
+the text as typed, and also its stored form from `phoneSearchTerms` in
+`src/lib/phone.ts`. Searching `0501234567` or `050 123 4567` finds
+`+971501234567`. A local number does not say which country it belongs to, so it
+is looked for under both. A search holding anything other than digits,
+separators and a leading plus adds nothing.
+
+An older number saved with spaces is only found by typing it as it was saved.
