@@ -15,6 +15,7 @@ import { VAT_RATE_MAX_PERCENT } from "@/lib/constants";
 import { formatOrderStamp } from "@/lib/dates";
 import type { StoreSettingsView } from "@/types/return";
 import { vatSettingsSchema } from "@/validators/vat.validator";
+import { InvoiceDetailsSection } from "./invoice-details-section";
 
 export function VatConfiguration() {
   const settings = useGetVatSettings();
@@ -39,6 +40,7 @@ export function VatConfiguration() {
       ) : (
         <VatRateSection settings={settings.data} />
       )}
+      <InvoiceDetailsSection />
     </AdminPage>
   );
 }

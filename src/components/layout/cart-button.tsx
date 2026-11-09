@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGetCart } from "@/hooks/use-cart";
+import { CART_PAGE_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
@@ -22,7 +23,7 @@ export function CartButton({ className }: { className?: string }) {
 
   return (
     <Link
-      href="/cart"
+      href={CART_PAGE_PATH}
       aria-label={
         showCount
           ? `Cart, ${cartCount} ${cartCount === 1 ? "item" : "items"}`
@@ -35,19 +36,7 @@ export function CartButton({ className }: { className?: string }) {
         className,
       )}
     >
-      <svg
-        aria-hidden
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="size-[1.15rem]"
-      >
-        <path d="M4.5 7.5h15l-1.2 12H5.7l-1.2-12z" />
-        <path d="M9 7.5V6a3 3 0 0 1 6 0v1.5" />
-      </svg>
+      <CartIcon className="size-[1.15rem]" />
 
       <AnimatePresence>
         {showCount && (
@@ -68,5 +57,24 @@ export function CartButton({ className }: { className?: string }) {
         )}
       </AnimatePresence>
     </Link>
+  );
+}
+
+/** The bag icon, shared with the phone tab bar's Cart tab. */
+export function CartIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4.5 7.5h15l-1.2 12H5.7l-1.2-12z" />
+      <path d="M9 7.5V6a3 3 0 0 1 6 0v1.5" />
+    </svg>
   );
 }

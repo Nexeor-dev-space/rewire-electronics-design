@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wordmark } from "@/components/layout/wordmark";
+import { Logo } from "@/components/layout/logo";
 
 /**
  * CheckoutHeader — the site nav's stunt double.
@@ -19,7 +19,7 @@ export function CheckoutHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-void/90 backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex h-16 max-w-[110rem] items-center justify-between gap-6 px-(--spacing-gutter) md:h-20">
-        <Wordmark tagline="Checkout" />
+        <Logo />
 
         <div className="flex items-center gap-3 sm:gap-5">
           <span className="hidden items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary sm:inline-flex">

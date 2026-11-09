@@ -2,16 +2,17 @@ import Link from "next/link";
 import { footerNav, siteConfig } from "@/lib/site";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 import { Container } from "./container";
+import { Logo } from "./logo";
 
 export function Footer() {
   return (
     <footer className="border-t border-line">
       <Container width="wide" className="py-16 md:py-24">
-        <div className="grid gap-12 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <p className="text-lg font-medium tracking-tighter">
-              Rewire<span className="text-accent">.</span>
-            </p>
+        {/* Two link columns side by side on phones, the brand block above
+            them; the full twelve column row from `md`. */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-12">
+          <div className="col-span-2 md:col-span-5">
+            <Logo variant="text" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
               {siteConfig.tagline}
             </p>
@@ -63,7 +64,7 @@ export function Footer() {
 
       <div aria-hidden className="overflow-hidden select-none">
         <p className="text-center font-sans text-[22vw] font-bold leading-[0.75] tracking-[-0.05em] text-white/[0.035] translate-y-[18%]">
-          Rewire
+          REWIRE
         </p>
       </div>
     </footer>

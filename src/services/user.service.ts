@@ -7,7 +7,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { assertStaffRoleExists } from "@/services/staff-role.service";
-import type { userListQuerySchema, userSchema } from "@/validators/user.validator";
+import type { addressListSchema, userListQuerySchema, userSchema } from "@/validators/user.validator";
 
 /**
  * Accounts for the console's Users screens. Deleting is soft: `state`
@@ -17,6 +17,7 @@ import type { userListQuerySchema, userSchema } from "@/validators/user.validato
 
 type Tx = Prisma.TransactionClient;
 type UserData = z.output<typeof userSchema>;
+type AddressList = z.output<typeof addressListSchema>;
 
 const userSelect = {
   id: true,
@@ -28,6 +29,16 @@ const userSelect = {
   staffRole: { select: { id: true, name: true } },
   updatedAt: true,
 } satisfies Prisma.UserSelect;
+
+const addressSelect = {
+  id: true,
+  emirate: true,
+  street: true,
+  landmark: true,
+  isPrimary: true,
+} satisfies Prisma.AddressSelect;
+
+const addressOrder = [{ createdAt: "asc" }, { id: "asc" }] satisfies Prisma.AddressOrderByWithRelationInput[];
 
 const notFound = () =>
   new ServiceError("NOT_FOUND", "We couldn't find that account. It may have been deleted.", 404);
@@ -73,16 +84,24 @@ export async function getUser(id: string, { inTrash = false } = {}) {
     select: {
       ...userSelect,
       passwordHash: true,
-      addresses: {
-        select: { id: true, emirate: true, street: true, landmark: true, isPrimary: true },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      },
+      addresses: { select: addressSelect, orderBy: addressOrder },
     },
   });
   if (!user) throw notFound();
 
   const { passwordHash, ...account } = user;
   return { ...account, hasPassword: passwordHash !== null };
+}
+
+/** The signed-in shopper's saved addresses — bounded by `addressListSchema`. */
+export async function listMyAddresses(userId: string) {
+  return prisma.address.findMany({ where: { userId }, select: addressSelect, orderBy: addressOrder });
+}
+
+/** Replaces the signed-in shopper's addresses; ownership comes from `userId`. */
+export async function saveMyAddresses(userId: string, list: AddressList) {
+  await prisma.$transaction((tx) => saveAddresses(tx, userId, list));
+  return listMyAddresses(userId);
 }
 
 export async function createUser(viewer: Actor, data: UserData) {
@@ -273,7 +292,7 @@ async function assertAnotherAdmin(tx: Tx, id: string) {
  * Replaces the user's addresses with `list`. The primary is the one marked,
  * or the first when none is, so there is always exactly one.
  */
-async function saveAddresses(tx: Tx, userId: string, list: UserData["addresses"]) {
+async function saveAddresses(tx: Tx, userId: string, list: AddressList) {
   const primaryIndex = Math.max(0, list.findIndex((address) => address.isPrimary));
 
   await tx.address.deleteMany({

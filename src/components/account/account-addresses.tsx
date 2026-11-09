@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Address } from "@/types";
-import { loadAddresses, saveAddresses, getSeededAddresses } from "@/lib/account-data";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useGetMyAddresses, useSaveMyAddresses } from "@/hooks/use-address";
+import { useGetMe } from "@/hooks/use-auth";
+import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { cn } from "@/lib/utils";
+import type { MyAddressesInput, UserAddress } from "@/types/user";
 import { AccountShell } from "./account-shell";
 
 /**
  * AccountAddresses — /account/addresses.
  *
- * A card grid of saved addresses with in-place editing. LocalStorage
- * persists edits so add / edit / delete / set-default are all reviewable
- * end-to-end without a backend. Editing opens the form inline where the
- * card was, so the reader never loses their place in the list.
+ * The signed-in shopper's saved addresses, read from and saved to
+ * `/api/v1/account/addresses`. Every change sends the whole list, the same
+ * contract the console's Users form uses, so add / edit / delete / set
+ * default are one endpoint. Editing opens the form inline where the card
+ * was, so the reader never loses their place in the list. The name and
+ * phone on each card come from the account itself.
  */
 
 type FormMode =
@@ -20,56 +25,59 @@ type FormMode =
   | { kind: "edit"; id: string }
   | null;
 
+type AddressDraft = Omit<UserAddress, "id" | "isPrimary">;
+
+const EMPTY_DRAFT: AddressDraft = { emirate: "DUBAI", street: "", landmark: "" };
+
 export function AccountAddresses() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [ready, setReady] = useState(false);
+  const me = useGetMe();
+  const addresses = useGetMyAddresses();
+  const save = useSaveMyAddresses();
   const [form, setForm] = useState<FormMode>(null);
 
-  useEffect(() => {
-    setAddresses(loadAddresses());
-    setReady(true);
-  }, []);
+  if (addresses.isPending) return <AccountShell title="Saved addresses" />;
 
-  function commit(next: Address[]) {
-    setAddresses(next);
-    saveAddresses(next);
+  if (addresses.isError) {
+    return (
+      <AccountShell title="Saved addresses">
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-ink-secondary">{addresses.error.message}</p>
+          <Button variant="outline" size="sm" className="mt-5" onClick={() => addresses.refetch()}>
+            Try again
+          </Button>
+        </div>
+      </AccountShell>
+    );
   }
 
-  function handleSave(input: Omit<Address, "id"> & { id?: string }) {
-    if (input.id) {
+  const list = addresses.data;
+
+  function commit(next: MyAddressesInput["addresses"], onDone?: () => void) {
+    save.mutate({ addresses: next }, { onSuccess: onDone });
+  }
+
+  function handleSave(draft: AddressDraft) {
+    if (form?.kind === "edit") {
       commit(
-        addresses.map((a) =>
-          a.id === input.id
-            ? { ...input, id: input.id, isDefault: a.isDefault } as Address
-            : a,
-        ),
+        list.map((a) => (a.id === form.id ? { ...a, ...draft } : a)),
+        () => setForm(null),
       );
     } else {
-      const id = `addr-${Date.now().toString(36)}`;
-      const created: Address = { ...input, id };
-      // First address in becomes default automatically.
-      if (addresses.length === 0) created.isDefault = true;
-      commit([...addresses, created]);
+      // A new address goes up without an id; the first one saved is the primary.
+      commit([...list, { ...draft, isPrimary: list.length === 0 }], () => setForm(null));
     }
-    setForm(null);
   }
 
   function handleDelete(id: string) {
-    const removed = addresses.find((a) => a.id === id);
-    const next = addresses.filter((a) => a.id !== id);
-    // If we removed the default, promote the first remaining as default.
-    if (removed?.isDefault && next[0]) next[0] = { ...next[0], isDefault: true };
-    commit(next);
+    commit(list.filter((a) => a.id !== id));
     if (form?.kind === "edit" && form.id === id) setForm(null);
   }
 
   function handleSetDefault(id: string) {
-    commit(
-      addresses.map((a) => ({ ...a, isDefault: a.id === id ? true : false })),
-    );
+    commit(list.map((a) => ({ ...a, isPrimary: a.id === id })));
   }
 
-  if (!ready) return <AccountShell title="Saved addresses" />;
+  const editing = form?.kind === "edit" ? list.find((a) => a.id === form.id) : undefined;
 
   return (
     <AccountShell
@@ -87,47 +95,57 @@ export function AccountAddresses() {
         )
       }
     >
+      {save.isError && (
+        <p role="alert" className="mb-4 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-[0.875rem] text-danger">
+          {save.error.message}
+        </p>
+      )}
+
       {form?.kind === "create" && (
         <div className="mb-6">
           <AddressForm
+            saving={save.isPending}
             onCancel={() => setForm(null)}
-            onSubmit={(input) => handleSave(input)}
+            onSubmit={handleSave}
           />
         </div>
       )}
 
-      {addresses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-strong bg-surface/60 p-10 text-center">
-          <p className="text-[1rem] font-medium text-ink">No addresses saved</p>
-          <p className="mx-auto mt-2 max-w-md text-[0.875rem] text-ink-secondary">
-            Add your first delivery address to make future orders one click faster.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              // Seed a starter so the CRUD flow can be exercised.
-              commit([{ ...getSeededAddresses()[0] }]);
-            }}
-            className="mt-4 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[0.8125rem] font-medium text-ink hover:border-ink"
-          >
-            Add a starter address
-          </button>
-        </div>
+      {list.length === 0 ? (
+        form?.kind !== "create" && (
+          <div className="rounded-2xl border border-dashed border-line-strong bg-surface/60 p-10 text-center">
+            <p className="text-[1rem] font-medium text-ink">No addresses saved</p>
+            <p className="mx-auto mt-2 max-w-md text-[0.875rem] text-ink-secondary">
+              Add your first delivery address to make future orders one click faster.
+            </p>
+            <button
+              type="button"
+              onClick={() => setForm({ kind: "create" })}
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[0.8125rem] font-medium text-ink hover:border-ink"
+            >
+              Add an address
+            </button>
+          </div>
+        )
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {addresses.map((address) =>
-            form?.kind === "edit" && form.id === address.id ? (
+          {list.map((address) =>
+            editing?.id === address.id ? (
               <li key={address.id} className="sm:col-span-2">
                 <AddressForm
                   initial={address}
+                  saving={save.isPending}
                   onCancel={() => setForm(null)}
-                  onSubmit={(input) => handleSave(input)}
+                  onSubmit={handleSave}
                 />
               </li>
             ) : (
               <li key={address.id}>
                 <AddressCard
                   address={address}
+                  name={me.data?.fullName}
+                  phone={me.data?.phone}
+                  disabled={save.isPending}
                   onEdit={() => setForm({ kind: "edit", id: address.id })}
                   onDelete={() => handleDelete(address.id)}
                   onSetDefault={() => handleSetDefault(address.id)}
@@ -147,11 +165,17 @@ export function AccountAddresses() {
 
 function AddressCard({
   address,
+  name,
+  phone,
+  disabled,
   onEdit,
   onDelete,
   onSetDefault,
 }: {
-  address: Address;
+  address: UserAddress;
+  name?: string;
+  phone?: string | null;
+  disabled: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onSetDefault: () => void;
@@ -160,9 +184,9 @@ function AddressCard({
     <article className="flex h-full flex-col rounded-2xl border border-line bg-surface p-5">
       <header className="flex items-baseline justify-between gap-3">
         <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-          {address.label}
+          {emirateLabel(address.emirate)}
         </p>
-        {address.isDefault && (
+        {address.isPrimary && (
           <span className="rounded-full border border-live/40 bg-live/10 px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-live">
             Default
           </span>
@@ -170,39 +194,37 @@ function AddressCard({
       </header>
 
       <address className="mt-4 not-italic text-[0.9375rem] leading-relaxed text-ink">
-        <p className="font-medium">{address.name}</p>
-        <p className="text-ink-secondary">
-          {address.line1}
-          {address.line2 ? `, ${address.line2}` : ""}
-        </p>
-        <p className="text-ink-secondary">
-          {address.city}, {address.emirate}
-          {address.postalCode ? ` · ${address.postalCode}` : ""}
-        </p>
-        <p className="mt-2 text-ink-secondary">{address.phone}</p>
+        {name && <p className="font-medium">{name}</p>}
+        <p className="break-words text-ink-secondary">{address.street}</p>
+        <p className="break-words text-ink-secondary">Near {address.landmark}</p>
+        <p className="text-ink-secondary">{emirateLabel(address.emirate)}, UAE</p>
+        {phone && <p className="mt-2 text-ink-secondary">{phone}</p>}
       </address>
 
       <footer className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
         <button
           type="button"
+          disabled={disabled}
           onClick={onEdit}
-          className="rounded-full border border-line-strong px-3.5 py-1.5 text-[0.75rem] font-medium text-ink hover:border-ink"
+          className="rounded-full border border-line-strong px-3.5 py-1.5 text-[0.75rem] font-medium text-ink hover:border-ink disabled:opacity-60"
         >
           Edit
         </button>
-        {!address.isDefault && (
+        {!address.isPrimary && (
           <button
             type="button"
+            disabled={disabled}
             onClick={onSetDefault}
-            className="rounded-full border border-line-strong px-3.5 py-1.5 text-[0.75rem] font-medium text-ink hover:border-ink"
+            className="rounded-full border border-line-strong px-3.5 py-1.5 text-[0.75rem] font-medium text-ink hover:border-ink disabled:opacity-60"
           >
             Set as default
           </button>
         )}
         <button
           type="button"
+          disabled={disabled}
           onClick={onDelete}
-          className="ml-auto rounded-full border border-line px-3.5 py-1.5 text-[0.75rem] font-medium text-ink-muted hover:border-danger/40 hover:text-danger"
+          className="ml-auto rounded-full border border-line px-3.5 py-1.5 text-[0.75rem] font-medium text-ink-muted hover:border-danger/40 hover:text-danger disabled:opacity-60"
         >
           Delete
         </button>
@@ -217,35 +239,29 @@ function AddressCard({
 
 function AddressForm({
   initial,
+  saving,
   onSubmit,
   onCancel,
 }: {
-  initial?: Address;
-  onSubmit: (input: Omit<Address, "id"> & { id?: string }) => void;
+  initial?: UserAddress;
+  saving: boolean;
+  onSubmit: (draft: AddressDraft) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Address>(
-    initial ?? {
-      id: "",
-      label: "Home",
-      name: "",
-      line1: "",
-      line2: "",
-      city: "Dubai",
-      emirate: "Dubai",
-      postalCode: "",
-      phone: "",
-    },
+  const [draft, setDraft] = useState<AddressDraft>(
+    initial
+      ? { emirate: initial.emirate, street: initial.street, landmark: initial.landmark }
+      : EMPTY_DRAFT,
   );
 
-  const canSave = draft.name.trim() && draft.line1.trim() && draft.city.trim() && draft.phone.trim();
+  const canSave = Boolean(draft.street.trim() && draft.landmark.trim()) && !saving;
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSave) return;
-        onSubmit({ ...draft, id: initial?.id });
+        onSubmit({ ...draft, street: draft.street.trim(), landmark: draft.landmark.trim() });
       }}
       className="rounded-2xl border border-line-strong bg-surface p-6"
     >
@@ -254,61 +270,41 @@ function AddressForm({
           {initial ? "Edit address" : "New address"}
         </h2>
         <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
-          {initial ? initial.label : "Delivery & billing"}
+          Delivery &amp; billing
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+            Emirate
+          </span>
+          <select
+            value={draft.emirate}
+            onChange={(e) => setDraft({ ...draft, emirate: e.target.value as Emirate })}
+            className="h-11 rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[0.9375rem] text-ink focus:border-accent focus:outline-none"
+          >
+            {EMIRATES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <Field
-          label="Label"
-          hint="e.g. Home, Office"
-          value={draft.label}
-          onChange={(v) => setDraft({ ...draft, label: v })}
-          required
-        />
-        <Field
-          label="Full name"
-          value={draft.name}
-          onChange={(v) => setDraft({ ...draft, name: v })}
+          className="sm:col-span-2"
+          label="Street"
+          hint="Building, street name or number"
+          value={draft.street}
+          onChange={(v) => setDraft({ ...draft, street: v })}
           required
         />
         <Field
           className="sm:col-span-2"
-          label="Address line 1"
-          value={draft.line1}
-          onChange={(v) => setDraft({ ...draft, line1: v })}
-          required
-        />
-        <Field
-          className="sm:col-span-2"
-          label="Address line 2"
-          hint="Optional"
-          value={draft.line2 ?? ""}
-          onChange={(v) => setDraft({ ...draft, line2: v })}
-        />
-        <Field
-          label="City"
-          value={draft.city}
-          onChange={(v) => setDraft({ ...draft, city: v })}
-          required
-        />
-        <Field
-          label="Emirate"
-          value={draft.emirate}
-          onChange={(v) => setDraft({ ...draft, emirate: v })}
-          required
-        />
-        <Field
-          label="Postal code"
-          hint="Optional"
-          value={draft.postalCode ?? ""}
-          onChange={(v) => setDraft({ ...draft, postalCode: v })}
-        />
-        <Field
-          label="Phone"
-          type="tel"
-          value={draft.phone}
-          onChange={(v) => setDraft({ ...draft, phone: v })}
+          label="Landmark"
+          hint="Nearest landmark"
+          value={draft.landmark}
+          onChange={(v) => setDraft({ ...draft, landmark: v })}
           required
         />
       </div>
@@ -324,7 +320,7 @@ function AddressForm({
               : "cursor-not-allowed bg-white/[0.04] text-ink-muted",
           )}
         >
-          {initial ? "Save changes" : "Add address"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Add address"}
         </button>
         <button
           type="button"
@@ -343,7 +339,6 @@ function Field({
   hint,
   value,
   onChange,
-  type = "text",
   required,
   className,
 }: {
@@ -351,7 +346,6 @@ function Field({
   hint?: string;
   value: string;
   onChange: (value: string) => void;
-  type?: "text" | "tel" | "email" | "password";
   required?: boolean;
   className?: string;
 }) {
@@ -361,9 +355,10 @@ function Field({
         {label} {hint && <span className="text-ink-faint">· {hint}</span>}
       </span>
       <input
-        type={type}
+        type="text"
         value={value}
         required={required}
+        maxLength={200}
         onChange={(e) => onChange(e.target.value)}
         className="h-11 rounded-xl border border-line-strong bg-surface-2 px-3.5 text-[0.9375rem] text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none"
       />

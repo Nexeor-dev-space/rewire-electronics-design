@@ -297,7 +297,7 @@ identity, separated from the links by the bar's single hairline.
 
 - **Cart** (`cart-button.tsx`) links to `/cart` and carries its own count as a small ink chip on the icon's shoulder — never a coloured badge. The count lives in the accessible name, so screen readers get it without a live region.
 - **Identity** (`account-menu.tsx`) is one control in two states. Signed out it is a quiet "Sign in"; signed in it becomes a disclosure with the customer's initials, opening My Orders · My Waitlists · Support Tickets · Returns · Profile, with **Logout below its own rule**. It opens on click only, never hover — a destination menu, not a browsing aid.
-- Below `lg` the bar is **Logo · Search · Cart · Hamburger**, and the drawer carries everything else: the full primary tree as accordions, then the same account block or the Sign in control.
+- Below `lg` the bar is **Logo · Search · Hamburger** (the cart moves to the bottom tab bar), and the drawer carries everything else: the full primary tree as accordions, then the same account block or the Sign in control.
 
 **Session state** is real: the identity control, drawer and tab bar read the
 signed-in user from `useGetMe()` (`hooks/use-auth.ts`) and render the
