@@ -233,7 +233,9 @@ The cart must apply exactly the storefront's visibility and add-on rules, so
 `cart.service.ts` copy them:
 
 1. `VISIBLE_CATEGORY` and `PUBLISHED`: the Prisma filters for a visible
-   category and a published product in one.
+   category and a published product in one. `PUBLISHED` also requires at least
+   one variant, because a shop card is built from a variant and one product
+   without any would fail the whole listing.
 2. `offeredAddOnWhere(scopes)` and `OFFERED_ADD_ON_ORDER`: the add-on filter
    and order above. One query covers several cart lines: picks by id, and the
    category branch only for lines without picks.

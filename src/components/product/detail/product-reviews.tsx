@@ -32,7 +32,7 @@ export function ProductReviews({ reviews, rating, reviewCount }: Props) {
   return (
     <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
       {/* ---------- Summary ---------- */}
-      <aside className="lg:col-span-4 lg:sticky lg:top-28 lg:self-start">
+      <aside className="lg:col-span-4 lg:sticky lg:top-(--spacing-page-top-lg) lg:self-start">
         <div className="rounded-2xl border border-line-strong bg-surface p-6 sm:p-8">
           <p className="eyebrow text-ink-muted">Overall rating</p>
           <div className="mt-4 flex items-baseline gap-3">

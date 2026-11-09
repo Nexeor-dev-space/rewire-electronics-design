@@ -14,9 +14,8 @@ import { updateWaitlistSchema } from "@/validators/waitlist.validator";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Countdown } from "@/components/ui/countdown";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-field";
 import { AccountPagination } from "./account-pagination";
 import { NotifyRow } from "./account-settings";
 import { AccountShell } from "./account-shell";
@@ -204,18 +203,15 @@ function WaitlistCard({ entry, onLeave }: { entry: MyWaitlistEntry; onLeave: () 
         </ul>
 
         {values.whatsappOptIn && (
-          <Field id={phoneId} label="WhatsApp number" error={phoneError} className="mt-2 max-w-sm">
-            <Input
-              id={phoneId}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={values.phone}
-              onChange={(event) => change({ phone: event.target.value })}
-              aria-invalid={phoneError ? true : undefined}
-              className="h-11 bg-surface-2"
-            />
-          </Field>
+          <PhoneField
+            id={phoneId}
+            label="WhatsApp number"
+            value={values.phone}
+            onChange={(next) => change({ phone: next })}
+            error={phoneError}
+            className="mt-2 max-w-sm"
+            controlClassName="h-11 bg-surface-2"
+          />
         )}
 
         <FieldError className="mt-4">{formError}</FieldError>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSignOut } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -42,7 +43,7 @@ export function AccountSidebar() {
   return (
     <nav
       aria-label="Account"
-      className="sticky top-24 hidden lg:block"
+      className="sticky top-(--spacing-page-top-lg) hidden lg:block"
     >
       <p className="mb-4 font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted">
         Your account
@@ -96,12 +97,33 @@ export function AccountSidebar() {
 
 export function AccountTopNav() {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+  const activeLabel = LINKS.find(({ href }) => isActive(pathname, href))?.label;
+
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active) return;
+    nav.scrollTo({ left: active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2 });
+  }, [pathname]);
 
   return (
     <div className="lg:hidden -mx-(--spacing-gutter) mb-8 border-b border-line px-(--spacing-gutter)">
+      <p className="mb-2 font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted">
+        Your account
+        {activeLabel && (
+          <>
+            <span aria-hidden className="mx-1.5 text-ink-faint">
+              ·
+            </span>
+            <span className="text-ink">{activeLabel}</span>
+          </>
+        )}
+      </p>
       <nav
+        ref={navRef}
         aria-label="Account (mobile)"
-        className="no-scrollbar -mb-px flex snap-x snap-mandatory gap-1 overflow-x-auto"
+        className="no-scrollbar relative -mb-px flex snap-x snap-mandatory gap-1 overflow-x-auto"
       >
         {LINKS.map(({ href, label }) => {
           const active = isActive(pathname, href);

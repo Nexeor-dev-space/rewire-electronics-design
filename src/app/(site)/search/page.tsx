@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const listing = await listShopProducts({ ...filters, page: 1, pageSize: SHOP_PAGE_SIZE });
 
   return (
-    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+    <div className="page-top pb-(--spacing-section)">
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) pb-8 lg:pb-10">
         <p className="eyebrow">Search</p>
         <h1 className="mt-3 max-w-3xl text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">

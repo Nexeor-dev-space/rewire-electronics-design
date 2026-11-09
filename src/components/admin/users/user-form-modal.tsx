@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetStaffRoles } from "@/hooks/use-role";
 import { useCreateUser, useGetUser, useUpdateUser } from "@/hooks/use-user";
@@ -204,17 +205,14 @@ function UserForm({
             />
           </Field>
 
-          <Field id={`${id}-phone`} label="Phone number" error={error("phone")}>
-            <Input
-              id={`${id}-phone`}
-              type="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+971 50 123 4567"
-              aria-invalid={error("phone") ? true : undefined}
-              className="h-11"
-            />
-          </Field>
+          <PhoneField
+            id={`${id}-phone`}
+            label="Phone number"
+            value={phone}
+            onChange={setPhone}
+            error={error("phone")}
+            controlClassName="h-11"
+          />
 
           <Field
             id={`${id}-role`}

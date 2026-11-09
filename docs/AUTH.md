@@ -63,7 +63,8 @@ paths) are in `src/lib/constants.ts`.
 `prisma/schema/user.prisma`, migration `add_customer_auth`.
 
 1. `User.phone` is nullable. The admin Users form accepts a blank phone and
-   the list shows a dash.
+   the list shows a dash. A number must be UAE or Saudi and is stored as
+   `+971…` or `+966…` ([PHONE-NUMBERS.md](PHONE-NUMBERS.md)).
 2. `User.emailVerifiedAt` is set by the verify link, a password reset, or
    account creation in the admin console. The migration backfilled it to `createdAt` for every row
    that existed before it, so existing accounts count as verified.

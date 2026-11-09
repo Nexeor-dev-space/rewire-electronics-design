@@ -23,7 +23,7 @@ export function ProductStage({
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-16 xl:gap-20">
-      <div className="lg:sticky lg:top-24 lg:self-start">
+      <div className="lg:sticky lg:top-(--spacing-page-top-lg) lg:self-start">
         <ProductGallery
           key={variant.colour ?? ""}
           images={imagesForColour(product.images, variant.colour)}
