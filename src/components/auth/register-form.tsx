@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/layout/logo-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-field";
 import { useSignUp } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PASSWORD_MIN_LENGTH, SIGN_IN_PAGE_PATH } from "@/lib/constants";
@@ -104,19 +105,14 @@ export function RegisterForm({ next }: Props) {
             <FieldError>{emailError}</FieldError>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${id}-phone`}>Phone (optional)</Label>
-            <Input
-              id={`${id}-phone`}
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              aria-invalid={phoneError ? true : undefined}
-              className="h-11"
-            />
-            <FieldError>{phoneError}</FieldError>
-          </div>
+          <PhoneField
+            id={`${id}-phone`}
+            label="Phone (optional)"
+            value={phone}
+            onChange={setPhone}
+            error={phoneError}
+            controlClassName="h-11"
+          />
 
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${id}-password`}>Password</Label>

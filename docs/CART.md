@@ -697,7 +697,7 @@ summary sits beside it from `lg`, and above it on smaller screens.
 
 **Information is validated with `checkoutInformationSchema`**
 (`src/validators/checkout.validator.ts`): email (`emailValidator`), phone
-(`uaePhoneValidator`), first and last name and address line 1 required;
+(`phoneValidator`), first and last name and address line 1 required;
 address line 2 and postal code optional; emirate one of `EMIRATE_VALUES`; the
 email opt in. `city` and `areaId` are optional in the schema (blank becomes
 undefined) because which one is required depends on the emirate's areas:
@@ -712,13 +712,11 @@ first invalid field. After a failed Continue, a field checks itself again on
 blur. Saved addresses arrive with Phase 3; email and phone prefill from the
 signed in account.
 
-**UAE phone rule.** `uaePhoneValidator` in
-`src/validators/common/primitives.validator.ts` strips spaces, dashes, dots
-and parentheses, then accepts a `+971`, `00971`, `971` or leading `0` prefix
-followed by a mobile number (`5[024568]`) or a landline area code
-(`[234679]`), plus seven digits. The value is normalised to E.164:
-`050 123 4567` becomes `+971501234567`, `04 123 4567` becomes `+97141234567`.
-Anything else reads "Enter a valid UAE phone number, e.g. 050 123 4567."
+**Phone rule.** `phoneValidator` accepts a UAE mobile or landline or a Saudi
+mobile and normalises it to E.164: `050 123 4567` becomes `+971501234567`,
+`04 123 4567` becomes `+97141234567`. The field is `PhoneField`, with a country
+select, in place of the checkout `Field`. The rules are in
+[PHONE-NUMBERS.md](PHONE-NUMBERS.md).
 
 **Payment** takes no card details. Card and Apple Pay show "After you place
 your order, you'll pay on Stripe's secure page." (`PAYMENT_REDIRECT_NOTICE`) on

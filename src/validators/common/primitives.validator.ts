@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { parsePhone } from "@/lib/phone";
 
 /**
  * Shared field validators (Zod). A field that means the same thing in two
@@ -62,7 +63,14 @@ export const phoneValidator = z
   .string()
   .trim()
   .min(1, "Enter a phone number.")
-  .regex(/^\+?[\d\s()-]{7,20}$/, "Enter a valid phone number.");
+  .transform((value, ctx) => {
+    const parsed = parsePhone(value);
+    if (parsed.problem !== null) {
+      ctx.addIssue({ code: "custom", message: parsed.problem });
+      return z.NEVER;
+    }
+    return parsed.e164;
+  });
 
 export const optionalPhoneValidator = z
   .string()
@@ -70,24 +78,6 @@ export const optionalPhoneValidator = z
   .nullish()
   .transform((value) => value || null)
   .pipe(phoneValidator.nullable());
-
-const UAE_PREFIXES = ["+971", "00971", "971", "0"];
-const UAE_NATIONAL_NUMBER = /^(5[024568]|[234679])\d{7}$/;
-
-function uaeNationalNumber(value: string): string | null {
-  const prefix = UAE_PREFIXES.find((candidate) => value.startsWith(candidate));
-  if (!prefix) return null;
-  const national = value.slice(prefix.length);
-  return UAE_NATIONAL_NUMBER.test(national) ? national : null;
-}
-
-export const uaePhoneValidator = z
-  .string()
-  .trim()
-  .min(1, "Enter a phone number.")
-  .transform((value) => uaeNationalNumber(value.replace(/[\s\-.()]/g, "")))
-  .refine((national) => national !== null, "Enter a valid UAE phone number, e.g. 050 123 4567.")
-  .transform((national) => `+971${national}`);
 
 export const authTokenValidator = z
   .string()

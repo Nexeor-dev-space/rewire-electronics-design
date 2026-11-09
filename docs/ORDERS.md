@@ -47,7 +47,7 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    customer), `stripePaymentIntentId` (unique, the Stripe payment that paid
    it) and `stripeCheckoutSessionId` (unique, its current Stripe payment page;
    both in [PAYMENTS.md](PAYMENTS.md) §9). Contact snapshot: `email` (lowercased, what Track Order
-   matches), `phone` (`+971…`), `firstName`, `lastName`, `emailOptIn`.
+   matches), `phone` (`+971…` or `+966…`, [PHONE-NUMBERS.md](PHONE-NUMBERS.md)), `firstName`, `lastName`, `emailOptIn`.
    Address snapshot: `address1`, `address2`, `city`, `postalCode`, `emirate`.
    Delivery snapshot: `deliveryMethod`, `deliveryEtaMinDays`,
    `deliveryEtaMaxDays`, and `deliveryAreaId` (nullable, `onDelete: SetNull`,
