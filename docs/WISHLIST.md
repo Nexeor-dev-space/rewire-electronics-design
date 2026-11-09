@@ -49,7 +49,9 @@ variant, in the order given. Unknown, deleted or unpublished slugs, and
 products with no variants, are left out. At most 24 slugs are read. The
 variant rule matters: a card is built from a variant, so before issue #132 one
 published product without variants failed the whole request and the page
-showed its error state instead of the other saved products.
+showed its error state instead of the other saved products. The rule lives in
+the shared `PUBLISHED` filter ([CATALOGUE.md](CATALOGUE.md)), so every
+storefront listing applies it.
 
 ```json
 { "success": true, "data": [ { "slug": "google-pixel-8", "name": "Pixel 8", "price": 174900, "...": "..." } ] }

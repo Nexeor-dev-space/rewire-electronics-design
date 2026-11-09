@@ -53,6 +53,7 @@ export const PUBLISHED: Prisma.ProductWhereInput = {
   status: "PUBLISHED",
   deletedAt: null,
   category: VISIBLE_CATEGORY,
+  variants: { some: {} },
 };
 
 const ORDER_BY: Record<ShopQuery["sort"], Prisma.ProductOrderByWithRelationInput[]> = {
@@ -502,7 +503,7 @@ async function listRelatedShopProducts(product: ShopProductDetail, limit: number
 export async function listSavedShopProducts(slugs: string[]): Promise<ShopCard[]> {
   if (slugs.length === 0) return [];
   const rows = await prisma.product.findMany({
-    where: { ...PUBLISHED, slug: { in: slugs }, variants: { some: {} } },
+    where: { ...PUBLISHED, slug: { in: slugs } },
     select: cardSelect,
     take: slugs.length,
   });
@@ -530,7 +531,7 @@ export async function listNewestShopProducts(limit: number) {
 export async function findShopCards(ids: string[]): Promise<Map<string, ShopCard>> {
   if (ids.length === 0) return new Map();
   const rows = await prisma.product.findMany({
-    where: { id: { in: ids }, ...PUBLISHED, variants: { some: {} } },
+    where: { id: { in: ids }, ...PUBLISHED },
     select: cardSelect,
   });
   const cards = await toCards(rows);
