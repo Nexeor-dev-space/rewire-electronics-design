@@ -51,7 +51,7 @@ export default async function ReleasesPage({ searchParams }: PageProps) {
   const drops = listing.items.map(toPublishedDrop);
 
   return (
-    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+    <div className="page-top pb-(--spacing-section)">
       <Container width="wide">
         <header className="max-w-3xl">
           <p className="eyebrow">Releases</p>

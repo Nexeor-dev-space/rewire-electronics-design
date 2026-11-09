@@ -105,6 +105,8 @@ before launch.
 - Containers: `narrow` (48rem, prose) · `default` (80rem) · `wide` (110rem, editorial/product grids).
 - Whitespace is the luxury signal: when in doubt, double it.
 
+**Clearing the fixed header.** The header is fixed and takes no space in the page, and from `lg` the category rail makes it about 119px tall. A storefront page that opens with a heading or breadcrumb takes its top padding from the `page-top` utility: `--spacing-page-top` (6rem) below `lg` and `--spacing-page-top-lg` (8rem) from `lg`. Sticky columns use `lg:top-(--spacing-page-top-lg)`. Never pick a page's own value; that is how titles ended up under the header (issue #133). Pages that open with `pt-(--spacing-section)` already clear it, and the home hero sits behind the header on purpose. If the header's height changes, change these two tokens.
+
 ## 5. Radius, shadows, glass
 
 - Radius: `xs 4 · sm 8 · md 12 · lg 16 · xl 24 · 2xl 32 · full`. Cards use `xl`; buttons and badges are pills (`full`); inputs `md`.

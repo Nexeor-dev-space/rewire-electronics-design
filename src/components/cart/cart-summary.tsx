@@ -27,7 +27,7 @@ interface CartSummaryProps {
  */
 export function CartSummary({ totals, itemCount, canCheckout }: CartSummaryProps) {
   return (
-    <div className="lg:sticky lg:top-28">
+    <div className="lg:sticky lg:top-(--spacing-page-top-lg)">
       <div className="rounded-2xl bg-surface p-8 lg:p-9">
         <h2
           id="cart-summary-heading"

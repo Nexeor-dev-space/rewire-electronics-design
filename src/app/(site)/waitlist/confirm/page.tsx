@@ -16,7 +16,7 @@ interface Props {
 export default async function WaitlistConfirmPage({ searchParams }: Props) {
   const { token } = await searchParams;
   return (
-    <Container className="pt-14 pb-(--spacing-section) md:pt-20">
+    <Container className="page-top pb-(--spacing-section)">
       <WaitlistConfirm token={token} />
     </Container>
   );

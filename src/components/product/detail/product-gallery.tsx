@@ -22,7 +22,7 @@ export function ProductGallery({ images }: { images: GalleryImage[] }) {
   if (!active) return null;
 
   return (
-    <div className="lg:sticky lg:top-28 flex flex-col-reverse gap-4 lg:flex-row">
+    <div className="lg:sticky lg:top-(--spacing-page-top-lg) flex flex-col-reverse gap-4 lg:flex-row">
       {/* Thumbnails */}
       {images.length > 1 && (
         <ul

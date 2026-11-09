@@ -59,7 +59,7 @@ export function TrackOrder() {
   const emailError = errors.email?.[0] ?? serverErrors.email?.[0];
 
   return (
-    <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+    <div className="page-top bg-void pb-(--spacing-section)">
       <Container>
         <header className="max-w-xl">
           <p className="eyebrow">Track order</p>

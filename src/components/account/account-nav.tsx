@@ -43,7 +43,7 @@ export function AccountSidebar() {
   return (
     <nav
       aria-label="Account"
-      className="sticky top-24 hidden lg:block"
+      className="sticky top-(--spacing-page-top-lg) hidden lg:block"
     >
       <p className="mb-4 font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ink-muted">
         Your account

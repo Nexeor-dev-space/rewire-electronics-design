@@ -54,7 +54,7 @@ export default async function ProductPage({ params }: Params) {
   return (
     <SelectedVariantProvider variants={product.variants}>
       {/* ---------- Breadcrumb ---------- */}
-      <Container width="wide" className="pt-10 md:pt-14">
+      <Container width="wide" className="page-top">
         <Breadcrumb
           trail={[
             { label: "Home", href: "/" },

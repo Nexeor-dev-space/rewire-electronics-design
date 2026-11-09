@@ -36,7 +36,7 @@ export function WishlistView() {
   const cards = (products.data ?? []).filter((product) => wishlistSlugs.includes(product.slug));
 
   return (
-    <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+    <div className="page-top bg-void pb-(--spacing-section)">
       <Container width="wide">
         <WishlistHeader count={loading ? 0 : cards.length} />
 

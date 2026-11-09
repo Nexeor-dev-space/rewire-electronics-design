@@ -27,7 +27,7 @@ export function CartView() {
 
   if (cart.isPending) {
     return (
-      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+      <div className="page-top bg-void pb-(--spacing-section)">
         <Container width="wide">
           <CartHeader count={0} />
           <CartSkeleton />
@@ -38,7 +38,7 @@ export function CartView() {
 
   if (cart.isError) {
     return (
-      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+      <div className="page-top bg-void pb-(--spacing-section)">
         <Container width="wide">
           <CartHeader count={0} />
           <div
@@ -59,7 +59,7 @@ export function CartView() {
 
   if (data.items.length === 0) {
     return (
-      <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+      <div className="page-top bg-void pb-(--spacing-section)">
         <Container width="wide">
           <CartHeader count={0} />
           <CartEmpty />
@@ -73,7 +73,7 @@ export function CartView() {
     updateCartItem.error?.message ?? removeCartItem.error?.message ?? acknowledgeCart.error?.message;
 
   return (
-    <div className="bg-void pt-14 pb-(--spacing-section) md:pt-20">
+    <div className="page-top bg-void pb-(--spacing-section)">
       <Container width="wide">
         <CartHeader count={data.itemCount} />
 
