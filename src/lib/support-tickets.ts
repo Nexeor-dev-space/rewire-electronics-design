@@ -10,6 +10,8 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 export const TICKET_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 export type TicketPriority = (typeof TICKET_PRIORITIES)[number];
+/** Staff set the real priority; a ticket a customer raises starts here. */
+export const DEFAULT_TICKET_PRIORITY: TicketPriority = "MEDIUM";
 
 export const TICKET_SENDERS = ["CUSTOMER", "STAFF"] as const;
 export type TicketSender = (typeof TICKET_SENDERS)[number];

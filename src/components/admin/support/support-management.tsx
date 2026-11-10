@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import type { TicketRow } from "@/types/support";
 import { AssignTicketDialog } from "./assign-ticket-dialog";
 import { CategoriesDialog } from "./categories-dialog";
+import { InboxDialog } from "./inbox-dialog";
 import { NewTicketDialog } from "./new-ticket-dialog";
 
 const COLUMNS =
@@ -59,6 +60,7 @@ export function SupportManagement() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [managingCategories, setManagingCategories] = useState(false);
+  const [editingInbox, setEditingInbox] = useState(false);
   const [assigning, setAssigning] = useState<TicketRow | null>(null);
 
   const categories = useGetTicketCategories();
@@ -159,9 +161,14 @@ export function SupportManagement() {
       actions={
         <div className="flex flex-wrap items-center gap-3">
           {access.delete && (
-            <Button variant="outline" size="sm" onClick={() => setManagingCategories(true)}>
-              Categories
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => setEditingInbox(true)}>
+                Inbox
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setManagingCategories(true)}>
+                Categories
+              </Button>
+            </>
           )}
           {access.create && (
             <Button size="sm" onClick={() => setCreating(true)}>
@@ -247,6 +254,7 @@ export function SupportManagement() {
 
       {creating && <NewTicketDialog onClose={() => setCreating(false)} />}
       {managingCategories && <CategoriesDialog onClose={() => setManagingCategories(false)} />}
+      {editingInbox && <InboxDialog onClose={() => setEditingInbox(false)} />}
       {assigning && <AssignTicketDialog ticket={assigning} onClose={() => setAssigning(null)} />}
     </AdminPage>
   );

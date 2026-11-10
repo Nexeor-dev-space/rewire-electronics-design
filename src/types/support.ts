@@ -9,6 +9,8 @@ import type {
 } from "@/lib/support-tickets";
 import type {
   createTicketSchema,
+  customerTicketSchema,
+  supportSettingsSchema,
   ticketAssignSchema,
   ticketCategorySchema,
   ticketMessageSchema,
@@ -110,6 +112,13 @@ export type TicketFilters = {
 };
 
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
+export type CustomerTicketInput = z.input<typeof customerTicketSchema>;
+export type SubmittedTicket = { number: string };
+export type SupportSettingsInput = z.input<typeof supportSettingsSchema>;
+export interface SupportSettingsView {
+  inboxEmail: string;
+}
+export type SupportCategoryOption = Pick<TicketCategoryView, "id" | "name">;
 export type TicketMessageInput = z.input<typeof ticketMessageSchema>;
 export type TicketStatusInput = z.input<typeof ticketStatusSchema>;
 export type TicketPriorityInput = z.input<typeof ticketPrioritySchema>;

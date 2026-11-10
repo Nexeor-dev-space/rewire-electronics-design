@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { SUPPORT_TICKET_PAGE_PATH } from "@/lib/constants";
 import { getSupportChannels, supportContact } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import {
@@ -192,6 +193,12 @@ export function SupportContact() {
               {line}
             </p>
           ))}
+          <Link
+            href={SUPPORT_TICKET_PAGE_PATH}
+            className="mt-4 text-[0.9375rem] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+          >
+            Prefer to write it down? Raise a support ticket.
+          </Link>
         </motion.div>
       </div>
     </section>

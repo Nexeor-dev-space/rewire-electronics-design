@@ -76,7 +76,11 @@ function AssignForm({ ticket, onClose }: { ticket: AssignableTicket; onClose: ()
   return (
     <>
       <DialogBody>
-        <Field id={`${id}-assignee`} label="Staff member">
+        <Field
+          id={`${id}-assignee`}
+          label="Staff member"
+          hint="Lists Admins and Staff whose role has Support Tickets access. Give a role that access on the Roles screen to see more people."
+        >
           <Select
             id={`${id}-assignee`}
             data-autofocus

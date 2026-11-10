@@ -126,6 +126,9 @@ export const REPORT_EXPORT_PAGE_SIZE = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
+export const SUPPORT_TICKET_PAGE_PATH = "/support/ticket";
+/** Where a new storefront ticket is emailed until an Admin saves an address in Support Tickets, Inbox. */
+export const SUPPORT_TICKET_INBOX = "megha@nexeor.com";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
 export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
@@ -173,6 +176,7 @@ export const RATE_LIMITS = {
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
+  createSupportTicket: { limit: 5, windowSeconds: 60 * 60 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";

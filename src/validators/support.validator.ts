@@ -8,7 +8,7 @@ import {
   SUPPORT_SUBJECT_MAX_LENGTH,
   SUPPORT_TICKET_NUMBER_PREFIX,
 } from "@/lib/constants";
-import { TICKET_PRIORITIES, TICKET_SENDERS, TICKET_SORTS, TICKET_STATUSES } from "@/lib/support-tickets";
+import { DEFAULT_TICKET_PRIORITY, TICKET_PRIORITIES, TICKET_SENDERS, TICKET_SORTS, TICKET_STATUSES } from "@/lib/support-tickets";
 import { emailValidator, idValidator, paginationQueryValidator } from "./common/primitives.validator";
 import { orderNumberValidator } from "./order.validator";
 
@@ -51,7 +51,7 @@ export const createTicketSchema = z.object({
     .min(1, "Enter a subject.")
     .max(SUPPORT_SUBJECT_MAX_LENGTH, `Use ${SUPPORT_SUBJECT_MAX_LENGTH} characters or fewer.`),
   categoryId: idValidator,
-  priority: z.enum(TICKET_PRIORITIES).default("MEDIUM"),
+  priority: z.enum(TICKET_PRIORITIES).default(DEFAULT_TICKET_PRIORITY),
   orderNumber: z
     .string()
     .trim()
@@ -59,6 +59,9 @@ export const createTicketSchema = z.object({
     .pipe(orderNumberValidator.optional()),
   message: messageBodyValidator,
 });
+
+/** The storefront form: the same fields, but a customer cannot choose the priority. */
+export const customerTicketSchema = createTicketSchema.omit({ priority: true });
 
 export const ticketMessageSchema = z.object({
   body: messageBodyValidator,
@@ -87,5 +90,7 @@ export const ticketCategorySchema = z.object({
     .max(SUPPORT_CATEGORY_NAME_MAX_LENGTH, `Use ${SUPPORT_CATEGORY_NAME_MAX_LENGTH} characters or fewer.`),
   isActive: z.boolean().default(true),
 });
+
+export const supportSettingsSchema = z.object({ inboxEmail: emailValidator });
 
 export const ticketCategoryParamsSchema = z.object({ id: idValidator });

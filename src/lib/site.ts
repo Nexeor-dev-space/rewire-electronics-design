@@ -1,4 +1,4 @@
-import { RELEASES_PAGE_PATH } from "./constants";
+import { RELEASES_PAGE_PATH, SUPPORT_TICKET_PAGE_PATH } from "./constants";
 import { policyLink } from "./policy-types";
 
 export const siteConfig = {
@@ -69,6 +69,7 @@ export const footerNav: { title: string; items: NavItem[] }[] = [
       policyLink("shipping"),
       policyLink("returns-refunds-cancellation"),
       { label: "Contact", href: "/support#contact" },
+      { label: "Raise a ticket", href: SUPPORT_TICKET_PAGE_PATH },
     ],
   },
 ];

@@ -20,8 +20,10 @@ import type { EmailContent } from "@/lib/email/email-outcome";
 import { sendEmail } from "@/lib/email/send-email";
 import { ticketEmailMessage } from "@/lib/email/templates";
 import { generateReference } from "@/lib/reference-number";
+import { getSupportInboxEmail } from "@/services/store-settings.service";
 import {
   CUSTOMER_NOTIFIED_STATUSES,
+  DEFAULT_TICKET_PRIORITY,
   TICKET_ASSIGNEE_ME,
   TICKET_ASSIGNEE_NONE,
   TICKET_PRIORITY_LABELS,
@@ -45,6 +47,7 @@ import type {
 } from "@/types/support";
 import type {
   createTicketSchema,
+  customerTicketSchema,
   ticketCategorySchema,
   ticketListQuerySchema,
   ticketMessageSchema,
@@ -53,6 +56,7 @@ import type {
 type Tx = Prisma.TransactionClient;
 type ListQuery = z.output<typeof ticketListQuerySchema>;
 type CreateData = z.output<typeof createTicketSchema>;
+type CustomerTicketData = z.output<typeof customerTicketSchema>;
 type MessageData = z.output<typeof ticketMessageSchema>;
 type CategoryData = z.output<typeof ticketCategorySchema>;
 
@@ -66,8 +70,8 @@ const MESSAGE_CATEGORY_NOT_FOUND = "We couldn't find that category.";
 const MESSAGE_TICKET_CHANGED = "This ticket changed. Refresh and try again.";
 const MESSAGE_CLOSED = "A closed ticket can't take new messages.";
 const MESSAGE_CHOOSE_CATEGORY = "Choose an active category.";
-const MESSAGE_ORDER_UNKNOWN = "We couldn't find that order.";
-const MESSAGE_ORDER_OTHER_CUSTOMER = "That order belongs to a different customer.";
+/** One message for an unknown order and someone else's, so the form cannot be used to probe order numbers. */
+const MESSAGE_ORDER_UNKNOWN = "We couldn't find that order for this email address.";
 const MESSAGE_ASSIGNEE_UNKNOWN = "Choose a staff member who can work on tickets.";
 const MESSAGE_ASSIGN_FORBIDDEN = "Only someone with Full access can assign a ticket to someone else.";
 const MESSAGE_REASSIGN_FORBIDDEN = "This ticket is assigned to someone else. Only someone with Full access can reassign it.";
@@ -237,6 +241,21 @@ async function staffTicketUrl(number: string): Promise<string | undefined> {
   }
 }
 
+/** A new ticket from the storefront form also lands in the shared support mailbox. */
+async function notifySupportInbox(ticket: TicketRef & { message: string }) {
+  await notify(
+    await getSupportInboxEmail(),
+    ticketEmailMessage({
+      name: "team",
+      number: ticket.number,
+      subject: ticket.subject,
+      intro: `${ticket.customerName} (${ticket.customerEmail}) raised a support ticket.`,
+      quote: ticket.message,
+      url: await staffTicketUrl(ticket.number),
+    }),
+  );
+}
+
 async function notifyAssigned(assignee: { fullName: string; email: string }, ticket: TicketRef) {
   await notify(
     assignee.email,
@@ -382,7 +401,8 @@ export async function getTicket(number: string): Promise<TicketDetail> {
 
 /* ---------- create ---------- */
 
-async function createInTransaction(tx: Tx, data: CreateData, actorId: string) {
+/** `linkAccount` ties the ticket to the customer account that owns the email. Staff vouch for the email; a form visitor must prove it. */
+async function createInTransaction(tx: Tx, data: CreateData, actorId: string | null, linkAccount: boolean) {
   const email = data.customerEmail;
 
   const category = await tx.ticketCategory.findFirst({
@@ -391,10 +411,12 @@ async function createInTransaction(tx: Tx, data: CreateData, actorId: string) {
   });
   if (!category) throw invalid("categoryId", MESSAGE_CHOOSE_CATEGORY);
 
-  const customer = await tx.user.findFirst({
-    where: { email, role: "CUSTOMER", state: "ACTIVE" },
-    select: { id: true, fullName: true },
-  });
+  const customer = linkAccount
+    ? await tx.user.findFirst({
+        where: { email, role: "CUSTOMER", state: "ACTIVE" },
+        select: { id: true, fullName: true },
+      })
+    : null;
 
   let orderId: string | undefined;
   if (data.orderNumber) {
@@ -404,7 +426,7 @@ async function createInTransaction(tx: Tx, data: CreateData, actorId: string) {
     });
     if (!order) throw invalid("orderNumber", MESSAGE_ORDER_UNKNOWN);
     const ownedByCustomer = order.email.toLowerCase() === email || (customer && order.userId === customer.id);
-    if (!ownedByCustomer) throw invalid("orderNumber", MESSAGE_ORDER_OTHER_CUSTOMER);
+    if (!ownedByCustomer) throw invalid("orderNumber", MESSAGE_ORDER_UNKNOWN);
     orderId = order.id;
   }
 
@@ -427,16 +449,43 @@ async function createInTransaction(tx: Tx, data: CreateData, actorId: string) {
   });
 }
 
-/** Staff log a ticket for a customer who wrote, called or emailed instead of using a form. */
-export async function createTicket(data: CreateData, actorId: string): Promise<TicketDetail> {
+async function createWithRetry(data: CreateData, actorId: string | null, linkAccount: boolean): Promise<string> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const { number } = await prisma.$transaction((tx) => createInTransaction(tx, data, actorId));
-      return getTicket(number);
+      const { number } = await prisma.$transaction((tx) => createInTransaction(tx, data, actorId, linkAccount));
+      return number;
     } catch (error) {
       if (!isUniqueViolation(error) || attempt >= REFERENCE_NUMBER_ATTEMPTS) throw error;
     }
   }
+}
+
+/** Staff log a ticket for a customer who wrote, called or emailed instead of using a form. */
+export async function createTicket(data: CreateData, actorId: string): Promise<TicketDetail> {
+  return getTicket(await createWithRetry(data, actorId, true));
+}
+
+/**
+ * A customer raises a ticket from the storefront form. The result holds only the
+ * number, never staff data, and `notifySupport` emails the support inbox so the
+ * caller can send it after the response. The ticket is linked to a customer
+ * account only when the signed in user's email is the one typed, so nobody can
+ * attach a ticket to someone else's account by typing their address.
+ */
+export async function submitCustomerTicket(data: CustomerTicketData, signedInEmail: string | null) {
+  const linkAccount = signedInEmail?.toLowerCase() === data.customerEmail;
+  const number = await createWithRetry({ ...data, priority: DEFAULT_TICKET_PRIORITY }, null, linkAccount);
+  return {
+    result: { number },
+    notifySupport: () =>
+      notifySupportInbox({
+        number,
+        subject: data.subject,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        message: data.message,
+      }),
+  };
 }
 
 /* ---------- messages ---------- */
@@ -630,6 +679,16 @@ const categorySelect = { id: true, name: true, isActive: true } satisfies Prisma
 export async function listCategories(): Promise<TicketCategoryView[]> {
   return prisma.ticketCategory.findMany({
     select: categorySelect,
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    take: MAX_TICKET_CATEGORIES,
+  });
+}
+
+/** The categories a customer can pick on the storefront form. */
+export async function listActiveCategories(): Promise<Pick<TicketCategoryView, "id" | "name">[]> {
+  return prisma.ticketCategory.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     take: MAX_TICKET_CATEGORIES,
   });

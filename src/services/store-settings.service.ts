@@ -2,7 +2,7 @@ import "server-only";
 
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
+import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, SUPPORT_TICKET_INBOX, VAT_RATE_PERCENT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { StoreSettingsView } from "@/types/return";
 import type { storeSettingsSchema } from "@/validators/return.validator";
@@ -45,6 +45,25 @@ export async function getLowStockThreshold(): Promise<number> {
 /** The rate the cart and checkout price with; falls back to the default until one is saved. */
 export async function getVatRatePercent(db: Prisma.TransactionClient = prisma): Promise<number> {
   return (await getStoreSettings(db)).vatRatePercent;
+}
+
+/** Where new storefront tickets are emailed; the default until an Admin saves one. */
+export async function getSupportInboxEmail(): Promise<string> {
+  const row = await prisma.storeSettings.findUnique({
+    where: { id: SETTINGS_ID },
+    select: { supportInboxEmail: true },
+  });
+  return row?.supportInboxEmail ?? SUPPORT_TICKET_INBOX;
+}
+
+export async function updateSupportInboxEmail(actorId: string, inboxEmail: string): Promise<string> {
+  const row = await prisma.storeSettings.upsert({
+    where: { id: SETTINGS_ID },
+    create: { id: SETTINGS_ID, supportInboxEmail: inboxEmail, updatedById: actorId },
+    update: { supportInboxEmail: inboxEmail, updatedById: actorId },
+    select: { supportInboxEmail: true },
+  });
+  return row.supportInboxEmail ?? SUPPORT_TICKET_INBOX;
 }
 
 export async function updateVatSettings(actorId: string, input: VatSettingsData): Promise<StoreSettingsView> {
