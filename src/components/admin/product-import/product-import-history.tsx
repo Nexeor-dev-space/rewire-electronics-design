@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useDownloadImportErrors,
   useGetProductImport,
-  useGetProductImportRows,
   useGetProductImports,
   useProcessProductImport,
 } from "@/hooks/use-product-import";
@@ -26,9 +25,10 @@ import {
 } from "@/lib/product-import";
 import { cn } from "@/lib/utils";
 import type { ProductImportItem } from "@/types/product-import";
+import { ImportRowsList } from "./import-rows-list";
 
 const COLUMNS =
-  "grid-cols-[minmax(6rem,1fr)_minmax(10rem,2fr)_minmax(8rem,1.5fr)_minmax(10rem,1.5fr)_4rem_5rem_4rem_minmax(9rem,1.5fr)_minmax(10rem,1.5fr)]";
+  "grid-cols-[minmax(6rem,1fr)_minmax(10rem,2fr)_minmax(8rem,1.5fr)_minmax(10rem,1.5fr)_4rem_5rem_4rem_4.5rem_minmax(9rem,1.5fr)_minmax(10rem,1.5fr)]";
 
 const STATUS_TONE: Record<ImportStatus, string> = {
   PENDING: "text-ink-secondary",
@@ -69,7 +69,7 @@ export function ProductImportHistory() {
     content = (
       <>
         <div className="overflow-x-auto rounded-xl border border-line">
-          <div className="min-w-[72rem]">
+          <div className="min-w-[76rem]">
             <div
               className={cn(
                 "grid gap-x-4 border-b border-line bg-surface-2 px-5 py-3 text-xs uppercase tracking-wide text-ink-muted",
@@ -83,6 +83,7 @@ export function ProductImportHistory() {
               <span>Total</span>
               <span>Imported</span>
               <span>Failed</span>
+              <span>Skipped</span>
               <span>Status</span>
               <span>Actions</span>
             </div>
@@ -101,6 +102,7 @@ export function ProductImportHistory() {
                     <span className={cn("tabular-nums", item.failedRows > 0 ? "text-danger" : "text-ink-secondary")}>
                       {item.failedRows}
                     </span>
+                    <span className="tabular-nums text-ink-secondary">{item.skippedRows}</span>
                     <span className={cn("font-medium", STATUS_TONE[item.status])}>{IMPORT_STATUS_LABELS[item.status]}</span>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => setOpenId(item.id)}>
@@ -152,6 +154,7 @@ export function ProductImportHistory() {
 const ROW_TABS: { label: string; status: ImportRowStatus | undefined }[] = [
   { label: "Failed", status: "FAILED" },
   { label: "Imported", status: "IMPORTED" },
+  { label: "Skipped", status: "SKIPPED" },
   { label: "All", status: undefined },
 ];
 
@@ -161,25 +164,20 @@ function ImportDetailDialog({ id, onClose }: { id: string; onClose: () => void }
   const processImport = useProcessProductImport();
   const downloadErrors = useDownloadImportErrors();
   const [tab, setTab] = useState(0);
-  const [page, setPage] = useState(1);
   const [resumeError, setResumeError] = useState<string | null>(null);
 
   const record: ProductImportItem | undefined = processImport.data ?? detail.data;
   const status = ROW_TABS[tab]?.status;
-  const rows = useGetProductImportRows(id, { page, pageSize: ADMIN_PAGE_SIZE, status });
 
   async function resume(current: ProductImportItem) {
     setResumeError(null);
     try {
       await runImportToEnd(current, (importId) => processImport.mutateAsync(importId));
       await detail.refetch();
-      await rows.refetch();
     } catch (error) {
       setResumeError(error instanceof Error ? error.message : "The import stopped unexpectedly.");
     }
   }
-
-  const pages = rows.data ? Math.max(1, Math.ceil(rows.data.total / ADMIN_PAGE_SIZE)) : 1;
 
   return (
     <Dialog
@@ -198,11 +196,12 @@ function ImportDetailDialog({ id, onClose }: { id: string; onClose: () => void }
           </p>
         ) : (
           <>
-            <dl className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <dl className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
               <Figure label="Status" value={IMPORT_STATUS_LABELS[record.status]} tone={STATUS_TONE[record.status]} />
               <Figure label="Total" value={String(record.totalRows)} />
               <Figure label="Imported" value={String(record.importedRows)} tone="text-live" />
               <Figure label="Failed" value={String(record.failedRows)} tone={record.failedRows > 0 ? "text-danger" : undefined} />
+              <Figure label="Skipped" value={String(record.skippedRows)} />
             </dl>
 
             {isImportUnfinished(record.status) && (
@@ -230,56 +229,14 @@ function ImportDetailDialog({ id, onClose }: { id: string; onClose: () => void }
                   size="sm"
                   variant={tab === index ? "primary" : "outline"}
                   aria-pressed={tab === index}
-                  onClick={() => {
-                    setTab(index);
-                    setPage(1);
-                  }}
+                  onClick={() => setTab(index)}
                 >
                   {entry.label}
                 </Button>
               ))}
             </div>
 
-            {rows.isPending ? (
-              <Skeleton className="h-32 w-full rounded-xl" />
-            ) : rows.isError ? (
-              <p role="alert" className="text-sm text-danger">
-                {rows.error.message}
-              </p>
-            ) : rows.data.items.length === 0 ? (
-              <p className="rounded-xl border border-line bg-surface-2 px-6 py-8 text-center text-sm text-ink-secondary">
-                No rows to show.
-              </p>
-            ) : (
-              <ul className="rounded-xl border border-line">
-                {rows.data.items.map((row) => (
-                  <li key={row.id} className="border-b border-line px-4 py-3 text-sm last:border-b-0">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-ink">
-                        <span className="mr-2 font-mono text-xs text-ink-secondary">Row {row.rowNumber}</span>
-                        {row.productName}
-                      </span>
-                      <span className="font-mono text-xs text-ink-secondary">{row.sku}</span>
-                    </div>
-                    {row.error && <p className="mt-1 text-xs text-danger">{row.error}</p>}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {pages > 1 && (
-              <nav aria-label="Pagination" className="mt-3 flex items-center justify-end gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <span className="px-1 font-mono text-xs tabular-nums text-ink-secondary">
-                  {page} / {pages}
-                </span>
-                <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-                  Next
-                </Button>
-              </nav>
-            )}
+            <ImportRowsList key={status ?? "all"} importId={id} status={status} />
           </>
         )}
       </DialogBody>
