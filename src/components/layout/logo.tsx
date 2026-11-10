@@ -28,7 +28,7 @@ export function Logo({
       )}
     >
       {variant === "mark" ? (
-        <LogoMark className="h-8 md:h-9" />
+        <LogoMark className="h-8 max-[22rem]:h-6 md:h-9" />
       ) : (
         <>
           <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
