@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { Paginated } from "@/lib/api/api-response";
-import type { Condition, Grade, SortId } from "@/lib/shop";
+import type { Condition, Grade, SortId, StockFilter } from "@/lib/shop";
 import type { SpecGroup } from "@/types/commerce";
 import type { shopQuerySchema } from "@/validators/catalogue.validator";
 
@@ -44,6 +44,7 @@ export interface ShopFacets {
   brands: NamedCount[];
   storage: NamedCount[];
   priceBands: Record<string, number>;
+  stock: Record<StockFilter, number>;
 }
 
 export interface ShopListing extends Paginated<ShopCard> {
@@ -148,5 +149,6 @@ export type ShopFilterState = {
   brand: string[];
   storage: string[];
   price: string[];
+  stock: StockFilter[];
   sort: SortId;
 };

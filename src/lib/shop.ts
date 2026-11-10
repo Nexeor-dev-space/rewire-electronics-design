@@ -20,6 +20,8 @@
  * `gradeApplies()` is the single place that decision lives.
  */
 
+import { AVAILABILITY_LABELS } from "@/types/commerce";
+
 /* ============================================================
    Category — what the product is
    ============================================================ */
@@ -237,6 +239,24 @@ export const priceBands: PriceBand[] = [
   { id: "1500-3000", label: "AED 1,500 – 3,000", min: 1_500_00, max: 3_000_00 },
   { id: "3000-plus", label: "AED 3,000 +", min: 3_000_00, max: Infinity },
 ];
+
+/* ============================================================
+   Stock availability
+   ============================================================ */
+
+export type StockFilter = "in-stock" | "out-of-stock";
+
+export const stockOptions: { value: StockFilter; label: string }[] = [
+  { value: "in-stock", label: AVAILABILITY_LABELS["in-stock"] },
+  { value: "out-of-stock", label: AVAILABILITY_LABELS["sold-out"] },
+];
+
+/**
+ * What the shop shows before a shopper touches the Availability filter:
+ * only products they can buy. Ticking "Out of stock" as well adds the sold
+ * out ones; ticking both, or neither, shows everything.
+ */
+export const DEFAULT_STOCK_FILTER: StockFilter[] = ["in-stock"];
 
 /* ============================================================
    Routes and sorting
