@@ -87,6 +87,9 @@ model Product {
   name        String
   description String @default("")
 
+  shortDescription String  @default("")
+  gtin             String? @unique
+
   brandId    String
   brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
   categoryId String
