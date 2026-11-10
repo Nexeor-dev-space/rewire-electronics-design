@@ -1,20 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useGetShopProducts } from "@/hooks/use-catalogue";
-import { SHOP_PAGE_SIZE } from "@/lib/constants";
-import { CONDITION_META, GRADE_META, priceBands } from "@/lib/shop";
+import {
+  CONDITION_META,
+  DEFAULT_STOCK_FILTER,
+  GRADE_META,
+  priceBands,
+  stockOptions,
+} from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import type { ShopFacets, ShopFilterState, ShopListing } from "@/types/catalogue";
 import { FilterDrawer } from "./filter-drawer";
 import { FilterPanel, type FilterAxis } from "./filter-panel";
 import { ShopProductCard } from "./product-card";
+import { ShopPagination } from "./shop-pagination";
 import { SortSelect } from "./sort-select";
 
-const AXES: FilterAxis[] = ["category", "condition", "grade", "price", "brand", "storage"];
+/** Every axis but stock, which has a default and is counted apart (see `isDefaultStock`). */
+const AXES: Exclude<FilterAxis, "stock">[] = ["category", "condition", "grade", "price", "brand", "storage"];
+
+const isDefaultStock = (stock: string[]) =>
+  stock.length === DEFAULT_STOCK_FILTER.length &&
+  DEFAULT_STOCK_FILTER.every((value) => stock.includes(value));
 
 export function ShopCatalogue({
   initialFilters,
@@ -24,21 +35,40 @@ export function ShopCatalogue({
   initialListing: ShopListing;
 }) {
   const [filters, setFilters] = useState(initialFilters);
+  const [page, setPage] = useState(1);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
   const listing = useGetShopProducts(
     filters,
-    filters === initialFilters ? initialListing : undefined,
+    page,
+    filters === initialFilters && page === 1 ? initialListing : undefined,
   );
 
-  const pages = listing.data?.pages ?? [];
-  const facets = pages[0]?.facets;
-  const total = pages[0]?.total ?? 0;
-  const shown = pages.flatMap((page) => page.items);
-  const activeCount = AXES.reduce((sum, axis) => sum + filters[axis].length, 0);
+  const facets = listing.data?.facets;
+  const total = listing.data?.total ?? 0;
+  const shown = listing.data?.items ?? [];
+  const pageSize = listing.data?.pageSize ?? initialListing.pageSize;
+  const pageCount = Math.ceil(total / pageSize);
+  const firstShown = ((listing.data?.page ?? page) - 1) * pageSize + 1;
+  const activeCount =
+    AXES.reduce((sum, axis) => sum + filters[axis].length, 0) +
+    (isDefaultStock(filters.stock) ? 0 : 1);
+
+  /** A filter or sort change can leave fewer pages, so it always starts again at page 1. */
+  function applyFilters(next: ShopFilterState) {
+    setFilters(next);
+    setPage(1);
+  }
+
+  function goToPage(next: number) {
+    setPage(next);
+    resultsRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
 
   function toggle(axis: FilterAxis, value: string) {
     const current: string[] = filters[axis];
-    setFilters({
+    applyFilters({
       ...filters,
       [axis]: current.includes(value)
         ? current.filter((entry) => entry !== value)
@@ -47,7 +77,7 @@ export function ShopCatalogue({
   }
 
   function clearAll() {
-    setFilters({
+    applyFilters({
       ...filters,
       category: [],
       condition: [],
@@ -55,6 +85,7 @@ export function ShopCatalogue({
       price: [],
       brand: [],
       storage: [],
+      stock: [...DEFAULT_STOCK_FILTER],
     });
   }
 
@@ -112,7 +143,10 @@ export function ShopCatalogue({
           </aside>
 
           {/* ---------- Results ---------- */}
-          <div className="min-w-0 flex-1">
+          <div
+            ref={resultsRef}
+            className="min-w-0 flex-1 scroll-mt-(--spacing-page-top) lg:scroll-mt-(--spacing-page-top-lg)"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
               <p className="text-sm text-ink-secondary" aria-live="polite">
                 <span className="font-mono tabular-nums text-ink">{total}</span>{" "}
@@ -152,7 +186,7 @@ export function ShopCatalogue({
 
                 <SortSelect
                   value={filters.sort}
-                  onChange={(sort) => setFilters({ ...filters, sort })}
+                  onChange={(sort) => applyFilters({ ...filters, sort })}
                   className="w-[13.5rem]"
                 />
               </div>
@@ -233,7 +267,7 @@ export function ShopCatalogue({
                       transition={{
                         duration: DURATION.slow,
                         ease: EASE_OUT_EXPO,
-                        delay: Math.min(index % SHOP_PAGE_SIZE, 7) * 0.04,
+                        delay: Math.min(index, 7) * 0.04,
                       }}
                     >
                       <ShopProductCard product={product} priority={index < 4} />
@@ -242,20 +276,11 @@ export function ShopCatalogue({
                 </ul>
 
                 <div className="flex flex-col items-center gap-5 pt-16 lg:pt-20">
-                  <p className="font-mono text-[0.75rem] uppercase tracking-[0.14em] tabular-nums text-ink-muted">
-                    Showing {shown.length} of {total}
-                  </p>
+                  <ShopPagination page={page} pageCount={pageCount} onPage={goToPage} />
 
-                  {listing.hasNextPage && (
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      loading={listing.isFetchingNextPage}
-                      onClick={() => listing.fetchNextPage()}
-                    >
-                      Load more
-                    </Button>
-                  )}
+                  <p className="font-mono text-[0.75rem] uppercase tracking-[0.14em] tabular-nums text-ink-muted">
+                    Showing {firstShown}–{firstShown + shown.length - 1} of {total}
+                  </p>
 
                   <span aria-hidden className="mt-2 h-px w-16 bg-line" />
                 </div>
@@ -368,6 +393,13 @@ function chipsFor(filters: ShopFilterState, facets: ShopFacets | undefined): Chi
       axisLabel: "Storage",
       value,
       label: value,
+    })),
+    // The default (in stock only) is how the shop starts, not a choice to undo.
+    ...(isDefaultStock(filters.stock) ? [] : filters.stock).map((value) => ({
+      axis: "stock" as const,
+      axisLabel: "Availability",
+      value,
+      label: stockOptions.find((option) => option.value === value)?.label ?? value,
     })),
   ];
 }

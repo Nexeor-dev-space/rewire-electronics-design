@@ -4,6 +4,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
+/** Page numbers shown either side of the current one in the shop pagination. */
+export const SHOP_PAGINATION_SIBLINGS = { mobile: 0, desktop: 1 } as const;
 /** A browser keeps at most this many saved products; the newest win. See docs/WISHLIST.md. */
 export const WISHLIST_MAX_ITEMS = 24;
 const PRODUCT_SLUG_MAX_LENGTH = 120;

@@ -40,6 +40,28 @@ export function slugify(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+/**
+ * The page numbers a pagination bar shows: the first and last page, the
+ * current page and `siblings` either side, with `null` where a run of pages
+ * is left out. A gap never hides a single page; that page is shown instead.
+ *
+ *   pageNumbers(6, 12, 1) → [1, null, 5, 6, 7, null, 12]
+ */
+export function pageNumbers(page: number, pageCount: number, siblings: number): (number | null)[] {
+  let start = Math.max(2, page - siblings);
+  let end = Math.min(pageCount - 1, page + siblings);
+  if (start === 3) start = 2;
+  if (end === pageCount - 2) end = pageCount - 1;
+  const middle = Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+  return [
+    1,
+    ...(start > 2 ? [null] : []),
+    ...middle,
+    ...(end < pageCount - 1 ? [null] : []),
+    ...(pageCount > 1 ? [pageCount] : []),
+  ];
+}
+
 /** Percentage saved vs. original price, rounded. */
 export function savingsPercent(price: number, originalPrice: number) {
   if (originalPrice <= 0 || price >= originalPrice) return 0;

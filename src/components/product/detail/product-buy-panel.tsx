@@ -334,9 +334,6 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
         >
           {AVAILABILITY_LABELS[availability]}
         </span>
-        {low && variant.stock > 0 && (
-          <span className="text-ink-muted">· {variant.stock} left</span>
-        )}
       </div>
 
       {stateOptions.length > 1 && (
