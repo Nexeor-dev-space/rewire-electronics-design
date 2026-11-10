@@ -200,7 +200,11 @@ export function AddToCartButton({
               {adding && <Spinner className="absolute size-4" />}
               <span className={cn("inline-flex items-center gap-2", adding && "opacity-0")}>
                 <CartIcon />
-                {soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}
+                {soldOut ? (
+                  OUT_OF_STOCK_LABEL
+                ) : (
+                  <span className="max-sm:sr-only">Add to cart</span>
+                )}
               </span>
             </button>
           </motion.div>

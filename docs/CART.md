@@ -621,6 +621,8 @@ guard, not only `isPending` (which React Query reports a tick late), so
 rapid clicks are one add. The confetti plays only from the add's
 `onSuccess`, never on a failed add.
 
+On phones (under the `sm` breakpoint) the product card's Add to cart button shows only the cart icon; the words stay for screen readers. "Out of stock" keeps its text.
+
 Every mutation writes the returned cart straight into the cache
 (`setQueryData`) and invalidates the quotes, instead of invalidating the cart
 (see [DATA-LAYER.md](DATA-LAYER.md) §6).
