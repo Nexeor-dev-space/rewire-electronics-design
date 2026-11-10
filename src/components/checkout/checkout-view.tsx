@@ -34,7 +34,7 @@ import {
   paysOnline,
   type PaymentMethod,
 } from "@/lib/orders";
-import { cn } from "@/lib/utils";
+import { cn, randomUuid } from "@/lib/utils";
 import type { DeliveryAreaOptions } from "@/types/delivery";
 import {
   CITY_REQUIRED_MESSAGE,
@@ -42,6 +42,7 @@ import {
 } from "@/validators/checkout.validator";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-field";
 import { Spinner } from "@/components/ui/spinner";
 import { CheckoutProgress, type ProgressStep } from "./checkout-progress";
 import { CheckoutSection, type CheckoutSectionState } from "./checkout-section";
@@ -182,6 +183,7 @@ export function CheckoutView({ payment }: Props) {
   const [informationErrors, setInformationErrors] = useState<InformationErrors>(
     {},
   );
+  const [phone, setPhone] = useState<string | null>(null);
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [emailNeedsSignIn, setEmailNeedsSignIn] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
@@ -305,7 +307,7 @@ export function CheckoutView({ payment }: Props) {
     const choices = [paymentMethod, method, emirate, areaId].join("|");
     if (keyChoices.current !== choices) idempotencyKey.current = null;
     keyChoices.current = choices;
-    idempotencyKey.current ??= crypto.randomUUID();
+    idempotencyKey.current ??= randomUuid();
 
     placeOrder.mutate(
       {
@@ -456,18 +458,17 @@ export function CheckoutView({ payment }: Props) {
                   </a>
                 </p>
               )}
-              <Field
-                id="phone"
+              <PhoneField
+                id={INFORMATION_FIELDS.phone}
+                name={INFORMATION_FIELDS.phone}
                 label="Phone number *"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
                 required
-                placeholder="050 123 4567"
-                defaultValue={me?.phone ?? undefined}
+                value={phone ?? me?.phone ?? ""}
+                onChange={setPhone}
                 hint="For delivery updates only."
                 error={informationErrors.phone}
                 onBlur={() => revalidateInformation("phone")}
+                className="col-span-6"
               />
               <div className="col-span-6">
                 <Checkbox

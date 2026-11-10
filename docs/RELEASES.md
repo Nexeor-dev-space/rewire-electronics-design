@@ -277,7 +277,7 @@ The pages call these services directly; there is no storefront GET API.
 
 `POST /api/v1/releases/[slug]/waitlist` with
 `{ email, emailOptIn, whatsappOptIn, phone }` (`joinWaitlistSchema`). A phone
-is required when WhatsApp is on. One entry per release and email
+is required when WhatsApp is on and follows [PHONE-NUMBERS.md](PHONE-NUMBERS.md). One entry per release and email
 (`@@unique([releaseId, email])`).
 
 1. **Signed in, verified, same email**: the entry is linked to the account and

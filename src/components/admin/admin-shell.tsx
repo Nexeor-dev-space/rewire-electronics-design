@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { LogoMark } from "@/components/layout/logo-mark";
 import { ADMIN_ROOT } from "@/lib/admin-nav";
 import { adminConsole, type AdminTheme } from "@/lib/admin-console";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -165,10 +166,11 @@ export function AdminShell({
 
             <Link
               href={ADMIN_ROOT}
-              className="font-medium tracking-tight text-ink lg:hidden"
+              aria-label={`${adminConsole.name} ${adminConsole.label}`}
+              className="flex items-center gap-2 text-ink lg:hidden"
             >
-              {adminConsole.name}
-              <span className="ml-1.5 text-ink-muted">{adminConsole.label}</span>
+              <LogoMark className="h-6" />
+              <span className="text-sm text-ink-muted">{adminConsole.label}</span>
             </Link>
 
             <div className="ml-auto flex items-center gap-2">
@@ -212,12 +214,11 @@ function RailContents({
           <Link
             href={ADMIN_ROOT}
             onClick={onNavigate}
-            className="text-[1.0625rem] font-medium tracking-tight text-ink"
+            aria-label={`${adminConsole.name} ${adminConsole.label}`}
+            className="flex items-center gap-2.5 text-ink"
           >
-            {adminConsole.name}
-            <span className="ml-1.5 font-normal text-ink-muted">
-              {adminConsole.label}
-            </span>
+            <LogoMark className="h-7" />
+            <span className="text-sm text-ink-muted">{adminConsole.label}</span>
           </Link>
         )}
         {onToggleCollapsed && (

@@ -73,6 +73,10 @@ model Order {
   refundedAmount Int     @default(0)
   couponCode     String?
 
+  /// Sequential tax invoice number (`INV-2026-000001`), set the first time the invoice is issued. See docs/INVOICES.md.
+  invoiceNumber   String?   @unique
+  invoiceIssuedAt DateTime?
+
   items            OrderItem[]
   events           OrderStatusEvent[]
   couponRedemption CouponRedemption?

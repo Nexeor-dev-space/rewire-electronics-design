@@ -47,7 +47,7 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    customer), `stripePaymentIntentId` (unique, the Stripe payment that paid
    it) and `stripeCheckoutSessionId` (unique, its current Stripe payment page;
    both in [PAYMENTS.md](PAYMENTS.md) §9). Contact snapshot: `email` (lowercased, what Track Order
-   matches), `phone` (`+971…`), `firstName`, `lastName`, `emailOptIn`.
+   matches), `phone` (`+971…` or `+966…`, [PHONE-NUMBERS.md](PHONE-NUMBERS.md)), `firstName`, `lastName`, `emailOptIn`.
    Address snapshot: `address1`, `address2`, `city`, `postalCode`, `emirate`.
    Delivery snapshot: `deliveryMethod`, `deliveryEtaMinDays`,
    `deliveryEtaMaxDays`, and `deliveryAreaId` (nullable, `onDelete: SetNull`,
@@ -484,6 +484,11 @@ for a line). A delivered order past `returnableUntil` shows "Return window
 closed". Track Order shows no return links; on a returnable order it tells the
 guest to create an account with the order email (or reset its password) and
 verify it, then request the return from the account.
+
+**Tax invoice.** The account order detail and the admin order screen have a
+"Download invoice" button for any order past payment; it downloads a PDF
+built on the server. Layout, numbering and the seller settings are in
+[INVOICES.md](INVOICES.md).
 
 ---
 

@@ -13,6 +13,16 @@ export const siteConfig = {
   locale: "en_US",
 } as const;
 
+/**
+ * The Rewire logo as a transparent PNG with black ink, for grounds where the
+ * inline `LogoMark` can't be used: the invoice PDF draws images, not React.
+ */
+export const brandLogo = {
+  onLight: "/images/brand/rewire-logo-on-light.png",
+  width: 395,
+  height: 101,
+} as const;
+
 export type NavItem = {
   label: string;
   href: string;

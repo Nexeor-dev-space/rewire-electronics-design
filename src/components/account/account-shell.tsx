@@ -26,7 +26,7 @@ interface Props {
 
 export function AccountShell({ title, subtitle, aside, children }: Props) {
   return (
-    <div className="pb-(--spacing-section) pt-14 md:pt-20">
+    <div className="page-top pb-(--spacing-section)">
       {/* `wide` — the site's `max-w-[110rem]` measure, the same one the
           header, footer, wishlist, cart and every product page sit on.
           This shell was the only surface on `default` (`max-w-7xl`),

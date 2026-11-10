@@ -53,7 +53,7 @@ export default async function ReleasePage({ params }: Params) {
   const countdownTarget = upcoming ? release.startsAt : release.status === "LIVE" ? release.endsAt : null;
 
   return (
-    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+    <div className="page-top pb-(--spacing-section)">
       <Container width="wide">
         <Breadcrumb
           trail={[

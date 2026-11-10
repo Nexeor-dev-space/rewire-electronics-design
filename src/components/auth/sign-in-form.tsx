@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { FieldError, Label } from "@/components/ui/label";
 import { useSignIn } from "@/hooks/use-auth";
 import { apiFieldErrors } from "@/lib/api/api-client";
@@ -53,10 +55,6 @@ export function SignInForm({ next, expired = false }: Props) {
 
   return (
     <div className="w-full max-w-sm">
-      <p className="text-center text-[1.0625rem] font-medium tracking-tight text-ink">
-        {siteConfig.shortName}
-      </p>
-
       <form
         onSubmit={handleSubmit}
         noValidate
@@ -68,6 +66,8 @@ export function SignInForm({ next, expired = false }: Props) {
             Your session has ended. Sign in again to continue.
           </p>
         )}
+
+        <GoogleAuthButton />
 
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -94,9 +94,8 @@ export function SignInForm({ next, expired = false }: Props) {
                 Forgot password?
               </Link>
             </div>
-            <Input
+            <PasswordInput
               id={`${id}-password`}
-              type="password"
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

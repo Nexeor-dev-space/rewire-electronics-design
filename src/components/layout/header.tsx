@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { searchCopy, searchHref, siteConfig } from "@/lib/site";
+import { searchCopy, searchHref } from "@/lib/site";
 import { useScrollState } from "@/hooks/use-scroll-state";
 import { cn } from "@/lib/utils";
 import { SEARCH_MIN_QUERY_LENGTH } from "@/lib/constants";
@@ -15,12 +14,14 @@ import { CartButton } from "./cart-button";
 import { AccountMenu } from "./account-menu";
 import { InlineSearch } from "./inline-search";
 import { CategoryBar } from "./category-bar";
+import { Logo } from "./logo";
 
 /**
  * Header — the site's persistent chrome, two levels deep.
  *
  * Row 1 (all widths): logo · centered search · account · cart
- *   Below `md` the mobile bar folds: hamburger · logo · search icon · cart.
+ *   Below `md` the mobile bar folds: hamburger · logo · search icon.
+ *   Below `lg` the cart moves to the bottom tab bar (`MobileTabBar`).
  *   The hamburger itself stays to `lg`, because the category rail only
  *   appears from `lg` — tablets reach navigation through `MobileDrawer`.
  * Row 2 (from `lg`): the category rail (`CategoryBar`) — real e-commerce
@@ -137,18 +138,7 @@ export function Header() {
             </button>
 
             {/* ---------- Wordmark ---------- */}
-            <Link
-              href="/"
-              aria-label={`${siteConfig.name} — home`}
-              className="-my-2 shrink-0 py-2 transition-opacity duration-(--duration-fast) hover:opacity-70"
-            >
-              <span className="block text-base font-medium leading-none tracking-[0.32em] text-ink">
-                REWIRE<span className="text-accent">.</span>
-              </span>
-              <span className="mt-1 hidden font-mono text-[0.75rem] uppercase leading-none tracking-[0.42em] text-ink-muted sm:block">
-                Electronics
-              </span>
-            </Link>
+            <Logo />
 
             {/* ---------- Inline search — visually centred on desktop ----------
                 From `md` the field takes over the middle of the row.
@@ -206,7 +196,8 @@ export function Header() {
               <div className="hidden md:block">
                 <AccountMenu />
               </div>
-              <CartButton />
+              {/* Below `lg` the cart sits in the bottom tab bar instead. */}
+              <CartButton className="hidden lg:flex" />
             </div>
           </div>
 

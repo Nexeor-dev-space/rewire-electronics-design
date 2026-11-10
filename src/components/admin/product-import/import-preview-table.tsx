@@ -6,7 +6,9 @@ import { ADMIN_PAGE_SIZE } from "@/lib/constants";
 import { formatMoney } from "@/lib/money";
 import { importColumnHeader } from "@/lib/product-import";
 import { cn } from "@/lib/utils";
-import type { ImportPreview, ImportPreviewRow } from "@/types/product-import";
+import type { ImportAction, ImportPreview, ImportPreviewRow } from "@/types/product-import";
+
+const ACTION_LABELS: Record<ImportAction, string> = { CREATE: "Will create", UPDATE: "Will update", SKIP: "Will skip" };
 
 const FILTERS = ["all", "valid", "errors"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -109,8 +111,8 @@ function PreviewRow({ row }: { row: ImportPreviewRow }) {
       <span className="tabular-nums text-ink">{row.price === null ? "None" : formatMoney(row.price)}</span>
       <span className="tabular-nums text-ink">{row.stock ?? "None"}</span>
       <div className="min-w-0">
-        <p className={cn("font-medium", invalid ? "text-danger" : "text-live")}>
-          {invalid ? "Needs fixing" : row.action === "UPDATE" ? "Will update" : "Will create"}
+        <p className={cn("font-medium", invalid ? "text-danger" : row.action === "SKIP" ? "text-ink-secondary" : "text-live")}>
+          {row.action ? ACTION_LABELS[row.action] : "Needs fixing"}
         </p>
         {invalid ? (
           <ul className="mt-1 space-y-1 text-xs text-danger">
@@ -127,6 +129,8 @@ function PreviewRow({ row }: { row: ImportPreviewRow }) {
               <li key={change}>{change}</li>
             ))}
           </ul>
+        ) : row.action === "SKIP" ? (
+          <p className="mt-1 text-xs text-ink-secondary">Already in the catalogue</p>
         ) : (
           row.action === "UPDATE" && <p className="mt-1 text-xs text-ink-secondary">Nothing changes</p>
         )}

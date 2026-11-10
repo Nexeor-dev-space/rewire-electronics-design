@@ -4,12 +4,19 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
+/** A browser keeps at most this many saved products; the newest win. See docs/WISHLIST.md. */
+export const WISHLIST_MAX_ITEMS = 24;
+const PRODUCT_SLUG_MAX_LENGTH = 120;
+/** The longest `?slugs=` list `GET /api/v1/wishlist` accepts. */
+export const WISHLIST_SLUGS_MAX_LENGTH = WISHLIST_MAX_ITEMS * (PRODUCT_SLUG_MAX_LENGTH + 1);
 export const SHOP_MAX_FILTER_VALUES = 50;
 export const RELATED_PRODUCTS_LIMIT = 5;
 export const FEATURED_PRODUCTS_LIMIT = 4;
 export const SITEMAP_PRODUCT_LIMIT = 1000;
 export const MAX_PRODUCT_ADD_ONS = 4;
 export const MAX_WARRANTY_MONTHS = 60;
+export const SHORT_DESCRIPTION_MAX_LENGTH = 200;
+export const GTIN_MAX_LENGTH = 14;
 export const NAV_CATEGORY_LIMIT = 8;
 export const HOME_CATEGORY_LIMIT = 4;
 export const STOREFRONT_CATEGORIES_REVALIDATE_SECONDS = 300;
@@ -78,6 +85,8 @@ export const DELIVERY_AREA_MAX_LENGTH = 100;
 export const MAX_DELIVERY_AREAS_PER_EMIRATE = 300;
 export const CART_MAX_LINES = 20;
 export const CART_MAX_LINE_QUANTITY = 5;
+/** Quantity taps show at once; the new quantity is sent after this pause, see `useDebouncedQuantity`. */
+export const CART_QUANTITY_DEBOUNCE_MS = 400;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const RETURN_WINDOW_DAYS = 30;
 export const RETURN_WINDOW_MAX_DAYS = 365;
@@ -129,6 +138,15 @@ export const SUPPORT_PAGE_PATH = "/support";
 export const SUPPORT_TICKET_PAGE_PATH = "/support/ticket";
 /** Where a new storefront ticket is emailed until an Admin saves an address in Support Tickets, Inbox. */
 export const SUPPORT_TICKET_INBOX = "megha@nexeor.com";
+export const CART_PAGE_PATH = "/cart";
+/** Tax invoices: `INV-<year>-<sequence>`, see docs/INVOICES.md. */
+export const INVOICE_NUMBER_PREFIX = "INV-";
+export const INVOICE_SEQUENCE_DIGITS = 6;
+export const INVOICE_TITLE = "Tax Invoice";
+export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice - No signature required";
+export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
+export const INVOICE_TERMS_MAX_LENGTH = 2000;
+export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
 export const ACCOUNT_RECENT_ORDERS_LIMIT = 3;
@@ -230,3 +248,4 @@ export const PRODUCT_IMPORT_CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 export const PRODUCT_IMPORT_MAX_STALLED_CALLS = 3;
 export const PRODUCT_IMPORT_IMAGE_FETCH_TIMEOUT_MS = 10_000;
 export const ADMIN_PRODUCT_IMPORT_HISTORY_PATH = "/admin/products/upload-history";
+export const PRODUCT_IMPORT_EXCEL_TEMPLATE_PATH = "/templates/rewire-product-upload-sheet.xlsx";

@@ -29,6 +29,21 @@ export const addressSchema = z.object({
   isPrimary: z.boolean(),
 });
 
+/** Save up to this many addresses per account; shared by the console and the account screen. */
+const MAX_ADDRESSES = 10;
+
+/** The full address list: addresses missing from it are removed. */
+export const addressListSchema = z
+  .array(addressSchema)
+  .max(MAX_ADDRESSES, `Save up to ${MAX_ADDRESSES} addresses.`)
+  .refine(
+    (list) => list.filter((address) => address.isPrimary).length <= 1,
+    "Only one address can be primary.",
+  );
+
+/** PUT /account/addresses — the signed-in shopper's own list. */
+export const myAddressesSchema = z.object({ addresses: addressListSchema });
+
 /**
  * Create and update take the same body. `addresses` is the full list:
  * addresses missing from it are removed.
@@ -43,13 +58,7 @@ export const userSchema = z
     staffRoleId: z.string().min(1).nullable().default(null),
     /** Optional. Without a password the account can't sign in. */
     password: newPasswordValidator.optional(),
-    addresses: z
-      .array(addressSchema)
-      .max(10, "Save up to 10 addresses.")
-      .refine(
-        (list) => list.filter((address) => address.isPrimary).length <= 1,
-        "Only one address can be primary.",
-      ),
+    addresses: addressListSchema,
   })
   .superRefine((data, ctx) => {
     if (data.role === "STAFF" && data.staffRoleId === null) {

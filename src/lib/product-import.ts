@@ -23,7 +23,7 @@ export const IMPORT_MODE_LABELS: Record<ImportMode, string> = {
 };
 
 export const IMPORT_MODE_HINTS: Record<ImportMode, string> = {
-  CREATE_NEW: "Adds new products and their variants. A slug or SKU that already exists is refused.",
+  CREATE_NEW: "Adds new products and their variants. A product already in the catalogue is skipped.",
   UPDATE_EXISTING:
     "Changes existing variants matched by SKU. A blank cell keeps the current value, and nothing is deleted.",
 };
@@ -55,19 +55,46 @@ export const IMPORT_COLUMNS = [
   { key: "stock", header: "stock", required: true },
 ] as const;
 
-export type ImportColumnKey = (typeof IMPORT_COLUMNS)[number]["key"];
+export const IMPORT_EXTRA_COLUMNS = [
+  { key: "shortDescription", header: "Short description" },
+  { key: "gtin", header: "GTIN / barcode" },
+  { key: "highlights", header: "Highlights" },
+  { key: "included", header: "What's in the box" },
+  { key: "batteryHealth", header: "Battery health (%)" },
+  { key: "imageAlts", header: "Image alt texts" },
+  { key: "imageColours", header: "Image colours" },
+  { key: "seoTitle", header: "SEO title" },
+  { key: "metaDescription", header: "Meta description" },
+  { key: "focusKeyword", header: "Focus keyword" },
+] as const;
+
+type ImportCsvKey = (typeof IMPORT_COLUMNS)[number]["key"];
+export type ImportColumnKey = ImportCsvKey | (typeof IMPORT_EXTRA_COLUMNS)[number]["key"];
 export type ImportRawRow = Record<ImportColumnKey, string>;
-/** A CSV row as it travels to the server: its spreadsheet row number and its cells. */
-export type ImportRow = ImportRawRow & { rowNumber: number };
+/** A row as it travels to the server: its spreadsheet row number and its cells. */
+export type ImportRow = ImportRawRow & {
+  rowNumber: number;
+  parentRowNumber: number | null;
+  templateErrors: string[];
+};
 
 export const IMPORT_COLUMN_KEYS = IMPORT_COLUMNS.map((column) => column.key);
+export const IMPORT_EXTRA_KEYS = IMPORT_EXTRA_COLUMNS.map((column) => column.key);
 
-const HEADER_TO_KEY = new Map<string, ImportColumnKey>(
+const HEADER_TO_KEY = new Map<string, ImportCsvKey>(
   IMPORT_COLUMNS.map((column) => [column.header, column.key]),
 );
 
 export function importColumnHeader(key: ImportColumnKey): string {
-  return IMPORT_COLUMNS.find((column) => column.key === key)?.header ?? key;
+  return [...IMPORT_COLUMNS, ...IMPORT_EXTRA_COLUMNS].find((column) => column.key === key)?.header ?? key;
+}
+
+export function blankImportCells(): ImportRawRow {
+  return Object.fromEntries([...IMPORT_COLUMN_KEYS, ...IMPORT_EXTRA_KEYS].map((key) => [key, ""])) as ImportRawRow;
+}
+
+export function withImportRowDefaults(row: Partial<ImportRow> & { rowNumber: number }): ImportRow {
+  return { ...blankImportCells(), parentRowNumber: null, templateErrors: [], ...row };
 }
 
 /** Create New needs the full set; Update Existing only needs the SKU to match on. */
@@ -86,7 +113,9 @@ export function missingColumns(columns: readonly ImportColumnKey[], mode: Import
 const REQUIRED_MARK = "Required";
 const OPTIONAL_MARK = "Optional";
 
-const SAMPLE_ROWS: ImportRawRow[] = [
+type ImportCsvRow = Record<ImportCsvKey, string>;
+
+const SAMPLE_ROWS: ImportCsvRow[] = [
   {
     productName: "iPhone 14 Pro",
     productSlug: "iphone-14-pro",
@@ -151,7 +180,7 @@ const SAMPLE_ROWS: ImportRawRow[] = [
 
 /** Header row, a Required / Optional row under it, then two sample products. */
 export function buildImportTemplate(): string {
-  const toLine = (row: ImportRawRow) => IMPORT_COLUMNS.map((column) => row[column.key]);
+  const toLine = (row: ImportCsvRow) => IMPORT_COLUMNS.map((column) => row[column.key]);
   return toCsv(
     [
       IMPORT_COLUMNS.map((column) => column.header),
@@ -171,11 +200,15 @@ export class ImportFileError extends Error {}
 
 const UTF8_BOM = "﻿";
 const NUL = "\u0000";
-const CSV_EXTENSION = /\.csv$/i;
+const IMPORT_FILE_EXTENSION = /\.(csv|xlsx)$/i;
+const EXCEL_EXTENSION = /\.xlsx$/i;
+
+export const IMPORT_FILE_ACCEPT = ".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const isExcelFile = (name: string) => EXCEL_EXTENSION.test(name);
 
 /** Checks that need only the file's name and size, so they run before it is read. */
 export function checkImportFile(file: { name: string; size: number }): void {
-  if (!CSV_EXTENSION.test(file.name)) throw new ImportFileError("Choose a .csv file.");
+  if (!IMPORT_FILE_EXTENSION.test(file.name)) throw new ImportFileError("Choose a .csv or .xlsx file.");
   if (file.size === 0) throw new ImportFileError("That file is empty.");
   if (file.size > PRODUCT_IMPORT_MAX_BYTES) {
     throw new ImportFileError(
@@ -235,10 +268,24 @@ export function distinctImageUrls(rows: readonly { images: string }[]): string[]
   return [...new Set(urls.filter(Boolean))];
 }
 
+export function assertImportLimits(rows: readonly { images: string }[]): void {
+  if (rows.length > PRODUCT_IMPORT_MAX_ROWS) {
+    throw new ImportFileError(`That file has more than ${PRODUCT_IMPORT_MAX_ROWS} rows. Split it and upload the parts one at a time.`);
+  }
+  const images = distinctImageUrls(rows).length;
+  if (images > PRODUCT_IMPORT_MAX_IMAGES) {
+    throw new ImportFileError(
+      `That file lists ${images} different image addresses. The limit is ${PRODUCT_IMPORT_MAX_IMAGES} per file. Split it and upload the parts one at a time.`,
+    );
+  }
+}
+
 export interface ParsedImportFile {
+  source: "CSV" | "XLSX";
   /** The columns the file has, in the template's names. */
   columns: ImportColumnKey[];
   rows: ImportRow[];
+  notices: string[];
 }
 
 export function parseImportFile(text: string): ParsedImportFile {
@@ -275,7 +322,7 @@ export function parseImportFile(text: string): ParsedImportFile {
       throw new ImportFileError(`Row ${rowNumber} has more cells than the header has columns.`);
     }
 
-    const row = Object.fromEntries(IMPORT_COLUMN_KEYS.map((key) => [key, ""])) as ImportRawRow;
+    const row = blankImportCells();
     keys.forEach((key, position) => {
       const value = (record[position] ?? "").trim();
       if (value.length > PRODUCT_IMPORT_MAX_CELL_LENGTH) {
@@ -283,21 +330,12 @@ export function parseImportFile(text: string): ParsedImportFile {
       }
       row[key] = value;
     });
-    rows.push({ ...row, rowNumber });
-
-    if (rows.length > PRODUCT_IMPORT_MAX_ROWS) {
-      throw new ImportFileError(`That file has more than ${PRODUCT_IMPORT_MAX_ROWS} rows. Split it and upload the parts one at a time.`);
-    }
+    rows.push({ ...row, rowNumber, parentRowNumber: null, templateErrors: [] });
   }
 
   if (rows.length === 0) throw new ImportFileError("The file has a header but no product rows.");
-  const images = distinctImageUrls(rows).length;
-  if (images > PRODUCT_IMPORT_MAX_IMAGES) {
-    throw new ImportFileError(
-      `That file lists ${images} different image addresses. The limit is ${PRODUCT_IMPORT_MAX_IMAGES} per file. Split it and upload the parts one at a time.`,
-    );
-  }
-  return { columns: keys, rows };
+  assertImportLimits(rows);
+  return { source: "CSV", columns: keys, rows, notices: [] };
 }
 
 /* ---------- saved imports ---------- */
@@ -313,7 +351,7 @@ export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
   FAILED: "Failed",
 };
 
-export const IMPORT_ROW_STATUSES = ["PENDING", "IMPORTED", "FAILED"] as const;
+export const IMPORT_ROW_STATUSES = ["PENDING", "IMPORTED", "SKIPPED", "FAILED"] as const;
 export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 
 /** An import still has rows to save: Pending, or Processing after a break. */
@@ -327,7 +365,9 @@ export const errorReportFilename = (id: string) => `import-${id}-errors.csv`;
  * error when several batches in a row save nothing, which means the rest are
  * stuck, rather than asking for ever.
  */
-export async function runImportToEnd<T extends { id: string; status: ImportStatus; importedRows: number; failedRows: number }>(
+export async function runImportToEnd<
+  T extends { id: string; status: ImportStatus; importedRows: number; failedRows: number; skippedRows: number },
+>(
   start: T,
   step: (id: string) => Promise<T>,
   onProgress?: (record: T) => void,
@@ -336,7 +376,8 @@ export async function runImportToEnd<T extends { id: string; status: ImportStatu
   let stalled = 0;
   while (isImportUnfinished(current.status)) {
     const next = await step(current.id);
-    const moved = next.importedRows + next.failedRows !== current.importedRows + current.failedRows;
+    const handled = (record: T) => record.importedRows + record.failedRows + record.skippedRows;
+    const moved = handled(next) !== handled(current);
     stalled = moved || !isImportUnfinished(next.status) ? 0 : stalled + 1;
     if (stalled >= PRODUCT_IMPORT_MAX_STALLED_CALLS) {
       throw new Error("The import isn't making progress. Wait a few minutes, then resume it from Import history.");

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { DELIVERY_METHODS } from "@/lib/delivery";
 import { EMIRATE_VALUES } from "@/lib/emirates";
 import { PAYMENT_METHODS } from "@/lib/orders";
-import { emailValidator, minorUnitsValidator, uaePhoneValidator } from "./common/primitives.validator";
+import { emailValidator, minorUnitsValidator, phoneValidator } from "./common/primitives.validator";
 
 /**
  * The city is required only when no area is picked: a picked area becomes the
@@ -13,7 +13,7 @@ export const CITY_REQUIRED_MESSAGE = "Enter the city.";
 
 export const checkoutInformationSchema = z.object({
   email: emailValidator,
-  phone: uaePhoneValidator,
+  phone: phoneValidator,
   emailOptIn: z.boolean().optional(),
   firstName: z.string().trim().min(1, "Enter the first name.").max(100),
   lastName: z.string().trim().min(1, "Enter the last name.").max(100),

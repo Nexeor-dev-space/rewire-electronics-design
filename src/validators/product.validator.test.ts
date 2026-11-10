@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PRODUCT_ADD_ONS } from "@/lib/constants";
+import { MAX_PRODUCT_ADD_ONS, SHORT_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { productSchema } from "./product.validator";
 
 const product = {
@@ -14,6 +14,27 @@ const errorPaths = (input: object) => {
   const result = productSchema.safeParse(input);
   return result.success ? [] : result.error.issues.map((issue) => issue.path.join("."));
 };
+
+describe("productSchema GTIN and short description", () => {
+  it("defaults to no GTIN and an empty short description", () => {
+    const parsed = productSchema.parse(product);
+    expect(parsed.gtin).toBeNull();
+    expect(parsed.shortDescription).toBe("");
+  });
+
+  it("keeps a GTIN of 8 to 14 digits", () => {
+    expect(productSchema.parse({ ...product, gtin: "194253082194" }).gtin).toBe("194253082194");
+  });
+
+  it.each(["1234567", "123456789012345", "19425308219A"])("refuses the GTIN %s", (gtin) => {
+    expect(errorPaths({ ...product, gtin })).toEqual(["gtin"]);
+  });
+
+  it("refuses a short description over the limit", () => {
+    const shortDescription = "x".repeat(SHORT_DESCRIPTION_MAX_LENGTH + 1);
+    expect(errorPaths({ ...product, shortDescription })).toEqual(["shortDescription"]);
+  });
+});
 
 describe("productSchema add-ons", () => {
   it("defaults to no picks", () => {

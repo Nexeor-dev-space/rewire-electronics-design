@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { getProductBySlug } from "@/lib/catalog";
-import { projectFromCatalog } from "@/lib/products";
 import { useAccount } from "@/components/providers/account-provider";
-import type { Product as CatalogProduct } from "@/types";
+import { Button } from "@/components/ui/button";
 import { WishlistCard } from "@/components/wishlist/wishlist-card";
+import { WishlistSkeleton } from "@/components/wishlist/wishlist-skeleton";
+import { useGetWishlistProducts } from "@/hooks/use-catalogue";
 import { AccountShell } from "./account-shell";
 
 /**
@@ -14,16 +14,34 @@ import { AccountShell } from "./account-shell";
  * Reuses the site's WishlistCard so the tile looks and behaves exactly
  * the same as on the standalone /wishlist page. State is shared via
  * `useAccount` — adding, removing, moving to cart all synchronise
- * across both pages instantly.
+ * across both pages instantly. Cards come from `GET /api/v1/wishlist`
+ * (docs/WISHLIST.md).
  */
 export function AccountWishlist() {
   const { ready, wishlistSlugs } = useAccount();
+  const products = useGetWishlistProducts(wishlistSlugs);
+  const resolved = (products.data ?? []).filter((product) => wishlistSlugs.includes(product.slug));
 
-  const resolved: CatalogProduct[] = wishlistSlugs
-    .map((slug) => getProductBySlug(slug))
-    .filter((product): product is CatalogProduct => Boolean(product));
+  if (!ready || (wishlistSlugs.length > 0 && products.isPending)) {
+    return (
+      <AccountShell title="Wishlist">
+        <WishlistSkeleton />
+      </AccountShell>
+    );
+  }
 
-  if (!ready) return <AccountShell title="Wishlist" />;
+  if (products.isError && wishlistSlugs.length > 0) {
+    return (
+      <AccountShell title="Wishlist">
+        <div role="alert" className="rounded-2xl border border-line bg-surface p-8 text-center">
+          <p className="text-sm text-ink-secondary">{products.error.message}</p>
+          <Button variant="outline" size="sm" className="mt-5" onClick={() => products.refetch()}>
+            Try again
+          </Button>
+        </div>
+      </AccountShell>
+    );
+  }
 
   return (
     <AccountShell
@@ -48,11 +66,7 @@ export function AccountWishlist() {
         <ul className="grid grid-cols-1 gap-x-4 gap-y-6 min-[360px]:grid-cols-2 sm:gap-6 xl:grid-cols-3">
           {resolved.map((product, index) => (
             <li key={product.slug}>
-              <WishlistCard
-                product={projectFromCatalog(product)}
-                catalogProduct={product}
-                priority={index < 3}
-              />
+              <WishlistCard product={product} priority={index < 3} />
             </li>
           ))}
         </ul>

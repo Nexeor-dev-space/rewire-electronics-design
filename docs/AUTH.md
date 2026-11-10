@@ -63,7 +63,8 @@ paths) are in `src/lib/constants.ts`.
 `prisma/schema/user.prisma`, migration `add_customer_auth`.
 
 1. `User.phone` is nullable. The admin Users form accepts a blank phone and
-   the list shows a dash.
+   the list shows a dash. A number must be UAE or Saudi and is stored as
+   `+971…` or `+966…` ([PHONE-NUMBERS.md](PHONE-NUMBERS.md)).
 2. `User.emailVerifiedAt` is set by the verify link, a password reset, or
    account creation in the admin console. The migration backfilled it to `createdAt` for every row
    that existed before it, so existing accounts count as verified.
@@ -253,6 +254,15 @@ and the `OAuthProvider` enum. A customer
 who only ever signed in with Google has no password; they sign in again by
 setting one through forgot password.
 
+The sign in and register pages show a **Continue with Google** button
+(`src/components/auth/google-auth-button.tsx`). It is a placeholder only:
+there are no Google credentials and no route behind it. Clicking it shows
+"Google sign-in isn't available yet. Use your email and password instead."
+in a `role="status"` line and sends no request. Wiring real Google sign in
+means adding an OAuth route, its env credentials (ask first, see
+[INTEGRATIONS.md](INTEGRATIONS.md)) and the `OAuthAccount` link, then
+replacing the button's click handler.
+
 ---
 
 ## 9. Storefront
@@ -261,6 +271,13 @@ setting one through forgot password.
 
 All five live in `src/app/(auth)/`, a route group with no header, footer or
 tab bar, on storefront tokens. Every page sets `robots: noindex, nofollow`.
+The group layout renders the shared `Wordmark`
+(`src/components/layout/wordmark.tsx`, tagline "Electronics") above every
+page, linking home, so the forms carry no brand line of their own.
+Password fields on sign in and register (password and confirm) use
+`PasswordInput` (`src/components/ui/password-input.tsx`), which adds a show
+or hide eye button. Toggling only switches the input `type`; the value is
+owned by the form and never changes.
 
 1. `/sign-in?next=`: `SignInForm`, links to register and forgot password. On success it goes to
    `safeNextPath(next)` or the returned `redirectTo`. A signed-in visitor is

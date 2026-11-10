@@ -27,7 +27,7 @@ export default async function CollectionPage({ searchParams }: PageProps) {
   const listing = await listShopProducts({ ...filters, page: 1, pageSize: SHOP_PAGE_SIZE });
 
   return (
-    <div className="pb-(--spacing-section) pt-24 lg:pt-32">
+    <div className="page-top pb-(--spacing-section)">
       <ShopCatalogue
         key={JSON.stringify(filters)}
         initialFilters={filters}

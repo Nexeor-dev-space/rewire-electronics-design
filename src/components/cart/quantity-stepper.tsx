@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-type StepperSize = "sm" | "md" | "lg";
+type StepperSize = "sm" | "md" | "lg" | "xl";
 
 const SIZE_STYLES: Record<
   StepperSize,
@@ -11,6 +11,7 @@ const SIZE_STYLES: Record<
   sm: { row: "h-10", button: "size-8", icon: "size-3", count: "w-7 text-[0.8125rem]" },
   md: { row: "h-11", button: "size-8", icon: "size-3.5", count: "min-w-7 text-sm font-medium" },
   lg: { row: "h-14", button: "size-11", icon: "size-3.5", count: "min-w-8 text-base font-medium" },
+  xl: { row: "h-16", button: "size-12", icon: "size-4", count: "min-w-9 text-lg font-semibold" },
 };
 
 interface QuantityStepperProps {
@@ -27,7 +28,7 @@ interface QuantityStepperProps {
   groupLabel?: string;
   /** `outline` matches the cart line's hairline pill; `filled` matches the accent CTA it replaces. */
   variant?: "outline" | "filled";
-  /** `sm` = cart line row, `md` = a product card's CTA slot, `lg` = the PDP buy panel's CTA slot. */
+  /** `sm` = cart line row, `md` = a product card's CTA slot, `xl` = the PDP buy panel's CTA slot (same height as its `xl` button). */
   size?: StepperSize;
   className?: string;
 }

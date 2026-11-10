@@ -83,8 +83,8 @@ export function ShopCatalogue({
             data-lenis-prevent
             className={cn(
               "hidden shrink-0 self-start lg:block lg:w-[16rem] xl:w-[17.5rem]",
-              "lg:sticky lg:top-28",
-              "lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1",
+              "lg:sticky lg:top-(--spacing-page-top-lg)",
+              "lg:max-h-[calc(100dvh-var(--spacing-page-top-lg)-1rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1",
             )}
           >
             <div className="flex items-baseline justify-between gap-4 pb-5">

@@ -1,6 +1,6 @@
 import type { ImportColumnKey, ImportMode, ImportRowStatus, ImportStatus } from "@/lib/product-import";
 
-export type ImportAction = "CREATE" | "UPDATE";
+export type ImportAction = "CREATE" | "UPDATE" | "SKIP";
 
 export interface ImportRowError {
   /** The column at fault, or null when the whole row is. */
@@ -33,6 +33,7 @@ export interface ImportPreview {
   productCount: number;
   validRows: number;
   invalidRows: number;
+  skippedRows: number;
   rows: ImportPreviewRow[];
 }
 
@@ -44,6 +45,7 @@ export interface ProductImportItem {
   totalRows: number;
   importedRows: number;
   failedRows: number;
+  skippedRows: number;
   uploadedByName: string;
   /** ISO strings. */
   createdAt: string;

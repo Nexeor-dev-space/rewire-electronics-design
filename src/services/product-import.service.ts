@@ -93,20 +93,22 @@ export async function loadLookups(rows: ImportRow[], checkImages: boolean): Prom
   const slugs = unique(rows.map((row) => keyOf(row.productSlug)));
   const skus = unique(rows.map((row) => row.sku));
   const brandKeys = unique(rows.map((row) => keyOf(row.brand)));
-  const categorySlugs = unique(rows.map((row) => keyOf(row.category)));
+  const categoryKeys = unique(rows.map((row) => keyOf(row.category)));
+  const gtins = unique(rows.map((row) => row.gtin));
   const imageUrls = distinctImageUrls(rows);
 
-  const [brands, categories, products, variants, imageProblems] = await Promise.all([
+  const [brands, categories, products, gtinOwners, variants, imageProblems] = await Promise.all([
     prisma.brand.findMany({ where: { nameKey: { in: brandKeys } }, select: { id: true, nameKey: true } }),
     prisma.category.findMany({
-      where: { slug: { in: categorySlugs } },
-      select: { id: true, slug: true, status: true },
+      where: { OR: [{ slug: { in: categoryKeys } }, { nameKey: { in: categoryKeys } }] },
+      select: { id: true, slug: true, nameKey: true, status: true },
     }),
     // Trash is included on purpose: a product there still holds its slug.
     prisma.product.findMany({
       where: { slug: { in: slugs, mode: "insensitive" } },
       select: { slug: true, deletedAt: true },
     }),
+    prisma.product.findMany({ where: { gtin: { in: gtins } }, select: { gtin: true, deletedAt: true } }),
     prisma.productVariant.findMany({
       where: { sku: { in: skus, mode: "insensitive" } },
       select: {
@@ -143,9 +145,12 @@ export async function loadLookups(rows: ImportRow[], checkImages: boolean): Prom
   return {
     brands: new Map(brands.map((brand) => [brand.nameKey, brand.id])),
     categories: new Map(
-      categories.map((category) => [category.slug, { id: category.id, archived: category.status === "ARCHIVED" }]),
+      [...categories.map((category) => [category.nameKey, category] as const), ...categories.map((category) => [category.slug, category] as const)].map(
+        ([key, category]) => [key, { id: category.id, archived: category.status === "ARCHIVED" }] as const,
+      ),
     ),
     productsBySlug: new Map(products.map((product) => [keyOf(product.slug), { inTrash: product.deletedAt !== null }])),
+    productsByGtin: new Map(gtinOwners.map((owner) => [owner.gtin ?? "", { inTrash: owner.deletedAt !== null }])),
     variantsBySku: new Map(
       variants.map(({ product, ...variant }): [string, ExistingVariant] => [
         keyOf(variant.sku),

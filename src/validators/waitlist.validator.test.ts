@@ -16,7 +16,7 @@ describe("joinWaitlistSchema", () => {
 
   it("keeps a phone given for WhatsApp", () => {
     const result = joinWaitlistSchema.parse({ email: "a@example.com", whatsappOptIn: true, phone: " +971 50 123 4567 " });
-    expect(result.phone).toBe("+971 50 123 4567");
+    expect(result.phone).toBe("+971501234567");
   });
 
   it("refuses a bad email or phone", () => {

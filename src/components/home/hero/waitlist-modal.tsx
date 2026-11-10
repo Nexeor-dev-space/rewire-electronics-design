@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-field";
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
@@ -271,21 +272,13 @@ function WaitlistForm({
         </Checkbox>
 
         {whatsappOptIn && (
-          <div>
-            <Label htmlFor={`${id}-phone`}>WhatsApp number</Label>
-            <Input
-              id={`${id}-phone`}
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="050 123 4567"
-              value={phoneValue}
-              onChange={(event) => setPhone(event.target.value)}
-              aria-invalid={errors.phone ? true : undefined}
-              className="mt-2"
-            />
-            <FieldError className="mt-2">{errors.phone?.[0]}</FieldError>
-          </div>
+          <PhoneField
+            id={`${id}-phone`}
+            label="WhatsApp number"
+            value={phoneValue}
+            onChange={setPhone}
+            error={errors.phone?.[0]}
+          />
         )}
 
         <p className="text-[0.8125rem] leading-relaxed text-ink-muted">

@@ -15,6 +15,7 @@ enum ProductImportStatus {
 enum ProductImportRowStatus {
   PENDING
   IMPORTED
+  SKIPPED
   FAILED
 }
 
@@ -30,6 +31,7 @@ model ProductImport {
   totalRows    Int
   importedRows Int @default(0)
   failedRows   Int @default(0)
+  skippedRows  Int @default(0)
 
   uploadedById String?
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)

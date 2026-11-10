@@ -10,17 +10,20 @@ import {
   categoryNavIsActive,
   editorialNavLink,
   upcomingDropsLink,
-  type CategoryNavItem,
   type MegaMenuId,
 } from "@/lib/navigation";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 import { cn } from "@/lib/utils";
 import { MegaMenu, megaMenuId } from "./mega-menu";
-import { CategoryMegaPanel } from "./category-mega-panel";
+import { CATEGORIES_POPUP_ID, CategoriesDropdown, GridIcon } from "./categories-popup";
 
 const POLICY_PATHS = new Set(Object.values(POLICY_ROUTES));
 
 const CLOSE_DELAY = 130;
+
+/** The `open` key of the Categories popup; the other menus use their own. */
+const CATEGORIES_KEY = "__categories";
+const CATEGORIES_TRIGGER_ID = `${CATEGORIES_POPUP_ID}-trigger`;
 
 export function CategoryBar() {
   const pathname = usePathname();
@@ -56,6 +59,12 @@ export function CategoryBar() {
       className="relative hidden border-y border-line lg:block"
     >
       <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center-safe gap-1 px-(--spacing-gutter)">
+        <CategoriesMenuItem
+          active={items.some((item) => categoryNavIsActive(pathname, item.slug))}
+          open={open === CATEGORIES_KEY}
+          onToggle={() => setOpen(open === CATEGORIES_KEY ? null : CATEGORIES_KEY)}
+          onClose={() => setOpen(null)}
+        />
 
         <MegaMenuItem
           menuId="drops"
@@ -71,21 +80,6 @@ export function CategoryBar() {
           onLeave={scheduleClose}
           onToggle={() => setOpen(open === "__drops" ? null : "__drops")}
         />
-
-        {items.map((item) => (
-          <CategoryItem
-            key={item.slug}
-            item={item}
-            active={categoryNavIsActive(pathname, item.slug)}
-            open={open === item.slug}
-            onHover={() => {
-              cancelClose();
-              setOpen(item.slug);
-            }}
-            onLeave={scheduleClose}
-            onToggle={() => setOpen(open === item.slug ? null : item.slug)}
-          />
-        ))}
 
         <MegaMenuItem
           menuId="about"
@@ -110,101 +104,62 @@ export function CategoryBar() {
   );
 }
 
-function CategoryItem({
-  item,
+/**
+ * The Categories trigger. Click only, unlike the hover menus beside it:
+ * it opens `CategoriesDropdown`, and a click anywhere outside, Escape or a
+ * route change closes it.
+ */
+function CategoriesMenuItem({
   active,
   open,
-  onHover,
-  onLeave,
   onToggle,
-  className,
+  onClose,
 }: {
-  item: CategoryNavItem;
   active: boolean;
   open: boolean;
-  onHover: () => void;
-  onLeave: () => void;
   onToggle: () => void;
-  className?: string;
+  onClose: () => void;
 }) {
-  const hasDropdown = item.brands.length > 0;
-  const triggerId = `${megaMenuId("categories")}-trigger-${item.slug}`;
+  const ref = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open, onClose]);
 
   return (
-    <li
-      className={cn("shrink-0", className)}
-      onMouseEnter={hasDropdown ? onHover : undefined}
-      onMouseLeave={hasDropdown ? onLeave : undefined}
-    >
-      {hasDropdown ? (
-        <div className="relative inline-flex h-11 items-center">
-          <Link
-            href={item.href}
-            id={triggerId}
-            aria-current={active ? "page" : undefined}
-            aria-haspopup="menu"
-            aria-expanded={open}
-            aria-controls={megaMenuId("categories")}
-            onFocus={onHover}
-            onBlur={onLeave}
-            className={cn(
-              "inline-flex h-full items-center pl-3 pr-1 text-[0.8125rem] font-medium tracking-tight",
-              "transition-colors duration-(--duration-fast)",
-              active || open ? "text-ink" : "text-ink-secondary hover:text-ink",
-            )}
-          >
-            {item.label}
-          </Link>
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-haspopup="menu"
-            aria-label={`${item.label} menu`}
-            aria-controls={megaMenuId("categories")}
-            onClick={onToggle}
-            onFocus={onHover}
-            onBlur={onLeave}
-            className="inline-flex h-full items-center pr-3 text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
-          >
-            <Chevron open={open} />
-          </button>
-          <span
-            aria-hidden
-            className={cn(
-              "absolute inset-x-3 -bottom-px h-px origin-left scale-x-0 bg-ink transition-transform duration-(--duration-fast) ease-(--ease-out-quart)",
-              (active || open) && "scale-x-100",
-            )}
-          />
-        </div>
-      ) : (
-        <Link
-          href={item.href}
-          aria-current={active ? "page" : undefined}
+    <li ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        id={CATEGORIES_TRIGGER_ID}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={CATEGORIES_POPUP_ID}
+        onClick={onToggle}
+        className={cn(
+          "relative inline-flex h-11 items-center gap-2 px-3 text-[0.8125rem] font-medium tracking-tight",
+          "transition-colors duration-(--duration-fast)",
+          active || open ? "text-ink" : "text-ink-secondary hover:text-ink",
+        )}
+      >
+        <GridIcon className="size-4" />
+        Categories
+        <Chevron open={open} />
+        <span
+          aria-hidden
           className={cn(
-            "relative inline-flex h-11 items-center px-3 text-[0.8125rem] font-medium tracking-tight",
-            "transition-colors duration-(--duration-fast)",
-            active ? "text-ink" : "text-ink-secondary hover:text-ink",
+            "absolute inset-x-3 -bottom-px h-px origin-left scale-x-0 bg-ink transition-transform duration-(--duration-fast) ease-(--ease-out-quart)",
+            (active || open) && "scale-x-100",
           )}
-        >
-          {item.label}
-          <span
-            aria-hidden
-            className={cn(
-              "absolute inset-x-3 -bottom-px h-px origin-left scale-x-0 bg-ink transition-transform duration-(--duration-fast) ease-(--ease-out-quart)",
-              active && "scale-x-100",
-            )}
-          />
-        </Link>
-      )}
+        />
+      </button>
 
       <AnimatePresence>
-        {hasDropdown && open && (
-          <CategoryMegaPanel
-            item={item}
-            labelledBy={triggerId}
-            onPointerEnter={onHover}
-          />
-        )}
+        {open && <CategoriesDropdown labelledBy={CATEGORIES_TRIGGER_ID} onNavigate={onClose} />}
       </AnimatePresence>
     </li>
   );

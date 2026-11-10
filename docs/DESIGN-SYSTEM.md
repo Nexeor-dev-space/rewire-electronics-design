@@ -40,6 +40,7 @@ template patterns.
 | `live` | `#6f8d7a` | Certified · battery health · inspection passed · warranty active. |
 | `warn` | `#d08a34` | Low stock · limited drop · countdown urgency. Nothing else. |
 | `danger` | `#b4544e` | Errors, sold out. |
+| `love` | `#e5484d` | A saved (wishlisted) heart and its burst only. The one saturated red on the site, so "saved" reads at a glance. |
 
 The UI is ~95% neutral and ~5% accent. Separate cards with **borders first, shadow second**:
 a `1px solid line` edge plus `--shadow-soft` is the house card, and elevation only
@@ -104,6 +105,8 @@ before launch.
 - Containers: `narrow` (48rem, prose) · `default` (80rem) · `wide` (110rem, editorial/product grids).
 - Whitespace is the luxury signal: when in doubt, double it.
 
+**Clearing the fixed header.** The header is fixed and takes no space in the page, and from `lg` the category rail makes it about 119px tall. A storefront page that opens with a heading or breadcrumb takes its top padding from the `page-top` utility: `--spacing-page-top` (6rem) below `lg` and `--spacing-page-top-lg` (8rem) from `lg`. Sticky columns use `lg:top-(--spacing-page-top-lg)`. Never pick a page's own value; that is how titles ended up under the header (issue #133). Pages that open with `pt-(--spacing-section)` already clear it, and the home hero sits behind the header on purpose. If the header's height changes, change these two tokens.
+
 ## 5. Radius, shadows, glass
 
 - Radius: `xs 4 · sm 8 · md 12 · lg 16 · xl 24 · 2xl 32 · full`. Cards use `xl`; buttons and badges are pills (`full`); inputs `md`.
@@ -128,6 +131,8 @@ before launch.
 - **Badge** — mono voice; `default/outline/accent/live/warn/soldOut`; `live` carries a pulsing dot.
 - **Card** — `surface/sheen/glass/plain` + `floating` + `interactive` (lift −4px on hover).
 - **Input / Textarea / Select / Label / FieldError** — hairline fields; accent focus border; error state driven by `aria-invalid`. `Select` is the native element in the same field style, so touch devices keep the platform picker.
+- **PasswordInput** (`components/ui/password-input.tsx`) — `Input` with an eye / eye off button on the right that switches `type` between `password` and `text`. Same props as `Input` minus `type`; the button's label reads "Show password" or "Hide password".
+- **Wordmark** (`components/layout/wordmark.tsx`) — the REWIRE. wordmark linking home, with a mono tagline from `sm` (`Electronics` in the header and on auth pages, `Checkout` in the checkout header). Use it instead of copying the markup.
 - **Dialog** — modal panel for forms (`ConfirmDialog` stays for yes/no). Same contract as the other dialogs: focus in on open and back on close, Escape and backdrop close, Tab trapped, scroll locked. Compose with `DialogBody` (scrolls) and `DialogFooter` (pinned), so a long form never hides its Save button; `data-autofocus` marks the field that takes focus. A bottom sheet on phones, centred from `sm`.
 - **Countdown** — full stat row (drop pages) or `compact` chip (cards); mono `tabular-nums` so digits never jitter.
 - **Skeleton** — shimmer on surface tones; compose layout-accurate ghosts (see `ProductCardSkeleton`) so hydration causes zero CLS.
@@ -139,11 +144,12 @@ Defined once in `src/lib/motion.ts` — never inline ad-hoc curves.
 
 1. **One easing family.** `EASE_OUT_EXPO` `cubic-bezier(0.16,1,0.3,1)` for all entrances; `EASE_IN_OUT_SOFT` for elements that move and return. No bounces, no springs on layout, no linear (except marquee/shimmer).
 2. **Duration scale.** `fast 200ms` (hover/press) · `base 400ms` (UI transitions) · `slow 800ms` (reveals) · `cinematic 1200ms` (hero media). Nothing between or beyond.
-3. **Named movements only.** `fadeUp` (rise 28px), `fadeIn` (media), `scaleIn` (settle from 1.04 — zoom out, never in), `lineReveal` (text rises out of clip), `staggerChildren` (60–80ms between siblings).
+3. **Named movements only.** `fadeUp` (rise 28px), `fadeIn` (media), `scaleIn` (settle from 1.04 — zoom out, never in), `lineReveal` (text rises out of clip), `staggerChildren` (60–80ms between siblings), `controlSwap` (one control replacing another in the same slot, such as Add to cart becoming the quantity stepper: fade and scale from 0.96 over `DURATION.fast`).
 4. **Reveal once.** Scroll entrances trigger a single time, ~12% before entering the viewport (`viewportOnce`). Never re-animate on scroll-up.
 5. **Transform + opacity only.** Never animate width/height/top/margin. GSAP is reserved for scroll-scrubbed choreography that Framer's `useScroll` cannot express — currently unused on the homepage; Framer Motion handles everything else. Where a section holds frames in place, pin with CSS `sticky`, not ScrollTrigger's `pin`, so Lenis stays authoritative over scroll position. Counters are the one place a number animates: drive them with `animate()` on a motion value, mark the animated numeral `aria-hidden`, and shadow it with an `sr-only` copy of the finished value. Disclosures are the one place `height` animates — a disclosure has to reflow what sits under it, and `scaleY` would distort the type. They share one pattern from `src/lib/motion.ts`: `collapsePanel` (height and opacity, opening slower than it closes) on an `overflow-hidden` wrapper, with `collapsePanelBody` on its content so it settles down into the opening panel. The FAQ items and the checkout steps use it. Do not write new height variants; reuse these. The shop filter panel (`components/shop/filter-panel.tsx`), the mobile drawer accordions and the admin nav still carry older inline copies and should move onto it when next touched.
 6. **Scroll.** Lenis (`lerp 0.1`) provides the glide; it uses native scroll position so anchors and a11y survive. Parallax stays subtle (≤10% travel).
-7. **Reduced motion is law.** Global CSS kill-switch + `MotionConfig reducedMotion="user"` + Lenis opt-out. Every custom effect must degrade to opacity or nothing.
+7. **Micro interactions.** Two small celebrations, both on the motion scale and both skipped under reduced motion: the **wishlist heart** (`components/product/heart-icon.tsx`) fills `love` red, pops 0.8 → 1.25 → 1 and bursts a ring and six dots when saved (unsaving only fades back); **add to cart** (`components/ui/confetti-burst.tsx`) throws about 14 tiny pieces up and out of the button for `slow`. Use these two components rather than new one off effects.
+8. **Reduced motion is law.** Global CSS kill-switch + `MotionConfig reducedMotion="user"` + Lenis opt-out. Every custom effect must degrade to opacity or nothing.
 
 ### Hover language
 - Cards lift 4–6px, the border darkens to `line-strong` and the shadow steps from `soft` to `float`.
@@ -293,7 +299,7 @@ identity, separated from the links by the bar's single hairline.
 
 - **Cart** (`cart-button.tsx`) links to `/cart` and carries its own count as a small ink chip on the icon's shoulder — never a coloured badge. The count lives in the accessible name, so screen readers get it without a live region.
 - **Identity** (`account-menu.tsx`) is one control in two states. Signed out it is a quiet "Sign in"; signed in it becomes a disclosure with the customer's initials, opening My Orders · My Waitlists · Support Tickets · Returns · Profile, with **Logout below its own rule**. It opens on click only, never hover — a destination menu, not a browsing aid.
-- Below `lg` the bar is **Logo · Search · Cart · Hamburger**, and the drawer carries everything else: the full primary tree as accordions, then the same account block or the Sign in control.
+- Below `lg` the bar is **Logo · Search · Hamburger** (the cart moves to the bottom tab bar), and the drawer carries everything else: the full primary tree as accordions, then the same account block or the Sign in control.
 
 **Session state** is real: the identity control, drawer and tab bar read the
 signed-in user from `useGetMe()` (`hooks/use-auth.ts`) and render the

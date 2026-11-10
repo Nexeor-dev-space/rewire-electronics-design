@@ -5,8 +5,9 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
 import { GuestBadge } from "@/components/admin/shared/guest-badge";
+import { InvoiceDownloadButton } from "@/components/order/invoice-download-button";
 import { LineBreakdown } from "@/components/order/line-breakdown";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   useUpdateOrder,
 } from "@/hooks/use-order";
 import { apiFieldErrors } from "@/lib/api/api-client";
+import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { ADD_ON_KIND_LABELS } from "@/lib/catalogue";
 import {
@@ -28,6 +30,7 @@ import {
 } from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
+import { isInvoiceable } from "@/lib/invoice";
 import { formatMoney } from "@/lib/money";
 import {
   ORDER_STATUS_LABELS,
@@ -74,12 +77,20 @@ export function OrderDetailScreen({ number }: { number: string }) {
       title={`Order ${order.data?.number ?? number}`}
       description={order.data ? `Placed ${formatOrderDate(order.data.placedAt)}` : undefined}
       actions={
-        <Link
-          href={ORDERS_ADMIN_PATH}
-          className="text-sm text-ink-secondary underline-offset-4 hover:text-ink hover:underline"
-        >
-          All orders
-        </Link>
+        <div className="flex items-start gap-4">
+          {order.data && isInvoiceable(order.data.status) && (
+            <InvoiceDownloadButton
+              href={API_ENDPOINTS.admin.orders.invoice(order.data.number)}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            />
+          )}
+          <Link
+            href={ORDERS_ADMIN_PATH}
+            className="text-sm text-ink-secondary underline-offset-4 hover:text-ink hover:underline"
+          >
+            All orders
+          </Link>
+        </div>
       }
     >
       {content}

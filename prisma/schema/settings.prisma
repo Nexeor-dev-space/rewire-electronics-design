@@ -8,6 +8,17 @@ model StoreSettings {
   releaseEmailGraceMinutes Int      @default(30)
   /// Where a new storefront support ticket is emailed. Null reads as the default in constants.
   supportInboxEmail        String?
+
+  /// Seller block on tax invoices. See docs/INVOICES.md.
+  invoiceSellerName        String   @default("")
+  invoiceSellerTrn         String   @default("")
+  invoiceSellerAddress     String   @default("")
+  invoiceSellerEmail       String   @default("")
+  /// Terms & Conditions printed on invoices, one point per line.
+  invoiceTerms             String   @default("")
+  /// Last invoice sequence handed out; raised in the transaction that stamps an order.
+  lastInvoiceSequence      Int      @default(0)
+
   updatedById              String?
   updatedBy                User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                DateTime @default(now())

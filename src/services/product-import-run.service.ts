@@ -13,8 +13,14 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { MAX_IMAGE_BYTES, formatBytes } from "@/lib/media";
-import { importColumnHeader, isImportUnfinished, type ImportMode, type ImportRow } from "@/lib/product-import";
-import { analyseImport, type ImportPlan, type UpdatePlan } from "@/lib/product-import-analyse";
+import { isImportUnfinished, withImportRowDefaults, type ImportMode, type ImportRow } from "@/lib/product-import";
+import {
+  analyseImport,
+  describeImportError,
+  storedRowOutcome,
+  type ImportPlan,
+  type UpdatePlan,
+} from "@/lib/product-import-analyse";
 import { isPublicHost } from "@/lib/public-address";
 import { imageStorage } from "@/lib/storage/image-storage";
 import type { SessionUser } from "@/types/auth";
@@ -61,6 +67,7 @@ function toItem(record: ProductImport): ProductImportItem {
     totalRows: record.totalRows,
     importedRows: record.importedRows,
     failedRows: record.failedRows,
+    skippedRows: record.skippedRows,
     uploadedByName: record.uploadedByName,
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
@@ -139,12 +146,14 @@ export async function listFailedRows(importId: string) {
 
 /* ---------- saving an import ---------- */
 
-/** Checks the rows again, and stores the import and its rows when every one is valid. Nothing is imported yet. */
+/** Checks the rows again and stores the import, with invalid rows already Failed and duplicates already Skipped. */
 export async function createImport(user: SessionUser, { fileName, ...input }: CreateInput) {
-  // The preview has just checked the image addresses; the download at import time checks them again.
-  const preview = await validateImport(input, false);
-  if (preview.invalidRows > 0) {
-    throw new ServiceError("VALIDATION", "Some rows still need fixing. Correct the file and upload it again.", 422);
+  const preview = await validateImport(input);
+  if (input.mode === "UPDATE_EXISTING" && preview.invalidRows > 0) {
+    throw new ServiceError("VALIDATION", "Some rows still need fixing. An update only runs when every row is valid.", 422);
+  }
+  if (preview.validRows === 0) {
+    throw new ServiceError("VALIDATION", "Nothing in this file can be imported. Every row needs fixing or is already in the catalogue.", 422);
   }
 
   const rows = input.rows as ImportRow[];
@@ -155,18 +164,24 @@ export async function createImport(user: SessionUser, { fileName, ...input }: Cr
           fileName,
           mode: input.mode,
           totalRows: rows.length,
+          failedRows: preview.invalidRows,
+          skippedRows: preview.skippedRows,
           uploadedById: user.id,
           uploadedByName: user.fullName,
         },
       });
       await tx.productImportRow.createMany({
-        data: rows.map((row, index) => ({
-          importId: created.id,
-          rowNumber: row.rowNumber,
-          productName: preview.rows[index]?.productName || row.productSlug || row.sku,
-          sku: row.sku,
-          data: row as unknown as Prisma.InputJsonValue,
-        })),
+        data: rows.map((row, index) => {
+          const previewRow = preview.rows[index];
+          return {
+            importId: created.id,
+            rowNumber: row.rowNumber,
+            productName: previewRow?.productName || row.productSlug || row.sku,
+            sku: row.sku,
+            data: row as unknown as Prisma.InputJsonValue,
+            ...(previewRow ? storedRowOutcome(previewRow) : {}),
+          };
+        }),
       });
       return created;
     },
@@ -206,7 +221,7 @@ export async function processImport(id: string, user: SessionUser) {
   });
   const groups = groupRows(
     record.mode,
-    pending.map(({ id: rowId, data }): StoredRow => ({ id: rowId, row: data as unknown as ImportRow })),
+    pending.map(({ id: rowId, data }): StoredRow => ({ id: rowId, row: withImportRowDefaults(data as unknown as ImportRow) })),
   ).slice(0, PRODUCT_IMPORT_BATCH_SIZE);
 
   if (groups.length > 0) {
@@ -265,7 +280,11 @@ async function processGroup(
       plan,
     );
     if (preview.invalidRows > 0) {
-      await failRows(group, preview.rows.map((row) => row.errors.map(describeError).join(" ")));
+      await failRows(group, preview.rows.map((row) => row.errors.map(describeImportError).join(" ")));
+      return;
+    }
+    if (preview.skippedRows === group.length) {
+      await prisma.productImportRow.updateMany({ where: { id: { in: ids } }, data: { status: "SKIPPED", productId: null } });
       return;
     }
 
@@ -286,10 +305,6 @@ async function processGroup(
     const message = error instanceof ServiceError ? error.message : "This product couldn't be saved.";
     await failRows(group, group.map(() => message));
   }
-}
-
-function describeError({ column, message }: { column: Parameters<typeof importColumnHeader>[0] | null; message: string }) {
-  return column ? `${importColumnHeader(column)}: ${message}` : message;
 }
 
 /** A row with no message of its own failed because another row of the same product did. */
@@ -440,17 +455,22 @@ async function settleImport(record: ProductImport, user: SessionUser) {
     _count: { _all: true },
   });
   const count = (status: string) => counts.find((entry) => entry.status === status)?._count._all ?? 0;
-  const [importedRows, failedRows, pendingRows] = [count("IMPORTED"), count("FAILED"), count("PENDING")];
+  const [importedRows, failedRows, skippedRows, pendingRows] = [
+    count("IMPORTED"),
+    count("FAILED"),
+    count("SKIPPED"),
+    count("PENDING"),
+  ];
 
   if (pendingRows > 0) {
-    return toItem(await prisma.productImport.update({ where: { id: record.id }, data: { importedRows, failedRows } }));
+    return toItem(await prisma.productImport.update({ where: { id: record.id }, data: { importedRows, failedRows, skippedRows } }));
   }
 
   const status = failedRows === 0 ? "COMPLETED" : importedRows === 0 ? "FAILED" : "COMPLETED_WITH_ERRORS";
   // Only the request that closes the import records it, so a repeated call doesn't log it twice.
   const closed = await prisma.productImport.updateMany({
     where: { id: record.id, status: "PROCESSING" },
-    data: { importedRows, failedRows, status, completedAt: new Date() },
+    data: { importedRows, failedRows, skippedRows, status, completedAt: new Date() },
   });
   const final = await prisma.productImport.findUniqueOrThrow({ where: { id: record.id } });
 
@@ -460,7 +480,7 @@ async function settleImport(record: ProductImport, user: SessionUser) {
       module: PERMISSIONS.bulkUpload,
       recordId: record.id,
       recordLabel: record.fileName,
-      after: { mode: record.mode, status, totalRows: record.totalRows, importedRows, failedRows },
+      after: { mode: record.mode, status, totalRows: record.totalRows, importedRows, failedRows, skippedRows },
     });
     refreshStorefrontCatalogue();
   }

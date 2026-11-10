@@ -16,7 +16,7 @@ interface Props {
 export default async function WaitlistLeavePage({ searchParams }: Props) {
   const { token } = await searchParams;
   return (
-    <Container className="pt-14 pb-(--spacing-section) md:pt-20">
+    <Container className="page-top pb-(--spacing-section)">
       <WaitlistLeave token={token} />
     </Container>
   );
