@@ -603,7 +603,10 @@ stepper shows the server's quantity again: the new one, or the old one with
 the error if the server refused (stock, limits). Going to 0 removes the line
 at once, without the pause. Removing a line first calls the hook's `cancel()`,
 so a tap still waiting on its pause is never sent for a line that is gone
-(that used to answer 404 "That item isn't in your cart.").
+(that used to answer 404 "That item isn't in your cart."). While a remove is
+waiting or in flight, the card and product page show Add to cart straight away
+instead of the stepper, because the stepper would otherwise fall back to the
+old server quantity (for example 5) until the removal landed.
 
 **Cart mutations run one at a time.** Every mutation from `useCartMutation`
 shares the React Query mutation scope `CART_MUTATION_SCOPE` (`{ id: "cart" }`

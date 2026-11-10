@@ -159,7 +159,9 @@ export function AddToCartButton({
     return <Skeleton className={cn(className, "h-11 rounded-full")} />;
   }
 
-  const stepperLine = soldOut ? undefined : line;
+  // While a remove is on its way the line counts as gone, so the old server
+  // quantity (before the pending change lands) never flashes back.
+  const stepperLine = soldOut || removeCartItem.isPending ? undefined : line;
   const adding = addCartItem.isPending;
   const error = stepperLine
     ? (updateCartItem.error?.message ?? removeCartItem.error?.message)
