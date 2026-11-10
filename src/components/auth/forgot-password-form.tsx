@@ -3,7 +3,6 @@
 import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { z } from "zod";
-import { LogoMark } from "@/components/layout/logo-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
@@ -50,8 +49,6 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <LogoMark className="mx-auto h-10" />
-
       <div className="mt-6 rounded-2xl border border-line bg-surface-3 p-6 shadow-(--shadow-soft) sm:p-8">
         <h1 className="text-xl font-medium tracking-tight text-ink">Reset your password</h1>
 
