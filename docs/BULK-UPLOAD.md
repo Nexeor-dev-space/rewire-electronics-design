@@ -73,15 +73,17 @@ Only the Products tab is read. Row 1 is section titles, row 2 must match the tem
 | Short description, Full description | `Product.shortDescription`, `Product.description` |
 | Highlights, What's in the box | `Product.highlights`, `Product.included`, one item per line |
 | Key specifications | `ProductSpec`, one `Label: Value` per line, in the group Specifications |
-| Warranty | `Product.warrantyMonths`, from the text's opening length (`12 months`, `1 year`) |
-| Visible on site | `Product.status`: Yes is PUBLISHED, No is DRAFT |
+| Warranty | `Product.warrantyMonths`, from the text's opening length (`12 months`, `1 year`). Blank means 12 |
+| Visible on site | `Product.status`: Yes is PUBLISHED, No or blank is DRAFT |
 | SEO title, Meta description, Focus keyword | `Product.seoTitle`, `Product.metaDescription`, `Product.metaKeywords` |
-| Condition grade | `ProductVariant.grade`: A is PREMIUM, B is EXCELLENT, C is GOOD. `condition` is always REFURBISHED |
-| Battery health, Selling price, Stock on hand | `ProductVariant.batteryHealth`, `price`, `stock` |
+| Condition grade | `ProductVariant.grade`: A is PREMIUM, B is EXCELLENT, C is GOOD, blank is no grade. `condition` is always REFURBISHED |
+| Battery health, Selling price, Stock on hand | `ProductVariant.batteryHealth`, `price`, `stock`. Blank stock means 0 |
 | Price when new | `ProductVariant.compareAtPrice`. Equal to the selling price means none |
 | Image files or URLs, Image alt texts | `ProductImage`, https addresses only, comma separated. Parent and Variant images are combined and deduplicated. A Variant's image is tagged with its colour unless two colours share the address |
 | Attribute named Storage or Colour | `ProductVariant.storage`, `colour` |
 | Any other attribute | `ProductSpec` in the group Specifications. Defining a variant with it is refused |
+
+**Blank cells.** The sheet stars Short description, Full description, Condition grade, Warranty, Stock on hand and Visible on site, but the import accepts them blank so products can go in first and be finished later. Such a product is created as a hidden Draft with empty descriptions, a 12 month warranty, no grade and stock 0. Admins complete it in the product form, or with an Update Existing CSV matched by SKU (grade, stock, description, warranty and status; the short description only in the form). Product type, Product code, Product name, Brand, Category, Selling price and at least one image per product stay required.
 
 **Not imported.** Featured, Returnable, Allow backorders, Length, Width, Height, Weight and the promo columns have no place in the schema. The preview lists any that are filled. Promotions run through Campaigns, see [CAMPAIGNS.md](CAMPAIGNS.md). Notes for Rewire team is never read.
 

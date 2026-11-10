@@ -205,6 +205,16 @@ describe("analyseImport new product fields", () => {
     ]);
   });
 
+  it("creates a draft with no grade, no stock and the default warranty from blank sheet cells", () => {
+    const plan = emptyPlan();
+    const preview = analyseImport([row(5, "A-1", { grade: "", stock: "0" })], "CREATE_NEW", lookups(), plan);
+    expect(preview.invalidRows).toBe(0);
+    const created = plan.creates.get(SLUG);
+    expect(created?.status).toBeNull();
+    expect(created?.data).toMatchObject({ description: "", shortDescription: "", warrantyMonths: 12 });
+    expect(created?.data.variants[0]).toMatchObject({ grade: null, stock: 0 });
+  });
+
   it("refuses a GTIN another product holds", () => {
     const preview = analyseImport([row(5, "A-1", { gtin: "194253082194" })], "CREATE_NEW", lookups({
       productsByGtin: new Map([["194253082194", { inTrash: false }]]),

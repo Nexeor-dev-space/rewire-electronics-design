@@ -78,17 +78,9 @@ export const TEMPLATE_HEADERS: readonly string[] = [
   ...FIELDS_AFTER_ATTRIBUTES.map((field) => field.header),
 ];
 
-const REQUIRED_PRODUCT_FIELDS: readonly TemplateField[] = [
-  "code",
-  "name",
-  "brand",
-  "category",
-  "shortDescription",
-  "description",
-  "warranty",
-  "visible",
-];
-const REQUIRED_VARIANT_FIELDS: readonly TemplateField[] = ["code", "grade", "price", "stock"];
+const REQUIRED_PRODUCT_FIELDS: readonly TemplateField[] = ["code", "name", "brand", "category"];
+const REQUIRED_VARIANT_FIELDS: readonly TemplateField[] = ["code", "price"];
+const BLANK_STOCK = "0";
 const NOT_IMPORTED_FIELDS: readonly TemplateField[] = [
   "featured",
   "returnable",
@@ -383,7 +375,7 @@ function variantCells(variant: TemplateRow, parent: TemplateRow | null): Convert
       variantName: [storage, colour].filter(Boolean).join(" "),
       price: fields.price,
       compareAtPrice: samePrice ? "" : fields.compareAtPrice,
-      stock: fields.stock,
+      stock: fields.stock || BLANK_STOCK,
       batteryHealth: fields.batteryHealth,
     },
   };

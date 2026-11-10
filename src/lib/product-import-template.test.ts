@@ -283,8 +283,8 @@ describe("parseTemplateSheet linking a Variant to its Parent", () => {
   });
 
   it("reports a Variant's blank cells as well as its missing Parent", () => {
-    const [errors] = errorsOf(variant("Black", "64 GB", { "Stock on hand": null }));
-    expect(errors).toEqual(["No Parent row has this product code or product name.", "Stock on hand is required."]);
+    const [errors] = errorsOf(variant("Black", "64 GB", { "Selling price (AED)": null }));
+    expect(errors).toEqual(["No Parent row has this product code or product name.", "Selling price (AED) is required."]);
   });
 
   it("rejects a name shared by two Parents", () => {
@@ -351,25 +351,37 @@ describe("parseTemplateSheet linking a Variant to its Parent", () => {
 });
 
 describe("parseTemplateSheet required and invalid cells", () => {
-  it.each([
-    "Product name",
-    "Brand",
-    "Category",
-    "Short description",
-    "Full description",
-    "Warranty",
-    "Visible on site",
-    "Condition grade",
-    "Selling price (AED)",
-    "Stock on hand",
-    "Image files or URLs",
-  ])("requires %s on a Simple row", (header) => {
-    expect(errorsOf({ ...SIMPLE, [header]: null })[0]).toContain(`${header} is required.`);
+  it.each(["Product name", "Brand", "Category", "Selling price (AED)", "Image files or URLs"])(
+    "requires %s on a Simple row",
+    (header) => {
+      expect(errorsOf({ ...SIMPLE, [header]: null })[0]).toContain(`${header} is required.`);
+    },
+  );
+
+  it("accepts a product with the cells admins can fill later left blank", () => {
+    const blanks = {
+      "Short description": null,
+      "Full description": null,
+      Warranty: null,
+      "Visible on site": null,
+      "Condition grade": null,
+      "Stock on hand": null,
+    };
+    const [row] = parse({ ...SIMPLE, ...blanks }).rows;
+    expect(row).toMatchObject({
+      templateErrors: [],
+      shortDescription: "",
+      description: "",
+      warrantyMonths: "",
+      productStatus: "",
+      grade: "",
+      stock: "0",
+    });
   });
 
   it("names the Parent row on the Parent's blank cells", () => {
-    const [errors] = errorsOf({ ...PARENT, "Short description": null }, variant("Black", "64 GB"));
-    expect(errors).toEqual(["Parent row 3: Short description is required."]);
+    const [errors] = errorsOf({ ...PARENT, Brand: null }, variant("Black", "64 GB"));
+    expect(errors).toEqual(["Parent row 3: Brand is required."]);
   });
 
   it("accepts images on the Variant rows alone", () => {
