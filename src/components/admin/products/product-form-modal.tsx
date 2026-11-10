@@ -156,6 +156,8 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(initial));
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [shortDescription, setShortDescription] = useState(initial?.shortDescription ?? "");
+  const [gtin, setGtin] = useState(initial?.gtin ?? "");
   const [brandId, setBrandId] = useState(initial?.brandId ?? "");
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [warrantyMonths, setWarrantyMonths] = useState(
@@ -205,6 +207,8 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
       name,
       slug,
       description,
+      shortDescription,
+      gtin,
       brandId,
       categoryId,
       warrantyMonths: optionalNumber(warrantyMonths) ?? undefined,
@@ -333,6 +337,32 @@ function ProductForm({ initial, onClose }: { initial?: ProductDetail; onClose: (
                 value={warrantyMonths}
                 onChange={(event) => setWarrantyMonths(event.target.value)}
                 aria-invalid={error("warrantyMonths") ? true : undefined}
+                className="h-11"
+              />
+            </Field>
+
+            <Field id={`${id}-gtin`} label="GTIN / barcode" hint="8 to 14 digits. Optional." error={error("gtin")}>
+              <Input
+                id={`${id}-gtin`}
+                inputMode="numeric"
+                value={gtin}
+                onChange={(event) => setGtin(event.target.value)}
+                aria-invalid={error("gtin") ? true : undefined}
+                className="h-11"
+              />
+            </Field>
+
+            <Field
+              id={`${id}-short-description`}
+              label="Short description"
+              error={error("shortDescription")}
+              className="sm:col-span-2"
+            >
+              <Input
+                id={`${id}-short-description`}
+                value={shortDescription}
+                onChange={(event) => setShortDescription(event.target.value)}
+                aria-invalid={error("shortDescription") ? true : undefined}
                 className="h-11"
               />
             </Field>

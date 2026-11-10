@@ -44,6 +44,8 @@ const detailSelect = {
   name: true,
   slug: true,
   description: true,
+  shortDescription: true,
+  gtin: true,
   status: true,
   warrantyMonths: true,
   highlights: true,
@@ -185,6 +187,7 @@ export async function createProduct(data: ProductData, status?: ProductStatus) {
   const id = await prisma.$transaction(
     async (tx) => {
       await assertSlugFree(tx, data.slug);
+      await assertGtinFree(tx, data.gtin);
       await assertSkusFree(tx, data.variants);
       await assertReferences(tx, data);
 
@@ -221,6 +224,7 @@ export async function updateProduct(id: string, data: ProductData) {
       if (!current) throw notFound();
 
       await assertSlugFree(tx, data.slug, id);
+      await assertGtinFree(tx, data.gtin, id);
       await assertSkusFree(tx, data.variants, id);
       await assertReferences(tx, data);
 
@@ -374,6 +378,8 @@ function productFields(data: ProductData) {
     name: data.name,
     slug: data.slug,
     description: data.description,
+    shortDescription: data.shortDescription,
+    gtin: data.gtin,
     brandId: data.brandId,
     categoryId: data.categoryId,
     warrantyMonths: data.warrantyMonths,
@@ -424,6 +430,17 @@ async function assertSlugFree(tx: Tx, slug: string, exceptId?: string) {
       ? "A product in Trash uses this URL slug. Restore it or delete it permanently first."
       : "Another product already uses this URL slug.";
     throw new ServiceError("CONFLICT", message, 409, { slug: [message] });
+  }
+}
+
+async function assertGtinFree(tx: Tx, gtin: string | null, exceptId?: string) {
+  if (gtin === null) return;
+  const owner = await tx.product.findUnique({ where: { gtin }, select: { id: true, deletedAt: true } });
+  if (owner && owner.id !== exceptId) {
+    const message = owner.deletedAt
+      ? "A product in Trash uses this GTIN. Restore it or delete it permanently first."
+      : "Another product already uses this GTIN.";
+    throw new ServiceError("CONFLICT", message, 409, { gtin: [message] });
   }
 }
 

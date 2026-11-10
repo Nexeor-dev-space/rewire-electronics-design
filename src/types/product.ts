@@ -69,6 +69,8 @@ export interface ProductDetail {
   name: string;
   slug: string;
   description: string;
+  shortDescription: string;
+  gtin: string | null;
   status: ProductStatus;
   warrantyMonths: number;
   highlights: string[];
