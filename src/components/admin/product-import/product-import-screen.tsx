@@ -13,11 +13,12 @@ import {
   useValidateProductImport,
 } from "@/hooks/use-product-import";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { ADMIN_PRODUCT_IMPORT_HISTORY_PATH } from "@/lib/constants";
+import { ADMIN_PRODUCT_IMPORT_HISTORY_PATH, PRODUCT_IMPORT_EXCEL_TEMPLATE_PATH } from "@/lib/constants";
 import { downloadCsv } from "@/lib/csv";
 import { formatBytes } from "@/lib/media";
 import {
   IMPORT_COLUMNS,
+  IMPORT_FILE_ACCEPT,
   IMPORT_MODES,
   IMPORT_MODE_HINTS,
   IMPORT_MODE_LABELS,
@@ -27,16 +28,19 @@ import {
   buildImportTemplate,
   checkImportFile,
   importColumnHeader,
+  isExcelFile,
   missingColumns,
   parseImportFile,
   runImportToEnd,
   type ImportMode,
   type ParsedImportFile,
 } from "@/lib/product-import";
+import { readTemplateFile } from "@/lib/product-import-template";
 import { cn } from "@/lib/utils";
 import type { ImportPreview, ProductImportItem } from "@/types/product-import";
 import { ImportDropZone } from "./import-drop-zone";
 import { ImportPreviewTable } from "./import-preview-table";
+import { ImportRowsList } from "./import-rows-list";
 
 interface PickedFile {
   name: string;
@@ -64,6 +68,11 @@ export function ProductImportScreen() {
   const [fileError, setFileError] = useState<string | null>(null);
 
   function check(next: ParsedImportFile, nextMode: ImportMode) {
+    if (next.source === "XLSX" && nextMode !== "CREATE_NEW") {
+      validate.reset();
+      setFileError("The Excel product sheet only creates products. Choose Create New, or upload a CSV to update.");
+      return;
+    }
     const absent = missingColumns(next.columns, nextMode);
     if (absent.length > 0) {
       validate.reset();
@@ -89,7 +98,7 @@ export function ProductImportScreen() {
     try {
       checkImportFile(next);
       setFile({ name: next.name, size: next.size });
-      const result = parseImportFile(await next.text());
+      const result = isExcelFile(next.name) ? await readTemplateFile(next) : parseImportFile(await next.text());
       setParsed(result);
       check(result, mode);
     } catch (error) {
@@ -130,7 +139,7 @@ export function ProductImportScreen() {
   return (
     <AdminPage
       title="Bulk Product Upload"
-      description="Create or update products and their variants from a CSV file. Every row is checked before anything is saved."
+      description="Create or update products and their variants from a CSV file or the Excel product sheet. Every row is checked before anything is saved."
       actions={
         <Link
           href={ADMIN_PRODUCT_IMPORT_HISTORY_PATH}
@@ -141,9 +150,11 @@ export function ProductImportScreen() {
       }
     >
       <div className="space-y-10">
-        <Step number={1} title="Download the template">
+        <Step number={1} title="Download a template">
           <p className="text-sm text-ink-secondary">
-            One row is one variant. Rows with the same product_slug make up one product.
+            Use the Excel sheet to create products, with Parent and Variant rows. Use the CSV to create or update them:
+            one row is one variant, and rows with the same product_slug make up one product. The columns below are the
+            CSV&apos;s.
           </p>
           <ul className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3" aria-label="Template columns">
             {IMPORT_COLUMNS.map((column) => (
@@ -155,14 +166,18 @@ export function ProductImportScreen() {
               </li>
             ))}
           </ul>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-5"
-            onClick={() => downloadCsv(IMPORT_TEMPLATE_FILENAME, buildImportTemplate())}
-          >
-            Download template
-          </Button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a
+              href={PRODUCT_IMPORT_EXCEL_TEMPLATE_PATH}
+              download
+              className="inline-flex h-9 items-center rounded-full border border-line-strong px-4 text-sm text-ink hover:border-accent hover:bg-accent hover:text-white"
+            >
+              Download Excel sheet
+            </a>
+            <Button variant="outline" size="sm" onClick={() => downloadCsv(IMPORT_TEMPLATE_FILENAME, buildImportTemplate())}>
+              Download CSV template
+            </Button>
+          </div>
         </Step>
 
         <Step number={2} title="Choose what to do and upload the file">
@@ -232,12 +247,24 @@ export function ProductImportScreen() {
 
         {preview && (
           <Step number={3} title="Review the preview">
-            <dl className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <dl className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-5">
               <Figure label="Rows" value={preview.totalRows} />
               <Figure label="Products" value={preview.productCount} />
               <Figure label="Ready" value={preview.validRows} tone="live" />
               <Figure label="Need fixing" value={preview.invalidRows} tone={preview.invalidRows > 0 ? "danger" : undefined} />
+              <Figure label="Skipped" value={preview.skippedRows} />
             </dl>
+
+            {parsed && parsed.notices.length > 0 && (
+              <ul
+                aria-label="Columns not imported"
+                className="mb-5 space-y-1 rounded-xl border border-line bg-surface-2 px-5 py-4 text-sm text-ink-secondary"
+              >
+                {parsed.notices.map((notice) => (
+                  <li key={notice}>{notice}</li>
+                ))}
+              </ul>
+            )}
 
             <ImportPreviewTable key={`${file?.name}-${preview.mode}`} preview={preview} />
 
@@ -275,26 +302,35 @@ function ImportPanel({
   onAnother: () => void;
 }) {
   const record = run.phase === "running" || run.phase === "done" || run.phase === "stopped" ? run.record : null;
-  const handled = record ? record.importedRows + record.failedRows : 0;
+  const handled = record ? record.importedRows + record.failedRows + record.skippedRows : 0;
+  const updateBlocked = preview.mode === "UPDATE_EXISTING" && preview.invalidRows > 0;
 
   return (
     <div className="mt-6 rounded-xl border border-line bg-surface-2 px-5 py-4" aria-live="polite">
       {run.phase === "idle" && (
         <>
-          {preview.invalidRows > 0 ? (
+          {preview.invalidRows > 0 && (
             <p className="text-sm text-danger">
-              Fix the rows marked Needs fixing in your CSV, then upload it again. A file can only be imported when every
-              row is valid.
-            </p>
-          ) : (
-            <p className="text-sm text-ink-secondary">
-              Every row is valid.{" "}
-              {preview.mode === "CREATE_NEW"
-                ? "Importing adds these products to the catalogue."
-                : "Importing changes the variants shown above."}
+              {preview.invalidRows} {preview.invalidRows === 1 ? "row needs" : "rows need"} fixing.{" "}
+              {updateBlocked
+                ? "An update only runs when every row is valid. Fix the file and upload it again."
+                : "Those rows won't be imported, and they'll be listed in the report afterwards."}
             </p>
           )}
-          <Button size="sm" className="mt-4" disabled={preview.invalidRows > 0} onClick={onImport}>
+          {preview.skippedRows > 0 && (
+            <p className="text-sm text-ink-secondary">
+              {preview.skippedRows} {preview.skippedRows === 1 ? "row is" : "rows are"} already in the catalogue and will
+              be skipped.
+            </p>
+          )}
+          {preview.validRows > 0 && !updateBlocked && (
+            <p className="text-sm text-ink-secondary">
+              {preview.mode === "CREATE_NEW"
+                ? "Importing adds the ready products to the catalogue."
+                : "Importing changes the ready variants shown above."}
+            </p>
+          )}
+          <Button size="sm" className="mt-4" disabled={preview.validRows === 0 || updateBlocked} onClick={onImport}>
             Import {preview.validRows} rows
           </Button>
         </>
@@ -325,8 +361,16 @@ function ImportPanel({
           </div>
           <p className="mt-3 text-sm text-ink-secondary">
             <span className="text-live">{record.importedRows} imported</span>
-            {record.failedRows > 0 && <span className="text-danger">, {record.failedRows} failed</span>}
+            <span className={cn(record.failedRows > 0 && "text-danger")}>, {record.failedRows} failed</span>
+            <span>, {record.skippedRows} skipped</span>
           </p>
+        </div>
+      )}
+
+      {run.phase === "done" && run.record.failedRows > 0 && (
+        <div className="mt-5">
+          <h3 className="mb-3 text-sm font-medium text-ink">Rows that were not imported</h3>
+          <ImportRowsList importId={run.record.id} status="FAILED" />
         </div>
       )}
 
@@ -424,7 +468,7 @@ function SelectedFile({
           <span className="sr-only">Replace file</span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept={IMPORT_FILE_ACCEPT}
             className="sr-only peer"
             disabled={locked}
             onChange={(event) => {

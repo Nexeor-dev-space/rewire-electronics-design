@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   CANONICAL_URL_MAX_LENGTH,
+  GTIN_MAX_LENGTH,
   MAX_PRODUCT_ADD_ONS,
   MAX_WARRANTY_MONTHS,
   OG_DESCRIPTION_MAX_LENGTH,
@@ -9,6 +10,7 @@ import {
   SEO_KEYWORDS_MAX,
   SEO_KEYWORD_MAX_LENGTH,
   SEO_TITLE_MAX_LENGTH,
+  SHORT_DESCRIPTION_MAX_LENGTH,
 } from "@/lib/constants";
 import {
   idValidator,
@@ -38,6 +40,7 @@ export const MAX_STOCK = 100_000;
 
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const SKU = /^[A-Za-z0-9._-]+$/;
+const GTIN = /^\d{8,14}$/;
 
 export const stockValidator = z
   .number({ error: "Enter a stock count." })
@@ -146,6 +149,15 @@ export const productSchema = z
     name: z.string().trim().min(1, "Enter a product name.").max(120, "Use 120 characters or fewer."),
     slug: slugValidator.max(140, "Use 140 characters or fewer."),
     description: z.string().trim().max(5000, "Use 5000 characters or fewer.").default(""),
+    shortDescription: z
+      .string()
+      .trim()
+      .max(SHORT_DESCRIPTION_MAX_LENGTH, `Use ${SHORT_DESCRIPTION_MAX_LENGTH} characters or fewer.`)
+      .default(""),
+    gtin: optionalTextValidator(GTIN_MAX_LENGTH).refine(
+      (value) => value === null || GTIN.test(value),
+      "Use 8 to 14 digits.",
+    ),
     brandId: z.string().min(1, "Choose a brand."),
     categoryId: z.string().min(1, "Choose a category."),
     warrantyMonths: z

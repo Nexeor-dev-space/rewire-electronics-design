@@ -33,7 +33,7 @@ units (fils), like every other price in the project.
 | Model | Holds |
 | --- | --- |
 | `Category` | Name, slug, description, image, parent, status, `showInNav`, `sortOrder`, `seoTitle`, `metaDescription` |
-| `Product` | Slug, name, description, brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice`, `deletedAt`, the SEO fields (section 7) |
+| `Product` | Slug, name, description, short description, GTIN (optional, unique, 8 to 14 digits), brand, category, warranty months, highlights, what is included, status, `publishedAt`, `minPrice`, `deletedAt`, the SEO fields (section 7) |
 | `ProductVariant` | SKU, condition, grade, battery health, storage, colour, colour hex, price, compare at price, stock, sort order |
 | `ProductImage` | A `MediaAsset`, alt text, an optional `colour`, sort order |
 | `ProductSpec` | Group, label, value, sort order |
@@ -87,6 +87,7 @@ Rules the model encodes:
 | `add_product_add_ons_and_warranty` | `product_add_ons` table; `extraWarrantyMonths` (default 0) on `add_ons`; order line serial and warranty dates (docs/ORDERS.md) |
 | `add_product_import` | `product_imports` and `product_import_rows`, with the `ProductImportMode`, `ProductImportStatus` and `ProductImportRowStatus` enums (docs/BULK-UPLOAD.md) |
 | `add_page_seo_fields` | Nullable `seoTitle` and `metaDescription` on `categories`; the same two plus `ogImageId` on `policies` and `homepage_state` (docs/POLICY-CMS.md, docs/HOMEPAGE-CMS.md) |
+| `add_import_skipped_and_product_gtin` | Nullable unique `gtin` and `shortDescription` (default empty) on `products`; `skippedRows` on `product_imports`; `SKIPPED` in `ProductImportRowStatus` (docs/BULK-UPLOAD.md) |
 
 ---
 
@@ -195,7 +196,7 @@ Files follow the usual chain: `src/app/admin/...` page, `src/components/admin/{p
 
 ### Bulk upload
 
-Products and variants can also be created or updated from a CSV file. See [BULK-UPLOAD.md](BULK-UPLOAD.md).
+Products and variants can also be created or updated from a CSV file, or created from the Excel product sheet. See [BULK-UPLOAD.md](BULK-UPLOAD.md).
 
 ### Add-on rules
 

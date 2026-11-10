@@ -4,6 +4,7 @@ import { useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { PRODUCT_IMPORT_MAX_BYTES, PRODUCT_IMPORT_MAX_ROWS } from "@/lib/constants";
 import { formatBytes } from "@/lib/media";
+import { IMPORT_FILE_ACCEPT } from "@/lib/product-import";
 import { cn } from "@/lib/utils";
 
 interface ImportDropZoneProps {
@@ -37,9 +38,9 @@ export function ImportDropZone({ onFile, disabled }: ImportDropZoneProps) {
         disabled && "opacity-50",
       )}
     >
-      <p className="text-base text-ink">Drop a CSV file here</p>
+      <p className="text-base text-ink">Drop a CSV or Excel file here</p>
       <p className="mt-2 text-sm text-ink-secondary">
-        .csv only, up to {formatBytes(PRODUCT_IMPORT_MAX_BYTES)} and {PRODUCT_IMPORT_MAX_ROWS} rows.
+        .csv or .xlsx, up to {formatBytes(PRODUCT_IMPORT_MAX_BYTES)} and {PRODUCT_IMPORT_MAX_ROWS} rows.
       </p>
       <Button variant="outline" size="sm" className="mt-5" disabled={disabled} onClick={() => input.current?.click()}>
         Choose file
@@ -47,10 +48,10 @@ export function ImportDropZone({ onFile, disabled }: ImportDropZoneProps) {
       <input
         ref={input}
         type="file"
-        accept=".csv,text/csv"
+        accept={IMPORT_FILE_ACCEPT}
         className="sr-only"
         tabIndex={-1}
-        aria-label="CSV file"
+        aria-label="Product file"
         onChange={(event) => {
           const file = event.target.files?.[0];
           // Cleared so choosing the same file again after fixing it still fires.
