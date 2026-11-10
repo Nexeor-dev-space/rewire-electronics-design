@@ -12,7 +12,7 @@ import {
 } from "@/lib/product-import";
 import { slugify } from "@/lib/utils";
 
-const TEMPLATE_SHEET_NAME = "Products";
+export const TEMPLATE_SHEET_NAME = "Products";
 const HEADER_ROW_INDEX = 1;
 const FIRST_DATA_ROW_INDEX = 2;
 const CONDITION = "REFURBISHED";
