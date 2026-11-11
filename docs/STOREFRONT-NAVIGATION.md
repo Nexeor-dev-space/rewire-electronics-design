@@ -495,9 +495,9 @@ cart's data sources are in §10.
 
 ### 9.1 Auth pages
 
-`src/app/(auth)/` is a route group with its own layout: no header,
-footer or tab bar, the same reduced chrome as checkout, on storefront
-tokens. Five routes, none indexed:
+`src/app/(site)/(auth)/` is a route group inside `(site)`: the pages get the
+full header, footer and tab bar (§14), and the group layout only centres the
+form card under the fixed header. Five routes, none indexed:
 
 | Route | Purpose |
 |---|---|
@@ -507,8 +507,7 @@ tokens. Five routes, none indexed:
 | `/reset-password?token=` | Set a new password from the link |
 | `/verify-email?token=` | Confirm the email from the link |
 
-The URL `/sign-in` is unchanged; only its file moved from
-`src/app/sign-in/` into the group. Staff sign in on the same page.
+The URLs are unchanged. Staff sign in on the same page.
 
 ### 9.2 Building a sign-in link
 
@@ -673,8 +672,7 @@ file of it.
 
 `Footer` (`src/components/layout/footer.tsx`) is rendered once, by the
 `(site)` layout, so every storefront page shares it. Pages never render their
-own footer. Checkout and the auth pages keep their reduced chrome on purpose
-(`TrustFooter` on checkout, nothing on auth).
+own footer. Only checkout swaps it for the `TrustFooter` (§14).
 
 The footer grid is two link columns side by side on phones with the brand
 block above them, and the twelve column row from `md`. The large ghost word
@@ -724,5 +722,40 @@ tab bar, not an icon in the top bar:
    both. `/cart` and `/wishlist` are `CART_PAGE_PATH` and
    `WISHLIST_PAGE_PATH` in `src/lib/constants.ts`.
 
-Checkout and the auth pages have no tab bar, so the checkout's own fixed
-bottom bar never meets it.
+Checkout and the payment success page have no tab bar (§14), so the
+checkout's own fixed bottom bar never meets it.
+
+---
+
+## 14. One header and footer on every page (#151)
+
+**The rule:** every storefront page shows the same header, footer and mobile
+tab bar. The single exception is checkout, which keeps a focused layout.
+
+It is applied in one place. `src/app/(site)/layout.tsx` wraps every route in
+`(site)`, including the auth pages (`(site)/(auth)/`) and checkout
+(`(site)/checkout/`), and hands the chrome to `SiteChrome`
+(`src/components/layout/site-chrome.tsx`). A new page under `(site)` gets the
+header, footer and tab bar with no code of its own. Pages never render chrome.
+
+| Page | Header | Footer | Mobile tab bar |
+|---|---|---|---|
+| Every storefront page, cart and the five auth pages included | Full | Full | Yes |
+| `/checkout/success` | Full | Full | No |
+| `/checkout` (the one exception) | `CheckoutHeader` | `TrustFooter` | No |
+
+`SiteChrome` is a client component that reads the path against
+`CHECKOUT_PAGE_PATH` and `CHECKOUT_SUCCESS_PAGE_PATH` (`src/lib/constants.ts`).
+To change the exception, change it there and update this table.
+
+`CheckoutHeader` shows the logo, Secure Checkout badge, Need help link and Back
+to cart, with no menus, search or account controls. It uses the main header's
+height, gutters and glass surface so cart to checkout reads as the same site.
+The checkout's sticky step bar (`checkout-view.tsx`) sits at the same offset.
+
+Fixed header offset: the full header is `fixed`, so a page needs the
+`page-top` utility on its outer element (the auth layout and the success page
+do this). The checkout header is sticky, so checkout needs none.
+
+The tab bar's bottom pad (`pb-16 lg:pb-0` on the footer wrapper) is applied
+only when the bar shows, so it never covers the footer's last line.

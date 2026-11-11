@@ -1,8 +1,9 @@
-import { cookies } from "next/headers";
-import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { SiteChrome } from "@/components/layout/site-chrome";
+import { CheckoutHeader } from "@/components/checkout/checkout-header";
+import { TrustFooter } from "@/components/checkout/trust-footer";
+import { cookies } from "next/headers";
 import { NavigationPreviewBar } from "@/components/layout/navigation-preview-bar";
-import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { NavigationProvider } from "@/components/providers/navigation-provider";
 import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
 import { listStorefrontCategories } from "@/services/catalogue.service";
@@ -20,10 +21,10 @@ export const dynamic = "force-dynamic";
 /**
  * Site chrome — header, footer, skip-link, `<main>` container, and the
  * phone's bottom tab bar.
- * Wraps every route inside `(site)` (home, product, cart, wishlist, …).
- * Reduced-chrome flows such as `/checkout` sit outside this group and
- * skip the chrome entirely — deliberately including the tab bar, since
- * mid-checkout navigation is exactly what that flow removes.
+ * Wraps every storefront route inside `(site)`, including the auth pages
+ * and checkout. A new page gets the chrome by default; `SiteChrome` holds
+ * the single exception, `/checkout`, which swaps in its reduced header and
+ * trust footer.
  */
 export default async function SiteLayout({
   children,
@@ -55,18 +56,13 @@ export default async function SiteLayout({
       >
         Skip to content
       </a>
-      <Header />
-      <main id="main" className="flex-1">
+      <SiteChrome
+        footer={<Footer navigation={navigation} />}
+        checkoutHeader={<CheckoutHeader />}
+        checkoutFooter={<TrustFooter />}
+      >
         {children}
-      </main>
-      {/* Bottom pad below `lg` keeps the document's last content — the
-          footer's legal line — clear of the fixed tab bar. On the
-          wrapper rather than on `<main>`, because the footer is the
-          element the bar actually overlaps. */}
-      <div className="pb-16 lg:pb-0">
-        <Footer navigation={navigation} />
-      </div>
-      <MobileTabBar />
+      </SiteChrome>
       {previewing && <NavigationPreviewBar />}
       </NavigationProvider>
     </StorefrontCategoriesProvider>

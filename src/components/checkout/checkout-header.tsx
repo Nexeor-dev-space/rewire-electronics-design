@@ -17,8 +17,8 @@ import { Logo } from "@/components/layout/logo";
  */
 export function CheckoutHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-void/90 backdrop-blur-xl backdrop-saturate-150">
-      <div className="mx-auto flex h-16 max-w-[110rem] items-center justify-between gap-6 px-(--spacing-gutter) md:h-20">
+    <header className="sticky top-0 z-50 border-b border-line bg-[var(--glass-bg)] backdrop-blur-xl backdrop-saturate-150">
+      <div className="mx-auto flex h-16 max-w-[110rem] items-center justify-between gap-3 px-(--spacing-gutter) md:h-[4.5rem] md:gap-5 lg:gap-8">
         <Logo />
 
         <div className="flex items-center gap-3 sm:gap-5">
