@@ -8,8 +8,11 @@ import { accountNav, searchCopy, siteConfig } from "@/lib/site";
 import { getDrawerSections } from "@/lib/navigation";
 import { useGetMe, useSignOut } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
-import { useNavigation } from "@/components/providers/navigation-provider";
-import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import {
+  useHeaderCategories,
+  useHeaderDrops,
+  useNavigation,
+} from "@/components/providers/navigation-provider";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
@@ -45,7 +48,7 @@ export function MobileDrawer({
   const [expanded, setExpanded] = useState<string | null>(null);
   /** Profile disclosure. Closed on every open — never on page load. */
   const [accountExpanded, setAccountExpanded] = useState(false);
-  const sections = getDrawerSections(useStorefrontCategories(), useNavigation().header);
+  const sections = getDrawerSections(useHeaderCategories(), useNavigation().header, useHeaderDrops());
   const pathname = usePathname();
   const me = useGetMe();
   const signOut = useSignOut();

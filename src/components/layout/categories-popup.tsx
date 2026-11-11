@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Dialog, DialogBody } from "@/components/ui/dialog";
-import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { useHeaderCategories } from "@/components/providers/navigation-provider";
 import { categoryNav, type CategoryNavItem } from "@/lib/navigation";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -41,7 +41,7 @@ export function CategoriesDropdown({
   labelledBy: string;
   onNavigate: () => void;
 }) {
-  const items = categoryNav(useStorefrontCategories());
+  const items = categoryNav(useHeaderCategories());
   const reduceMotion = useReducedMotion();
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const active = items.find((item) => item.slug === activeSlug && item.brands.length > 0);
@@ -109,7 +109,7 @@ export function CategoriesDropdown({
    ============================================================ */
 
 export function CategoriesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const items = categoryNav(useStorefrontCategories());
+  const items = categoryNav(useHeaderCategories());
 
   return (
     <Dialog open={open} onClose={onClose} title="Categories" className="sm:max-w-md">

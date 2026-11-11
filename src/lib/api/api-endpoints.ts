@@ -64,6 +64,7 @@ export const API_ENDPOINTS = {
       publish: `${V1}/admin/navigation/publish`,
       restore: `${V1}/admin/navigation/restore`,
       discard: `${V1}/admin/navigation/discard`,
+      options: `${V1}/admin/navigation/options`,
     },
     releases: {
       list: `${V1}/admin/releases`,

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { useNavigation } from "@/components/providers/navigation-provider";
-import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
+import { useHeaderCategories, useNavigation } from "@/components/providers/navigation-provider";
 import {
   categoryNav,
   categoryNavIsActive,
@@ -28,8 +27,8 @@ const CATEGORIES_TRIGGER_ID = `${CATEGORIES_POPUP_ID}-trigger`;
 
 export function CategoryBar() {
   const pathname = usePathname();
-  const items = categoryNav(useStorefrontCategories());
-  const { extraLinks } = useNavigation().header;
+  const items = categoryNav(useHeaderCategories());
+  const { rail } = useNavigation().header;
   const [open, setOpen] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
 
@@ -61,62 +60,76 @@ export function CategoryBar() {
       className="relative hidden border-y border-line lg:block"
     >
       <ul className="mx-auto flex w-full max-w-[110rem] items-stretch justify-center-safe gap-1 px-(--spacing-gutter)">
-        <CategoriesMenuItem
-          active={items.some((item) => categoryNavIsActive(pathname, item.slug))}
-          open={open === CATEGORIES_KEY}
-          onToggle={() => setOpen(open === CATEGORIES_KEY ? null : CATEGORIES_KEY)}
-          onClose={() => setOpen(null)}
-        />
-
-        <MegaMenuItem
-          menuId="drops"
-          label={upcomingDropsLink.label}
-          href={upcomingDropsLink.href}
-          live
-          active={pathname === upcomingDropsLink.href}
-          open={open === "__drops"}
-          onHover={() => {
-            cancelClose();
-            setOpen("__drops");
-          }}
-          onLeave={scheduleClose}
-          onToggle={() => setOpen(open === "__drops" ? null : "__drops")}
-        />
-
-        {extraLinks.map((item) => (
-          <li key={item.id} className="shrink-0">
-            <Link
-              href={item.href}
-              aria-current={pathname === item.href ? "page" : undefined}
-              className={cn(
-                "inline-flex h-11 items-center px-3 text-[0.8125rem] font-medium tracking-tight",
-                "transition-colors duration-(--duration-fast)",
-                pathname === item.href ? "text-ink" : "text-ink-secondary hover:text-ink",
-              )}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-
-        <MegaMenuItem
-          menuId="about"
-          label={editorialNavLink.label}
-          href={editorialNavLink.href}
-          active={
-            pathname === editorialNavLink.href ||
-            pathname.startsWith(`${editorialNavLink.href}/`) ||
-            pathname.startsWith("/support") ||
-            POLICY_PATHS.has(pathname)
+        {rail.map((item) => {
+          if ("href" in item) {
+            return (
+              <li key={item.id} className="shrink-0">
+                <Link
+                  href={item.href}
+                  aria-current={pathname === item.href ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-11 items-center px-3 text-[0.8125rem] font-medium tracking-tight",
+                    "transition-colors duration-(--duration-fast)",
+                    pathname === item.href ? "text-ink" : "text-ink-secondary hover:text-ink",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            );
           }
-          open={open === "__about"}
-          onHover={() => {
-            cancelClose();
-            setOpen("__about");
-          }}
-          onLeave={scheduleClose}
-          onToggle={() => setOpen(open === "__about" ? null : "__about")}
-        />
+          if (item.id === "categories") {
+            return (
+              <CategoriesMenuItem
+                key={item.id}
+                active={items.some((category) => categoryNavIsActive(pathname, category.slug))}
+                open={open === CATEGORIES_KEY}
+                onToggle={() => setOpen(open === CATEGORIES_KEY ? null : CATEGORIES_KEY)}
+                onClose={() => setOpen(null)}
+              />
+            );
+          }
+          if (item.id === "drops") {
+            return (
+              <MegaMenuItem
+                key={item.id}
+                menuId="drops"
+                label={upcomingDropsLink.label}
+                href={upcomingDropsLink.href}
+                live
+                active={pathname === upcomingDropsLink.href}
+                open={open === "__drops"}
+                onHover={() => {
+                  cancelClose();
+                  setOpen("__drops");
+                }}
+                onLeave={scheduleClose}
+                onToggle={() => setOpen(open === "__drops" ? null : "__drops")}
+              />
+            );
+          }
+          return (
+            <MegaMenuItem
+              key={item.id}
+              menuId="about"
+              label={editorialNavLink.label}
+              href={editorialNavLink.href}
+              active={
+                pathname === editorialNavLink.href ||
+                pathname.startsWith(`${editorialNavLink.href}/`) ||
+                pathname.startsWith("/support") ||
+                POLICY_PATHS.has(pathname)
+              }
+              open={open === "__about"}
+              onHover={() => {
+                cancelClose();
+                setOpen("__about");
+              }}
+              onLeave={scheduleClose}
+              onToggle={() => setOpen(open === "__about" ? null : "__about")}
+            />
+          );
+        })}
       </ul>
     </nav>
   );

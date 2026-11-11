@@ -12,7 +12,41 @@ import { isSafeHref } from "@/lib/homepage-sections";
 import { POLICY_NAV_LABELS, POLICY_ROUTES, POLICY_SLUGS, policyLink } from "@/lib/policy-types";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { supportSections } from "@/lib/support";
-import type { NavGroup, NavLinkItem, NavigationConfig } from "@/types/navigation";
+import {
+  FOOTER_BASE_PARTS,
+  FOOTER_TOP_PARTS,
+  RAIL_PARTS,
+  TOP_BAR_PARTS,
+  type FooterBasePartId,
+  type FooterTopPartId,
+  type NavGroup,
+  type NavLinkItem,
+  type NavPart,
+  type NavigationConfig,
+  type RailPartId,
+  type TopBarPartId,
+} from "@/types/navigation";
+
+/** Names the Navigation screen shows for the built-in parts. */
+export const NAV_PART_LABELS: Record<
+  TopBarPartId | RailPartId | FooterTopPartId | FooterBasePartId,
+  string
+> = {
+  logo: "Logo (Rewire Electronics)",
+  search: "Search bar",
+  account: "Account",
+  cart: "Cart",
+  categories: "Categories",
+  drops: "Upcoming Drops",
+  about: "About",
+  brand: "Brand block (logo and tagline)",
+  columns: "Link columns",
+  bottomBar: "Bottom bar (copyright and links)",
+  watermark: "Large REWIRE watermark",
+};
+
+const parts = <Id extends string>(ids: readonly Id[]): NavPart<Id>[] =>
+  ids.map((id) => ({ id, visible: true }));
 
 /**
  * Navigation defaults, link targets and link checks. Client-safe: the
@@ -94,6 +128,8 @@ export function defaultNavigation(): NavigationConfig {
   seq = 0;
   return {
     header: {
+      topBar: parts(TOP_BAR_PARTS),
+      rail: parts(RAIL_PARTS),
       aboutColumns: [
         group("The Company", [
           { label: "Our Story", href: ABOUT_PAGE_PATH },
@@ -102,9 +138,12 @@ export function defaultNavigation(): NavigationConfig {
         ]),
         group("Help & Policies", supportSections),
       ],
-      extraLinks: [],
+      categories: [],
+      drops: [],
     },
     footer: {
+      top: parts(FOOTER_TOP_PARTS),
+      base: parts(FOOTER_BASE_PARTS),
       columns: [
         group("Shop", [
           { label: "Live Drops", href: RELEASES_PAGE_PATH },
@@ -139,20 +178,56 @@ export function defaultNavigation(): NavigationConfig {
 
 const shownLinks = <T extends NavLinkItem>(links: T[]): T[] => links.filter((item) => item.visible);
 
+const shownParts = <T extends NavPart>(list: T[]): T[] => list.filter((item) => item.visible);
+
+/**
+ * The items staff left visible, in the order staff set. An item the list does
+ * not mention (a new category, a new drop) shows, after the ones it does.
+ */
+export function applyParts<T extends { id: string }>(items: T[], parts: NavPart[]): T[] {
+  const hidden = new Set(parts.filter((part) => !part.visible).map((part) => part.id));
+  return orderByParts(
+    items.filter((item) => !hidden.has(item.id)),
+    parts,
+  );
+}
+
+/** Every option with its saved visibility, in its saved order: what the detail pages edit. */
+export function listParts(options: { id: string }[], parts: NavPart[]): NavPart[] {
+  const hidden = new Set(parts.filter((part) => !part.visible).map((part) => part.id));
+  return orderByParts(options, parts).map((option) => ({
+    id: option.id,
+    visible: !hidden.has(option.id),
+  }));
+}
+
+function orderByParts<T extends { id: string }>(items: T[], parts: NavPart[]): T[] {
+  const rank = new Map(parts.map((part, index) => [part.id, index]));
+  return [...items].sort(
+    (a, b) => (rank.get(a.id) ?? parts.length) - (rank.get(b.id) ?? parts.length),
+  );
+}
+
 const shownGroups = (groups: NavGroup[]): NavGroup[] =>
   groups
     .filter((item) => item.visible)
     .map((item) => ({ ...item, links: shownLinks(item.links) }))
     .filter((item) => item.links.length > 0);
 
-/** Hidden links and empty groups removed. */
+/** Hidden parts, links and empty groups removed. Category and drop lists keep their hidden entries (see `applyParts`). */
 export function toPublishedNavigation(config: NavigationConfig): NavigationConfig {
+  const { header, footer } = config;
   return {
     header: {
-      aboutColumns: shownGroups(config.header.aboutColumns),
-      extraLinks: shownLinks(config.header.extraLinks),
+      topBar: shownParts(header.topBar),
+      rail: shownParts(header.rail),
+      aboutColumns: shownGroups(header.aboutColumns),
+      categories: header.categories,
+      drops: header.drops,
     },
     footer: {
+      top: shownParts(footer.top),
+      base: shownParts(footer.base),
       columns: shownGroups(config.footer.columns),
       bottomLinks: shownLinks(config.footer.bottomLinks),
     },

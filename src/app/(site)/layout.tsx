@@ -9,7 +9,11 @@ import { listStorefrontCategories } from "@/services/catalogue.service";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { NAV_PREVIEW_COOKIE } from "@/lib/constants";
-import { getDraftPreviewNavigation, getPublishedNavigation } from "@/services/navigation.service";
+import {
+  getDraftPreviewNavigation,
+  getPublishedNavigation,
+  listHeaderDrops,
+} from "@/services/navigation.service";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +41,13 @@ export default async function SiteLayout({
     listStorefrontCategories(),
     previewing ? getDraftPreviewNavigation() : getPublishedNavigation(),
   ]);
+  // The drops cost a query, so skip it when staff hid the Upcoming Drops menu.
+  const dropsShown = navigation.header.rail.some((item) => item.id === "drops");
+  const drops = dropsShown ? await listHeaderDrops().catch(() => []) : [];
 
   return (
     <StorefrontCategoriesProvider categories={categories}>
-      <NavigationProvider navigation={navigation}>
+      <NavigationProvider navigation={navigation} drops={drops}>
       {/* Keyboard users can bypass the fixed header */}
       <a
         href="#main"

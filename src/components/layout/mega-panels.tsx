@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { getUpcomingDrops } from "@/lib/drops";
 import Image from "next/image";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
-import { useNavigation } from "@/components/providers/navigation-provider";
+import { useHeaderDrops, useNavigation } from "@/components/providers/navigation-provider";
 import { shopBrowseLinks, shopPopular } from "@/lib/navigation";
 import {
   productHrefForCategory,
-  productHrefForDrop,
   SHOP_INDEX_HREF,
 } from "@/lib/route-map";
 import { shopHrefForTerm } from "@/lib/shop";
 import { RELEASES_PAGE_PATH } from "@/lib/constants";
+import { releaseHref } from "@/lib/releases";
 import { Countdown } from "@/components/ui/countdown";
 import { formatDropDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -30,9 +29,11 @@ import {
    Upcoming Drops — the release calendar
    ============================================================ */
 
+const DROPS_MENU_LIMIT = 4;
+
 export function DropsMenu() {
-  const drops = getUpcomingDrops();
-  const rest = drops.slice(0, 4);
+  const drops = useHeaderDrops();
+  const rest = drops.slice(0, DROPS_MENU_LIMIT);
 
   // The showcase card mirrors whichever calendar row the pointer (or
   // keyboard focus) is on, defaulting to the first drop. Hover sets it
@@ -68,7 +69,7 @@ export function DropsMenu() {
             return (
               <li key={drop.id}>
                 <Link
-                  href={productHrefForDrop(drop.slug)}
+                  href={releaseHref(drop.slug)}
                   onMouseEnter={() => setActiveId(drop.id)}
                   onFocus={() => setActiveId(drop.id)}
                   className={cn(
@@ -80,18 +81,22 @@ export function DropsMenu() {
                     isActive ? "bg-surface-2" : "hover:bg-surface-2",
                   )}
                 >
-                  <MenuImage
-                    src={drop.image.url}
-                    alt=""
-                    sizes="64px"
-                    className="size-16 shrink-0 rounded-lg border border-line"
-                  />
+                  {drop.image ? (
+                    <MenuImage
+                      src={drop.image.url}
+                      alt=""
+                      sizes="64px"
+                      className="size-16 shrink-0 rounded-lg border border-line"
+                    />
+                  ) : (
+                    <span aria-hidden className="size-16 shrink-0 rounded-lg border border-line bg-surface-2" />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.9375rem] font-medium text-ink">
-                      {drop.name}
+                      {drop.title}
                     </span>
                     <span className="mt-1 block font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-muted">
-                      {formatDropDate(drop.startsAt)} · {drop.units} units
+                      {formatDropDate(drop.startsAt)} · {drop.totalAvailable} units
                     </span>
                   </span>
                   <Arrow
@@ -114,34 +119,37 @@ export function DropsMenu() {
           the card content on switch so the image swaps clean instead of
           showing the previous drop's photo while the next one loads. */}
       <div className="col-span-4">
+        {featured && (
         <div
           key={featured.id}
           className="group/card overflow-hidden rounded-2xl border border-line bg-void"
         >
-          <MenuImage
-            src={featured.image.url}
-            alt={featured.image.alt}
-            priority
-            sizes="(max-width: 1280px) 30vw, 22vw"
-            className="aspect-16/10 w-full"
-          />
+          {featured.image && (
+            <MenuImage
+              src={featured.image.url}
+              alt={featured.image.alt}
+              priority
+              sizes="(max-width: 1280px) 30vw, 22vw"
+              className="aspect-16/10 w-full"
+            />
+          )}
           <div className="p-6">
             <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
               {featured.edition}
             </span>
             <p className="mt-2 text-[1.0625rem] font-medium leading-tight text-ink">
-              {featured.name}
+              {featured.title}
             </p>
 
             <div className="mt-5 border-t border-line pt-4">
               <Countdown
                 compact
                 target={featured.startsAt}
-                label={`${featured.name} drop opens in`}
+                label={`${featured.title} drop opens in`}
                 className="text-sm text-ink"
               />
               <p className="mt-3 font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-warn">
-                Only {featured.units} devices
+                Only {featured.totalAvailable} devices
               </p>
             </div>
 
@@ -158,6 +166,7 @@ export function DropsMenu() {
             </Link>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

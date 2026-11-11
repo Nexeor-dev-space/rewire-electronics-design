@@ -3,9 +3,17 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
+import { NAV_DROPS_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { defaultNavigation, toPublishedNavigation } from "@/lib/navigation-config";
-import type { NavigationConfig, NavigationDraft, PublishedNavigation } from "@/types/navigation";
+import { listStorefrontCategories } from "@/services/catalogue.service";
+import { listStorefrontReleases } from "@/services/release-storefront.service";
+import type {
+  NavigationConfig,
+  NavigationDraft,
+  NavigationOptions,
+  PublishedNavigation,
+} from "@/types/navigation";
 import { navigationSchema, type NavigationInput } from "@/validators/navigation.validator";
 
 /**
@@ -22,12 +30,13 @@ type Row = Prisma.NavigationStateGetPayload<object>;
 /** A stored version, or null when it no longer passes the schema. */
 function parseConfig(value: Prisma.JsonValue | null): NavigationConfig | null {
   const parsed = navigationSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+  // The schema checks that a rail entry is a menu or a complete link; the type says so.
+  return parsed.success ? (parsed.data as NavigationConfig) : null;
 }
 
 const sameConfig = (a: NavigationConfig, b: NavigationConfig) => JSON.stringify(a) === JSON.stringify(b);
 
-const asJson = (config: NavigationConfig) => config as unknown as Prisma.InputJsonValue;
+const asJson = (config: NavigationInput | NavigationConfig) => config as unknown as Prisma.InputJsonValue;
 
 /** The version shoppers see: the live one, else the default. */
 function liveOf(row: Row | null): NavigationConfig {
@@ -69,6 +78,20 @@ export async function getPublishedNavigation(): Promise<PublishedNavigation> {
 /** The staff preview: the draft as shoppers would see it. */
 export async function getDraftPreviewNavigation(): Promise<PublishedNavigation> {
   return toPublishedNavigation((await getNavigationDraft()).draft);
+}
+
+/** The upcoming drops the header can list: the storefront's visible releases, soonest first. */
+export async function listHeaderDrops() {
+  return (await listStorefrontReleases({ page: 1, pageSize: NAV_DROPS_LIMIT })).items;
+}
+
+/** What the category and upcoming drop pages let staff show, hide and order. */
+export async function getNavigationOptions(): Promise<NavigationOptions> {
+  const [categories, drops] = await Promise.all([listStorefrontCategories(), listHeaderDrops()]);
+  return {
+    categories: categories.map(({ id, name }) => ({ id, name })),
+    drops: drops.map(({ id, title }) => ({ id, name: title })),
+  };
 }
 
 /* ---------- writes ---------- */

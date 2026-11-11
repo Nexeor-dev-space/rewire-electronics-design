@@ -25,10 +25,13 @@ import {
   NAV_PREVIEW_PATH,
 } from "@/lib/constants";
 import { hasUnsavedEdits, navigationErrors } from "@/lib/navigation-builder";
+import { NAV_PART_LABELS } from "@/lib/navigation-config";
 import { cn } from "@/lib/utils";
 import type { NavigationConfig, NavigationDraft } from "@/types/navigation";
 import { GroupList } from "./group-list";
 import { LinkList } from "./link-list";
+import { PartList } from "./part-list";
+import { RailList } from "./rail-list";
 
 type TabId = "header" | "footer" | "mobile";
 type Confirm = "publish" | "discard" | "restore" | null;
@@ -138,6 +141,28 @@ export function NavigationEditor() {
 
         {tab === "header" && (
           <div className="flex flex-col gap-8">
+            <Block title="Top bar" hint="The row with the logo, search, account and cart. Hide a part or move it with the arrows.">
+              <PartList
+                parts={config.header.topBar}
+                nameOf={(id) => NAV_PART_LABELS[id]}
+                disabled={locked}
+                onChange={(topBar) => update((c) => ({ ...c, header: { ...c.header, topBar } }))}
+              />
+            </Block>
+            <Block
+              title="Menu bar"
+              hint={`The row under it. Hide or move Categories, Upcoming Drops and About, or add up to ${NAV_EXTRA_HEADER_LINKS_MAX} links of your own, for example Sale. Open Categories or Upcoming Drops to choose which of their items show.`}
+            >
+              <RailList
+                items={config.header.rail}
+                path="header.rail"
+                errors={errors}
+                disabled={locked}
+                max={NAV_EXTRA_HEADER_LINKS_MAX}
+                unsaved={dirty}
+                onChange={(rail) => update((c) => ({ ...c, header: { ...c.header, rail } }))}
+              />
+            </Block>
             <Block
               title="About menu"
               hint={`Up to ${NAV_ABOUT_COLUMNS_MAX} columns, each with up to ${NAV_LINKS_PER_GROUP_MAX} links. The support box beside them is fixed.`}
@@ -154,28 +179,19 @@ export function NavigationEditor() {
                 }
               />
             </Block>
-            <Block
-              title="Extra links"
-              hint={`Up to ${NAV_EXTRA_HEADER_LINKS_MAX} links beside the product categories, for example Sale. The product categories and Upcoming Drops are managed elsewhere.`}
-            >
-              <LinkList
-                links={config.header.extraLinks}
-                path="header.extraLinks"
-                errors={errors}
-                disabled={locked}
-                max={NAV_EXTRA_HEADER_LINKS_MAX}
-                addLabel="Add link"
-                emptyText="No extra links."
-                onChange={(extraLinks) =>
-                  update((c) => ({ ...c, header: { ...c.header, extraLinks } }))
-                }
-              />
-            </Block>
           </div>
         )}
 
         {tab === "footer" && (
           <div className="flex flex-col gap-8">
+            <Block title="Top row" hint="The brand block and the link columns. Hide a part or move it.">
+              <PartList
+                parts={config.footer.top}
+                nameOf={(id) => NAV_PART_LABELS[id]}
+                disabled={locked}
+                onChange={(top) => update((c) => ({ ...c, footer: { ...c.footer, top } }))}
+              />
+            </Block>
             <Block
               title="Columns"
               hint={`Up to ${NAV_FOOTER_COLUMNS_MAX} columns, each with up to ${NAV_LINKS_PER_GROUP_MAX} links.`}
@@ -188,6 +204,14 @@ export function NavigationEditor() {
                 max={NAV_FOOTER_COLUMNS_MAX}
                 noun="column"
                 onChange={(columns) => update((c) => ({ ...c, footer: { ...c.footer, columns } }))}
+              />
+            </Block>
+            <Block title="Base" hint="The bottom bar and the large watermark under it. Hide a part or move it.">
+              <PartList
+                parts={config.footer.base}
+                nameOf={(id) => NAV_PART_LABELS[id]}
+                disabled={locked}
+                onChange={(base) => update((c) => ({ ...c, footer: { ...c.footer, base } }))}
               />
             </Block>
             <Block

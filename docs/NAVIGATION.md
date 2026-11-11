@@ -16,15 +16,7 @@ A Navigation screen with three tabs (Header, Footer, Mobile bar), a draft,
 a staff preview, publish and restore. The storefront reads the published
 version on every page load, so a publish shows on the next load with no deploy.
 
-**One step is left to a developer: the migration.** The model is in
-`prisma/schema/navigation.prisma` and the client is generated, but no migration
-file exists. Run `npm run db:migrate -- --name add_navigation_state` locally and
-commit the folder, then `npm run db:deploy` in deployment (docs/COMMANDS.md).
-Until it is applied:
-
-1. The storefront still renders, with the default navigation (§4), because
-   `getPublishedNavigation` falls back to it if the read fails.
-2. The Navigation screen shows its error state, and saving fails.
+The model is `NavigationState` (`prisma/schema/navigation.prisma`, migration already applied). If the table is missing the storefront still renders with the default navigation (§4), because `getPublishedNavigation` falls back to it, but the Navigation screen shows its error state.
 
 No seed is needed. With no row, or no live version, the storefront shows
 `defaultNavigation()`, which is today's navigation with the dead footer links
@@ -40,7 +32,9 @@ Types are in `src/types/navigation.ts`.
 | `NavLinkItem` | `id`, `label`, `href`, `visible` |
 | `NavGroup` | `id`, `title`, `visible`, `links` |
 | `MobileTab` | a `NavLinkItem` plus `icon` |
-| `NavigationConfig` | `header.aboutColumns`, `header.extraLinks`, `footer.columns`, `footer.bottomLinks`, `mobileBar.tabs` |
+| `NavPart` | `id`, `visible`: a built-in piece that can only be shown, hidden and ordered |
+| `RailItem` | a `NavPart` for Categories, Upcoming Drops or About, or a `NavLinkItem` staff added |
+| `NavigationConfig` | `header.topBar`, `header.rail`, `header.aboutColumns`, `header.categories`, `header.drops`, `footer.top`, `footer.base`, `footer.columns`, `footer.bottomLinks`, `mobileBar.tabs` |
 
 A hidden link stays in the config and is dropped by `toPublishedNavigation`,
 which also drops any group left with no visible links.
@@ -58,6 +52,8 @@ discover them on save, and the schema enforces them.
 | `NAV_EXTRA_HEADER_LINKS_MAX` | 3 | The category rail must not overflow |
 | `NAV_FOOTER_BOTTOM_LINKS_MAX` | 4 | One line in the bottom bar |
 | `NAV_MOBILE_TABS_MAX` | 5 | Five tabs is what the bar was designed for |
+| `NAV_MENU_ITEMS_MAX` | 50 | Entries kept for the category and upcoming drop lists |
+| `NAV_DROPS_LIMIT` | 8 | Upcoming drops the header can list |
 | `NAV_LABEL_MAX_LENGTH` | 40 | Label and group title |
 | `NAV_HREF_MAX_LENGTH` | 300 | Link address |
 
@@ -100,9 +96,10 @@ Errors carry the field path so the screen can show them on the right input.
 | --- | --- | --- |
 | Layout | `src/app/(site)/layout.tsx` | `getPublishedNavigation()` once per request, passed to `NavigationProvider` and to `Footer` |
 | About menu | `AboutMenu` in `components/layout/mega-panels.tsx` | `useNavigation().header.aboutColumns` |
-| Extra header links | `components/layout/category-bar.tsx` | `header.extraLinks`, shown before About |
-| Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories, header)` in `lib/navigation.ts` |
-| Footer | `components/layout/footer.tsx` | `footer.columns` and `footer.bottomLinks`, as a prop |
+| Menu bar | `components/layout/category-bar.tsx` | `header.rail`, in order: Categories, Upcoming Drops, About and added links |
+| Top bar | `components/layout/header.tsx` | `header.topBar`: logo, search, account, cart, in order |
+| Mobile drawer | `components/layout/mobile-drawer.tsx` | `getDrawerSections(categories, header, drops)` in `lib/navigation.ts`, in the order of `header.rail` |
+| Footer | `components/layout/footer.tsx` | `footer.top`, `footer.base`, `footer.columns` and `footer.bottomLinks`, as a prop |
 | Mobile bar | `components/layout/mobile-tab-bar.tsx` | `mobileBar.tabs` |
 
 **Mobile tab behaviour follows the tab's link, not its position**, so staff can
@@ -205,6 +202,46 @@ cookie is present, and shows the draft only if the session holds Navigation
 access, so the cookie alone grants nothing and ordinary visitors cost nothing.
 Previewing shows a bar at the foot with Back to Navigation and Exit preview. The
 route answers 404 to anyone without access.
+
+## 7.4 Parts, categories and upcoming drops
+
+Every piece of the header and footer can be hidden and moved from the Header and
+Footer tabs.
+
+1. **Header, Top bar:** Logo, Search bar, Account, Cart (`header.topBar`).
+2. **Header, Menu bar:** Categories, Upcoming Drops and About, plus up to
+   `NAV_EXTRA_HEADER_LINKS_MAX` links staff add (`header.rail`). The three menus
+   keep their behaviour and cannot be deleted. The mobile drawer follows the same
+   order, and a menu hidden here is gone from the drawer too.
+3. **Footer, Top row:** Brand block, Link columns (`footer.top`). **Base:** Bottom
+   bar, Large REWIRE watermark (`footer.base`). Parts move within their row.
+4. **Hiding the Cart or Account part** does not touch the mobile bottom bar; that
+   is the Mobile bar tab.
+
+**Detail pages.** Beside Categories and Upcoming Drops in the Menu bar list there is
+an Edit button (disabled while the page has unsaved edits):
+
+| Page | Route | Lists |
+| --- | --- | --- |
+| Categories | `/admin/storefront/navigation/categories` | The storefront categories |
+| Upcoming Drops | `/admin/storefront/navigation/upcoming-drops` | Up to `NAV_DROPS_LIMIT` visible releases, soonest first |
+
+Each row can be hidden and moved. **Save and go back** writes the list into the
+draft and returns to Navigation, where Publish makes it live. The lists come from
+`GET /api/v1/admin/navigation/options` (View). They are stored in
+`header.categories` and `header.drops` by id. An id the list does not mention, such
+as a category added later, shows after the listed ones, so nothing new is hidden by
+accident. `applyParts` and `listParts` in `lib/navigation-config.ts` do the ordering.
+
+**Upcoming drops are now real releases.** The header menu and the drawer used the mock
+`lib/drops.ts`. They now show the visible releases (Sales, Releases, see
+[RELEASES.md](RELEASES.md)) through `listHeaderDrops`. The `(site)` layout reads
+them once per request, only while the Upcoming Drops menu is shown, and the query is
+the same one the releases page uses, limited to `NAV_DROPS_LIMIT`.
+
+**Saved versions from before this change** (they had `extraLinks`) no longer pass the
+schema and are ignored, so the screen starts from the default navigation. Nothing was
+published at that point.
 
 ## 8. Dependencies
 
