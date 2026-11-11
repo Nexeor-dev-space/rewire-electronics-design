@@ -1,0 +1,17 @@
+/// A single row, id "navigation": the storefront navigation (header About menu,
+/// footer, mobile bar) as three versions. Staff edit `draft`; shoppers see
+/// `live`, or the built in default while it is null; `previous` is the version
+/// the last publish replaced, kept for restore. Shape: `NavigationConfig` in
+/// `src/types/navigation.ts`. See docs/NAVIGATION.md.
+model NavigationState {
+  id          String    @id
+  draft       Json
+  live        Json?
+  previous    Json?
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("navigation_state")
+}

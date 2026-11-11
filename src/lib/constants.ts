@@ -19,6 +19,23 @@ export const SHORT_DESCRIPTION_MAX_LENGTH = 200;
 export const GTIN_MAX_LENGTH = 14;
 export const NAV_CATEGORY_LIMIT = 8;
 export const HOME_CATEGORY_LIMIT = 4;
+
+/** Navigation limits (docs/NAVIGATION.md). Shown on the Navigation screen. */
+export const NAV_ABOUT_COLUMNS_MAX = 2;
+export const NAV_FOOTER_COLUMNS_MAX = 4;
+export const NAV_LINKS_PER_GROUP_MAX = 8;
+export const NAV_EXTRA_HEADER_LINKS_MAX = 3;
+export const NAV_FOOTER_BOTTOM_LINKS_MAX = 4;
+export const NAV_MOBILE_TABS_MAX = 5;
+export const NAV_MENU_ITEMS_MAX = 50;
+export const NAV_DROPS_LIMIT = 8;
+export const NAV_LABEL_MAX_LENGTH = 40;
+export const NAV_HREF_MAX_LENGTH = 300;
+export const NAV_PREVIEW_COOKIE = "nav_preview";
+export const NAV_PREVIEW_PATH = "/preview/navigation";
+export const NAVIGATION_ADMIN_PATH = "/admin/storefront/navigation";
+/** The mobile tab that opens the category list instead of going to a page. */
+export const CATEGORIES_TAB_HREF = "#categories";
 export const STOREFRONT_CATEGORIES_REVALIDATE_SECONDS = 300;
 
 /** Storefront search: shared by the suggestions API and the `/search` page. */

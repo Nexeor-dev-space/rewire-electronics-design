@@ -116,6 +116,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Brands | `catalogue.brands` | View, Create, Edit, Delete | all |
 | Add-ons | `catalogue.add-ons` | View, Create, Edit, Delete | all |
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
+| Navigation | `storefront.navigation` | View, Edit, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Returns | `service.returns` | View, Edit | No access, View, Edit |
@@ -248,8 +249,8 @@ modules not built yet stay visible, because they hold nothing.
 
 A row that is another module's screen names that module in its `permission`
 field (`AdminNavItem` in `src/lib/admin-nav.ts`), and `visibleAdminNav` checks
-that key instead of the row's own. Best Deals and Season Deals use
-`storefront.homepage`, because they open the Homepage Builder.
+that key instead of the row's own. No row uses this today: Best Deals and
+Season Deals, which did, were removed from the sidebar.
 
 **Buttons.** `AdminShell` puts the session's grid in `AdminAccessProvider`.
 A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
@@ -268,6 +269,7 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Warranty & Claims | Row Edit, the preview's Edit and Raise claim buttons and the claim's status panel hidden without Edit; the Edit page answers Access denied without Edit |
 | Fulfilment | Tracking field, Save and Move to buttons replaced by read only text without Edit; the order number links to the detail only with Orders View |
 | Homepage Builder | Add section row hidden without Create; edit, move and show or hide locked without Edit; Delete hidden; Publish and Discard draft hidden |
+| Navigation | Edit controls locked without Edit; Publish and Restore previous hidden without Publish |
 | Content & Policies | Edit links hidden and the editor page refused without Edit; Published switch locked without Publish |
 | Trash | Restore and Delete permanently hidden; Restore on a Staff account needs Staff accounts |
 

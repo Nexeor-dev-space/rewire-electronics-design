@@ -298,16 +298,15 @@ The editing screen is Storefront → **Homepage Builder**
 delete sections), opens a staff only preview of the draft at
 `/preview/homepage`, and publishes or discards it.
 
-Storefront → **Banners** and **Curated Categories** are not separate modules.
-Their pages (`src/app/admin/storefront/banners/page.tsx` and
-`src/app/admin/storefront/curated-categories/page.tsx`) redirect to the
-Homepage Builder, where banners are Promo banner sections and curated
-categories are Featured categories sections. Both routes are in
-`BUILT_ROUTES`.
+The Storefront sidebar no longer has rows for Banners, Featured Brands,
+Popular Categories, Curated Categories, Best Deals or Season Deals. Those are
+sections of the Homepage Builder, so staff open the builder and use Add
+section. The four redirect pages were deleted. `HOMEPAGE_SECTION_PARAM`
+(`?section=BEST_DEALS`) still opens a section's form in the builder.
 
-Storefront → **Best Deals** and **Season Deals** redirect to the builder too,
-with that section's form open (`?section=BEST_DEALS`, `?section=SEASON_DEALS`).
-Their sidebar rows need `storefront.homepage`. See HOMEPAGE-CMS.md §10.
+Storefront → **Navigation** (`/admin/storefront/navigation`) manages the
+header About menu, the footer and the mobile bottom bar. See
+[NAVIGATION.md](NAVIGATION.md).
 
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.

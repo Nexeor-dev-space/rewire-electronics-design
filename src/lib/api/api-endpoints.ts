@@ -59,6 +59,13 @@ export const API_ENDPOINTS = {
       discard: `${V1}/admin/homepage/discard`,
       seo: `${V1}/admin/homepage/seo`,
     },
+    navigation: {
+      draft: `${V1}/admin/navigation`,
+      publish: `${V1}/admin/navigation/publish`,
+      restore: `${V1}/admin/navigation/restore`,
+      discard: `${V1}/admin/navigation/discard`,
+      options: `${V1}/admin/navigation/options`,
+    },
     releases: {
       list: `${V1}/admin/releases`,
       detail: (id: string) => `${V1}/admin/releases/${id}`,

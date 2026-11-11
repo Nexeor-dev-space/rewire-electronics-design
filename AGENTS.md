@@ -20,6 +20,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Policy pages, rich text, the policy editor, policy SEO fields | [docs/POLICY-CMS.md](docs/POLICY-CMS.md) |
 | Homepage sections, the homepage CMS API, publishing, homepage SEO | [docs/HOMEPAGE-CMS.md](docs/HOMEPAGE-CMS.md) |
 | Header, footer, menus, storefront routes | [docs/STOREFRONT-NAVIGATION.md](docs/STOREFRONT-NAVIGATION.md) |
+| The Navigation admin screen, the About menu, footer and mobile bar links, `navigation-config.ts`, `useNavigation` | [docs/NAVIGATION.md](docs/NAVIGATION.md) |
 | Products, the Product API, shop and product pages, catalogue admin, add-ons and per-product picks, page metadata, SEO, Open Graph, noindex rules, the sitemap and robots | [docs/CATALOGUE.md](docs/CATALOGUE.md) |
 | Bulk Product Upload, the CSV template, the Excel product sheet, import validation and preview, `product-import` files | [docs/BULK-UPLOAD.md](docs/BULK-UPLOAD.md) |
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
