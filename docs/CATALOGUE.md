@@ -417,7 +417,10 @@ filters starts fresh.
 Availability first ("In stock", "Out of stock"), then category, condition,
 grade, price, brand and storage. "In stock" starts ticked. The default stock
 setting is not counted as an active filter and has no chip; any other stock
-setting counts as one. "Clear all" puts stock back to "In stock".
+setting counts as one. "Clear all" puts stock back to "In stock". With both
+options unticked the shop shows everything: `useGetShopProducts` sends both
+values, because `apiRequest` drops empty query values and a missing `stock`
+would fall back to the in stock default.
 
 **Pagination.** `ShopPagination` (`src/components/shop/shop-pagination.tsx`)
 sits under the grid with Previous, page numbers and Next, and a line that
