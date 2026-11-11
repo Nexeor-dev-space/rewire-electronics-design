@@ -17,7 +17,7 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { campaignVariantPrice, type CampaignDiscount } from "@/lib/pricing/campaign";
-import { priceBands, type PriceBand } from "@/lib/shop";
+import { priceBands, type PriceBand, type StockFilter } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import { liveCampaignDiscounts } from "@/services/campaign.service";
 import type { SpecGroup } from "@/types/commerce";
@@ -36,7 +36,7 @@ import type {
 import type { shopQuerySchema } from "@/validators/catalogue.validator";
 
 type ShopQuery = z.output<typeof shopQuerySchema>;
-type Axis = "category" | "condition" | "grade" | "brand" | "storage" | "price";
+type Axis = "category" | "condition" | "grade" | "brand" | "storage" | "price" | "stock";
 
 export const CATALOGUE_CACHE_TAG = "catalogue";
 
@@ -155,8 +155,27 @@ function bandWhere(band: PriceBand): Prisma.ProductWhereInput {
   };
 }
 
+const IN_STOCK: Prisma.ProductVariantWhereInput = { stock: { gt: 0 } };
+
+/** The one stock option ticked, or null when both or neither are (no stock filter). */
+function stockOnly(query: ShopQuery, except?: Axis): StockFilter | null {
+  if (except === "stock" || query.stock.length !== 1) return null;
+  return query.stock[0];
+}
+
+/** A product with at least one variant that matches the variant filters and has stock. */
+function availableWhere(variants: Prisma.ProductVariantWhereInput[]): Prisma.ProductWhereInput {
+  return { variants: { some: { AND: [...variants, IN_STOCK] } } };
+}
+
+/**
+ * "In stock" is a variant rule (a matching variant has stock), so it also
+ * narrows the condition, grade and storage counts. "Out of stock" is a
+ * product rule (no matching variant has stock) and lives in `whereFor`.
+ */
 function variantFilters(query: ShopQuery, except?: Axis): Prisma.ProductVariantWhereInput[] {
   const and: Prisma.ProductVariantWhereInput[] = [];
+  if (stockOnly(query, except) === "in-stock") and.push(IN_STOCK);
   if (except !== "condition" && query.condition.length > 0) {
     and.push({ condition: { in: query.condition.map(fromShopCondition) } });
   }
@@ -248,6 +267,9 @@ function whereFor(query: ShopQuery, except?: Axis): Prisma.ProductWhereInput {
   const variants = variantFilters(query, except);
   if (variants.length > 0) {
     and.push({ variants: { some: { AND: variants } } });
+  }
+  if (stockOnly(query, except) === "out-of-stock") {
+    and.push({ NOT: availableWhere(variants) });
   }
   if (except !== "brand" && query.brand.length > 0) {
     and.push({
@@ -385,8 +407,26 @@ const variantFacetWhere = (query: ShopQuery, axis: Axis): Prisma.ProductVariantW
   product: whereFor(query, axis),
 });
 
-async function facetsFor(query: ShopQuery): Promise<ShopFacets> {
-  const [categories, conditionPairs, gradePairs, brands, storagePairs, bandCounts] =
+/**
+ * Both stock counts for one count query. The listing's own `total` is
+ * already one of them (in stock only, out of stock only) or their sum (no
+ * stock filter), so only the other is counted and the rest is subtraction.
+ */
+async function stockFacet(query: ShopQuery, total: number): Promise<ShopFacets["stock"]> {
+  const base = whereFor(query, "stock");
+  const only = stockOnly(query);
+  if (only === "in-stock") {
+    const all = await prisma.product.count({ where: base });
+    return { "in-stock": total, "out-of-stock": all - total };
+  }
+  const inStock = await prisma.product.count({
+    where: { AND: [base, availableWhere(variantFilters(query, "stock"))] },
+  });
+  return { "in-stock": inStock, "out-of-stock": only === "out-of-stock" ? total : total - inStock };
+}
+
+async function facetsFor(query: ShopQuery, total: Promise<number>): Promise<ShopFacets> {
+  const [categories, conditionPairs, gradePairs, brands, storagePairs, bandCounts, stock] =
     await Promise.all([
       prisma.category.findMany({
         where: VISIBLE_CATEGORY,
@@ -423,6 +463,7 @@ async function facetsFor(query: ShopQuery): Promise<ShopFacets> {
           prisma.product.count({ where: { AND: [whereFor(query, "price"), bandWhere(band)] } }),
         ),
       ),
+      total.then((count) => stockFacet(query, count)),
     ]);
 
   const storageCounts = tally(storagePairs.map((pair) => pair.storage));
@@ -451,6 +492,7 @@ async function facetsFor(query: ShopQuery): Promise<ShopFacets> {
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => storageBytes(a.value) - storageBytes(b.value)),
     priceBands: Object.fromEntries(priceBands.map((band, index) => [band.id, bandCounts[index]])),
+    stock,
   };
 }
 
@@ -459,8 +501,10 @@ async function facetsFor(query: ShopQuery): Promise<ShopFacets> {
 export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
   const { page, pageSize, sort } = query;
   const where = whereFor(query);
+  // A plain Promise so the count runs once though it is awaited twice.
+  const total = Promise.resolve(prisma.product.count({ where }));
 
-  const [rows, total, facets] = await Promise.all([
+  const [rows, facets] = await Promise.all([
     prisma.product.findMany({
       where,
       select: cardSelect,
@@ -468,11 +512,10 @@ export async function listShopProducts(query: ShopQuery): Promise<ShopListing> {
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.product.count({ where }),
-    facetsFor(query),
+    facetsFor(query, total),
   ]);
 
-  return { items: await toCards(rows, query), page, pageSize, total, facets };
+  return { items: await toCards(rows, query), page, pageSize, total: await total, facets };
 }
 
 async function findShopProduct(slug: string): Promise<{ product: ShopProductDetail; picks: AddOnPick[] } | null> {

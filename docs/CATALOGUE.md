@@ -62,7 +62,10 @@ Rules the model encodes:
    §4).
 5. **Availability is derived from stock.** `availabilityFromStock` in
    `src/types/commerce.ts` turns a stock count into in stock, low stock or sold
-   out. Low stock is below `LOW_STOCK_THRESHOLD` (4).
+   out. Low stock is below `LOW_STOCK_THRESHOLD` (4). The storefront shows the
+   label only ("Low stock"), never the number of units left, on shop cards and
+   on the product page. Releases and drops keep their unit counts
+   ([RELEASES.md](RELEASES.md)).
 6. **Image colour** is optional. An image with a colour belongs to every variant
    of that colour; an image without one belongs to all variants. See section 6.
 7. **Category status** is `DRAFT`, `PUBLISHED` or `ARCHIVED`, and new and
@@ -270,11 +273,20 @@ Query parameters, validated by `shopQuerySchema` in
 | `brand` | Brand names, matched without case |
 | `storage` | Storage labels, for example `256GB` |
 | `price` | Price band ids from `priceBands` in `src/lib/shop.ts` |
+| `stock` | `in-stock`, `out-of-stock`. Left out, it is `in-stock` (`DEFAULT_STOCK_FILTER` in `src/lib/shop.ts`). Empty (`stock=`) or both values means no stock filter |
 | `sort` | `newest` (default), `price-asc`, `price-desc` |
 
 Condition, grade and storage are variant level filters, and all of them must
 match on the same variant: "Excellent" and "256GB" together only match a
 product that has an Excellent 256GB variant.
+
+**Stock** follows the same rule. `in-stock` keeps a product when a variant that
+matches the condition, grade and storage filters has stock above 0, so
+"256GB" with "In stock" means a 256GB variant is in stock. `out-of-stock`
+keeps a product when no matching variant has stock. Because the default is
+`in-stock`, the shop shows only products a shopper can buy until they tick
+"Out of stock" as well. Ticking it adds the sold out products to the results;
+it does not replace the in stock ones.
 
 Every list parameter keeps at most `SHOP_MAX_FILTER_VALUES` (50) values.
 Unknown condition, grade, price and sort values are dropped rather than
@@ -294,7 +306,8 @@ Response:
     "grades": { "premium": 5 },
     "brands": [{ "value": "Apple", "count": 17 }],
     "storage": [{ "value": "256GB", "count": 8 }],
-    "priceBands": { "under-500": 2 }
+    "priceBands": { "under-500": 2 },
+    "stock": { "in-stock": 24, "out-of-stock": 8 }
   }
 }
 ```
@@ -395,10 +408,29 @@ too many clients already`.
 **The shop pages** (`collection`, `collection/[category]`, `search`) parse the
 URL with `shopFiltersFromParams` in `src/lib/catalogue.ts`, load the first page
 on the server, and pass it to `ShopCatalogue`. From there `useGetShopProducts`
-in `src/hooks/use-catalogue.ts` fetches every later filter change and every
-"Load more" page from `/api/v1/products`. The server page is keyed by its
-filters, so following a menu link to the same route with other filters starts
-fresh.
+in `src/hooks/use-catalogue.ts` fetches one page at a time from
+`/api/v1/products`, keyed by the filters and the page number. The server page
+is keyed by its filters, so following a menu link to the same route with other
+filters starts fresh.
+
+**Filters on the shop pages.** The filter panel and the mobile drawer list
+Availability first ("In stock", "Out of stock"), then category, condition,
+grade, price, brand and storage. "In stock" starts ticked. The default stock
+setting is not counted as an active filter and has no chip; any other stock
+setting counts as one. "Clear all" puts stock back to "In stock". With both
+options unticked the shop shows everything: `useGetShopProducts` sends both
+values, because `apiRequest` drops empty query values and a missing `stock`
+would fall back to the in stock default.
+
+**Pagination.** `ShopPagination` (`src/components/shop/shop-pagination.tsx`)
+sits under the grid with Previous, page numbers and Next, and a line that
+reads "Showing 13–24 of 40". `pageNumbers(page, pageCount, siblings)` in
+`src/lib/utils.ts` picks the numbers: first, last, the current page and
+`SHOP_PAGINATION_SIBLINGS` either side (0 on phones, 1 from `sm` up), with a
+gap where pages are left out. Moving to another page keeps the filters and the
+sort, and scrolls back to the top of the results. Changing a filter or the sort
+goes back to page 1. Previous is disabled on page 1, Next on the last page, and
+the bar is hidden when there is only one page.
 
 **The header search panel** (`src/components/layout/search-panel.tsx`) shows
 suggestions as the shopper types. `useSearchSuggestions(q)` in
@@ -522,7 +554,7 @@ keywords.
 
 **Filtered views.** `hasShopQuery(params)` in `src/lib/catalogue.ts` is true
 when any `shopQuerySchema` key is present: `q`, `category`, `condition`,
-`grade`, `brand`, `storage`, `price`, `sort`, `page` or `pageSize`. The shop
+`grade`, `brand`, `storage`, `price`, `stock`, `sort`, `page` or `pageSize`. The shop
 and category pages are then noindex, with the canonical on the clean URL.
 Tracking parameters such as `utm_source` do not count, so a tracked link to a
 listing stays indexable.
@@ -624,6 +656,7 @@ All in `src/lib/constants.ts`.
 | --- | --- | --- |
 | `SHOP_PAGE_SIZE` | 12 | Shop page size |
 | `SHOP_MAX_PAGE_SIZE` | 48 | Largest page the API serves |
+| `SHOP_PAGINATION_SIBLINGS` | 0 on phones, 1 from `sm` up | Page numbers either side of the current one in the shop pagination |
 | `SHOP_MAX_FILTER_VALUES` | 50 | Values kept per filter |
 | `RELATED_PRODUCTS_LIMIT` | 5 | Related products |
 | `RATE_LIMITS.search` | 60 per minute, per IP | `GET /api/v1/search`, and `GET /api/v1/products` when `q` is set |
@@ -655,11 +688,13 @@ All in `src/lib/constants.ts`.
    (`src/lib/catalog.ts`) is the add to cart modal's cross sell rail, the home
    setup kit and the drop cards; all three link to product pages instead of
    adding.
-2. **Filters are not written to the URL.** A shared or reloaded shop URL keeps
-   the filters it arrived with, but ticks made on the page are lost on reload
-   or Back.
-3. **Every "Load more" recomputes the facets**, about ten small count queries.
-   A later change could skip facets after the first page.
+2. **Filters and the page number are not written to the URL.** A shared or
+   reloaded shop URL keeps the filters it arrived with, but ticks and the page
+   chosen on the page are lost on reload or Back, which lands on page 1.
+3. **Every page recomputes the facets**, about eleven small count queries. The
+   stock counts cost one of them: the listing's `total` is already one stock
+   count (or their sum), so `stockFacet` counts only the other and subtracts.
+   A later change could skip facets when only the page number changes.
 4. **The sitemap is capped** at `SITEMAP_PRODUCT_LIMIT`. Past that, split it
    with `generateSitemaps`.
 5. **No product feed** (Google Merchant or Meta) is generated yet.
