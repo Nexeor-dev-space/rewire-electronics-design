@@ -1,13 +1,13 @@
 import { ABOUT_PAGE_PATH, RELEASES_PAGE_PATH } from "@/lib/constants";
 import type { StorefrontCategory } from "@/types/catalogue";
+import type { PublishedNavigation } from "@/types/navigation";
 import { getUpcomingDrops } from "./drops";
 import {
   productHrefForCategory,
   productHrefForDrop,
   SHOP_INDEX_HREF,
 } from "./route-map";
-import { supportContact, supportSections } from "./support";
-import { policyLink } from "./policy-types";
+import { supportContact } from "./support";
 
 export type MegaMenuId = "drops" | "shop" | "categories" | "about";
 
@@ -35,25 +35,6 @@ export const shopPopular: string[] = [
   "Google Pixel",
   "Dell",
 ];
-
-export const aboutColumns: { title: string; items: MenuLink[] }[] = [
-  {
-    title: "The Company",
-    items: [
-      { label: "Our Story", href: ABOUT_PAGE_PATH },
-      policyLink("terms-and-conditions"),
-      policyLink("privacy-policy"),
-    ],
-  },
-  {
-    title: "Help & Policies",
-    items: supportSections,
-  },
-];
-
-export const aboutMenuLinks: MenuLink[] = aboutColumns.flatMap(
-  (column) => column.items,
-);
 
 export { supportContact };
 
@@ -126,7 +107,10 @@ export interface DrawerSection {
   items: MenuLink[];
 }
 
-export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSection[] {
+export function getDrawerSections(
+  categoryList: StorefrontCategory[],
+  header: PublishedNavigation["header"],
+): DrawerSection[] {
   const drops = getUpcomingDrops()
     .slice(0, 4)
     .map((drop) => ({
@@ -162,10 +146,11 @@ export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSec
       ],
     },
     ...categories,
+    ...header.extraLinks.map((item) => ({ label: item.label, href: item.href, items: [] })),
     {
       label: editorialNavLink.label,
       href: editorialNavLink.href,
-      items: aboutMenuLinks,
+      items: header.aboutColumns.flatMap((column) => column.links),
     },
   ];
 }

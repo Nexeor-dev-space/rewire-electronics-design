@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { footerNav, siteConfig } from "@/lib/site";
-import { POLICY_ROUTES } from "@/lib/policy-types";
+import { siteConfig } from "@/lib/site";
+import type { PublishedNavigation } from "@/types/navigation";
 import { Container } from "./container";
 import { Logo } from "./logo";
 
-export function Footer() {
+export function Footer({ navigation }: { navigation: PublishedNavigation }) {
+  const { columns, bottomLinks } = navigation.footer;
   return (
     <footer className="border-t border-line">
       <Container width="wide" className="py-16 md:py-24">
@@ -18,16 +19,16 @@ export function Footer() {
             </p>
           </div>
 
-          {footerNav.map((group) => (
+          {columns.map((group) => (
             <nav
-              key={group.title}
+              key={group.id}
               aria-label={group.title}
               className="md:col-span-2"
             >
               <h3 className="eyebrow mb-5">{group.title}</h3>
               <ul className="space-y-3">
-                {group.items.map((item) => (
-                  <li key={item.label}>
+                {group.links.map((item) => (
+                  <li key={item.id}>
                     <Link
                       href={item.href}
                       className="-my-1.5 inline-block py-1.5 text-sm text-ink-secondary transition-colors duration-(--duration-fast) hover:text-ink"
@@ -46,18 +47,15 @@ export function Footer() {
             © {new Date().getFullYear()} {siteConfig.name}. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <Link
-              href={POLICY_ROUTES["privacy-policy"]}
-              className="-my-2 inline-block py-2 font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
-            >
-              Privacy
-            </Link>
-            <Link
-              href={POLICY_ROUTES["terms-and-conditions"]}
-              className="-my-2 inline-block py-2 font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
-            >
-              Terms
-            </Link>
+            {bottomLinks.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="-my-2 inline-block py-2 font-mono text-xs tracking-wider text-ink-faint transition-colors hover:text-ink-secondary"
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
       </Container>

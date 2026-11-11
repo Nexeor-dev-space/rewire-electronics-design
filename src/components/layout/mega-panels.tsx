@@ -5,7 +5,8 @@ import Link from "next/link";
 import { getUpcomingDrops } from "@/lib/drops";
 import Image from "next/image";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
-import { aboutColumns, shopBrowseLinks, shopPopular } from "@/lib/navigation";
+import { useNavigation } from "@/components/providers/navigation-provider";
+import { shopBrowseLinks, shopPopular } from "@/lib/navigation";
 import {
   productHrefForCategory,
   productHrefForDrop,
@@ -332,14 +333,15 @@ export function CategoriesMenu() {
  * page the trigger beside it already opens.
  */
 export function AboutMenu() {
+  const { aboutColumns } = useNavigation().header;
   return (
     <div className="grid grid-cols-12 gap-10 xl:gap-14">
       {aboutColumns.map((column) => (
-        <div key={column.title} className="col-span-4">
+        <div key={column.id} className="col-span-4">
           <MenuLabel>{column.title}</MenuLabel>
           <ul className="mt-5">
-            {column.items.map((item) => (
-              <MenuItem key={item.href + item.label} item={item} />
+            {column.links.map((item) => (
+              <MenuItem key={item.id} item={item} />
             ))}
           </ul>
         </div>

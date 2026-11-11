@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useNavigation } from "@/components/providers/navigation-provider";
 import { useStorefrontCategories } from "@/components/providers/storefront-categories-provider";
 import {
   categoryNav,
@@ -28,6 +29,7 @@ const CATEGORIES_TRIGGER_ID = `${CATEGORIES_POPUP_ID}-trigger`;
 export function CategoryBar() {
   const pathname = usePathname();
   const items = categoryNav(useStorefrontCategories());
+  const { extraLinks } = useNavigation().header;
   const [open, setOpen] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
 
@@ -80,6 +82,22 @@ export function CategoryBar() {
           onLeave={scheduleClose}
           onToggle={() => setOpen(open === "__drops" ? null : "__drops")}
         />
+
+        {extraLinks.map((item) => (
+          <li key={item.id} className="shrink-0">
+            <Link
+              href={item.href}
+              aria-current={pathname === item.href ? "page" : undefined}
+              className={cn(
+                "inline-flex h-11 items-center px-3 text-[0.8125rem] font-medium tracking-tight",
+                "transition-colors duration-(--duration-fast)",
+                pathname === item.href ? "text-ink" : "text-ink-secondary hover:text-ink",
+              )}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
 
         <MegaMenuItem
           menuId="about"
