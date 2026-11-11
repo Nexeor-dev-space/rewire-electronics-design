@@ -6,6 +6,11 @@ storefront sells, and where each of those decisions lives in code.
 Read this before adding a category, renaming a condition, or adding an
 entry to the About menu.
 
+**The About menu, the footer and the mobile tab bar are managed by staff since
+issue #148.** Their links are no longer written in `aboutColumns`, `footerNav`
+or the tab bar component. See [NAVIGATION.md](NAVIGATION.md). Where this
+document names those exports, read it as history.
+
 ---
 
 ## 1. What changed
@@ -591,9 +596,8 @@ order and empties the cart; the success page is `/checkout/success?order=…`
    screen. No code change.
 2. Renaming a condition? `conditions` in `shop.ts`, once. Never in a
    component.
-3. Adding an About menu entry? `aboutColumns` in `navigation.ts`. If it
-   is a support section, add it to `supportSections` instead and it
-   appears in both places.
+3. Adding an About menu, footer or mobile tab entry? Use Storefront,
+   Navigation in the admin (NAVIGATION.md). No code change.
 4. Adding a nav item that points at a route? Build the route first. The
    house rule is that a nav item never 404s.
 5. Adding chrome that changes size after mount? Reserve its box, the way

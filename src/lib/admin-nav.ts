@@ -143,50 +143,18 @@ export const adminNav: AdminNavSection[] = [
     ],
     items: [
       {
-        key: "banners",
-        label: "Banners",
-        href: "/admin/storefront/banners",
-        description: "Hero and promotional banners across the storefront.",
-      },
-      {
-        key: "featured-brands",
-        label: "Featured Brands",
-        href: "/admin/storefront/featured-brands",
-        description: "The brands promoted on the homepage and category pages.",
-      },
-      {
-        key: "popular-categories",
-        label: "Popular Categories",
-        href: "/admin/storefront/popular-categories",
-        description: "The category shortcuts surfaced to shoppers first.",
-      },
-      {
-        key: "curated-categories",
-        label: "Curated Categories",
-        href: "/admin/storefront/curated-categories",
-        description:
-          "Hand built collections that sit alongside the catalogue's own categories.",
-      },
-      {
-        key: "best-deals",
-        label: "Best Deals",
-        href: "/admin/storefront/best-deals",
-        description: "The always on savings rail and what qualifies for it.",
-        permission: adminPermission("storefront", "homepage"),
-      },
-      {
-        key: "season-deals",
-        label: "Season Deals",
-        href: "/admin/storefront/season-deals",
-        description: "Time boxed seasonal promotions and their run dates.",
-        permission: adminPermission("storefront", "homepage"),
-      },
-      {
         key: "homepage",
         label: "Homepage Builder",
         href: "/admin/storefront/homepage",
         description:
           "Reorderable homepage blocks: banners, featured releases, carousels and their editable titles.",
+      },
+      {
+        key: "navigation",
+        label: "Navigation",
+        href: "/admin/storefront/navigation",
+        description:
+          "The header About menu, the footer and the mobile bottom bar: their groups, links, icons and order.",
       },
       {
         key: "content",

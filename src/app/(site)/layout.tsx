@@ -1,8 +1,19 @@
+import { cookies } from "next/headers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { NavigationPreviewBar } from "@/components/layout/navigation-preview-bar";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { NavigationProvider } from "@/components/providers/navigation-provider";
 import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
 import { listStorefrontCategories } from "@/services/catalogue.service";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { getSession } from "@/lib/auth/session";
+import { NAV_PREVIEW_COOKIE } from "@/lib/constants";
+import {
+  getDraftPreviewNavigation,
+  getPublishedNavigation,
+  listHeaderDrops,
+} from "@/services/navigation.service";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +28,26 @@ export const dynamic = "force-dynamic";
 export default async function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const categories = await listStorefrontCategories();
+  // Only a browser that started a preview carries the cookie, so ordinary
+  // visitors never cost a session read. The cookie alone grants nothing: the
+  // permission is checked here.
+  const wantsPreview = (await cookies()).has(NAV_PREVIEW_COOKIE);
+  const session = wantsPreview ? await getSession() : null;
+  const previewing = Boolean(
+    session && hasPermission(session.user.permissions, PERMISSIONS.navigation),
+  );
+
+  const [categories, navigation] = await Promise.all([
+    listStorefrontCategories(),
+    previewing ? getDraftPreviewNavigation() : getPublishedNavigation(),
+  ]);
+  // The drops cost a query, so skip it when staff hid the Upcoming Drops menu.
+  const dropsShown = navigation.header.rail.some((item) => item.id === "drops");
+  const drops = dropsShown ? await listHeaderDrops().catch(() => []) : [];
 
   return (
     <StorefrontCategoriesProvider categories={categories}>
+      <NavigationProvider navigation={navigation} drops={drops}>
       {/* Keyboard users can bypass the fixed header */}
       <a
         href="#main"
@@ -37,9 +64,11 @@ export default async function SiteLayout({
           wrapper rather than on `<main>`, because the footer is the
           element the bar actually overlaps. */}
       <div className="pb-16 lg:pb-0">
-        <Footer />
+        <Footer navigation={navigation} />
       </div>
       <MobileTabBar />
+      {previewing && <NavigationPreviewBar />}
+      </NavigationProvider>
     </StorefrontCategoriesProvider>
   );
 }
