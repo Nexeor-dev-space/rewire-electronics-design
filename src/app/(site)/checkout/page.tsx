@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { CheckoutHeader } from "@/components/checkout/checkout-header";
 import { CheckoutView } from "@/components/checkout/checkout-view";
-import { TrustFooter } from "@/components/checkout/trust-footer";
 import type { PaymentOption } from "@/components/checkout/checkout-view";
 
 export const metadata: Metadata = {
@@ -30,13 +28,5 @@ const PAYMENT: PaymentOption[] = [
 ];
 
 export default function CheckoutPage() {
-  return (
-    <>
-      <CheckoutHeader />
-      <div className="flex-1">
-        <CheckoutView payment={PAYMENT} />
-      </div>
-      <TrustFooter />
-    </>
-  );
+  return <CheckoutView payment={PAYMENT} />;
 }

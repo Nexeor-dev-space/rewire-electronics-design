@@ -97,7 +97,7 @@ Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
 | `src/services/role-permission.service.ts` | Loads, caches and saves the Staff permission grid |
 | `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
 | `src/lib/auth/password.ts` | scrypt hashing |
-| `src/app/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
+| `src/app/(site)/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
 
 **Permissions.** Admin always holds every action and Customer none. Each
 Staff account works under a custom Staff role that an Admin creates on the
