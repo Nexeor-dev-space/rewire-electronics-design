@@ -427,7 +427,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
           <Skeleton className="h-16 w-full rounded-full" />
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
-            {purchasable && inCartQty > 0 ? (
+            {purchasable && inCartQty > 0 && !removeCartItem.isPending ? (
               <motion.div key="stepper" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
                 <QuantityStepper
                   value={stepper.quantity}

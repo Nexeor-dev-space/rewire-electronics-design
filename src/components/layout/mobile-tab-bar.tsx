@@ -260,7 +260,7 @@ const TAB_CLASS = cn(
 
 function TabLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+    <span className="max-w-full truncate font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em] max-[22rem]:sr-only">
       {children}
     </span>
   );

@@ -121,7 +121,7 @@ export function Header() {
           )}
         >
           {/* ---------- Row 1 — utility bar ---------- */}
-          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-3 px-(--spacing-gutter) md:h-[4.5rem] md:gap-5 lg:gap-8">
+          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-3 px-(--spacing-gutter) max-[22rem]:gap-1 md:h-[4.5rem] md:gap-5 lg:gap-8">
             {/* Mobile: hamburger sits before the logo. */}
             <button
               type="button"

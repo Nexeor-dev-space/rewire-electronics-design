@@ -390,6 +390,13 @@
     color-scheme: dark;
   }
 
+  /* Very small phones (under 22rem, about 350px): less side padding. */
+  @media (max-width: 22rem) {
+    :root {
+      --spacing-gutter: 0.75rem;
+    }
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

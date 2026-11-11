@@ -159,7 +159,7 @@ export function AddToCartModal() {
               add-on list needs to scroll on its own when it overflows.
             */}
             <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="px-5 pb-2 sm:px-7">
+              <div className="px-5 pb-2 max-[22rem]:px-3 sm:px-7">
                 <AddedProduct line={line} />
 
                 <LineAddOns
@@ -197,7 +197,7 @@ export function AddToCartModal() {
 
 function ModalHeader({ onClose }: { onClose: () => void }) {
   return (
-    <header className="flex items-center justify-between gap-4 px-5 pb-4 pt-5 sm:px-7 sm:pt-6">
+    <header className="flex items-center justify-between gap-4 px-5 pb-4 pt-5 max-[22rem]:px-3 sm:px-7 sm:pt-6">
       <p
         id="add-to-cart-title"
         className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-secondary"
@@ -235,7 +235,7 @@ function AddedProduct({ line }: { line: CartLine }) {
   const { productName, brand, imageUrl, imageAlt, quantity } = line;
   const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
   return (
-    <article className="flex items-start gap-4 sm:gap-5">
+    <article className="flex items-start gap-4 max-[22rem]:flex-col max-[22rem]:gap-3 sm:gap-5">
       <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:size-28">
         {imageUrl && (
           <Image
@@ -248,11 +248,11 @@ function AddedProduct({ line }: { line: CartLine }) {
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
+      <div className="min-w-0 max-w-full flex-1">
+        <p className="break-words font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
           {brand}
         </p>
-        <h2 className="mt-1 text-[1.125rem] font-medium leading-tight tracking-[-0.01em] text-ink sm:text-[1.25rem]">
+        <h2 className="mt-1 text-[1.125rem] font-medium leading-tight tracking-[-0.01em] text-ink [overflow-wrap:anywhere] sm:text-[1.25rem]">
           {productName}
         </h2>
         <p className="mt-1 text-[0.8125rem] text-ink-secondary">
@@ -317,8 +317,8 @@ function ModalFooter({
   onContinue: () => void;
 }) {
   return (
-    <footer className="border-t border-line bg-void/60 px-5 pb-5 pt-4 sm:px-7 sm:pb-7 sm:pt-5">
-      <div className="flex items-baseline justify-between gap-4">
+    <footer className="border-t border-line bg-void/60 px-5 pb-5 pt-4 max-[22rem]:px-3 sm:px-7 sm:pb-7 sm:pt-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink-secondary">
           {cartCount} {cartCount === 1 ? "item" : "items"} in your cart
         </p>
@@ -334,14 +334,14 @@ function ModalFooter({
         <button
           type="button"
           onClick={onContinue}
-          className="inline-flex h-12 items-center justify-center rounded-full border border-line-strong px-5 text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5"
+          className="inline-flex min-h-12 items-center justify-center rounded-full border border-line-strong px-5 py-2 text-center text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5"
         >
           Continue Shopping
         </button>
         <Link
           href={CART_PAGE_PATH}
           onClick={onContinue}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-white transition-colors duration-(--duration-fast) hover:bg-accent-hover"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors duration-(--duration-fast) hover:bg-accent-hover"
         >
           View Cart
           <svg

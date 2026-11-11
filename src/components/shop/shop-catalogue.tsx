@@ -153,7 +153,7 @@ export function ShopCatalogue({
                 {total === 1 ? "product" : "products"}
               </p>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(true)}
@@ -186,8 +186,8 @@ export function ShopCatalogue({
 
                 <SortSelect
                   value={filters.sort}
-                  onChange={(sort) => applyFilters({ ...filters, sort })}
-                  className="w-[13.5rem]"
+                  onChange={(sort) => setFilters({ ...filters, sort })}
+                  className="w-[13.5rem] max-w-full"
                 />
               </div>
             </div>
