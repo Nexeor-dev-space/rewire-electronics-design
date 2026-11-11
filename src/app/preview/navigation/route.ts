@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
   }
 
   const exiting = request.nextUrl.searchParams.has("exit");
-  const response = NextResponse.redirect(new URL(exiting ? NAVIGATION_ADMIN_PATH : "/", request.url));
+  // A relative Location keeps the browser on the address it used; request.url can
+  // carry the server's bind host (0.0.0.0) instead.
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { Location: exiting ? NAVIGATION_ADMIN_PATH : "/" },
+  });
   if (exiting) {
     response.cookies.delete(NAV_PREVIEW_COOKIE);
   } else {
