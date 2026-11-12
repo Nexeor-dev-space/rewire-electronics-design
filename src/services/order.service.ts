@@ -24,6 +24,7 @@ import {
 import { returnableQuantity } from "@/lib/returns";
 import { PAYMENT_NOTES, paymentOutcome, type PaymentOutcome } from "@/lib/stripe-checkout";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
+import { notifyOrderPaid, notifyOrderStatus } from "@/services/customer-email.service";
 import { returnedQuantities } from "@/services/return.service";
 import { getStoreSettings } from "@/services/store-settings.service";
 import type {
@@ -100,6 +101,7 @@ const orderDetailSelect = {
   deliveredAt: true,
   returnableUntil: true,
   trackingNumber: true,
+  carrier: true,
   email: true,
   phone: true,
   firstName: true,
@@ -191,6 +193,7 @@ const adminRowSelect = {
   city: true,
   total: true,
   trackingNumber: true,
+  carrier: true,
   placedAsGuest: true,
   _count: { select: { items: true } },
   items: {
@@ -276,6 +279,7 @@ function toDetail(row: DetailRow | AdminDetailRow, returned: ReturnedQuantities)
     deliveredAt: isoOrNull(row.deliveredAt),
     returnableUntil: isoOrNull(row.returnableUntil),
     trackingNumber: row.trackingNumber,
+    carrier: row.carrier,
     contact: { email: row.email, phone: row.phone, firstName: row.firstName, lastName: row.lastName },
     address: {
       address1: row.address1,
@@ -363,6 +367,7 @@ function toAdminRow(row: AdminRow): AdminOrderRow {
     total: row.total,
     lineCount: row._count.items,
     trackingNumber: row.trackingNumber,
+    carrier: row.carrier,
     placedAsGuest: row.placedAsGuest,
     items: row.items,
   };
@@ -372,6 +377,7 @@ export function fulfilmentAuditView(row: AdminOrderRow) {
   return {
     status: row.status,
     trackingNumber: row.trackingNumber,
+    carrier: row.carrier,
     serials: row.items.flatMap(({ sku, devices }) =>
       devices.map(({ unitNumber, serialNumber }) => ({ sku, unitNumber, serialNumber })),
     ),
@@ -383,6 +389,7 @@ export function orderAuditView(order: AdminOrderDetail) {
     status: order.status,
     paymentStatus: order.paymentStatus,
     trackingNumber: order.trackingNumber,
+    carrier: order.carrier,
     staffNote: order.staffNote,
   };
 }
@@ -606,6 +613,7 @@ export async function updateOrder(number: string, data: UpdateOrderData) {
     where: { number },
     data: {
       ...(data.trackingNumber !== undefined ? { trackingNumber: data.trackingNumber } : {}),
+      ...(data.carrier !== undefined ? { carrier: data.carrier } : {}),
       ...(data.staffNote !== undefined ? { staffNote: data.staffNote } : {}),
     },
   });
@@ -618,6 +626,7 @@ export async function changeOrderStatus(actorId: string, number: string, { statu
     const order = await findState(tx, number);
     await applyStatusChange(tx, order, status, note, actorId);
   });
+  await notifyOrderStatus(number, status);
   return getAdminOrder(number);
 }
 
@@ -626,6 +635,7 @@ export async function changePaymentStatus(actorId: string, number: string, to: M
     const order = await findState(tx, number);
     await applyPaymentChange(tx, order, to, actorId);
   });
+  if (to === "PAID") await notifyOrderPaid(number);
   return getAdminOrder(number);
 }
 
@@ -672,7 +682,9 @@ async function applyStripePayment(tx: Tx, number: string, paymentIntentId: strin
 export async function recordStripePayment(number: string, paymentIntentId: string): Promise<PaymentOutcome> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      return await prisma.$transaction((tx) => applyStripePayment(tx, number, paymentIntentId));
+      const outcome = await prisma.$transaction((tx) => applyStripePayment(tx, number, paymentIntentId));
+      if (outcome === "MARK_PAID") await notifyOrderPaid(number);
+      return outcome;
     } catch (error) {
       const raced = error instanceof ServiceError && error.code === "CONFLICT";
       if (!raced || attempt >= STRIPE_PAYMENT_ATTEMPTS) throw error;
@@ -714,10 +726,13 @@ export async function updateFulfilment(actorId: string, number: string, data: Fu
     if (!(FULFILMENT_QUEUE_STATUSES as readonly OrderStatus[]).includes(order.status)) {
       throw new ServiceError("CONFLICT", MESSAGE_NOT_IN_FULFILMENT, 409);
     }
-    if (data.trackingNumber !== undefined) {
+    if (data.trackingNumber !== undefined || data.carrier !== undefined) {
       const { count } = await tx.order.updateMany({
         where: { id: order.id, status: order.status },
-        data: { trackingNumber: data.trackingNumber },
+        data: {
+          ...(data.trackingNumber !== undefined ? { trackingNumber: data.trackingNumber } : {}),
+          ...(data.carrier !== undefined ? { carrier: data.carrier } : {}),
+        },
       });
       if (count === 0) throw orderChanged();
     }
@@ -733,5 +748,6 @@ export async function updateFulfilment(actorId: string, number: string, data: Fu
     }
     if (data.status) await applyStatusChange(tx, order, data.status, "", actorId);
   });
+  if (data.status) await notifyOrderStatus(number, data.status);
   return getAdminOrderRow(number);
 }

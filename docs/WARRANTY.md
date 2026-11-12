@@ -307,3 +307,22 @@ against a database.
    together.
 7. **Orders placed before devices existed aren't tracked.** They have no
    devices, so they stay off the warranty table.
+
+---
+
+## 14. Customer emails
+
+Sent by `src/services/customer-email.service.ts`, after the change commits,
+once per event. A failed send is logged and never blocks the claim. The rules
+shared with orders (recipient, guest links, support address) are in
+[ORDERS.md](ORDERS.md) section 16. The link goes to the order page, because
+customers have no claim screen yet (limit 1).
+
+1. Claim opened (`notifyClaimOpened`): from `createClaim`, when staff open a
+   claim for a customer. Names the device and the issue, and says our team will
+   email each step.
+2. Claim decision (`notifyClaimDecision`): from `changeClaimStatus` on every
+   status change. States the new status label (for example Repair, Replacement,
+   Returned to customer, Declined) and the staff note shown to the customer.
+
+No new env var, database change or API change.
