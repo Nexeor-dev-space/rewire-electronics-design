@@ -105,14 +105,14 @@ export default function StyleguidePage() {
           <SectionEyebrow index="01">Typography</SectionEyebrow>
           <div className="space-y-10">
             <div>
-              <p className="eyebrow mb-3">Söhne — Light · Regular · Medium · Bold</p>
+              <p className="eyebrow mb-3">Geist — Light · Regular · Medium · Bold</p>
               <p className="font-sans text-display-2xl font-light">Rewired.</p>
               <p className="font-sans text-display-lg font-light mt-2">
                 Second life. <span className="font-bold">First class.</span>
               </p>
             </div>
             <div>
-              <p className="eyebrow mb-3">Body / Inter</p>
+              <p className="eyebrow mb-3">Body / Geist</p>
               <p className="max-w-xl text-lg text-ink">
                 Every device is disassembled, measured, and rebuilt by hand.
               </p>
@@ -122,7 +122,7 @@ export default function StyleguidePage() {
               </p>
             </div>
             <div>
-              <p className="eyebrow mb-3">Technical / IBM Plex Mono</p>
+              <p className="eyebrow mb-3">Technical / Geist</p>
               <p className="font-mono text-sm tabular-nums tracking-wider text-ink-secondary">
                 BATTERY 100% · CYCLES 12 · SN RW-2214-0047
               </p>
