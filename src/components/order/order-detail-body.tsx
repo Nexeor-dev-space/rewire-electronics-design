@@ -332,6 +332,11 @@ function DeliveryCard({ order }: { order: OrderDetail }) {
         <span>{DELIVERY_METHOD_LABELS[order.deliveryMethod]}</span>
         <span>{orderEtaLabel(order)}</span>
       </div>
+      {order.carrier && (
+        <p className="mt-3 text-[0.875rem] text-ink-secondary">
+          Carrier <span className="text-ink">{order.carrier}</span>
+        </p>
+      )}
       {order.trackingNumber && (
         <p className="mt-3 text-[0.875rem] text-ink-secondary">
           Tracking number <span className="font-mono text-ink">{order.trackingNumber}</span>

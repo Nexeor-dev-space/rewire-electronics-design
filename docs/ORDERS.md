@@ -229,8 +229,10 @@ are untouched.
 After commit, the route calls `after(() => sendOrderConfirmation(order))`
 when the order was created (not on a replay). It builds
 `/order/track?number=…&email=…` with `appUrl` and sends
-`orderConfirmationMessage`; CARD and APPLE_PAY emails carry
-`PAYMENT_PENDING_NOTICE`. A failed send is logged and never fails the order.
+`orderConfirmationMessage`. For CARD and APPLE_PAY it is an "order received"
+email that says the order is not confirmed until payment completes and carries
+`PAYMENT_PENDING_NOTICE`; the confirmed email follows when payment goes
+through (section 16). A failed send is logged and never fails the order.
 
 Then, for an unpaid CARD or APPLE_PAY order (a replay too), the route calls
 `startOnlinePayment`, which reuses the order's open Stripe page or opens one,
@@ -582,3 +584,66 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 13. **The admin orders and Fulfilment lists load each order's lines** (id,
     name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
     serial inputs.
+14. **The carrier is free text**, not a list of couriers (section 16).
+
+---
+
+## 16. Customer emails
+
+Plain text emails in the existing style. A branded HTML template is separate
+work. Release and waitlist emails ([RELEASES.md](RELEASES.md)) and marketing
+messages are out of scope.
+
+**What changed and why.** Customers only heard from the store once, at
+checkout. They now get an email at each step they would expect one. All the
+sending is in `src/services/customer-email.service.ts`; the wording is in
+`src/lib/email/templates.ts` (`updateEmail` is the one layout).
+
+**How it works.**
+
+1. Each `notify…` function runs once, after the database change has committed,
+   from the service that made the change. A change that conflicts or rolls back
+   sends nothing, so there is one email per change.
+2. Every `notify…` is wrapped in `safely`. A failed send is logged with
+   `console.error` and never fails or rolls back the status change.
+3. It goes through `sendEmail`, so the existing email settings apply: logged on
+   development when email is off, refused in production
+   ([INTEGRATIONS.md](INTEGRATIONS.md)).
+4. The recipient is the email on the order, so guests get the same emails. The
+   link is Track Order (`/order/track?number=…&email=…`) for a guest order
+   (`placedAsGuest`), and the account page for everyone else.
+5. Subjects read `Rewire Electronics: order RW… dispatched`. Every body names
+   the order, return or claim number and the support address
+   (`supportContact.email`).
+
+**Order emails.**
+
+1. Order received (`orderConfirmationMessage`), at checkout. For card and Apple
+   Pay it says the order is not confirmed until payment completes.
+2. Payment received (`notifyOrderPaid`): when the Stripe return page or webhook
+   marks the order paid (only the call that did it sends, `MARK_PAID`), when
+   staff mark any order paid (this includes cash on delivery), and when staff
+   move an order to Confirmed. Includes the total and payment method.
+3. Dispatched (`notifyOrderStatus`): includes the tracking number if staff
+   entered one.
+4. Delivered: says the warranty starts from today and points to the order page.
+5. Cancelled: says a refund applies when the order was paid, otherwise that no
+   payment was taken.
+
+`notifyOrderStatus` is called from `changeOrderStatus` (Orders screen) and
+`updateFulfilment` (Fulfilment screen), the two paths that move a status.
+Today an expired Stripe payment page only adds a staff note
+([PAYMENTS.md](PAYMENTS.md)); if that ever cancels an order, it must go through
+`notifyOrderStatus` too.
+
+**Config, database, API.** No new env var, no database change, no API change.
+
+**Carrier.** Staff can enter a courier name next to the tracking number.
+`Order.carrier` (String, default empty, migration `add_career`) is saved by
+`PATCH admin/orders/[number]` and `PATCH admin/fulfilment/[number]` (optional
+`carrier`, trimmed, at most `CARRIER_MAX_LENGTH` characters). It is returned as
+`carrier` on `OrderDetail` and `AdminOrderRow`, shown on the customer order
+page, and edited in the Fulfilment queue and the admin order detail. The
+dispatched email reads "Carrier: X. Tracking number: Y." and leaves out
+whichever is empty. Saving the carrier with a status move in one request is
+sent in the same email, because the email is built after the save.

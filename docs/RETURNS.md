@@ -488,3 +488,24 @@ only; run the QA plan after any change to them.
    checks that the money moved.
 9. **The return window is gated by the Returns permission.** A second store
     setting needs its own permission.
+
+---
+
+## 16. Customer emails
+
+Sent by `src/services/customer-email.service.ts`, after the change commits,
+once per event. A failed send is logged and never blocks the change. The rules
+shared with orders (recipient, guest links, support address) are in
+[ORDERS.md](ORDERS.md) section 16. Guests get a Track Order link; account
+holders get `/account/returns`.
+
+1. Return received (`notifyReturnReceived`): when the customer submits the
+   request (`createReturn`). Lists the items and quantities and says our team
+   will review it.
+2. Approved or declined (`notifyReturnDecision`): from `changeReturnStatus`
+   when the new status is APPROVED or DECLINED. Includes the staff note shown
+   to the customer. Other status changes send nothing.
+3. Refund issued (`notifyRefundIssued`): from `recordRefund`. Includes the
+   amount and the payment reference staff entered.
+
+No new env var, database change or API change.

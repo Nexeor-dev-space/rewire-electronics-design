@@ -24,6 +24,7 @@ import {
   type WarrantyClaimStatus,
   type WarrantyStatus,
 } from "@/lib/warranty";
+import { notifyClaimDecision, notifyClaimOpened } from "@/services/customer-email.service";
 import { variantLabel } from "@/services/return.service";
 import type { AdminWarrantyClaimDetail, AdminWarrantyDetail, AdminWarrantyRow } from "@/types/warranty";
 import type {
@@ -433,6 +434,7 @@ export async function createClaim(
   for (let attempt = 1; ; attempt += 1) {
     try {
       const { number } = await prisma.$transaction((tx) => createClaimInTransaction(tx, deviceId, input, actorId));
+      await notifyClaimOpened(number);
       return getAdminClaim(number);
     } catch (error) {
       if (!isUniqueViolation(error) || attempt >= REFERENCE_NUMBER_ATTEMPTS) throw error;
@@ -469,5 +471,6 @@ export async function changeClaimStatus(
 
     await tx.warrantyClaimEvent.create({ data: { claimId: row.id, status: to, note, actorId } });
   });
+  await notifyClaimDecision(number, to, note);
   return getAdminClaim(number);
 }
