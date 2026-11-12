@@ -251,20 +251,15 @@ from `md` at every width. `MoreItem` was deleted along with three other
 components in that file that had already fallen out of use
 (`LinkListItem`, `ShopLink`, `BrandDropdown`), removing 375 lines.
 
-### Not changed: font loading
+### Font loading
 
-`src/lib/fonts.ts` serves Söhne locally through `next/font/local` with
-`display: "swap"` and an explicit Helvetica fallback stack rather than a
-synthesised metric fallback. That is a deliberate decision documented in
-that file: the trial cuts carry only 68 glyphs, so the substitute is
-doing real work on punctuation rather than merely covering a swap, and
-Helvetica already matches Söhne's metrics closely.
-
-Turning on `adjustFontFallback` would metric match the fallback and
-remove the last of the first paint reflow, at the cost of rendering all
-substituted punctuation through adjusted Arial. That trade was left
-alone. If navbar movement on first paint is still visible after the four
-fixes above, this is the remaining lever.
+`src/lib/fonts.ts` serves Geist locally through `next/font/local` with
+`display: "swap"`. This note used to explain why `adjustFontFallback` was
+turned off: the old Söhne trial cuts carried only 68 glyphs, so the
+Helvetica fallback was rendering real punctuation. Geist has a full
+character set, so that reason is gone and the option is back on its
+default (metric matched Arial). That removes the last of the first paint
+reflow this section described.
 
 ---
 

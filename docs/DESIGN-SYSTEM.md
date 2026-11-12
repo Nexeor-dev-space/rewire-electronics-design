@@ -49,20 +49,29 @@ accent words are set in flat `text-accent`.
 
 ## 3. Typography
 
-**Two families, one of them a single face.** Loaded via `next/font/local` from
-`/public/fonts` — no external requests. Wired in `src/lib/fonts.ts`.
+**One family.** Geist, loaded via `next/font/local` from `/public/fonts` with
+no external requests. Wired in `src/lib/fonts.ts`.
 
-1. **Söhne (`font-sans`)** — everything structural: headings, body, buttons, navigation.
-2. **Söhne Mono (`font-mono`)** — the technical voice: prices, countdowns, spec labels, eyebrows, edition numbers. Always `tabular-nums` for ticking values.
+1. **Geist (`font-sans`)** carries everything structural: headings, body, buttons, navigation.
+2. **`font-mono`** is still the technical voice (prices, countdowns, spec labels, eyebrows, edition numbers), but it resolves to Geist too, because no Geist Mono files ship in `/public/fonts`. Always add `tabular-nums` to ticking values, since Geist digits are proportional by default.
 
-There is **no display face and no italic**. Söhne ships four weights and only four:
+Files used:
 
-| Weight | Klim name | Use |
+| File | Style | Weights |
 |---|---|---|
-| 300 Light | Leicht | The quiet opening line of a headline |
-| 400 Regular | Buch | Body copy, and the middle voice in a headline |
-| 500 Medium | Kräftig | UI — buttons, navigation, card titles |
-| 700 Bold | Dreiviertelfett | The one emphasised phrase per headline |
+| `Geist-VariableFont_wght.ttf` | normal | 100 to 900 (variable) |
+| `Geist-Italic-VariableFont_wght.ttf` | italic | 100 to 900 (variable), used only by `<em>` in policy rich text |
+
+There is **no display face and no italic in the design**. The design uses four weights:
+
+| Weight | Class | Use |
+|---|---|---|
+| 300 Light | `font-light` | The quiet opening line of a headline |
+| 400 Regular | `font-normal` | Body copy, and the middle voice in a headline |
+| 500 Medium | `font-medium` | UI: buttons, navigation, card titles |
+| 700 Bold | `font-bold` | The one emphasised phrase per headline |
+
+Because the files are variable, `font-semibold` (600) also renders a true cut.
 
 ### Emphasis
 Emphasis is **typographic, never decorative**. Build it from weight, size, line
@@ -91,11 +100,10 @@ Fluid display scale (clamped, viewport-driven):
 Rules: negative tracking on display sizes, tightened one more step on the bold
 line; body stays 14–18px; headlines `text-wrap: balance` (global for h1–h3).
 
-⚠ The Söhne files in `/public/fonts` are Klim **trial** cuts carrying 68 glyphs
-(A–Z, a–z, 0–9, comma, period, hyphen). Every other character — `· — % : & ?`
-and the rest — resolves from Helvetica, which leads the fallback stack because
-Söhne is drawn from it. Licensed files with a full character set are required
-before launch.
+Geist ships a full character set, so punctuation (`· — % : & ?`) no longer
+falls through to the Helvetica fallback. The fallback stack only covers the
+moment before the font swaps in, and `next/font` metric matches it to Arial
+to keep that swap from shifting the layout.
 
 ## 4. Spacing & layout
 
@@ -246,7 +254,7 @@ the certification rows. Anything added from here should replace, not append.
   - **The scarcity card on phones** (`max-md:`) — the hairline column becomes one condensed plate (`rounded-2xl border border-line bg-surface p-5`). A column of hairline rows reads as editorial *beside* a product and as a long form *underneath* one, which is what made the scarcity feel like small print. Three compactions, none of which shrink the count: name and variant share a line, the `of N devices` denominator moves onto the count's baseline instead of under it, and the `Available now` label goes — the orange figure says that already. 523px → 304px.
   - **What phones drop, and why it is safe** — the next-device card is `max-md:hidden`. It is a duplicate affordance (the arrows and the swipe already move the carousel) costing 140px on the screen that can least afford it. The `● LIVE` chip beside the drop label is the reverse trade: the scarcity card sits below the fold however tightly the hero is packed, so the fact that a drop is *running right now* needs to be legible in the first screenful. It is `lg:hidden` — redundant once the panel is in view beside the product.
   - **The word has a boundary, and the rail has ground.** From `lg` the hero is two zones: a main visual area and a **purchase rail** at 3 of 12 columns (measured 20.7–22.1% across 1024–1920, inside the 20–24% target). The ghosted word is clipped at `lg:right-[27%]`, so it stops *before* the rail rather than being hidden by it — a word that merely disappears behind a panel still reads as one thing lying on another; confined, it belongs to the product. The rail stretches the full frame height instead of hugging its content (no `self-end`), takes `border-l border-line` as its divider and `bg-void` as its ground, and holds the ledger at the bottom so the shared baseline survives.
-  - **Sizing the word to its new frame** — Söhne Medium runs ~6.2× its font-size for these eleven letters, so `lg:text-[11vw]` puts the ink at ~68vw inside a 73vw zone: measured 698px of glyph in a 748px box at 1024, clearing the divider by 43px. `15vw` only ever fitted because it had the whole viewport; the reduction is the price of the boundary. Verify with `span.scrollWidth > span.clientWidth` — a `nowrap` block reports overflow the moment a letter is being eaten.
+  - **Sizing the word to its new frame** — Söhne Medium (the face at the time) ran ~6.2× its font-size for these eleven letters, so `lg:text-[11vw]` puts the ink at ~68vw inside a 73vw zone: measured 698px of glyph in a 748px box at 1024, clearing the divider by 43px. `15vw` only ever fitted because it had the whole viewport; the reduction is the price of the boundary. Verify with `span.scrollWidth > span.clientWidth` — a `nowrap` block reports overflow the moment a letter is being eaten.
   - **Re-lay the grain inside any opaque panel.** The rail's solid ground covers the section's paper texture, leaving a clean rectangle in it. A second `.grain` layer inside the rail restores continuity across the divider. When settling animations for a screenshot, exclude `.grain` from blanket `opacity:1` overrides — forcing 2.5% noise to full strength turns the rail into a grey block and looks exactly like a real bug.
   - **PriceBlock** (`price-block.tsx`) — the figure that closes the sale, ranked second only to the photograph: display scale in `urgent`, with the struck original and the saving kept to one small mono line beside it. The eye should land on what the device costs *now* and only then learn what it used to. The percentage is **derived** from the two prices via `savingsPercent`, never stored, so a discount can never drift out of agreement with the numbers printed beside it. No badge, no pill, no red strike-through, no "MRP" — that restraint is the whole difference between a premium reduction and a discount sticker. `<s>` is silent in most screen readers, so a `sr-only` "Was" carries the relationship. Shared by the identity block and the panel so a phone and a desktop ledger can never show different money for one device.
   - **Price outranks stock.** The panel's count used to hold the display slot at `3.25rem`; with a price in play two competing display figures just split the eye, so the count stepped down to `1.75rem` and the price took the rank. Exactly **one** price has a layout box at any width — the identity block carries it below `lg` (where it sits above the CTA), the panel carries it from `lg`, and the panel's copy is `max-lg:hidden`. Printing the same money twice on one screen invites the reader to check whether the two figures agree.
