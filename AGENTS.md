@@ -38,6 +38,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate | [docs/AUTH.md](docs/AUTH.md) |
 | Phone numbers, `src/lib/phone.ts`, `PhoneField`, the +971 and +966 rules | [docs/PHONE-NUMBERS.md](docs/PHONE-NUMBERS.md) |
 | Env vars, `src/lib/env.ts`, email (SMTP), the site address, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |
+| The Integrations, API Keys screen, `admin/integrations`, the GA4, Clarity, Search Console and Meta Pixel IDs, `integration.service.ts`, the storefront tags and their admin guard, the purchase event | [docs/INTEGRATIONS-ADMIN.md](docs/INTEGRATIONS-ADMIN.md) |
 | The `Dockerfile`, `.dockerignore`, standalone output, the Node version, Coolify build settings | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | Installing, `.env`, database commands, tests and checks, deploying | [docs/COMMANDS.md](docs/COMMANDS.md) |
 

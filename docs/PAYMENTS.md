@@ -213,7 +213,9 @@ altered signature is a 400, so a forged "paid" message changes nothing.
 3. **`OrderSuccess`** takes `number`, `sessionId` and `paymentCancelled` from
    the page's query and shows one of: the Stripe return (Confirming your
    payment…, then the confirmation, or the error with Try again), the payment
-   not finished panel, or the existing placed order view.
+   not finished panel, or the existing placed order view. Once the order is
+   paid, the confirmation sends the purchase event to GA4 and Meta Pixel
+   ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §7).
 4. **Admin order detail** shows "Stripe payment pi_…" in the Payment panel
    when the order holds one (`AdminOrderDetail.stripePaymentIntentId`).
 

@@ -127,6 +127,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
 | VAT & Configuration | `governance.vat` | View, Edit | No access, View, Edit |
+| Integrations, API Keys | `integrations.api-keys` | View, Edit | No access, View, Edit |
 | Reports | `governance.reports` | View | No access, View |
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
@@ -150,6 +151,16 @@ VAT & Configuration (`PERMISSIONS.vat`, `governance.vat`) offers View and Edit
 and can be granted to a Staff role. Existing Staff roles hold No access until
 an Admin sets a level. View opens the page and reads the rate; Edit saves it
 (`admin/vat-settings` routes). See [VAT.md](VAT.md).
+
+Integrations, API Keys (`PERMISSIONS.integrations`, `integrations.api-keys`)
+offers View and Edit and can be granted to a Staff role. It is not Admin only,
+because the screen stores and shows no secret, and it needs no new role.
+Existing Staff roles hold No access until an Admin sets a level. View opens
+the screen and reads the list; Edit saves an ID and runs a Test. A Test is a
+`POST` that needs Edit, not Create, because it only stores the last test
+result. See
+[INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §2.
+
 Warranty & Claims (`PERMISSIONS.warranty`) follows the same rule: existing
 Staff roles hold No access until an Admin sets a level. View covers the
 warranty table, the warranty preview and the claim page; Edit covers the Edit

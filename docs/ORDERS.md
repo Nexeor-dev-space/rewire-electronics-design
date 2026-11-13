@@ -467,6 +467,11 @@ order goes to `/account/orders/{number}` when signed in, or to
 `/order/track?number=…&email=…` for a guest. A guest who reloads has no cache,
 so the page offers "Track your order" with only the number filled in.
 
+Once the order is not awaiting payment (a paid card or Apple Pay order, or a
+cash on delivery order when placed), the page sends a purchase event to GA4
+and Meta Pixel when their tags are running, once per order per browser. See
+[INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §7.
+
 **Account orders** (`/account/orders`, `AccountOrders`). A paged list of
 `OrderSummaryCard`s. While the account email is unverified a notice reads
 "Orders you placed as a guest appear once you verify your email." The account

@@ -149,10 +149,11 @@ SEED_ADMIN_PASSWORD=<10+ characters>
 
 Changing `AUTH_SECRET` signs everyone out.
 
-Email (SMTP, sender) and the site address are `.env` values too; there is no
-admin screen for them. The API Credentials screen was removed on 2026-10-12.
-Keys and the Gmail and Resend setup steps are in
-[INTEGRATIONS.md](INTEGRATIONS.md).
+Email (SMTP, sender) and the site address are `.env` values too; no admin
+screen edits them. The API Credentials screen that did was removed on
+2026-10-12. Integrations, API Keys shows the email and Stripe status read only
+and tests them ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md)). Keys and the
+Gmail and Resend setup steps are in [INTEGRATIONS.md](INTEGRATIONS.md).
 
 ## Users
 
@@ -440,6 +441,26 @@ in `BUILT_ROUTES`. The rules, endpoints and hooks are in
 | `src/hooks/use-order.ts` | Queries and mutations |
 | `src/app/api/v1/admin/orders/`, `src/app/api/v1/admin/fulfilment/` | The routes |
 | `src/services/order.service.ts` | Queries and rules |
+
+## Integrations, API Keys
+
+Integrations, **API Keys** (`/admin/integrations/api-keys`), the first row of
+the Integrations group. Permission key `integrations.api-keys`
+(`PERMISSIONS.integrations`), View and Edit, and not Admin only. The page
+checks View with `hasPermission` and shows "Access denied" otherwise, and the
+route is in `BUILT_ROUTES`. Google Merchant, Meta Catalog and Product Feeds
+below it are still placeholders.
+
+1. **The four IDs.** The GA4 measurement ID, the Clarity project ID, the
+   Search Console token and the Meta Pixel ID are entered, saved, cleared and
+   tested here. Each save is written to the Change Log.
+2. **Email and Stripe** are read only: their status from the environment and
+   a Test button. No secret is shown.
+3. **The admin layout** renders `StorefrontTagsGuard`, which reloads the page
+   once when a storefront tag is still running, so no tag runs in the console.
+
+The formats, the Tests, the storefront tags, the purchase event and the API
+are in [INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md).
 
 ## The shell
 

@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useGetMe } from "@/hooks/use-auth";
 import { useConfirmPayment, usePlacedOrder } from "@/hooks/use-checkout";
 import { useGetAccountOrder } from "@/hooks/use-order";
+import { trackPurchase } from "@/lib/analytics";
 import { ApiError } from "@/lib/api/api-client";
 import { ACCOUNT_HOME_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
@@ -189,6 +190,10 @@ function StatusPanel({ children }: { children: ReactNode }) {
 
 function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boolean }) {
   const awaitingPayment = paysOnline(order.paymentMethod) && order.paymentStatus === "UNPAID";
+
+  useEffect(() => {
+    if (!awaitingPayment) trackPurchase(order);
+  }, [order, awaitingPayment]);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">

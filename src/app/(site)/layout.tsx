@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { StorefrontTags } from "@/components/analytics/storefront-tags";
 import { Footer } from "@/components/layout/footer";
 import { SiteChrome } from "@/components/layout/site-chrome";
 import { CheckoutHeader } from "@/components/checkout/checkout-header";
@@ -7,6 +9,7 @@ import { NavigationPreviewBar } from "@/components/layout/navigation-preview-bar
 import { NavigationProvider } from "@/components/providers/navigation-provider";
 import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
 import { listStorefrontCategories } from "@/services/catalogue.service";
+import { getStorefrontIntegrations } from "@/services/integration.service";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { NAV_PREVIEW_COOKIE } from "@/lib/constants";
@@ -17,6 +20,11 @@ import {
 } from "@/services/navigation.service";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { searchConsole } = await getStorefrontIntegrations();
+  return searchConsole ? { verification: { google: searchConsole } } : {};
+}
 
 /**
  * Site chrome — header, footer, skip-link, `<main>` container, and the
@@ -63,6 +71,7 @@ export default async function SiteLayout({
       >
         {children}
       </SiteChrome>
+      <StorefrontTags />
       {previewing && <NavigationPreviewBar />}
       </NavigationProvider>
     </StorefrontCategoriesProvider>

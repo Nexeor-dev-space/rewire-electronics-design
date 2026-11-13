@@ -106,6 +106,19 @@ export function orderConfirmationMessage({ number, total, paymentMethod, ...link
   );
 }
 
+export function integrationTestEmail(name: string): EmailContent {
+  const lines = [
+    `Hi ${name},`,
+    `This is a test email from the Integrations, API Keys screen. If you can read it, ${siteConfig.name} can send email.`,
+    siteConfig.name,
+  ];
+  return {
+    subject: `Test email from ${siteConfig.name}`,
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+    text: lines.join("\n\n"),
+  };
+}
+
 export function waitlistConfirmMessage({ title, url, leaveUrl, confirmUrl }: WaitlistConfirmInput): EmailContent {
   return linkEmail(
     `Confirm your place on the ${title} waitlist`,
