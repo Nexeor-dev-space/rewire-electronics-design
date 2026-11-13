@@ -74,13 +74,12 @@
   --color-love: #e5484d;
 
   /* ---------- Typography · Families (wired to next/font/local) ----------
-     Two families, no display face. Söhne carries everything structural
-     in four weights (300/400/500/700); emphasis comes from weight, size
-     and line breaks, never a second family, italics or colour. The
-     stacks below matter more than usual: the trial Söhne files ship 68
-     glyphs, so all punctuation resolves from Helvetica (see fonts.ts). */
-  --font-sans: var(--font-sohne), "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: var(--font-sohne-mono), ui-monospace, "SF Mono", monospace;
+     One family, no display face. Geist (variable, 100–900) carries
+     everything; emphasis comes from weight, size and line breaks, never
+     a second family, italics or colour. `font-mono` keeps its name for
+     the technical voice but resolves to Geist too (see fonts.ts). */
+  --font-sans: var(--font-geist), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-sans);
 
   /* ---------- Typography · Fluid display scale ----------
      Ceilings follow the brief's hierarchy; the vw terms are tuned so a
@@ -388,6 +387,13 @@
 
   .admin-theme[data-theme="dark"] {
     color-scheme: dark;
+  }
+
+  /* Very small phones (under 22rem, about 350px): less side padding. */
+  @media (max-width: 22rem) {
+    :root {
+      --spacing-gutter: 0.75rem;
+    }
   }
 
   html {

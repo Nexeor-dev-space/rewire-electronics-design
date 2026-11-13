@@ -1,13 +1,12 @@
 import { ABOUT_PAGE_PATH, RELEASES_PAGE_PATH } from "@/lib/constants";
 import type { StorefrontCategory } from "@/types/catalogue";
-import { getUpcomingDrops } from "./drops";
-import {
-  productHrefForCategory,
-  productHrefForDrop,
-  SHOP_INDEX_HREF,
-} from "./route-map";
-import { supportContact, supportSections } from "./support";
-import { policyLink } from "./policy-types";
+import type { PublishedNavigation } from "@/types/navigation";
+import type { StorefrontReleaseSummary } from "@/types/storefront-release";
+import { releaseHref } from "./releases";
+import { productHrefForCategory, SHOP_INDEX_HREF } from "./route-map";
+import { supportContact } from "./support";
+
+const DRAWER_DROPS_LIMIT = 4;
 
 export type MegaMenuId = "drops" | "shop" | "categories" | "about";
 
@@ -35,25 +34,6 @@ export const shopPopular: string[] = [
   "Google Pixel",
   "Dell",
 ];
-
-export const aboutColumns: { title: string; items: MenuLink[] }[] = [
-  {
-    title: "The Company",
-    items: [
-      { label: "Our Story", href: ABOUT_PAGE_PATH },
-      policyLink("terms-and-conditions"),
-      policyLink("privacy-policy"),
-    ],
-  },
-  {
-    title: "Help & Policies",
-    items: supportSections,
-  },
-];
-
-export const aboutMenuLinks: MenuLink[] = aboutColumns.flatMap(
-  (column) => column.items,
-);
 
 export { supportContact };
 
@@ -126,15 +106,16 @@ export interface DrawerSection {
   items: MenuLink[];
 }
 
-export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSection[] {
-  const drops = getUpcomingDrops()
-    .slice(0, 4)
-    .map((drop) => ({
-      label: drop.name,
-      href: productHrefForDrop(drop.slug),
-      note: drop.edition,
-    }));
-
+/**
+ * The drawer's sections in the order of the header rail. `categoryList` and
+ * `drops` arrive already filtered and ordered by staff; a menu staff hid is
+ * absent from `header.rail` and so from the drawer.
+ */
+export function getDrawerSections(
+  categoryList: StorefrontCategory[],
+  header: PublishedNavigation["header"],
+  drops: StorefrontReleaseSummary[],
+): DrawerSection[] {
   const categories: DrawerSection[] = categoryNav(categoryList).map((item) => ({
     label: item.label,
     href: item.href,
@@ -151,21 +132,31 @@ export function getDrawerSections(categoryList: StorefrontCategory[]): DrawerSec
         : [],
   }));
 
-  return [
-    {
-      label: upcomingDropsLink.label,
-      href: upcomingDropsLink.href,
-      badge: "live",
-      items: [
-        ...drops,
-        { label: "View all upcoming drops", href: RELEASES_PAGE_PATH },
-      ],
-    },
-    ...categories,
-    {
-      label: editorialNavLink.label,
-      href: editorialNavLink.href,
-      items: aboutMenuLinks,
-    },
-  ];
+  const dropsSection: DrawerSection = {
+    label: upcomingDropsLink.label,
+    href: upcomingDropsLink.href,
+    badge: "live",
+    items: [
+      ...drops.slice(0, DRAWER_DROPS_LIMIT).map((drop) => ({
+        label: drop.title,
+        href: releaseHref(drop.slug),
+        note: drop.edition,
+      })),
+      { label: "View all upcoming drops", href: RELEASES_PAGE_PATH },
+    ],
+  };
+
+  const aboutSection: DrawerSection = {
+    label: editorialNavLink.label,
+    href: editorialNavLink.href,
+    items: header.aboutColumns.flatMap((column) => column.links),
+  };
+
+  return header.rail.flatMap((item): DrawerSection[] => {
+    if (!("href" in item)) {
+      if (item.id === "categories") return categories;
+      return item.id === "drops" ? [dropsSection] : [aboutSection];
+    }
+    return [{ label: item.label, href: item.href, items: [] }];
+  });
 }

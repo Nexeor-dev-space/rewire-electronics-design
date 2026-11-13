@@ -6,6 +6,11 @@ storefront sells, and where each of those decisions lives in code.
 Read this before adding a category, renaming a condition, or adding an
 entry to the About menu.
 
+**The About menu, the footer and the mobile tab bar are managed by staff since
+issue #148.** Their links are no longer written in `aboutColumns`, `footerNav`
+or the tab bar component. See [NAVIGATION.md](NAVIGATION.md). Where this
+document names those exports, read it as history.
+
 ---
 
 ## 1. What changed
@@ -246,20 +251,15 @@ from `md` at every width. `MoreItem` was deleted along with three other
 components in that file that had already fallen out of use
 (`LinkListItem`, `ShopLink`, `BrandDropdown`), removing 375 lines.
 
-### Not changed: font loading
+### Font loading
 
-`src/lib/fonts.ts` serves Söhne locally through `next/font/local` with
-`display: "swap"` and an explicit Helvetica fallback stack rather than a
-synthesised metric fallback. That is a deliberate decision documented in
-that file: the trial cuts carry only 68 glyphs, so the substitute is
-doing real work on punctuation rather than merely covering a swap, and
-Helvetica already matches Söhne's metrics closely.
-
-Turning on `adjustFontFallback` would metric match the fallback and
-remove the last of the first paint reflow, at the cost of rendering all
-substituted punctuation through adjusted Arial. That trade was left
-alone. If navbar movement on first paint is still visible after the four
-fixes above, this is the remaining lever.
+`src/lib/fonts.ts` serves Geist locally through `next/font/local` with
+`display: "swap"`. This note used to explain why `adjustFontFallback` was
+turned off: the old Söhne trial cuts carried only 68 glyphs, so the
+Helvetica fallback was rendering real punctuation. Geist has a full
+character set, so that reason is gone and the option is back on its
+default (metric matched Arial). That removes the last of the first paint
+reflow this section described.
 
 ---
 
@@ -363,9 +363,30 @@ It now carries the support box lifted verbatim from the old Support
 panel: email, live chat with its pulsing status dot, and the hours
 behind both. The markup moved into the shared primitives rather than
 being rewritten inside `AboutMenu`, so there is one implementation, not
-two. Every value is read from `supportContact` in `lib/support.ts`, so
-the box, the support page's contact section and the footer all quote the
-same address and the same hours.
+two. Since issue #155 every value is read from the saved contact settings
+(`useContact`, see [VAT.md](VAT.md)), not from code, so the box, the support
+page's contact section and the footer all quote the same details. A field
+staff left empty is not shown. The email and phone are links (`mailto:` and
+`tel:`), and **Live Chat** opens WhatsApp with the saved number and a short
+prefilled greeting. It is not shown when no WhatsApp number is saved. The
+hours are free text in Gulf time.
+
+### Every surface that reads the contact settings (#155)
+
+| Surface | File | How it reads them |
+| --- | --- | --- |
+| Header support menu | `components/layout/mega-primitives.tsx` (`MenuSupportBox`) | `useContact` |
+| Support page cards and hours | `components/support/contact.tsx`, `lib/support.ts` (`getSupportChannels`) | `useContact`. Cards for email, Live Chat, phone and hours appear only when saved. Track an order is always there |
+| Footer brand block | `components/layout/footer.tsx` | `contact` prop from the site layout, through `ContactLinks` |
+| Product page trust block | `components/product/detail/trust-blocks.tsx` | `getContactDetails` (server) |
+| Policy pages | `components/policy/policy-document.tsx` | `getContactDetails` (server). The draft note names the email only when one is saved |
+| Account order screen, Track Order | `components/contact/order-help.tsx`, inside `OrderDetailBody` | `useContact` |
+| Every email | `lib/email/send-email.ts`, `lib/email/templates.ts` | `withContactFooter` |
+| Tax invoice | `services/invoice.service.ts` | `getInvoiceSettings` |
+
+`ContactProvider` is mounted in `app/(site)/layout.tsx`, which reads
+`getContactDetails` on every request. No contact value, address or phone number
+is left in code.
 
 `MenuSupportBox` takes an optional `className`, which the About panel
 uses to pass `h-full` so the box matches the column height.
@@ -490,9 +511,9 @@ cart's data sources are in §10.
 
 ### 9.1 Auth pages
 
-`src/app/(auth)/` is a route group with its own layout: no header,
-footer or tab bar, the same reduced chrome as checkout, on storefront
-tokens. Five routes, none indexed:
+`src/app/(site)/(auth)/` is a route group inside `(site)`: the pages get the
+full header, footer and tab bar (§14), and the group layout only centres the
+form card under the fixed header. Five routes, none indexed:
 
 | Route | Purpose |
 |---|---|
@@ -502,8 +523,7 @@ tokens. Five routes, none indexed:
 | `/reset-password?token=` | Set a new password from the link |
 | `/verify-email?token=` | Confirm the email from the link |
 
-The URL `/sign-in` is unchanged; only its file moved from
-`src/app/sign-in/` into the group. Staff sign in on the same page.
+The URLs are unchanged. Staff sign in on the same page.
 
 ### 9.2 Building a sign-in link
 
@@ -591,9 +611,8 @@ order and empties the cart; the success page is `/checkout/success?order=…`
    screen. No code change.
 2. Renaming a condition? `conditions` in `shop.ts`, once. Never in a
    component.
-3. Adding an About menu entry? `aboutColumns` in `navigation.ts`. If it
-   is a support section, add it to `supportSections` instead and it
-   appears in both places.
+3. Adding an About menu, footer or mobile tab entry? Use Storefront,
+   Navigation in the admin (NAVIGATION.md). No code change.
 4. Adding a nav item that points at a route? Build the route first. The
    house rule is that a nav item never 404s.
 5. Adding chrome that changes size after mount? Reserve its box, the way
@@ -669,8 +688,7 @@ file of it.
 
 `Footer` (`src/components/layout/footer.tsx`) is rendered once, by the
 `(site)` layout, so every storefront page shares it. Pages never render their
-own footer. Checkout and the auth pages keep their reduced chrome on purpose
-(`TrustFooter` on checkout, nothing on auth).
+own footer. Only checkout swaps it for the `TrustFooter` (§14).
 
 The footer grid is two link columns side by side on phones with the brand
 block above them, and the twelve column row from `md`. The large ghost word
@@ -720,5 +738,69 @@ tab bar, not an icon in the top bar:
    both. `/cart` and `/wishlist` are `CART_PAGE_PATH` and
    `WISHLIST_PAGE_PATH` in `src/lib/constants.ts`.
 
-Checkout and the auth pages have no tab bar, so the checkout's own fixed
-bottom bar never meets it.
+Checkout and the payment success page have no tab bar (§14), so the
+checkout's own fixed bottom bar never meets it.
+
+---
+
+## 14. One header and footer on every page (#151)
+
+**The rule:** every storefront page shows the same header, footer and mobile
+tab bar. The single exception is checkout, which keeps a focused layout.
+
+It is applied in one place. `src/app/(site)/layout.tsx` wraps every route in
+`(site)`, including the auth pages (`(site)/(auth)/`) and checkout
+(`(site)/checkout/`), and hands the chrome to `SiteChrome`
+(`src/components/layout/site-chrome.tsx`). A new page under `(site)` gets the
+header, footer and tab bar with no code of its own. Pages never render chrome.
+
+| Page | Header | Footer | Mobile tab bar |
+|---|---|---|---|
+| Every storefront page, cart and the five auth pages included | Full | Full | Yes |
+| `/checkout/success` | Full | Full | No |
+| `/checkout` (the one exception) | `CheckoutHeader` | `TrustFooter` | No |
+
+`SiteChrome` is a client component that reads the path against
+`CHECKOUT_PAGE_PATH` and `CHECKOUT_SUCCESS_PAGE_PATH` (`src/lib/constants.ts`).
+To change the exception, change it there and update this table.
+
+`CheckoutHeader` shows the logo, Secure Checkout badge, Need help link and Back
+to cart, with no menus, search or account controls. It uses the main header's
+height, gutters and glass surface so cart to checkout reads as the same site.
+The checkout's sticky step bar (`checkout-view.tsx`) sits at the same offset.
+
+Fixed header offset: the full header is `fixed`, so a page needs the
+`page-top` utility on its outer element (the auth layout and the success page
+do this). The checkout header is sticky, so checkout needs none.
+
+The tab bar's bottom pad (`pb-16 lg:pb-0` on the footer wrapper) is applied
+only when the bar shows, so it never covers the footer's last line.
+
+---
+
+## 15. The storefront 404 page
+
+**The rule:** a visitor who lands on a page that does not exist keeps the
+site chrome and gets two ways on: the collection to shop, or the homepage.
+
+| File | Role |
+|---|---|
+| `src/app/(site)/not-found.tsx` | The page. A three line headline in the house weights, one sentence, and two buttons: **Shop the collection** (`SHOP_INDEX_HREF`, primary) and **Back to home** (`/`, outline) |
+| `src/app/(site)/[...notFound]/page.tsx` | Catch-all for URLs no storefront route owns. It calls `notFound()` so the page above renders inside the `(site)` layout instead of Next's bare default |
+
+It is reached two ways:
+
+1. A page calls `notFound()`: an unpublished product, a renamed category, a
+   closed release, an unpublished policy.
+2. A URL matches no route at all. Admin and API paths match their own routes
+   first, so the catch-all never takes them; `/admin/*` keeps its own
+   `not-found.tsx`.
+
+Next answers with a real 404 status in both cases, and the catch-all sets
+`NOINDEX_ROBOTS`, so search engines drop the URL. The page carries no data
+and renders no chrome of its own; the header, footer and tab bar come from
+the layout as on every other page (§14).
+
+House rule: a nav item never 404s (§11). This page is for links from outside
+the site and for content that has been taken down, not a destination to
+link to.

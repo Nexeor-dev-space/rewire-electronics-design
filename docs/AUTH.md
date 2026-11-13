@@ -17,7 +17,7 @@ see [INTEGRATIONS.md](INTEGRATIONS.md).
 2. Customer sign-up, email verification, and forgot / reset password.
 3. A signed session cookie with no session table. A password reset signs the
    customer out on every device.
-4. Storefront auth pages in a chrome-less `(auth)` route group, a server gate
+4. Storefront auth pages in an `(auth)` route group inside `(site)`, a server gate
    on every `/account` page, and a client rule that sends any `401` back to
    sign-in.
 
@@ -47,7 +47,7 @@ There is no social sign-in (section 8).
 | `src/types/auth.ts` | `SessionUser`, `Me`, `SignInResult`, input types |
 | `src/app/api/v1/auth/` | The routes in section 5 |
 | `src/hooks/use-auth.ts` | `useGetMe` and the auth mutations |
-| `src/app/(auth)/` | `/sign-in`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` |
+| `src/app/(site)/(auth)/` | `/sign-in`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` |
 | `src/app/(site)/account/layout.tsx` | The account gate |
 | `src/components/auth/` | Forms, `SignInRedirect`, `AccessDenied` |
 | `src/components/account/verify-email-banner.tsx` | The resend banner on account pages |
@@ -269,8 +269,10 @@ replacing the button's click handler.
 
 ### 9.1 Pages
 
-All five live in `src/app/(auth)/`, a route group with no header, footer or
-tab bar, on storefront tokens. Every page sets `robots: noindex, nofollow`.
+All five live in `src/app/(site)/(auth)/`, a route group inside `(site)`, so
+they get the full storefront header, footer and tab bar like every other page
+([STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md) §14). Every page sets
+`robots: noindex, nofollow`.
 The group layout renders the shared `Wordmark`
 (`src/components/layout/wordmark.tsx`, tagline "Electronics") above every
 page, linking home, so the forms carry no brand line of their own.

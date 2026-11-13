@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { StorefrontTagsGuard } from "@/components/analytics/storefront-tags-guard";
 import { AccessDenied } from "@/components/auth/access-denied";
 import { SignInRedirect } from "@/components/auth/sign-in-redirect";
 import { adminConsole, isAdminTheme } from "@/lib/admin-console";
@@ -45,6 +46,7 @@ export default async function AdminLayout({
 
   return (
     <AdminShell viewer={session.user} theme={theme}>
+      <StorefrontTagsGuard />
       {children}
     </AdminShell>
   );

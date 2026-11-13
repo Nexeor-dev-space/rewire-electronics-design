@@ -6,7 +6,7 @@ import { SupportContact } from "@/components/support/contact";
 export const metadata = pageMetadata({
   title: "Support",
   description:
-    "Three ways to reach a person at Rewire Electronics, and the way in to warranty, shipping, returns and the questions a drop raises.",
+    "How to reach a person at Rewire Electronics, and the way in to warranty, shipping, returns and the questions a drop raises.",
   path: SUPPORT_PAGE_PATH,
 });
 

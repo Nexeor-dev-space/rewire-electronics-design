@@ -4,6 +4,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const SHOP_PAGE_SIZE = 12;
 export const SHOP_MAX_PAGE_SIZE = 48;
+/** Page numbers shown either side of the current one in the shop pagination. */
+export const SHOP_PAGINATION_SIBLINGS = { mobile: 0, desktop: 1 } as const;
 /** A browser keeps at most this many saved products; the newest win. See docs/WISHLIST.md. */
 export const WISHLIST_MAX_ITEMS = 24;
 const PRODUCT_SLUG_MAX_LENGTH = 120;
@@ -19,6 +21,23 @@ export const SHORT_DESCRIPTION_MAX_LENGTH = 200;
 export const GTIN_MAX_LENGTH = 14;
 export const NAV_CATEGORY_LIMIT = 8;
 export const HOME_CATEGORY_LIMIT = 4;
+
+/** Navigation limits (docs/NAVIGATION.md). Shown on the Navigation screen. */
+export const NAV_ABOUT_COLUMNS_MAX = 2;
+export const NAV_FOOTER_COLUMNS_MAX = 4;
+export const NAV_LINKS_PER_GROUP_MAX = 8;
+export const NAV_EXTRA_HEADER_LINKS_MAX = 3;
+export const NAV_FOOTER_BOTTOM_LINKS_MAX = 4;
+export const NAV_MOBILE_TABS_MAX = 5;
+export const NAV_MENU_ITEMS_MAX = 50;
+export const NAV_DROPS_LIMIT = 8;
+export const NAV_LABEL_MAX_LENGTH = 40;
+export const NAV_HREF_MAX_LENGTH = 300;
+export const NAV_PREVIEW_COOKIE = "nav_preview";
+export const NAV_PREVIEW_PATH = "/preview/navigation";
+export const NAVIGATION_ADMIN_PATH = "/admin/storefront/navigation";
+/** The mobile tab that opens the category list instead of going to a page. */
+export const CATEGORIES_TAB_HREF = "#categories";
 export const STOREFRONT_CATEGORIES_REVALIDATE_SECONDS = 300;
 
 /** Storefront search: shared by the suggestions API and the `/search` page. */
@@ -146,6 +165,11 @@ export const INVOICE_TITLE = "Tax Invoice";
 export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice - No signature required";
 export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
 export const INVOICE_TERMS_MAX_LENGTH = 2000;
+
+/** Contact details (docs/VAT.md): support hours are free text in Gulf time. */
+export const CONTACT_HOURS_MAX_LENGTH = 300;
+export const WHATSAPP_CHAT_BASE_URL = "https://wa.me/";
+export const WHATSAPP_GREETING = "Hello Rewire, I need some help.";
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
@@ -171,6 +195,13 @@ export const SMTP_IMPLICIT_TLS_PORT = 465;
 export const SMTP_TIMEOUT_MS = 10_000;
 export const DEV_APP_URL = "http://localhost:3000";
 
+export const INTEGRATIONS_CACHE_TAG = "integrations";
+export const INTEGRATION_TEST_TIMEOUT_MS = 10_000;
+export const INTEGRATION_VALUE_MAX_LENGTH = 200;
+export const GA4_SCRIPT_URL = "https://www.googletagmanager.com/gtm.js";
+export const CLARITY_SCRIPT_URL = "https://www.clarity.ms/tag/";
+export const META_PIXEL_SCRIPT_URL = "https://connect.facebook.net/en_US/fbevents.js";
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const VERIFY_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 export const RESET_TOKEN_TTL_SECONDS = 60 * 60;
@@ -195,6 +226,7 @@ export const RATE_LIMITS = {
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
   createSupportTicket: { limit: 5, windowSeconds: 60 * 60 },
+  integrationTest: { limit: 10, windowSeconds: 60 * 10 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";

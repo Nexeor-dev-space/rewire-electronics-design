@@ -334,9 +334,6 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
         >
           {AVAILABILITY_LABELS[availability]}
         </span>
-        {low && variant.stock > 0 && (
-          <span className="text-ink-muted">· {variant.stock} left</span>
-        )}
       </div>
 
       {stateOptions.length > 1 && (
@@ -430,7 +427,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
           <Skeleton className="h-16 w-full rounded-full" />
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
-            {purchasable && inCartQty > 0 ? (
+            {purchasable && inCartQty > 0 && !removeCartItem.isPending ? (
               <motion.div key="stepper" variants={controlSwap} initial="hidden" animate="visible" exit="exit">
                 <QuantityStepper
                   value={stepper.quantity}

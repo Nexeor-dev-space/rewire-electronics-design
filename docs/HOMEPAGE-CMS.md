@@ -50,7 +50,6 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/components/home/{promo-banner,featured-brands,featured-categories}/` | The three section types staff can add |
 | `src/components/home/deals/` | Best deals and Season deals (`DealsSection`), and the promo tile (`DealTile`) |
 | `src/components/home/shared/section-header.tsx` | Header, closing link and product grid classes (`SHELF_GRID_CLASS`) the added sections share |
-| `src/app/admin/storefront/{best-deals,season-deals}/page.tsx` | Redirect to the builder with that section's form open (§10) |
 | `prisma/seed.ts` | The default homepage |
 
 ### Admin API
@@ -406,9 +405,10 @@ the homepage renders the header and footer only.
 ## 9. Homepage Builder
 
 Storefront → Homepage Builder, `/admin/storefront/homepage`. The sidebar's
-**Banners** (`/admin/storefront/banners`) and **Curated Categories**
-(`/admin/storefront/curated-categories`) redirect here: banners are Promo
-banner sections and curated categories are Featured categories sections.
+The sidebar rows Banners, Featured Brands, Popular Categories, Curated Categories,
+Best Deals and Season Deals were removed (issue #148). Banners are Promo banner
+sections, curated categories are Featured categories sections, and the deals
+are their own section types, all added from the builder's Add section.
 Signed out
 redirects to sign in; a role without `storefront.homepage` sees "Access
 denied". Everything on the screen edits the draft; shoppers see nothing until
@@ -483,30 +483,19 @@ is marked noindex. A bar at the bottom links back to the builder.
 
 ---
 
-## 10. Best Deals and Season Deals screens
+## 10. Best Deals and Season Deals
 
-Storefront → **Best Deals** (`/admin/storefront/best-deals`) and Storefront →
-**Season Deals** (`/admin/storefront/season-deals`) are not separate modules.
-Each page redirects to the Homepage Builder with `?section=BEST_DEALS` or
-`?section=SEASON_DEALS` (`HOMEPAGE_SECTION_PARAM` in `src/lib/constants.ts`).
-The builder then opens that section's edit form, or its add form when the
-draft has none yet. Both routes are in `BUILT_ROUTES`.
-
-Publishing is the homepage's own Publish, so it also publishes any other
-unpublished homepage change.
-
-Both sidebar rows carry `permission: storefront.homepage` in
-`src/lib/admin-nav.ts`, so a role without the Homepage Builder doesn't see
-them (PERMISSIONS.md §7).
+These have no sidebar rows or pages of their own since issue #148. Add them
+from the Homepage Builder with Add section. `?section=BEST_DEALS` or
+`?section=SEASON_DEALS` on the builder URL (`HOMEPAGE_SECTION_PARAM`) still
+opens that section's form, or its add form when the draft has none.
 
 **Example.** To run a Black Friday campaign:
 
-1. Open Storefront → Season Deals; the add form opens.
+1. Open Storefront, Homepage Builder, and choose Add section, Season deals.
 2. Enter the title, set Starts and Ends, pick products and add a promo tile.
 3. Save, then Publish. The section appears on `/` at the start time and leaves
    at the end time with no further publish.
-
----
 
 ## 11. Homepage SEO
 

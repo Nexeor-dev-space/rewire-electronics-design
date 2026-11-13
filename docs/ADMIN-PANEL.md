@@ -97,7 +97,7 @@ Every account is a `User` (`prisma/schema/user.prisma`) with a role: `ADMIN`,
 | `src/services/role-permission.service.ts` | Loads, caches and saves the Staff permission grid |
 | `src/lib/auth/session.ts` | Signed session cookie, `getSession()`, `authorizeApi()` |
 | `src/lib/auth/password.ts` | scrypt hashing |
-| `src/app/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
+| `src/app/(site)/(auth)/sign-in/page.tsx`, `src/app/api/v1/auth/` | Sign-in and sign-out (the same page customers use; see [AUTH.md](AUTH.md)) |
 
 **Permissions.** Admin always holds every action and Customer none. Each
 Staff account works under a custom Staff role that an Admin creates on the
@@ -149,10 +149,11 @@ SEED_ADMIN_PASSWORD=<10+ characters>
 
 Changing `AUTH_SECRET` signs everyone out.
 
-Email (SMTP, sender) and the site address are `.env` values too; there is no
-admin screen for them. The API Credentials screen was removed on 2026-10-12.
-Keys and the Gmail and Resend setup steps are in
-[INTEGRATIONS.md](INTEGRATIONS.md).
+Email (SMTP, sender) and the site address are `.env` values too; no admin
+screen edits them. The API Credentials screen that did was removed on
+2026-10-12. Integrations, API Keys shows the email and Stripe status read only
+and tests them ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md)). Keys and the
+Gmail and Resend setup steps are in [INTEGRATIONS.md](INTEGRATIONS.md).
 
 ## Users
 
@@ -298,16 +299,15 @@ The editing screen is Storefront → **Homepage Builder**
 delete sections), opens a staff only preview of the draft at
 `/preview/homepage`, and publishes or discards it.
 
-Storefront → **Banners** and **Curated Categories** are not separate modules.
-Their pages (`src/app/admin/storefront/banners/page.tsx` and
-`src/app/admin/storefront/curated-categories/page.tsx`) redirect to the
-Homepage Builder, where banners are Promo banner sections and curated
-categories are Featured categories sections. Both routes are in
-`BUILT_ROUTES`.
+The Storefront sidebar no longer has rows for Banners, Featured Brands,
+Popular Categories, Curated Categories, Best Deals or Season Deals. Those are
+sections of the Homepage Builder, so staff open the builder and use Add
+section. The four redirect pages were deleted. `HOMEPAGE_SECTION_PARAM`
+(`?section=BEST_DEALS`) still opens a section's form in the builder.
 
-Storefront → **Best Deals** and **Season Deals** redirect to the builder too,
-with that section's form open (`?section=BEST_DEALS`, `?section=SEASON_DEALS`).
-Their sidebar rows need `storefront.homepage`. See HOMEPAGE-CMS.md §10.
+Storefront → **Navigation** (`/admin/storefront/navigation`) manages the
+header About menu, the footer and the mobile bottom bar. See
+[NAVIGATION.md](NAVIGATION.md).
 
 See [HOMEPAGE-CMS.md](HOMEPAGE-CMS.md) for the model, the API, the section
 types and their fields, and what the seed does.
@@ -441,6 +441,26 @@ in `BUILT_ROUTES`. The rules, endpoints and hooks are in
 | `src/hooks/use-order.ts` | Queries and mutations |
 | `src/app/api/v1/admin/orders/`, `src/app/api/v1/admin/fulfilment/` | The routes |
 | `src/services/order.service.ts` | Queries and rules |
+
+## Integrations, API Keys
+
+Integrations, **API Keys** (`/admin/integrations/api-keys`), the first row of
+the Integrations group. Permission key `integrations.api-keys`
+(`PERMISSIONS.integrations`), View and Edit, and not Admin only. The page
+checks View with `hasPermission` and shows "Access denied" otherwise, and the
+route is in `BUILT_ROUTES`. Google Merchant, Meta Catalog and Product Feeds
+below it are still placeholders.
+
+1. **The four IDs.** The GA4 measurement ID, the Clarity project ID, the
+   Search Console token and the Meta Pixel ID are entered, saved, cleared and
+   tested here. Each save is written to the Change Log.
+2. **Email and Stripe** are read only: their status from the environment and
+   a Test button. No secret is shown.
+3. **The admin layout** renders `StorefrontTagsGuard`, which reloads the page
+   once when a storefront tag is still running, so no tag runs in the console.
+
+The formats, the Tests, the storefront tags, the purchase event and the API
+are in [INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md).
 
 ## The shell
 

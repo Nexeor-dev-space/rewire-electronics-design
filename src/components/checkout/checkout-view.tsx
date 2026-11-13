@@ -388,7 +388,7 @@ export function CheckoutView({ payment }: Props) {
       noValidate
       className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 pb-40 md:py-12 lg:pb-14"
     >
-      <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-20 md:mb-12">
+      <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-[4.5rem] md:mb-12">
         <CheckoutProgress
           steps={STEPS}
           activeIndex={openStep}

@@ -9,17 +9,21 @@ import {
 } from "@/lib/constants";
 import {
   conditions,
+  DEFAULT_STOCK_FILTER,
   grades,
   priceBands,
   sortOptions,
+  stockOptions,
   type Condition,
   type Grade,
   type SortId,
+  type StockFilter,
 } from "@/lib/shop";
 
 const CONDITION_VALUES = conditions.map((condition) => condition.value);
 const GRADE_VALUES = grades.map((grade) => grade.value);
 const PRICE_BAND_IDS = priceBands.map((band) => band.id);
+const STOCK_VALUES = stockOptions.map((option) => option.value);
 const SORT_IDS = sortOptions.map((option) => option.id);
 
 const csv = z
@@ -47,6 +51,11 @@ export const shopQuerySchema = z.object({
   brand: csv,
   storage: csv,
   price: csvOf(PRICE_BAND_IDS),
+  /** Left out means the default (in stock only); `stock=` (empty) means no stock filter. */
+  stock: z.preprocess(
+    (value) => value ?? DEFAULT_STOCK_FILTER.join(","),
+    csvOf<StockFilter>(STOCK_VALUES),
+  ),
   sort: z
     .string()
     .optional()

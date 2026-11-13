@@ -65,7 +65,7 @@ export function ShopProductCard({
               soldOut ? "text-ink-muted" : "text-urgent",
             )}
           >
-            {soldOut ? AVAILABILITY_LABELS[availability] : `${product.stock} left`}
+            {AVAILABILITY_LABELS[availability]}
           </span>
         )}
 

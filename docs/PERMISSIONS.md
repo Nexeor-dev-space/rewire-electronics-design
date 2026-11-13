@@ -116,6 +116,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Brands | `catalogue.brands` | View, Create, Edit, Delete | all |
 | Add-ons | `catalogue.add-ons` | View, Create, Edit, Delete | all |
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
+| Navigation | `storefront.navigation` | View, Edit, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Returns | `service.returns` | View, Edit | No access, View, Edit |
@@ -127,6 +128,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Fulfilment | `sales.fulfilment` | View, Edit | No access, View, Edit |
 | Delivery Zones | `governance.delivery` | View, Edit | No access, View, Edit |
 | VAT & Configuration | `governance.vat` | View, Edit | No access, View, Edit |
+| Integrations, API Keys | `integrations.api-keys` | View, Edit | No access, View, Edit |
 | Reports | `governance.reports` | View | No access, View |
 | Change Log | `governance.change-log` | View | No access, View |
 | Trash | `governance.trash` | View, Restore, Delete | No access, View, Full access |
@@ -150,6 +152,16 @@ VAT & Configuration (`PERMISSIONS.vat`, `governance.vat`) offers View and Edit
 and can be granted to a Staff role. Existing Staff roles hold No access until
 an Admin sets a level. View opens the page and reads the rate; Edit saves it
 (`admin/vat-settings` routes). See [VAT.md](VAT.md).
+
+Integrations, API Keys (`PERMISSIONS.integrations`, `integrations.api-keys`)
+offers View and Edit and can be granted to a Staff role. It is not Admin only,
+because the screen stores and shows no secret, and it needs no new role.
+Existing Staff roles hold No access until an Admin sets a level. View opens
+the screen and reads the list; Edit saves an ID and runs a Test. A Test is a
+`POST` that needs Edit, not Create, because it only stores the last test
+result. See
+[INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §2.
+
 Warranty & Claims (`PERMISSIONS.warranty`) follows the same rule: existing
 Staff roles hold No access until an Admin sets a level. View covers the
 warranty table, the warranty preview and the claim page; Edit covers the Edit
@@ -249,8 +261,8 @@ modules not built yet stay visible, because they hold nothing.
 
 A row that is another module's screen names that module in its `permission`
 field (`AdminNavItem` in `src/lib/admin-nav.ts`), and `visibleAdminNav` checks
-that key instead of the row's own. Best Deals and Season Deals use
-`storefront.homepage`, because they open the Homepage Builder.
+that key instead of the row's own. No row uses this today: Best Deals and
+Season Deals, which did, were removed from the sidebar.
 
 **Buttons.** `AdminShell` puts the session's grid in `AdminAccessProvider`.
 A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
@@ -269,6 +281,7 @@ A screen calls `useModuleAccess(PERMISSIONS.<module>)` and gets
 | Warranty & Claims | Row Edit, the preview's Edit and Raise claim buttons and the claim's status panel hidden without Edit; the Edit page answers Access denied without Edit |
 | Fulfilment | Tracking field, Save and Move to buttons replaced by read only text without Edit; the order number links to the detail only with Orders View |
 | Homepage Builder | Add section row hidden without Create; edit, move and show or hide locked without Edit; Delete hidden; Publish and Discard draft hidden |
+| Navigation | Edit controls locked without Edit; Publish and Restore previous hidden without Publish |
 | Content & Policies | Edit links hidden and the editor page refused without Edit; Published switch locked without Publish |
 | Trash | Restore and Delete permanently hidden; Restore on a Staff account needs Staff accounts |
 

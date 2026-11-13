@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { conditions, grades, priceBands } from "@/lib/shop";
+import { conditions, grades, priceBands, stockOptions } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import type { NamedCount, ShopFacets, ShopFilterState } from "@/types/catalogue";
@@ -72,6 +72,14 @@ function categoryOptions(facets: ShopFacets | undefined, selected: string[]): Op
 
 function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): Group[] {
   return [
+    {
+      axis: "stock",
+      title: "Availability",
+      note: "Tick Out of stock to see sold out devices too",
+      options: stockOptions,
+      counts: facets?.stock ?? null,
+      openByDefault: true,
+    },
     {
       axis: "category",
       title: "Category",

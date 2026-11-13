@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { supportContact } from "@/lib/support";
+import { mailtoHref } from "@/lib/contact";
+import { getContactDetails } from "@/services/store-settings.service";
 import { cn } from "@/lib/utils";
 import type { PolicyData } from "@/lib/policy-types";
 import { RichText } from "./rich-text";
 
-export function PolicyDocument({ policy }: { policy: PolicyData }) {
+export async function PolicyDocument({ policy }: { policy: PolicyData }) {
+  const { email } = await getContactDetails();
   const updated = new Date(policy.updatedAt).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -44,14 +46,20 @@ export function PolicyDocument({ policy }: { policy: PolicyData }) {
           >
             <span className="font-medium text-ink">Draft.</span> This text
             describes how Rewire actually operates, but it has not yet been
-            through legal review. For anything you need to rely on, write to{" "}
-            <a
-              href={`mailto:${supportContact.email}`}
-              className="text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-accent"
-            >
-              {supportContact.email}
-            </a>
-            .
+            through legal review.
+            {email && (
+              <>
+                {" "}
+                For anything you need to rely on, write to{" "}
+                <a
+                  href={mailtoHref(email)}
+                  className="text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-accent"
+                >
+                  {email}
+                </a>
+                .
+              </>
+            )}
           </p>
         )}
 

@@ -7,6 +7,9 @@ export interface InvoiceSettingsView {
   sellerTrn: string;
   sellerAddress: string;
   sellerEmail: string;
+  phone: string;
+  whatsapp: string;
+  supportHours: string;
   terms: string;
   updatedAt: string | null;
 }

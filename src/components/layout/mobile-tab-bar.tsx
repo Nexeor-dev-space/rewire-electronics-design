@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -8,17 +8,20 @@ import { useAccount } from "@/components/providers/account-provider";
 import { useGetMe } from "@/hooks/use-auth";
 import { signInHref } from "@/lib/auth/next-path";
 import { useGetCart } from "@/hooks/use-cart";
+import { useNavigation } from "@/components/providers/navigation-provider";
 import {
   ACCOUNT_HOME_PATH,
   CART_PAGE_PATH,
+  CATEGORIES_TAB_HREF,
   ORDER_TRACK_PAGE_PATH,
   WISHLIST_PAGE_PATH,
 } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
+import type { MobileTab } from "@/types/navigation";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
-import { CartIcon } from "./cart-button";
-import { CategoriesDialog, GridIcon } from "./categories-popup";
+import { CategoriesDialog } from "./categories-popup";
+import { MOBILE_TAB_ICON_COMPONENTS } from "./nav-icons";
 
 /**
  * MobileTabBar — the phone's persistent bottom navigation.
@@ -71,6 +74,7 @@ const PROFILE_MENU_ID = "mobile-profile-menu";
 
 export function MobileTabBar() {
   const pathname = usePathname();
+  const { tabs } = useNavigation().mobileBar;
   const { wishlistSlugs } = useAccount();
   const cart = useGetCart();
   const cartCount = cart.isPending ? 0 : (cart.data?.itemCount ?? 0);
@@ -95,8 +99,79 @@ export function MobileTabBar() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [profileOpen]);
 
+  if (tabs.length === 0) return null;
+
   const profileActive = pathname.startsWith(ACCOUNT_HOME_PATH);
   const menuOpen = profileOpen && !signedIn;
+
+  /* Cart, Wishlist, Account and Categories keep their behaviour wherever
+     staff place them: it follows the tab's link, not its position. */
+  function renderTab(tab: MobileTab) {
+    const Icon = MOBILE_TAB_ICON_COMPONENTS[tab.icon];
+
+    if (tab.href === CATEGORIES_TAB_HREF) {
+      const active = categoriesOpen || pathname.startsWith(SHOP_INDEX_HREF);
+      return (
+        <button
+          type="button"
+          onClick={() => setCategoriesOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={categoriesOpen}
+          className={cn(TAB_CLASS, active ? "text-ink" : "text-ink-muted")}
+        >
+          <ActiveDot active={active} />
+          <Icon className="size-[1.35rem]" />
+          <TabLabel>{tab.label}</TabLabel>
+        </button>
+      );
+    }
+
+    if (tab.href === ACCOUNT_HOME_PATH) {
+      if (signedIn) {
+        return (
+          <Link
+            href={ACCOUNT_HOME_PATH}
+            aria-current={pathname === ACCOUNT_HOME_PATH ? "page" : undefined}
+            className={cn(TAB_CLASS, profileActive ? "text-ink" : "text-ink-muted")}
+          >
+            <ActiveDot active={profileActive} />
+            <Icon className="size-[1.35rem]" />
+            <TabLabel>{tab.label}</TabLabel>
+          </Link>
+        );
+      }
+      return (
+        <button
+          type="button"
+          onClick={() => setProfileOpen((cur) => !cur)}
+          aria-expanded={profileOpen}
+          aria-haspopup="menu"
+          aria-controls={PROFILE_MENU_ID}
+          aria-label={profileOpen ? "Close account menu" : "Open account menu"}
+          className={cn(TAB_CLASS, profileActive || profileOpen ? "text-ink" : "text-ink-muted")}
+        >
+          <ActiveDot active={profileActive || profileOpen} />
+          <Icon className="size-[1.35rem]" />
+          <TabLabel>{tab.label}</TabLabel>
+        </button>
+      );
+    }
+
+    const path = tab.href.split("#")[0];
+    const isCart = path === CART_PAGE_PATH;
+    const isWishlist = path === WISHLIST_PAGE_PATH;
+    const badge = isCart ? cartCount : isWishlist ? wishlistSlugs.length : 0;
+    return (
+      <TabLink
+        href={tab.href}
+        label={tab.label}
+        icon={Icon}
+        active={path === "/" ? pathname === "/" : pathname.startsWith(path)}
+        badge={badge}
+        badgeNoun={isCart ? (cartCount === 1 ? "item" : "items") : "saved"}
+      />
+    );
+  }
 
   return (
     <>
@@ -178,73 +253,11 @@ export function MobileTabBar() {
         </AnimatePresence>
 
         <ul className="flex h-16 items-stretch">
-          <li className="flex-1">
-            <TabLink href="/" label="Home" icon={HomeIcon} active={pathname === "/"} />
-          </li>
-
-          <li className="flex-1">
-            <button
-              type="button"
-              onClick={() => setCategoriesOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={categoriesOpen}
-              className={cn(TAB_CLASS, categoriesOpen || pathname.startsWith(SHOP_INDEX_HREF) ? "text-ink" : "text-ink-muted")}
-            >
-              <ActiveDot active={categoriesOpen || pathname.startsWith(SHOP_INDEX_HREF)} />
-              <GridIcon className="size-[1.35rem]" />
-              <TabLabel>Categories</TabLabel>
-            </button>
-          </li>
-
-          <li className="flex-1">
-            <TabLink
-              href={CART_PAGE_PATH}
-              label="Cart"
-              icon={CartIcon}
-              active={pathname.startsWith(CART_PAGE_PATH)}
-              badge={cartCount}
-              badgeNoun={cartCount === 1 ? "item" : "items"}
-            />
-          </li>
-
-          <li className="flex-1">
-            <TabLink
-              href={WISHLIST_PAGE_PATH}
-              label="Wishlist"
-              icon={HeartIcon}
-              active={pathname.startsWith(WISHLIST_PAGE_PATH)}
-              badge={wishlistSlugs.length}
-              badgeNoun="saved"
-            />
-          </li>
-
-          <li className="flex-1">
-            {signedIn ? (
-              <Link
-                href={ACCOUNT_HOME_PATH}
-                aria-current={pathname === ACCOUNT_HOME_PATH ? "page" : undefined}
-                className={cn(TAB_CLASS, profileActive ? "text-ink" : "text-ink-muted")}
-              >
-                <ActiveDot active={profileActive} />
-                <PersonIcon className="size-[1.35rem]" />
-                <TabLabel>Account</TabLabel>
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setProfileOpen((cur) => !cur)}
-                aria-expanded={profileOpen}
-                aria-haspopup="menu"
-                aria-controls={PROFILE_MENU_ID}
-                aria-label={profileOpen ? "Close account menu" : "Open account menu"}
-                className={cn(TAB_CLASS, profileActive || profileOpen ? "text-ink" : "text-ink-muted")}
-              >
-                <ActiveDot active={profileActive || profileOpen} />
-                <PersonIcon className="size-[1.35rem]" />
-                <TabLabel>Account</TabLabel>
-              </button>
-            )}
-          </li>
+          {tabs.map((tab) => (
+            <li key={tab.id} className="flex-1">
+              {renderTab(tab)}
+            </li>
+          ))}
         </ul>
       </nav>
 
@@ -260,7 +273,7 @@ const TAB_CLASS = cn(
 
 function TabLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em]">
+    <span className="max-w-full truncate font-mono text-[0.5625rem] uppercase leading-none tracking-[0.14em] max-[22rem]:sr-only">
       {children}
     </span>
   );
@@ -277,7 +290,7 @@ function TabLink({
 }: {
   href: string;
   label: string;
-  icon: (props: { className?: string }) => React.ReactNode;
+  icon: ComponentType<{ className?: string }>;
   active: boolean;
   badge?: number;
   badgeNoun?: string;
@@ -323,33 +336,5 @@ function ActiveDot({ active }: { active: boolean }) {
         active ? "opacity-100" : "opacity-0",
       )}
     />
-  );
-}
-
-/* ---------- Icons — thin-line, currentColor ---------- */
-
-function HomeIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M4 11.5 12 4l8 7.5" />
-      <path d="M6 10v9.5h4.5V14h3v5.5H18V10" />
-    </svg>
-  );
-}
-
-function HeartIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M12 20.25S4.25 15.6 4.25 9.9A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7.75 1.9c0 5.7-7.75 10.35-7.75 10.35Z" />
-    </svg>
-  );
-}
-
-function PersonIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <circle cx="12" cy="8" r="3.25" />
-      <path d="M4.75 19.5c1.4-3.6 4.1-5.4 7.25-5.4s5.85 1.8 7.25 5.4" />
-    </svg>
   );
 }

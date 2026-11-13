@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { searchCopy, searchHref } from "@/lib/site";
@@ -15,6 +15,7 @@ import { AccountMenu } from "./account-menu";
 import { InlineSearch } from "./inline-search";
 import { CategoryBar } from "./category-bar";
 import { Logo } from "./logo";
+import { useNavigation } from "@/components/providers/navigation-provider";
 
 /**
  * Header — the site's persistent chrome, two levels deep.
@@ -38,6 +39,7 @@ import { Logo } from "./logo";
 
 export function Header() {
   const { scrolled, scrollingDown } = useScrollState();
+  const { topBar } = useNavigation().header;
   const pathname = usePathname();
 
   const router = useRouter();
@@ -121,7 +123,7 @@ export function Header() {
           )}
         >
           {/* ---------- Row 1 — utility bar ---------- */}
-          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-3 px-(--spacing-gutter) md:h-[4.5rem] md:gap-5 lg:gap-8">
+          <div className="mx-auto flex h-16 max-w-[110rem] items-center gap-3 px-(--spacing-gutter) max-[22rem]:gap-1 md:h-[4.5rem] md:gap-5 lg:gap-8">
             {/* Mobile: hamburger sits before the logo. */}
             <button
               type="button"
@@ -137,68 +139,71 @@ export function Header() {
               </span>
             </button>
 
-            {/* ---------- Wordmark ---------- */}
-            <Logo />
+            {topBar.map((part) => {
+              switch (part.id) {
+                case "logo":
+                  return <Logo key={part.id} />;
+                case "search":
+                  return (
+                    <Fragment key={part.id}>
+                      {/* Inline search, visually centred on desktop: from `md` the
+                          field takes the free space between its neighbours. */}
+                      <div className="mx-auto hidden max-w-2xl flex-1 md:block">
+                        <InlineSearch
+                          ref={searchInputRef}
+                          value={query}
+                          onFocus={openInlineSearch}
+                          onChange={(value) => {
+                            setQuery(value);
+                            openInlineSearch();
+                          }}
+                          onSubmit={() => {
+                            if (!query.trim()) return;
+                            router.push(searchHref(query));
+                            closeSearch();
+                          }}
+                          ariaExpanded={panelOpen}
+                          ariaControls={SEARCH_PANEL_ID}
+                        />
+                      </div>
 
-            {/* ---------- Inline search — visually centred on desktop ----------
-                From `md` the field takes over the middle of the row.
-                Wrapping in `mx-auto flex-1 max-w-*` makes the input
-                grow to fill the free space while staying centred
-                between the logo and the utility cluster. */}
-            <div className="mx-auto hidden max-w-2xl flex-1 md:block">
-              <InlineSearch
-                ref={searchInputRef}
-                value={query}
-                onFocus={openInlineSearch}
-                onChange={(value) => {
-                  setQuery(value);
-                  openInlineSearch();
-                }}
-                onSubmit={() => {
-                  if (!query.trim()) return;
-                  router.push(searchHref(query));
-                  closeSearch();
-                }}
-                ariaExpanded={panelOpen}
-                ariaControls={SEARCH_PANEL_ID}
-              />
-            </div>
-
-            {/* Mobile: search as an icon that opens the overlay. */}
-            <button
-              ref={searchIconRef}
-              type="button"
-              onClick={openSearch}
-              aria-label={searchCopy.label}
-              aria-expanded={panelOpen}
-              aria-controls={SEARCH_PANEL_ID}
-              className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.05] hover:text-ink md:hidden"
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                className="size-[1.15rem]"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="M16.5 16.5L21 21" />
-              </svg>
-            </button>
-
-            {/* ---------- Right utility cluster — account · cart ----------
-                Account is hidden below `md` on purpose: mobile reaches
-                it through the drawer, so the top bar keeps to logo /
-                search / cart and the row never gets crowded. */}
-            <div className="flex shrink-0 items-center gap-1 md:gap-2">
-              <div className="hidden md:block">
-                <AccountMenu />
-              </div>
-              {/* Below `lg` the cart sits in the bottom tab bar instead. */}
-              <CartButton className="hidden lg:flex" />
-            </div>
+                      {/* Mobile: search as an icon that opens the overlay. */}
+                      <button
+                        ref={searchIconRef}
+                        type="button"
+                        onClick={openSearch}
+                        aria-label={searchCopy.label}
+                        aria-expanded={panelOpen}
+                        aria-controls={SEARCH_PANEL_ID}
+                        className="ml-auto flex size-10 shrink-0 items-center justify-center rounded-full text-ink-secondary transition-colors duration-(--duration-fast) hover:bg-white/[0.05] hover:text-ink md:hidden"
+                      >
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          className="size-[1.15rem]"
+                        >
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="M16.5 16.5L21 21" />
+                        </svg>
+                      </button>
+                    </Fragment>
+                  );
+                case "account":
+                  /* Hidden below `md` on purpose: mobile reaches it through the drawer. */
+                  return (
+                    <div key={part.id} className="hidden shrink-0 md:block">
+                      <AccountMenu />
+                    </div>
+                  );
+                case "cart":
+                  /* Below `lg` the cart sits in the bottom tab bar instead. */
+                  return <CartButton key={part.id} className="hidden shrink-0 lg:flex" />;
+              }
+            })}
           </div>
 
           {/* ---------- Row 2 — category rail (md+) ---------- */}

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { SUPPORT_TICKET_PAGE_PATH } from "@/lib/constants";
+import { useContact } from "@/components/providers/contact-provider";
+import { hoursLines } from "@/lib/contact";
 import { getSupportChannels, supportContact } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import {
@@ -42,7 +44,9 @@ const lineClip = {
  * before they decide whether to wait.
  */
 export function SupportContact() {
-  const channels = getSupportChannels();
+  const contact = useContact();
+  const channels = getSupportChannels(contact);
+  const hours = hoursLines(contact.hours);
 
   return (
     <section
@@ -84,8 +88,8 @@ export function SupportContact() {
             className="mt-6 max-w-lg text-base leading-relaxed text-ink-secondary"
           >
             No ticket numbers read back at you, and no queue for the sake
-            of one. Three ways in, all of them answered by the people who
-            certify the devices.
+            of one. Every way in is answered by the people who certify the
+            devices.
           </motion.p>
         </motion.div>
 
@@ -95,7 +99,7 @@ export function SupportContact() {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.08, 0.12)}
-          className="mx-auto mt-14 grid max-w-5xl gap-4 sm:grid-cols-3 lg:mt-16 lg:gap-5"
+          className="mx-auto mt-14 flex max-w-5xl flex-wrap justify-center gap-4 lg:mt-16 lg:gap-5"
         >
           {channels.map((channel) => {
             const inner = (
@@ -159,12 +163,20 @@ export function SupportContact() {
             );
 
             return (
-              <motion.li key={channel.id} variants={rise} className="flex">
-                {/* A `mailto:` is not a route — next/link would try to
-                    prefetch it. Anchors for external schemes, Link for
-                    everything the router owns. */}
+              <motion.li
+                key={channel.id}
+                variants={rise}
+                className="flex w-full sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+              >
+                {/* `mailto:`, `tel:` and the WhatsApp link are not routes —
+                    next/link would try to prefetch them. Anchors for
+                    external schemes, Link for everything the router owns. */}
                 {channel.external ? (
-                  <a href={channel.href} className={shell}>
+                  <a
+                    href={channel.href}
+                    className={shell}
+                    {...(channel.newTab && { target: "_blank", rel: "noopener noreferrer" })}
+                  >
                     {inner}
                   </a>
                 ) : (
@@ -177,29 +189,34 @@ export function SupportContact() {
           })}
         </motion.ul>
 
-        {/* ---------- Hours ---------- */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={rise}
-          className="mx-auto mt-10 flex max-w-5xl flex-col items-center gap-2 text-center lg:mt-12"
-        >
-          <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-muted">
-            Hours
-          </p>
-          {supportContact.hours.map((line) => (
-            <p key={line} className="text-[0.9375rem] text-ink-secondary">
-              {line}
+        {/* ---------- Hours (hidden until staff save them) ---------- */}
+        {hours.length > 0 && (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={rise}
+            className="mx-auto mt-10 flex max-w-5xl flex-col items-center gap-2 text-center lg:mt-12"
+          >
+            <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-muted">
+              Hours
             </p>
-          ))}
+            {hours.map((line) => (
+              <p key={line} className="text-[0.9375rem] text-ink-secondary">
+                {line}
+              </p>
+            ))}
+          </motion.div>
+        )}
+
+        <div className="mt-8 flex justify-center">
           <Link
             href={SUPPORT_TICKET_PAGE_PATH}
-            className="mt-4 text-[0.9375rem] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+            className="text-[0.9375rem] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
           >
             Prefer to write it down? Raise a support ticket.
           </Link>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

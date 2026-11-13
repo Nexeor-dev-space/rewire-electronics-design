@@ -159,7 +159,9 @@ export function AddToCartButton({
     return <Skeleton className={cn(className, "h-11 rounded-full")} />;
   }
 
-  const stepperLine = soldOut ? undefined : line;
+  // While a remove is on its way the line counts as gone, so the old server
+  // quantity (before the pending change lands) never flashes back.
+  const stepperLine = soldOut || removeCartItem.isPending ? undefined : line;
   const adding = addCartItem.isPending;
   const error = stepperLine
     ? (updateCartItem.error?.message ?? removeCartItem.error?.message)
@@ -200,7 +202,11 @@ export function AddToCartButton({
               {adding && <Spinner className="absolute size-4" />}
               <span className={cn("inline-flex items-center gap-2", adding && "opacity-0")}>
                 <CartIcon />
-                {soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}
+                {soldOut ? (
+                  OUT_OF_STOCK_LABEL
+                ) : (
+                  <span className="max-sm:sr-only">Add to cart</span>
+                )}
               </span>
             </button>
           </motion.div>

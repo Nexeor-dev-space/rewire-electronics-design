@@ -123,6 +123,22 @@ includes a migration.
 
 ---
 
+## 5a. Go live checklist
+
+Before the first customer:
+
+1. Apply every migration with `npm run db:deploy` (section 5).
+2. Sign in to the admin and open Governance, VAT & Configuration. Fill
+   **Contact & invoice details**: legal name, TRN, address, support email,
+   phone number, WhatsApp number and support hours (in Gulf time). Until they
+   are filled the storefront, emails and invoices show no contact at all, and
+   Live Chat is hidden. See [VAT.md](VAT.md).
+3. Check the VAT rate on the same screen.
+4. Place a test order and open the support menu, Support page, footer, a
+   product page and the order email to confirm the contact details show.
+
+---
+
 ## 6. Build and measure locally
 
 From the repo root (in WSL on Windows):
@@ -141,3 +157,19 @@ Always compare sizes with the same measure. The baseline above is the
 | --- | --- |
 | Nixpacks | 2.53 GB |
 | Dockerfile (standalone) | to be measured |
+
+---
+
+## 7. Go live checklist
+
+After the first production deploy, on the admin Integrations, API Keys
+screen:
+
+1. Enter and save the GA4, Microsoft Clarity and Google Search Console values.
+2. Press Test on each of them; each should find its tag on the homepage.
+3. Verify the site in Google Search Console.
+4. Test Email and Stripe. Both read their values from the Coolify environment
+   (section 3 and [PAYMENTS.md](PAYMENTS.md) §8).
+
+Nothing on that screen is required for the site to run. The full steps are in
+[INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §14.

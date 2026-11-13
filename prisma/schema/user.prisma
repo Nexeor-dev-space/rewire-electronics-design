@@ -53,6 +53,7 @@ model User {
   waitlistEntries   WaitlistEntry[]
 
   storeSettingsUpdates StoreSettings[]
+  integrationChanges   Integration[]
 
   staffRoleUpdates StaffRole[] @relation("StaffRoleUpdatedBy")
   auditLogs        AuditLog[]

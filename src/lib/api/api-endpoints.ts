@@ -5,6 +5,7 @@
 
 import type { Emirate } from "@/lib/emirates";
 import type { ReportKey } from "@/lib/reports";
+import type { IdIntegrationKey, IntegrationKey } from "@/types/integration";
 
 const V1 = "/api/v1";
 
@@ -58,6 +59,13 @@ export const API_ENDPOINTS = {
       publish: `${V1}/admin/homepage/publish`,
       discard: `${V1}/admin/homepage/discard`,
       seo: `${V1}/admin/homepage/seo`,
+    },
+    navigation: {
+      draft: `${V1}/admin/navigation`,
+      publish: `${V1}/admin/navigation/publish`,
+      restore: `${V1}/admin/navigation/restore`,
+      discard: `${V1}/admin/navigation/discard`,
+      options: `${V1}/admin/navigation/options`,
     },
     releases: {
       list: `${V1}/admin/releases`,
@@ -123,6 +131,11 @@ export const API_ENDPOINTS = {
     dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
     invoiceSettings: `${V1}/admin/invoice-settings`,
+    integrations: {
+      list: `${V1}/admin/integrations`,
+      detail: (key: IdIntegrationKey) => `${V1}/admin/integrations/${key}`,
+      test: (key: IntegrationKey) => `${V1}/admin/integrations/${key}/test`,
+    },
     deliveryZones: {
       list: `${V1}/admin/delivery-zones`,
       detail: (emirate: Emirate) => `${V1}/admin/delivery-zones/${emirate}`,
