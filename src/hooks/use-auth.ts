@@ -12,6 +12,7 @@ import type {
   SignUpInput,
   VerifyEmailInput,
 } from "@/types/auth";
+import type { MyProfile, MyProfileInput } from "@/types/user";
 
 const authKeys = {
   all: ["auth"] as const,
@@ -65,6 +66,15 @@ export function useVerifyEmail() {
     mutationFn: (input: VerifyEmailInput) =>
       apiRequest<{ verified: true }>(API_ENDPOINTS.auth.verifyEmail, { method: "POST", body: input }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.all }),
+  });
+}
+
+export function useUpdateMyProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MyProfileInput) =>
+      apiRequest<MyProfile>(API_ENDPOINTS.account.profile, { method: "PATCH", body: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me }),
   });
 }
 

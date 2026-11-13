@@ -237,10 +237,6 @@ export function FilterPanel({
                     {group.options.map((option) => {
                       const checked = selected.includes(option.value);
                       const count = group.counts ? (group.counts[option.value] ?? 0) : null;
-                      // A zero-count option is disabled rather than removed:
-                      // rows that appear and vanish as boxes are ticked make
-                      // a panel feel broken even while it behaves correctly.
-                      const disabled = count === 0 && !checked;
 
                       return (
                         <li key={option.value}>
@@ -248,14 +244,12 @@ export function FilterPanel({
                             className={cn(
                               "group/row flex cursor-pointer items-start gap-3 py-2",
                               option.nested && "pl-7.5",
-                              disabled && "cursor-not-allowed opacity-40",
                             )}
                           >
                             <input
                               type="checkbox"
                               className="peer sr-only"
                               checked={checked}
-                              disabled={disabled}
                               onChange={() => onToggle(group.axis, option.value)}
                             />
                             <span

@@ -1,5 +1,5 @@
 import { CONDITION_META, GRADE_META, type Condition, type Grade } from "@/lib/shop";
-import type { ShopFilterState } from "@/types/catalogue";
+import type { CategoryFacet, ShopFilterState } from "@/types/catalogue";
 import type { AddOnKind } from "@/validators/add-on.validator";
 import { shopQuerySchema } from "@/validators/catalogue.validator";
 import type {
@@ -35,6 +35,20 @@ export const ADD_ON_KIND_LABELS: Record<AddOnKind, string> = {
   ACCESSORY: "Accessory",
   SERVICE: "Service",
 };
+
+export function withChildCounts(categories: CategoryFacet[]): CategoryFacet[] {
+  return categories.map((category) =>
+    category.parentSlug !== null
+      ? category
+      : {
+          ...category,
+          count: categories.reduce(
+            (sum, child) => (child.parentSlug === category.slug ? sum + child.count : sum),
+            category.count,
+          ),
+        },
+  );
+}
 
 const shopFilterSchema = shopQuerySchema.omit({ page: true, pageSize: true });
 

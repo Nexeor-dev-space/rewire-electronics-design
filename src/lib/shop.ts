@@ -240,6 +240,13 @@ export const priceBands: PriceBand[] = [
   { id: "3000-plus", label: "AED 3,000 +", min: 3_000_00, max: Infinity },
 ];
 
+export function inPriceBands(price: number, bandIds: string[]): boolean {
+  return (
+    bandIds.length === 0 ||
+    priceBands.some((band) => bandIds.includes(band.id) && price >= band.min && price < band.max)
+  );
+}
+
 /* ============================================================
    Stock availability
    ============================================================ */
