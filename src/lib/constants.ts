@@ -171,6 +171,10 @@ export const SMTP_IMPLICIT_TLS_PORT = 465;
 export const SMTP_TIMEOUT_MS = 10_000;
 export const DEV_APP_URL = "http://localhost:3000";
 
+export const INTEGRATIONS_CACHE_TAG = "integrations";
+export const INTEGRATION_TEST_TIMEOUT_MS = 10_000;
+export const INTEGRATION_VALUE_MAX_LENGTH = 200;
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const VERIFY_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 export const RESET_TOKEN_TTL_SECONDS = 60 * 60;
@@ -194,6 +198,7 @@ export const RATE_LIMITS = {
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
+  integrationTest: { limit: 10, windowSeconds: 60 * 10 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";

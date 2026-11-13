@@ -61,6 +61,7 @@ export const PERMISSIONS = {
   deliveryZones: adminPermission("governance", "delivery"),
   /** VAT & Configuration: the VAT rate the cart and checkout price with. */
   vat: adminPermission("governance", "vat"),
+  integrations: adminPermission("integrations", "api-keys"),
   /** Reports: read only figures drawn from orders, products, returns and warranty. */
   reports: adminPermission("governance", "reports"),
   roles: adminPermission("governance", "roles"),
@@ -102,6 +103,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.campaigns, label: "Campaigns", actions: ALL_ACTIONS },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
   { key: PERMISSIONS.vat, label: "VAT & Configuration", actions: VIEW_EDIT },
+  { key: PERMISSIONS.integrations, label: "Integrations, API Keys", actions: VIEW_EDIT },
   { key: PERMISSIONS.reports, label: "Reports", actions: ["VIEW"] },
   { key: PERMISSIONS.changeLog, label: "Change Log", actions: ["VIEW"] },
   { key: PERMISSIONS.trash, label: "Trash", actions: ["VIEW", "RESTORE", "DELETE"] },

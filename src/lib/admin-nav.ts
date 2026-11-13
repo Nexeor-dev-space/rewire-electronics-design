@@ -293,6 +293,13 @@ export const adminNav: AdminNavSection[] = [
     ],
     items: [
       {
+        key: "api-keys",
+        label: "API Keys",
+        href: "/admin/integrations/api-keys",
+        description:
+          "Analytics and site verification IDs for the storefront, and the status and tests of email and Stripe.",
+      },
+      {
         key: "google-merchant",
         label: "Google Merchant",
         href: "/admin/integrations/google-merchant",
