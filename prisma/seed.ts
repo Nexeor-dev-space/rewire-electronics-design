@@ -10,6 +10,7 @@ import { databaseEnv } from "../src/lib/env";
 import { hashPassword } from "../src/lib/auth/password";
 import { seedCatalogue } from "./seed-catalogue";
 import { seedDeliveryAreas } from "./seed-delivery-areas";
+import { seedTicketCategories } from "./seed-ticket-categories";
 import { seedDeliveryZones } from "./seed-delivery-zones";
 import type { HomepageSectionType } from "../src/lib/homepage-sections";
 import { SHOP_INDEX_HREF } from "../src/lib/route-map";
@@ -617,6 +618,8 @@ async function main() {
   await seedDeliveryZones(prisma);
   console.log("Delivery areas:");
   await seedDeliveryAreas(prisma);
+  console.log("Ticket categories:");
+  await seedTicketCategories(prisma);
 }
 
 main()

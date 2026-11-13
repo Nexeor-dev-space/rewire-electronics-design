@@ -1,3 +1,6 @@
+import { RELEASES_PAGE_PATH, SUPPORT_TICKET_PAGE_PATH } from "./constants";
+import { policyLink } from "./policy-types";
+
 export const siteConfig = {
   name: "Rewire Electronics",
   shortName: "Rewire",
@@ -51,3 +54,32 @@ export const searchCopy = {
 export const SEARCH_PAGE_PATH = "/search";
 
 export const searchHref = (q: string) => `${SEARCH_PAGE_PATH}?q=${encodeURIComponent(q.trim())}`;
+
+export const footerNav: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Shop",
+    items: [
+      { label: "Live Drops", href: RELEASES_PAGE_PATH },
+      { label: "Collection", href: "/" },
+      { label: "Archive", href: "/" },
+    ],
+  },
+  {
+    title: "Brand",
+    items: [
+      { label: "The Process", href: "/process" },
+      { label: "Certification", href: "/certification" },
+      { label: "Journal", href: "/journal" },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      policyLink("warranty"),
+      policyLink("shipping"),
+      policyLink("returns-refunds-cancellation"),
+      { label: "Contact", href: "/support#contact" },
+      { label: "Raise a ticket", href: SUPPORT_TICKET_PAGE_PATH },
+    ],
+  },
+];

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { SUPPORT_TICKET_PAGE_PATH } from "@/lib/constants";
 import { useContact } from "@/components/providers/contact-provider";
 import { hoursLines } from "@/lib/contact";
 import { getSupportChannels, supportContact } from "@/lib/support";
@@ -207,6 +208,15 @@ export function SupportContact() {
             ))}
           </motion.div>
         )}
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={SUPPORT_TICKET_PAGE_PATH}
+            className="text-[0.9375rem] text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+          >
+            Prefer to write it down? Raise a support ticket.
+          </Link>
+        </div>
       </div>
     </section>
   );

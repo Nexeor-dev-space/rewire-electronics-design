@@ -126,6 +126,21 @@ export const RETURN_NUMBER_PREFIX = "RT-";
 export const RETURN_DETAIL_MIN_LENGTH = 4;
 export const RETURN_DETAIL_MAX_LENGTH = 1000;
 export const REFUND_REFERENCE_MAX_LENGTH = 100;
+export const SUPPORT_TICKET_NUMBER_PREFIX = "TK-";
+export const SUPPORT_SUBJECT_MAX_LENGTH = 150;
+export const SUPPORT_MESSAGE_MAX_LENGTH = 2000;
+export const SUPPORT_CATEGORY_NAME_MAX_LENGTH = 60;
+/** Caps the categories so the category dropdown is one bounded query. */
+export const MAX_TICKET_CATEGORIES = 50;
+/** Caps the staff list an assignee picker loads. */
+export const MAX_TICKET_ASSIGNEES = 50;
+/** A ticket created this recently is flagged New in the list. */
+export const SUPPORT_NEW_TICKET_HOURS = 24;
+/** The latest messages and history rows a ticket page loads. */
+export const SUPPORT_MESSAGE_LIMIT = 100;
+/** Other orders and tickets of the same customer shown beside a ticket. */
+export const SUPPORT_CUSTOMER_HISTORY_LIMIT = 5;
+export const ADMIN_SUPPORT_PATH = "/admin/support";
 export const WARRANTY_CLAIM_NUMBER_PREFIX = "WC-";
 export const WARRANTY_CLAIM_ISSUE_MIN_LENGTH = 4;
 export const WARRANTY_CLAIM_ISSUE_MAX_LENGTH = 1000;
@@ -139,6 +154,9 @@ export const REPORT_EXPORT_PAGE_SIZE = 100;
 export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
+export const SUPPORT_TICKET_PAGE_PATH = "/support/ticket";
+/** Where a new storefront ticket is emailed until an Admin saves an address in Support Tickets, Inbox. */
+export const SUPPORT_TICKET_INBOX = "megha@nexeor.com";
 export const CART_PAGE_PATH = "/cart";
 /** Tax invoices: `INV-<year>-<sequence>`, see docs/INVOICES.md. */
 export const INVOICE_NUMBER_PREFIX = "INV-";
@@ -164,6 +182,7 @@ export const CHECKOUT_PAYMENT_WINDOW_MINUTES = 30;
 /** A retried checkout reuses the order's open Stripe page only while at least this much time is left. */
 export const CHECKOUT_SESSION_REUSE_MIN_MINUTES = 5;
 export const MS_PER_MINUTE = 60 * 1000;
+export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 /** Query keys on the success page that Stripe returns the customer to. */
 export const CHECKOUT_SESSION_ID_PARAM = "session_id";
 export const PAYMENT_RESULT_PARAM = "payment";
@@ -206,6 +225,7 @@ export const RATE_LIMITS = {
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
+  createSupportTicket: { limit: 5, windowSeconds: 60 * 60 },
   integrationTest: { limit: 10, windowSeconds: 60 * 10 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
