@@ -8,7 +8,12 @@ import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/li
 import { prisma } from "@/lib/db";
 import { phoneSearchTerms } from "@/lib/phone";
 import { assertStaffRoleExists } from "@/services/staff-role.service";
-import type { addressListSchema, userListQuerySchema, userSchema } from "@/validators/user.validator";
+import type {
+  addressListSchema,
+  myProfileSchema,
+  userListQuerySchema,
+  userSchema,
+} from "@/validators/user.validator";
 
 /**
  * Accounts for the console's Users screens. Deleting is soft: `state`
@@ -19,6 +24,7 @@ import type { addressListSchema, userListQuerySchema, userSchema } from "@/valid
 type Tx = Prisma.TransactionClient;
 type UserData = z.output<typeof userSchema>;
 type AddressList = z.output<typeof addressListSchema>;
+type MyProfile = z.output<typeof myProfileSchema>;
 
 const userSelect = {
   id: true,
@@ -104,6 +110,14 @@ export async function listMyAddresses(userId: string) {
 export async function saveMyAddresses(userId: string, list: AddressList) {
   await prisma.$transaction((tx) => saveAddresses(tx, userId, list));
   return listMyAddresses(userId);
+}
+
+export async function updateMyProfile(userId: string, data: MyProfile) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { fullName: data.fullName, phone: data.phone },
+    select: { fullName: true, phone: true },
+  });
 }
 
 export async function createUser(viewer: Actor, data: UserData) {

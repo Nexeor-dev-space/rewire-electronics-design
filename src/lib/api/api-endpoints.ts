@@ -178,6 +178,7 @@ export const API_ENDPOINTS = {
     returns: `${V1}/account/returns`,
     returnsEligible: `${V1}/account/returns/eligible`,
     addresses: `${V1}/account/addresses`,
+    profile: `${V1}/account/profile`,
   },
   storefrontReleases: {
     waitlist: (slug: string) => `${V1}/releases/${slug}/waitlist`,
