@@ -273,9 +273,15 @@ paginated", and it needs all three of these:
 2. The bound is small (under ten).
 3. The module's doc names the exception.
 
-Today there is one: `GET /api/v1/admin/delivery-zones` returns
-`DeliveryZoneRow[]`, always seven entries, one per `Emirate`
-([CART.md](CART.md) §6). The cart's own lines are not a list endpoint: they
+Today there are two:
+
+1. `GET /api/v1/admin/delivery-zones` returns `DeliveryZoneRow[]`, always
+   seven entries, one per `Emirate` ([CART.md](CART.md) §6).
+2. `GET /api/v1/admin/integrations` returns `IntegrationView[]`, always six
+   entries, one per `IntegrationKey` in the `INTEGRATIONS` catalogue
+   ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §8).
+
+The cart's own lines are not a list endpoint: they
 travel inside the `Cart` object and are capped by `CART_MAX_LINES`. Add to
 this list rather than returning another unbounded array.
 

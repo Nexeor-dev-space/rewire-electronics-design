@@ -515,6 +515,7 @@ the admin picks the new colour on them.
 | Product values | `productSeo` in `src/lib/seo.ts` |
 | Policy page values | `policySeo` in `src/lib/seo.ts`, through `policyMetadata` in `src/components/policy/policy-page.tsx` |
 | SEO fields in the admin | Products: `src/components/admin/products/product-seo-fields.tsx`. Policies, the homepage and categories share `src/components/admin/shared/seo-basics-fields.tsx` |
+| Search Console verification | `generateMetadata` in `src/app/(site)/layout.tsx` adds `<meta name="google-site-verification">` to every storefront page when a token is saved on Integrations, API Keys ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §6.3) |
 
 Absolute URLs come from `siteConfig.url` in `src/lib/site.ts`; relative ones
 (images, a canonical path) resolve against `metadataBase` in the root layout.
