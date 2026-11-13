@@ -24,3 +24,29 @@ model StoreSettings {
 
   @@map("store_settings")
 }
+
+/// Third party integrations on the Integrations, API Keys screen. See docs/INTEGRATIONS-ADMIN.md.
+enum IntegrationKey {
+  GA4
+  CLARITY
+  SEARCH_CONSOLE
+  META_PIXEL
+  EMAIL
+  STRIPE
+}
+
+/// One row per integration, created on first save or test. No row reads as empty and never tested.
+model Integration {
+  key             IntegrationKey @id
+  /// Public ID or token. Always empty for EMAIL and STRIPE, whose secrets stay in env.
+  value           String         @default("")
+  changedById     String?
+  changedBy       User?          @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  /// Set on save only, so a test run is not a change.
+  changedAt       DateTime?
+  lastTestOk      Boolean?
+  lastTestMessage String         @default("")
+  lastTestedAt    DateTime?
+
+  @@map("integrations")
+}
