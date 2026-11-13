@@ -31,6 +31,7 @@ const MESSAGE_EMAIL_OFF = "Production needs SMTP_USER, SMTP_PASS, EMAIL_FROM and
 const MESSAGE_EMAIL_LOGGED = "Email is printed to the server log, not sent, because SMTP is not set up.";
 const MESSAGE_EMAIL_FAILED = "The test email could not be sent.";
 const MESSAGE_NOTHING_SAVED = "Nothing is saved yet.";
+const MESSAGE_BAD_FORMAT = "The saved ID is not in the expected format, so the storefront does not show it. Save it again.";
 const MESSAGE_NO_SITE_ADDRESS = "The site address is unknown, so the homepage can't be checked. Check APP_URL.";
 const MESSAGE_HOMEPAGE_UNREACHABLE = "Couldn't open the homepage.";
 const MESSAGE_TAG_FOUND = "Found on the homepage.";
@@ -149,6 +150,7 @@ async function testHomepageTag(key: IdIntegrationKey): Promise<TestOutcome> {
   const row = await prisma.integration.findUnique({ where: { key }, select: { value: true } });
   const value = row?.value ?? "";
   if (!value) return { ok: false, message: MESSAGE_NOTHING_SAVED };
+  if (!integrationDefinition(key).pattern.test(value)) return { ok: false, message: MESSAGE_BAD_FORMAT };
 
   const page = await readHomepage();
   if (!page.ok) return page;
