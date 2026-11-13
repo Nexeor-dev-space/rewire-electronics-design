@@ -53,8 +53,9 @@ Rules the model encodes:
    published and never cleared, so "Newest" stays stable across unpublish and
    republish.
 3. **`minPrice`** is the lowest variant price, written on every save. It exists
-   so the list can sort and filter by price without joining variants. Never
-   write it by hand.
+   so the list can sort by price without joining variants. The price filter
+   reads each variant's own price instead (see "Shop filters"). Never write it
+   by hand.
 4. **Saving is derived**, never stored: `compareAtPrice` minus `price`, and only
    when the compare at price is higher. While a campaign discounts the product,
    the storefront gets the campaign price as `price` and the regular price as
@@ -276,9 +277,11 @@ Query parameters, validated by `shopQuerySchema` in
 | `stock` | `in-stock`, `out-of-stock`. Left out, it is `in-stock` (`DEFAULT_STOCK_FILTER` in `src/lib/shop.ts`). Empty (`stock=`) or both values means no stock filter |
 | `sort` | `newest` (default), `price-asc`, `price-desc` |
 
-Condition, grade and storage are variant level filters, and all of them must
-match on the same variant: "Excellent" and "256GB" together only match a
-product that has an Excellent 256GB variant.
+Condition, grade, storage and price are variant level filters, and all of them
+must match on the same variant: "Excellent" and "256GB" together only match a
+product that has an Excellent 256GB variant, and "Excellent" with "Under AED
+500" only matches a product whose Excellent variant costs under AED 500. Price
+is the variant's regular price.
 
 **Stock** follows the same rule. `in-stock` keeps a product when a variant that
 matches the condition, grade and storage filters has stock above 0, so
@@ -314,11 +317,14 @@ Response:
 
 A facet count says how many products ticking that option would leave. Each
 axis is counted with every other filter applied but its own, which is what lets
-the filter panel disable a zero option instead of hiding it. `total` counts
-products, not variants.
+the filter panel disable a zero option instead of hiding it. A parent
+category's count includes the products in its children, the same way the
+category filter does (`withChildCounts` in `src/lib/catalogue.ts`), so a parent
+whose products all sit in children is never disabled. `total` counts products,
+not variants.
 
 A `ShopCard` shows one variant: the cheapest in stock one that matches the
-condition, grade and storage filters (the cheapest overall when none are set),
+condition, grade, storage and price filters (the cheapest overall when none are set),
 falling back to the cheapest match when every match is out of stock. The card
 carries that variant's id (`variantId`), condition, grade, storage, colour,
 price and compare at price, plus total stock across variants, the first image
@@ -709,8 +715,9 @@ All in `src/lib/constants.ts`.
 8. **`src/lib/categories.ts` is no longer read.** It held the old hardcoded
    menu categories and their studio photos; category images now come from the
    admin.
-9. **Price sort and the price filter ignore campaigns.** They read `minPrice`,
-   the regular price ([CAMPAIGNS.md](CAMPAIGNS.md) §9).
+9. **Price sort and the price filter ignore campaigns.** Sort reads `minPrice`
+   and the filter reads each variant's `price`, both the regular price
+   ([CAMPAIGNS.md](CAMPAIGNS.md) §10).
 9. **Search is not typo tolerant.** Every word must appear as typed, so
    "ipone" finds nothing. The trigram indexes are in place if fuzzy matching is
    added later.

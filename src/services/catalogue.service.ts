@@ -4,7 +4,13 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { resolveOfferedAddOns, type AddOnPick, type AddOnScope } from "@/lib/add-on-rules";
-import { fromShopCondition, fromShopGrade, toShopCondition, toShopGrade } from "@/lib/catalogue";
+import {
+  fromShopCondition,
+  fromShopGrade,
+  toShopCondition,
+  toShopGrade,
+  withChildCounts,
+} from "@/lib/catalogue";
 import {
   MAX_PRODUCT_ADD_ONS,
   NAV_CATEGORY_LIMIT,
@@ -17,7 +23,7 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { campaignVariantPrice, type CampaignDiscount } from "@/lib/pricing/campaign";
-import { priceBands, type PriceBand, type StockFilter } from "@/lib/shop";
+import { inPriceBands, priceBands, type PriceBand, type StockFilter } from "@/lib/shop";
 import { imageUrl, imageUrlOrNull } from "@/lib/storage/image-storage";
 import { liveCampaignDiscounts } from "@/services/campaign.service";
 import type { SpecGroup } from "@/types/commerce";
@@ -149,9 +155,9 @@ type DetailRow = Prisma.ProductGetPayload<{ select: typeof detailSelect }>;
 
 /* ---------- filters ---------- */
 
-function bandWhere(band: PriceBand): Prisma.ProductWhereInput {
+function bandWhere(band: PriceBand): Prisma.ProductVariantWhereInput {
   return {
-    minPrice: { gte: band.min, ...(Number.isFinite(band.max) ? { lt: band.max } : {}) },
+    price: { gte: band.min, ...(Number.isFinite(band.max) ? { lt: band.max } : {}) },
   };
 }
 
@@ -184,6 +190,9 @@ function variantFilters(query: ShopQuery, except?: Axis): Prisma.ProductVariantW
   }
   if (except !== "storage" && query.storage.length > 0) {
     and.push({ storage: { in: query.storage } });
+  }
+  if (except !== "price" && query.price.length > 0) {
+    and.push({ OR: priceBands.filter((band) => query.price.includes(band.id)).map(bandWhere) });
   }
   return and;
 }
@@ -276,10 +285,6 @@ function whereFor(query: ShopQuery, except?: Axis): Prisma.ProductWhereInput {
       OR: query.brand.map((name) => ({ brand: { name: { equals: name, mode: "insensitive" } } })),
     });
   }
-  if (except !== "price" && query.price.length > 0) {
-    const bands = priceBands.filter((band) => query.price.includes(band.id));
-    and.push({ OR: bands.map(bandWhere) });
-  }
 
   return { AND: and };
 }
@@ -294,7 +299,8 @@ function matchesVariantFilters(variant: CardVariant, query: ShopQuery) {
     (query.grade.length === 0 ||
       (variant.grade !== null && query.grade.includes(toShopGrade(variant.grade)))) &&
     (query.storage.length === 0 ||
-      (variant.storage !== null && query.storage.includes(variant.storage)))
+      (variant.storage !== null && query.storage.includes(variant.storage))) &&
+    inPriceBands(variant.price, query.price)
   );
 }
 
@@ -460,7 +466,7 @@ async function facetsFor(query: ShopQuery, total: Promise<number>): Promise<Shop
       }),
       Promise.all(
         priceBands.map((band) =>
-          prisma.product.count({ where: { AND: [whereFor(query, "price"), bandWhere(band)] } }),
+          prisma.product.count({ where: whereFor({ ...query, price: [band.id] }) }),
         ),
       ),
       total.then((count) => stockFacet(query, count)),
@@ -469,12 +475,14 @@ async function facetsFor(query: ShopQuery, total: Promise<number>): Promise<Shop
   const storageCounts = tally(storagePairs.map((pair) => pair.storage));
 
   return {
-    categories: categories.map((category) => ({
-      slug: category.slug,
-      name: category.name,
-      parentSlug: category.parent?.slug ?? null,
-      count: category._count.products,
-    })),
+    categories: withChildCounts(
+      categories.map((category) => ({
+        slug: category.slug,
+        name: category.name,
+        parentSlug: category.parent?.slug ?? null,
+        count: category._count.products,
+      })),
+    ),
     conditions: Object.fromEntries(
       [...tally(conditionPairs.map((pair) => pair.condition))].map(([condition, count]) => [
         toShopCondition(condition),
