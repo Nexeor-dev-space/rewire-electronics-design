@@ -316,13 +316,12 @@ Response:
 ```
 
 A facet count says how many products ticking that option would leave. Each
-axis is counted with every other filter applied but its own, which is what lets
-the filter panel disable a zero option instead of hiding it (category rows stay
-clickable, see "Empty categories" below). A parent
-category's count includes the products in its children, the same way the
-category filter does (`withChildCounts` in `src/lib/catalogue.ts`), so a parent
-whose products all sit in children is never disabled. `total` counts products,
-not variants.
+axis is counted with every other filter applied but its own, so the count
+beside an option is what ticking it would add. Every option stays clickable,
+even at zero (see "Empty results" below). A parent category's count includes
+the products in its children, the same way the category filter does
+(`withChildCounts` in `src/lib/catalogue.ts`), so a parent whose products all
+sit in children never shows 0. `total` counts products, not variants.
 
 A `ShopCard` shows one variant: the cheapest in stock one that matches the
 condition, grade, storage and price filters (the cheapest overall when none are set),
@@ -429,9 +428,9 @@ options unticked the shop shows everything: `useGetShopProducts` sends both
 values, because `apiRequest` drops empty query values and a missing `stock`
 would fall back to the in stock default.
 
-**Empty categories.** Every option with a zero count is disabled, except
-category rows (`disableEmpty` on each group in `filter-panel.tsx`). A shopper
-can always tick a category, even one with no products yet. When categories are
+**Empty results.** No filter option is ever disabled: a shopper can tick any
+option in any group, even one whose count is 0, and the grid answers with an
+empty state. When categories are
 the only active filter and nothing matches, the grid shows a "Coming soon"
 message naming them ("Nothing in Tablets yet.") with a "Browse all devices"
 button that clears the filters. With any other filter or a search active, the
