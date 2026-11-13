@@ -47,6 +47,7 @@ interface Group {
   options: Option[];
   counts: Partial<Record<string, number>> | null;
   openByDefault: boolean;
+  disableEmpty: boolean;
 }
 
 const countsOf = (list: NamedCount[]) =>
@@ -79,6 +80,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       options: stockOptions,
       counts: facets?.stock ?? null,
       openByDefault: true,
+      disableEmpty: true,
     },
     {
       axis: "category",
@@ -89,6 +91,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
         ? Object.fromEntries(facets.categories.map((category) => [category.slug, category.count]))
         : null,
       openByDefault: true,
+      disableEmpty: false,
     },
     {
       axis: "condition",
@@ -101,6 +104,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       })),
       counts: facets?.conditions ?? null,
       openByDefault: true,
+      disableEmpty: true,
     },
     {
       axis: "grade",
@@ -113,6 +117,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       })),
       counts: facets?.grades ?? null,
       openByDefault: true,
+      disableEmpty: true,
     },
     {
       axis: "price",
@@ -120,6 +125,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       options: priceBands.map((band) => ({ value: band.id, label: band.label })),
       counts: facets?.priceBands ?? null,
       openByDefault: true,
+      disableEmpty: true,
     },
     {
       axis: "brand",
@@ -127,6 +133,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       options: withSelected(facets?.brands.map((brand) => brand.value) ?? [], filters.brand),
       counts: facets ? countsOf(facets.brands) : null,
       openByDefault: false,
+      disableEmpty: true,
     },
     {
       axis: "storage",
@@ -134,6 +141,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       options: withSelected(facets?.storage.map((size) => size.value) ?? [], filters.storage),
       counts: facets ? countsOf(facets.storage) : null,
       openByDefault: false,
+      disableEmpty: true,
     },
   ];
 }
@@ -240,7 +248,7 @@ export function FilterPanel({
                       // A zero-count option is disabled rather than removed:
                       // rows that appear and vanish as boxes are ticked make
                       // a panel feel broken even while it behaves correctly.
-                      const disabled = count === 0 && !checked;
+                      const disabled = group.disableEmpty && count === 0 && !checked;
 
                       return (
                         <li key={option.value}>

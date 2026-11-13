@@ -317,7 +317,8 @@ Response:
 
 A facet count says how many products ticking that option would leave. Each
 axis is counted with every other filter applied but its own, which is what lets
-the filter panel disable a zero option instead of hiding it. A parent
+the filter panel disable a zero option instead of hiding it (category rows stay
+clickable, see "Empty categories" below). A parent
 category's count includes the products in its children, the same way the
 category filter does (`withChildCounts` in `src/lib/catalogue.ts`), so a parent
 whose products all sit in children is never disabled. `total` counts products,
@@ -427,6 +428,16 @@ setting counts as one. "Clear all" puts stock back to "In stock". With both
 options unticked the shop shows everything: `useGetShopProducts` sends both
 values, because `apiRequest` drops empty query values and a missing `stock`
 would fall back to the in stock default.
+
+**Empty categories.** Every option with a zero count is disabled, except
+category rows (`disableEmpty` on each group in `filter-panel.tsx`). A shopper
+can always tick a category, even one with no products yet. When categories are
+the only active filter and nothing matches, the grid shows a "Coming soon"
+message naming them ("Nothing in Tablets yet.") with a "Browse all devices"
+button that clears the filters. With any other filter or a search active, the
+general "No devices meet all of those conditions at once." message shows
+instead, because the other filter may be the reason. An empty
+`/collection/[category]` page shows the same "Coming soon" message.
 
 **Pagination.** `ShopPagination` (`src/components/shop/shop-pagination.tsx`)
 sits under the grid with Previous, page numbers and Next, and a line that
