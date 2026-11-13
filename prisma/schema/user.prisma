@@ -45,11 +45,6 @@ model User {
   couponRedemptions CouponRedemption[]
   returnEvents      ReturnStatusEvent[]
   warrantyEvents    WarrantyClaimEvent[]
-
-  ticketsRaised   SupportTicket[] @relation("TicketCustomer")
-  ticketsAssigned SupportTicket[] @relation("TicketAssignee")
-  ticketMessages  TicketMessage[] @relation("TicketMessageAuthor")
-  ticketEvents    TicketEvent[]   @relation("TicketEventActor")
   releaseTallies    ReleaseCustomerTally[]
   waitlistEntries   WaitlistEntry[]
 
