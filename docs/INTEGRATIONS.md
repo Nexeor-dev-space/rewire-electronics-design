@@ -132,6 +132,21 @@ Quote values with spaces in `.env` to be safe:
 
 ---
 
+## 5a. Contact details and email footers
+
+Issue #155. The support email, phone number and WhatsApp number are not env
+values. Staff save them in Governance, VAT & Configuration, under Contact &
+invoice details, so a change needs no deploy. See [VAT.md](VAT.md). No env var
+was added.
+
+`sendEmail` in `src/lib/email/send-email.ts` reads the saved details
+(`getContactDetails`) and adds them to the foot of every email through
+`withContactFooter`: the support email and, when set, the phone and WhatsApp
+numbers. The text version gets the same lines. With nothing saved the email is
+unchanged. If the settings cannot be read, the email is still sent without the
+footer and the error is logged. The branded template in issue #154 only needs to
+keep calling `sendEmail` to get the footer.
+
 ## 6. Known limits
 
 1. **Restart to change.** Every value is read from the process environment.

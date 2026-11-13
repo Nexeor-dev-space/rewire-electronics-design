@@ -6,6 +6,7 @@ import { useModuleAccess } from "@/components/admin/admin-access";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInvoiceSettings, useUpdateInvoiceSettings } from "@/hooks/use-vat-settings";
 import { apiFieldErrors } from "@/lib/api/api-client";
@@ -15,9 +16,10 @@ import type { InvoiceSettingsInput, InvoiceSettingsView } from "@/types/invoice"
 import { invoiceSettingsSchema } from "@/validators/invoice.validator";
 
 /**
- * Invoice details — the seller block printed on every tax invoice
- * (docs/INVOICES.md). Lives on the VAT & Configuration screen under the
- * same permission as the VAT rate.
+ * Contact & invoice details — the one place for the store's contact
+ * information (docs/VAT.md) and the seller block printed on every tax
+ * invoice (docs/INVOICES.md). Lives on the VAT & Configuration screen under
+ * the same permission as the VAT rate.
  */
 export function InvoiceDetailsSection() {
   const settings = useGetInvoiceSettings();
@@ -49,16 +51,38 @@ export function InvoiceDetailsSection() {
 type FormValues = Required<InvoiceSettingsInput>;
 
 function toValues(settings: InvoiceSettingsView): FormValues {
-  const { sellerName, sellerTrn, sellerAddress, sellerEmail, terms } = settings;
-  return { sellerName, sellerTrn, sellerAddress, sellerEmail, terms };
+  const { sellerName, sellerTrn, sellerAddress, sellerEmail, phone, whatsapp, supportHours, terms } = settings;
+  return { sellerName, sellerTrn, sellerAddress, sellerEmail, phone, whatsapp, supportHours, terms };
 }
 
-const FIELDS: { key: Exclude<keyof FormValues, "terms">; label: string; hint?: string }[] = [
-  { key: "sellerName", label: "Legal name", hint: "Printed under Sold by and in the footer." },
-  { key: "sellerTrn", label: "TRN", hint: "The 15 digit Tax Registration Number. Leave empty to hide it." },
-  { key: "sellerAddress", label: "Address" },
-  { key: "sellerEmail", label: "Support email" },
+type TextKey = "sellerName" | "sellerTrn" | "sellerAddress" | "sellerEmail";
+type PhoneKey = "phone" | "whatsapp";
+
+const TEXT_FIELDS: { key: TextKey; label: string; hint: string }[] = [
+  { key: "sellerName", label: "Legal name", hint: "Shown on tax invoices, under Sold by and in the footer." },
+  { key: "sellerTrn", label: "TRN", hint: "Shown on tax invoices. The 15 digit Tax Registration Number. Leave empty to hide it." },
+  { key: "sellerAddress", label: "Address", hint: "Shown on tax invoices. Leave empty to hide it." },
+  {
+    key: "sellerEmail",
+    label: "Support email",
+    hint: "Shown in the header menu, Support page, footer, product pages, policy pages, order screens, emails and invoices.",
+  },
 ];
+
+const PHONE_FIELDS: { key: PhoneKey; label: string; hint: string }[] = [
+  {
+    key: "phone",
+    label: "Phone number",
+    hint: "Shown in the header menu, Support page, footer, product pages, order screens and emails. Customers tap it to call.",
+  },
+  {
+    key: "whatsapp",
+    label: "WhatsApp number",
+    hint: "Live Chat opens a WhatsApp chat with this number. Without one, Live Chat is not shown. Also in emails.",
+  },
+];
+
+const HOURS_HINT = "Plain text in Gulf time, one line per row. Shown wherever support hours appear. Leave empty to hide it.";
 
 function InvoiceDetailsForm({ settings }: { settings: InvoiceSettingsView }) {
   const id = useId();
@@ -97,21 +121,22 @@ function InvoiceDetailsForm({ settings }: { settings: InvoiceSettingsView }) {
   return (
     <section aria-labelledby={`${id}-heading`} className="mt-6 max-w-xl rounded-xl border border-line p-6">
       <h2 id={`${id}-heading`} className="text-base text-ink">
-        Invoice details
+        Contact &amp; invoice details
       </h2>
       <p className="mt-1 text-sm text-ink-secondary">
-        The seller details and terms printed on every tax invoice. Changes apply to the next download, including
-        invoices already issued.
+        The store&apos;s contact details, shown across the storefront, in emails and on tax invoices, and the seller
+        details and terms printed on every invoice. A field left empty is not shown anywhere. Changes show on the
+        next page load, and apply to the next invoice download, including invoices already issued.
       </p>
 
       {success && (
         <p role="status" className="mt-4 rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-live">
-          Invoice details saved.
+          Contact &amp; invoice details saved.
         </p>
       )}
 
       <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
-        {FIELDS.map((field) => (
+        {TEXT_FIELDS.map((field) => (
           <Field
             key={field.key}
             id={`${id}-${field.key}`}
@@ -131,6 +156,31 @@ function InvoiceDetailsForm({ settings }: { settings: InvoiceSettingsView }) {
             />
           </Field>
         ))}
+
+        {PHONE_FIELDS.map((field) => (
+          <PhoneField
+            key={field.key}
+            id={`${id}-${field.key}`}
+            label={field.label}
+            hint={field.hint}
+            value={values[field.key]}
+            error={errors[field.key]?.[0]}
+            onChange={(value) => handleChange(field.key, value)}
+            disabled={!canEdit}
+            controlClassName="h-11"
+          />
+        ))}
+
+        <Field id={`${id}-supportHours`} label="Support hours" hint={HOURS_HINT} error={errors.supportHours?.[0]}>
+          <Textarea
+            id={`${id}-supportHours`}
+            rows={2}
+            value={values.supportHours}
+            disabled={!canEdit}
+            onChange={(event) => handleChange("supportHours", event.target.value)}
+            aria-invalid={errors.supportHours ? true : undefined}
+          />
+        </Field>
 
         <Field
           id={`${id}-terms`}

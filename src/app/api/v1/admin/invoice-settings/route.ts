@@ -8,13 +8,25 @@ import { getInvoiceSettings, updateInvoiceSettings } from "@/services/store-sett
 import type { InvoiceSettingsView } from "@/types/invoice";
 import { invoiceSettingsSchema } from "@/validators/invoice.validator";
 
-const AUDIT_LABEL = "Invoice details";
+const AUDIT_LABEL = "Contact & invoice details";
 
-const auditView = ({ sellerName, sellerTrn, sellerAddress, sellerEmail, terms }: InvoiceSettingsView) => ({
+const auditView = ({
   sellerName,
   sellerTrn,
   sellerAddress,
   sellerEmail,
+  phone,
+  whatsapp,
+  supportHours,
+  terms,
+}: InvoiceSettingsView) => ({
+  sellerName,
+  sellerTrn,
+  sellerAddress,
+  sellerEmail,
+  phone,
+  whatsapp,
+  supportHours,
   terms,
 });
 

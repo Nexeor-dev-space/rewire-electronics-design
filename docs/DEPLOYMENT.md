@@ -123,6 +123,22 @@ includes a migration.
 
 ---
 
+## 5a. Go live checklist
+
+Before the first customer:
+
+1. Apply every migration with `npm run db:deploy` (section 5).
+2. Sign in to the admin and open Governance, VAT & Configuration. Fill
+   **Contact & invoice details**: legal name, TRN, address, support email,
+   phone number, WhatsApp number and support hours (in Gulf time). Until they
+   are filled the storefront, emails and invoices show no contact at all, and
+   Live Chat is hidden. See [VAT.md](VAT.md).
+3. Check the VAT rate on the same screen.
+4. Place a test order and open the support menu, Support page, footer, a
+   product page and the order email to confirm the contact details show.
+
+---
+
 ## 6. Build and measure locally
 
 From the repo root (in WSL on Windows):

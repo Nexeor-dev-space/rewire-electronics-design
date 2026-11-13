@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ContactLinks } from "@/components/contact/contact-links";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import type { ContactDetails } from "@/types/contact";
 import type { NavGroup, PublishedNavigation } from "@/types/navigation";
 import { Container } from "./container";
 import { Logo } from "./logo";
@@ -10,7 +12,7 @@ import { Logo } from "./logo";
  * watermark). Which parts show, and in what order, is staff's choice in
  * Storefront, Navigation; see docs/NAVIGATION.md.
  */
-export function Footer({ navigation }: { navigation: PublishedNavigation }) {
+export function Footer({ navigation, contact }: { navigation: PublishedNavigation; contact: ContactDetails }) {
   const { top, base, columns, bottomLinks } = navigation.footer;
   const hasBase = base.length > 0;
 
@@ -28,6 +30,7 @@ export function Footer({ navigation }: { navigation: PublishedNavigation }) {
                   <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
                     {siteConfig.tagline}
                   </p>
+                  <ContactLinks contact={contact} className="mt-6" />
                 </div>
               ) : (
                 columns.map((group) => <FooterColumn key={group.id} group={group} />)

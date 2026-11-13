@@ -12,6 +12,10 @@ model StoreSettings {
   invoiceSellerTrn         String   @default("")
   invoiceSellerAddress     String   @default("")
   invoiceSellerEmail       String   @default("")
+  /// Store contact details shown on the storefront and in emails. See docs/VAT.md.
+  contactPhone             String   @default("")
+  contactWhatsapp          String   @default("")
+  contactSupportHours      String   @default("")
   /// Terms & Conditions printed on invoices, one point per line.
   invoiceTerms             String   @default("")
   /// Last invoice sequence handed out; raised in the transaction that stamps an order.

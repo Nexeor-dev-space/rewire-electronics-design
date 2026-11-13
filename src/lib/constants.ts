@@ -147,6 +147,11 @@ export const INVOICE_TITLE = "Tax Invoice";
 export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice - No signature required";
 export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
 export const INVOICE_TERMS_MAX_LENGTH = 2000;
+
+/** Contact details (docs/VAT.md): support hours are free text in Gulf time. */
+export const CONTACT_HOURS_MAX_LENGTH = 300;
+export const WHATSAPP_CHAT_BASE_URL = "https://wa.me/";
+export const WHATSAPP_GREETING = "Hello Rewire, I need some help.";
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";

@@ -1,9 +1,11 @@
 import "server-only";
 
+import { cache } from "react";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import type { ContactDetails } from "@/types/contact";
 import type { InvoiceSettingsView } from "@/types/invoice";
 import type { StoreSettingsView } from "@/types/return";
 import type { invoiceSettingsSchema } from "@/validators/invoice.validator";
@@ -77,6 +79,9 @@ const invoiceSettingsSelect = {
   invoiceSellerTrn: true,
   invoiceSellerAddress: true,
   invoiceSellerEmail: true,
+  contactPhone: true,
+  contactWhatsapp: true,
+  contactSupportHours: true,
   invoiceTerms: true,
   updatedAt: true,
 } satisfies Prisma.StoreSettingsSelect;
@@ -89,6 +94,9 @@ function toInvoiceView(row: InvoiceSettingsRow | null): InvoiceSettingsView {
     sellerTrn: row?.invoiceSellerTrn ?? "",
     sellerAddress: row?.invoiceSellerAddress ?? "",
     sellerEmail: row?.invoiceSellerEmail ?? "",
+    phone: row?.contactPhone ?? "",
+    whatsapp: row?.contactWhatsapp ?? "",
+    supportHours: row?.contactSupportHours ?? "",
     terms: row?.invoiceTerms ?? "",
     updatedAt: row ? row.updatedAt.toISOString() : null,
   };
@@ -99,12 +107,24 @@ export async function getInvoiceSettings(): Promise<InvoiceSettingsView> {
   return toInvoiceView(row);
 }
 
+/**
+ * The contact details customers see. Cached per request, so the layout and a
+ * page asking for them cost one query. Never includes the TRN or address.
+ */
+export const getContactDetails = cache(async (): Promise<ContactDetails> => {
+  const { sellerEmail, phone, whatsapp, supportHours } = await getInvoiceSettings();
+  return { email: sellerEmail, phone, whatsapp, hours: supportHours };
+});
+
 export async function updateInvoiceSettings(actorId: string, input: InvoiceSettingsData): Promise<InvoiceSettingsView> {
   const data = {
     invoiceSellerName: input.sellerName,
     invoiceSellerTrn: input.sellerTrn,
     invoiceSellerAddress: input.sellerAddress,
     invoiceSellerEmail: input.sellerEmail,
+    contactPhone: input.phone,
+    contactWhatsapp: input.whatsapp,
+    contactSupportHours: input.supportHours,
     invoiceTerms: input.terms,
     updatedById: actorId,
   };
