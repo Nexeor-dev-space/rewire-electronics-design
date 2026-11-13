@@ -174,6 +174,9 @@ export const DEV_APP_URL = "http://localhost:3000";
 export const INTEGRATIONS_CACHE_TAG = "integrations";
 export const INTEGRATION_TEST_TIMEOUT_MS = 10_000;
 export const INTEGRATION_VALUE_MAX_LENGTH = 200;
+export const GA4_SCRIPT_URL = "https://www.googletagmanager.com/gtm.js";
+export const CLARITY_SCRIPT_URL = "https://www.clarity.ms/tag/";
+export const META_PIXEL_SCRIPT_URL = "https://connect.facebook.net/en_US/fbevents.js";
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const VERIFY_TOKEN_TTL_SECONDS = 60 * 60 * 24;
