@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { OrderDetail, OrderLine } from "@/types/order";
 import { StatusPill } from "@/components/account/status-pill";
+import { OrderHelp } from "@/components/contact/order-help";
 import { ACCOUNT_RETURNS_PATH } from "@/lib/constants";
 import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
@@ -60,6 +61,7 @@ export function OrderDetailBody({
         <DeliveryCard order={order} />
         <PaymentCard order={order} />
         <TotalsCard order={order} />
+        <OrderHelp />
         {actions}
       </div>
     </div>

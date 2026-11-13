@@ -363,9 +363,30 @@ It now carries the support box lifted verbatim from the old Support
 panel: email, live chat with its pulsing status dot, and the hours
 behind both. The markup moved into the shared primitives rather than
 being rewritten inside `AboutMenu`, so there is one implementation, not
-two. Every value is read from `supportContact` in `lib/support.ts`, so
-the box, the support page's contact section and the footer all quote the
-same address and the same hours.
+two. Since issue #155 every value is read from the saved contact settings
+(`useContact`, see [VAT.md](VAT.md)), not from code, so the box, the support
+page's contact section and the footer all quote the same details. A field
+staff left empty is not shown. The email and phone are links (`mailto:` and
+`tel:`), and **Live Chat** opens WhatsApp with the saved number and a short
+prefilled greeting. It is not shown when no WhatsApp number is saved. The
+hours are free text in Gulf time.
+
+### Every surface that reads the contact settings (#155)
+
+| Surface | File | How it reads them |
+| --- | --- | --- |
+| Header support menu | `components/layout/mega-primitives.tsx` (`MenuSupportBox`) | `useContact` |
+| Support page cards and hours | `components/support/contact.tsx`, `lib/support.ts` (`getSupportChannels`) | `useContact`. Cards for email, Live Chat, phone and hours appear only when saved. Track an order is always there |
+| Footer brand block | `components/layout/footer.tsx` | `contact` prop from the site layout, through `ContactLinks` |
+| Product page trust block | `components/product/detail/trust-blocks.tsx` | `getContactDetails` (server) |
+| Policy pages | `components/policy/policy-document.tsx` | `getContactDetails` (server). The draft note names the email only when one is saved |
+| Account order screen, Track Order | `components/contact/order-help.tsx`, inside `OrderDetailBody` | `useContact` |
+| Every email | `lib/email/send-email.ts`, `lib/email/templates.ts` | `withContactFooter` |
+| Tax invoice | `services/invoice.service.ts` | `getInvoiceSettings` |
+
+`ContactProvider` is mounted in `app/(site)/layout.tsx`, which reads
+`getContactDetails` on every request. No contact value, address or phone number
+is left in code.
 
 `MenuSupportBox` takes an optional `className`, which the About panel
 uses to pass `h-full` so the box matches the column height.
