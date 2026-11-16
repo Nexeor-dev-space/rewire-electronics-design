@@ -62,6 +62,8 @@ model SupportTicket {
   customer      User?   @relation("TicketCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customerName  String
   customerEmail String
+  /// Optional, in the stored `+<code><number>` form (docs/PHONE-NUMBERS.md).
+  customerPhone String?
 
   orderId String?
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
