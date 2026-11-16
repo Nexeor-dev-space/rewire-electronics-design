@@ -109,8 +109,8 @@ to keep that swap from shifting the layout.
 
 - `--spacing-gutter` — fluid page side padding (20–48px). Use `px-(--spacing-gutter)` or the `Container` component.
 - `--spacing-section` — vertical rhythm between chapters (80–176px).
-- `--spacing-section-sm` — the standard section padding (48–96px).
-- **Every content section on the homepage and the About page uses `py-(--spacing-section-sm)`**, so each gap between two sections is the same (2 × the token) on desktop, tablet and mobile. Do not mix in `pb-14 lg:pb-16` or a hand picked value. Page openers that must clear the fixed header (`intro.tsx`, `certification.tsx`) and closing call to action sections (`cta.tsx`) keep the larger `pt-(--spacing-section)`. Never hardcode the value (a stray `py-30` once put three different gaps on one page). This replaces the earlier top-only rule, which left some sections with a bottom pad of its own and others with none.
+- `--spacing-section-sm` — the standard section padding (32–56px).
+- **Every content section on the homepage and the About page uses `py-(--spacing-section-sm)`**, so each gap between two sections is the same (2 × the token) on desktop, tablet and mobile. Do not mix in `pb-14 lg:pb-16` or a hand picked value. Page openers that must clear the fixed header (`intro.tsx`, `certification.tsx`) and closing call to action sections (`cta.tsx`) keep the larger `pt-(--spacing-section)`. Never hardcode the value (a stray `py-30` once put three different gaps on one page). This replaces the earlier top-only rule, which left some sections with a bottom pad of its own and others with none. Inside a section the gap from the header to its content, and from its content to a closing button, is `mt-10 lg:mt-12` (header block to header grid `mt-6`), so a button never sits under a double gap.
 - Containers: `narrow` (48rem, prose) · `default` (80rem) · `wide` (110rem, editorial/product grids).
 - Whitespace is the luxury signal: when in doubt, double it.
 
