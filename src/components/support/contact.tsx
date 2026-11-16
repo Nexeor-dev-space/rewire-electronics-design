@@ -63,7 +63,7 @@ export function SupportContact() {
     <section
       id="contact"
       aria-labelledby="support-contact-heading"
-      className="relative scroll-mt-28 overflow-hidden bg-void pt-(--spacing-section) pb-(--spacing-section)"
+      className="relative scroll-mt-28 overflow-hidden bg-void pt-(--spacing-section-sm) pb-(--spacing-section)"
     >
       <div
         aria-hidden

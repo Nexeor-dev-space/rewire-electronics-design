@@ -34,9 +34,10 @@ export function SupportIntro() {
       ...policyLink(policy.slug),
       meta: `${policy.figure} ${policy.unit}`,
       away: true,
+      wide: policy.wide ?? false,
     })),
-    { ...policyLink("faq"), meta: "Answered", away: true },
-    { label: "Contact", meta: "A person replies", href: "#contact", away: false },
+    { ...policyLink("faq"), meta: "Answered", away: true, wide: false },
+    { label: "Contact", meta: "A person replies", href: "#contact", away: false, wide: false },
   ];
 
   return (
@@ -98,11 +99,16 @@ export function SupportIntro() {
           className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-16 lg:grid-cols-5 lg:gap-4"
         >
           {jumps.map((jump) => (
-            <motion.li key={jump.href} variants={rise} className="flex">
+            <motion.li
+              key={jump.href}
+              variants={rise}
+              className={cn("flex", jump.wide && "col-span-2 sm:col-span-1")}
+            >
               <Link
                 href={jump.href}
                 className={cn(
-                  "group flex w-full flex-col justify-between gap-6 rounded-xl p-5",
+                  "group flex w-full flex-col items-center justify-center gap-3 rounded-xl p-5 text-center",
+                  "sm:items-stretch sm:justify-between sm:gap-6 sm:text-left",
                   "border border-line bg-surface-2",
                   "transition-[transform,border-color,background-color] duration-(--duration-base) ease-(--ease-out-expo)",
                   "hover:-translate-y-1 hover:border-line-strong hover:bg-surface",
@@ -110,11 +116,12 @@ export function SupportIntro() {
                   "motion-reduce:hover:translate-y-0",
                 )}
               >
-                <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+                {/* One line on a phone so cards in a row keep their titles level. */}
+                <span className="whitespace-nowrap font-mono text-[0.625rem] uppercase tracking-[0.08em] text-ink-muted sm:whitespace-normal sm:tracking-[0.18em]">
                   {jump.meta}
                 </span>
-                <span className="flex items-center justify-between gap-3">
-                  <span className="font-sans text-[1.0625rem] font-light tracking-[-0.02em] text-ink lg:text-[1.25rem]">
+                <span className="flex items-center justify-center gap-3 sm:justify-between sm:gap-4">
+                  <span className="min-w-0 font-sans text-[1.0625rem] font-light tracking-[-0.02em] text-ink lg:text-[1.25rem]">
                     {jump.label}
                   </span>
                   <svg
