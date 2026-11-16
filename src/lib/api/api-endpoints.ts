@@ -113,7 +113,6 @@ export const API_ENDPOINTS = {
       assignees: `${V1}/admin/support/assignees`,
       categories: `${V1}/admin/support/categories`,
       category: (id: string) => `${V1}/admin/support/categories/${id}`,
-      settings: `${V1}/admin/support/settings`,
     },
     warranties: {
       list: `${V1}/admin/warranties`,

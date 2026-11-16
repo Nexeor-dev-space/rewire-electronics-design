@@ -67,9 +67,6 @@ export const TICKET_ASSIGNEE_NONE = "unassigned";
 /** Not yet resolved: the tickets still owed work. */
 export const UNRESOLVED_TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_FOR_CUSTOMER"] as const satisfies readonly TicketStatus[];
 
-/** A status change the customer is emailed about. In progress is left out: staff replying already tells them. */
-export const CUSTOMER_NOTIFIED_STATUSES = ["WAITING_FOR_CUSTOMER", "RESOLVED", "CLOSED"] as const satisfies readonly TicketStatus[];
-
 const TRANSITIONS: Record<TicketStatus, readonly TicketStatus[]> = {
   OPEN: ["IN_PROGRESS", "WAITING_FOR_CUSTOMER", "RESOLVED", "CLOSED"],
   IN_PROGRESS: ["WAITING_FOR_CUSTOMER", "RESOLVED", "CLOSED"],

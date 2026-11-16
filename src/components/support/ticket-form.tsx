@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
 import { useGetMe } from "@/hooks/use-auth";
 import { useGetSupportCategories, useSubmitSupportTicket } from "@/hooks/use-support";
 import { apiFieldErrors } from "@/lib/api/api-client";
@@ -33,6 +34,7 @@ export function TicketForm() {
   const submit = useSubmitSupportTicket();
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [subject, setSubject] = useState("");
@@ -51,6 +53,7 @@ export function TicketForm() {
     const input = {
       customerName: nameValue,
       customerEmail: emailValue,
+      customerPhone: phone,
       categoryId,
       orderNumber,
       subject,
@@ -103,6 +106,14 @@ export function TicketForm() {
           />
         </Field>
       </div>
+
+      <PhoneField
+        id={`${id}-phone`}
+        label="Phone number (optional)"
+        value={phone}
+        onChange={setPhone}
+        error={error("customerPhone")}
+      />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field id={`${id}-category`} label="What is it about?" error={error("categoryId")}>

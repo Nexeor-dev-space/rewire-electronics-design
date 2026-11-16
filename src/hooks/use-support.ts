@@ -9,8 +9,6 @@ import type {
   CustomerTicketInput,
   SubmittedTicket,
   SupportCategoryOption,
-  SupportSettingsInput,
-  SupportSettingsView,
   TicketAssignee,
   TicketAssignInput,
   TicketCategoryInput,
@@ -29,7 +27,6 @@ export const supportKeys = {
   detail: (number: string) => ["support", "detail", number] as const,
   categories: ["support", "categories"] as const,
   publicCategories: ["support", "public-categories"] as const,
-  settings: ["support", "settings"] as const,
   assignees: ["support", "assignees"] as const,
 };
 
@@ -49,24 +46,6 @@ export function useSubmitSupportTicket() {
     mutationFn: (input: CustomerTicketInput) =>
       apiRequest<SubmittedTicket>(API_ENDPOINTS.support.tickets, { method: "POST", body: input }),
     meta: { authRedirect: false },
-  });
-}
-
-/* ---------- inbox setting (Full access) ---------- */
-
-export function useGetSupportSettings() {
-  return useQuery({
-    queryKey: supportKeys.settings,
-    queryFn: ({ signal }) => apiRequest<SupportSettingsView>(API_ENDPOINTS.admin.support.settings, { signal }),
-  });
-}
-
-export function useUpdateSupportSettings() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: SupportSettingsInput) =>
-      apiRequest<SupportSettingsView>(API_ENDPOINTS.admin.support.settings, { method: "PUT", body: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: supportKeys.settings }),
   });
 }
 

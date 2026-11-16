@@ -2,10 +2,13 @@
 
 How staff manage customer support conversations in the admin console: the
 ticket list, the ticket page, replies, assignment, status, priority, categories
-and the emails that go out.
+and the ticket history.
 
-Read this before changing the Support Tickets screens, the support API, or the
-ticket emails.
+Read this before changing the Support Tickets screens or the support API.
+
+Support tickets send no emails. A ticket is raised on the storefront form, saved,
+and shown in the admin list at once. Staff and customers are not notified by
+email.
 
 ---
 
@@ -36,8 +39,7 @@ code as staff. The customer cannot choose the priority: it starts at
 | `src/lib/support-tickets.ts` | Statuses, priorities, labels, the status transitions, the reply rules (client safe). Not `src/lib/support.ts`, which holds the storefront support page content |
 | `src/validators/support.validator.ts` | Zod schemas for every ticket input |
 | `src/types/support.ts` | `TicketRow`, `TicketDetail`, `TicketCategoryView` and the input types |
-| `src/services/support.service.ts` | All ticket logic and the notification emails |
-| `src/lib/email/templates.ts` | `ticketEmailMessage` |
+| `src/services/support.service.ts` | All ticket logic |
 | `src/app/api/v1/admin/support/` | The API (section 6) |
 | `src/hooks/use-support.ts` | React Query hooks |
 | `src/app/admin/support/`, `src/components/admin/support/` | The list page, the ticket page and the dialogs |
@@ -49,7 +51,7 @@ code as staff. The customer cannot choose the priority: it starts at
 ## 3. Data model
 
 1. `SupportTicket`: number (`TK-` plus 8 digits), subject, status, priority,
-   category, customer (optional account plus a kept name and email), optional
+   category, customer (optional account plus a kept name, email and optional phone), optional
    order, optional assignee, and `lastCustomerMessageAt` and
    `lastStaffReplyAt` which drive the "Awaiting reply" highlight.
 2. `TicketMessage`: the conversation. `sender` is CUSTOMER or STAFF; `authorId`
@@ -104,7 +106,7 @@ All routes are under `/api/v1/admin/support`, return through `apiSuccess` and
 | Route | Action needed | What it does |
 | --- | --- | --- |
 | `GET /` | VIEW | Paginated list. Query: `page`, `pageSize`, `search`, `status`, `priority`, `categoryId`, `assignee` (a staff id, `me` or `unassigned`), `sort` |
-| `POST /` | CREATE | Create a ticket. Body: `customerName`, `customerEmail`, `subject`, `categoryId`, `priority`, `orderNumber` (optional), `message` |
+| `POST /` | CREATE | Create a ticket. Body: `customerName`, `customerEmail`, `customerPhone` (optional), `subject`, `categoryId`, `priority`, `orderNumber` (optional), `message` |
 | `GET /[number]` | VIEW | The ticket with messages, history, customer, related order, recent orders and other tickets |
 | `POST /[number]/messages` | EDIT | Body: `body`, `from` (`STAFF` or `CUSTOMER`) |
 | `PATCH /[number]/status` | EDIT | Body: `status` |
@@ -113,7 +115,6 @@ All routes are under `/api/v1/admin/support`, return through `apiSuccess` and
 | `GET /assignees` | VIEW | Staff who can work tickets: Admins, and Staff whose role holds Support |
 | `GET /categories` | VIEW | All categories |
 | `POST /categories`, `PATCH /categories/[id]` | DELETE | Add, rename or deactivate a category |
-| `GET /settings`, `PUT /settings` | DELETE | Read or change the support inbox email. Body: `inboxEmail` |
 
 The customer form uses two public routes under `/api/v1/support`. They need no
 sign in, because guests can raise tickets.
@@ -121,7 +122,7 @@ sign in, because guests can raise tickets.
 | Route | What it does |
 | --- | --- |
 | `GET /categories` | Active categories for the dropdown, as `id` and `name` |
-| `POST /tickets` | Body: `customerName`, `customerEmail`, `categoryId`, `orderNumber` (optional), `subject`, `message`. Returns only `{ number }`. Rate limited to 5 per hour per person or address (`RATE_LIMITS.createSupportTicket`) |
+| `POST /tickets` | Body: `customerName`, `customerEmail`, `customerPhone` (optional), `categoryId`, `orderNumber` (optional), `subject`, `message`. Returns only `{ number }`. Rate limited to 5 per hour per person or address (`RATE_LIMITS.createSupportTicket`) |
 
 An unknown order and an order that belongs to someone else give the same
 message, so the form cannot be used to check which order numbers exist. The
@@ -133,39 +134,23 @@ customer's email is the one typed. A visitor who types someone else's email gets
 an unlinked ticket, so staff never see that person's orders or history on it.
 Tickets staff log by hand are linked by email as before.
 
-Search matches the ticket number, customer name, customer email and subject.
+Search matches the ticket number, customer name, customer email, customer phone and subject.
 A ticket is linked to a customer account when the email belongs to an active
 Customer, and an order must belong to that customer or carry the same email.
 Changes are written to the change log through `recordAudit`.
 
 ---
 
-## 7. Emails
+## 7. No emails
 
-Sent through the existing `sendEmail` (SMTP; Resend works through SMTP as set
-out in `docs/INTEGRATIONS.md`). No new environment variable.
+Tickets do not use `sendEmail`, SMTP or Resend. Nothing is emailed when a ticket
+is raised, assigned, replied to or changed. Staff find new tickets in the admin
+list, where new and unanswered tickets are highlighted (section 8).
 
-1. Assigned: the new assignee, unless they assigned it to themselves.
-2. Staff reply: the customer, with the reply quoted.
-3. Customer message: the assignee. An unassigned ticket has nobody to tell.
-4. Status change: the customer, only for Waiting for customer, Resolved and
-   Closed.
-5. New ticket from the storefront form: the support inbox address, with the
-   customer's name,
-   email, message and a link to the ticket. The ticket is also saved, so it
-   appears in the admin Support Tickets list at the same moment. The email is
-   sent after the response, so a mail failure never fails the form.
-
-The support inbox address is stored in the database, column
-`StoreSettings.supportInboxEmail`, so the client changes it without a developer.
-An Admin, or Staff with Full access to Support Tickets, opens Support Tickets,
-Inbox, and saves a new address. Until one is saved, the default
-`SUPPORT_TICKET_INBOX` in `src/lib/constants.ts` is used. The change is written
-to the change log. The sender address stays `EMAIL_FROM` in the environment,
-because it must belong to the domain verified with the mail provider.
-
-An email is sent once, after the change is saved, and only when something
-actually changed. A failed send is logged and never undoes the change.
+Removed: the support inbox setting (the Inbox button, `GET` and `PUT
+/api/v1/admin/support/settings`), `ticketEmailMessage`, the notification
+functions in `support.service.ts`, `CUSTOMER_NOTIFIED_STATUSES` and
+`SUPPORT_TICKET_INBOX`.
 
 ---
 
@@ -184,15 +169,20 @@ actually changed. A failed send is logged and never undoes the change.
 
 ## 9. Database and follow up work
 
-1. Both migrations exist: `add_support_tickets` and `add_support_inbox_email`
-   (the nullable column `store_settings.supportInboxEmail`). Run
-   `npm run db:deploy` where they are not yet applied, then `npm run db:seed`
-   once to add the default categories.
-   Before launch, save the real address in Support Tickets, Inbox. The default
-   in `SUPPORT_TICKET_INBOX` is a test address.
+1. Both migrations exist: `add_support_tickets` and `add_support_inbox_email`.
+   Run `npm run db:deploy` where they are not yet applied, then `npm run db:seed`
+   once to add the default categories. The nullable column
+   `store_settings.supportInboxEmail` is no longer read or written. It stays in
+   the database until a migration drops it, which needs approval first.
 2. The Prisma client was regenerated locally so the code type checks. That does
    not touch the database.
 3. The customer form needed no new columns: its fields map to the existing
    ticket, message and category tables.
-4. Not built here: an account tickets screen where customers follow and reply
-   to a ticket, and a confirmation email to the customer on submit.
+4. `customerPhone` (nullable text on `support_tickets`) holds the optional phone
+   from the customer form or the staff New ticket dialog. It goes through
+   `optionalPhoneValidator` (+971 and +966 only, docs/PHONE-NUMBERS.md) and the
+   `PhoneField`. The ticket page shows it under the customer's email, falling
+   back to the account's phone. The migration `add_ticket_customer_phone` must be
+   run before this code is deployed.
+5. Not built here: an account tickets screen where customers follow and reply
+   to a ticket.

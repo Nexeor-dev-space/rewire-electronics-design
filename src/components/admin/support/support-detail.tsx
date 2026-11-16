@@ -189,8 +189,8 @@ function ReplyForm({ number }: { number: string }) {
         label={fromCustomer ? "Customer message" : "Reply"}
         hint={
           fromCustomer
-            ? "Saved as a message from the customer. No email is sent to them."
-            : "The customer is emailed this reply."
+            ? "Saved as a message from the customer."
+            : "Saved to the ticket history."
         }
         error={bodyError}
       >
@@ -368,7 +368,9 @@ function CustomerSection({ detail }: { detail: TicketDetail }) {
     <Section title="Customer">
       <p className="text-sm font-medium text-ink">{detail.customerName}</p>
       <p className="mt-0.5 break-all text-sm text-ink-secondary">{detail.customerEmail}</p>
-      {detail.customer?.phone && <p className="mt-0.5 text-sm text-ink-secondary">{detail.customer.phone}</p>}
+      {(detail.customerPhone ?? detail.customer?.phone) && (
+        <p className="mt-0.5 text-sm text-ink-secondary">{detail.customerPhone ?? detail.customer?.phone}</p>
+      )}
       {!detail.customer && <p className="mt-2 text-xs text-ink-muted">No customer account uses this email.</p>}
 
       {detail.customerOrders.length > 0 && (

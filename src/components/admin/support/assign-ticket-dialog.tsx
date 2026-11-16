@@ -19,7 +19,7 @@ export function AssignTicketDialog({ ticket, onClose }: { ticket: AssignableTick
       open
       onClose={onClose}
       title={`Assign ${ticket.number}`}
-      description="The assigned staff member is emailed."
+      description="Choose the staff member who will handle this ticket."
       className="max-w-md"
     >
       <AssignForm ticket={ticket} onClose={onClose} />

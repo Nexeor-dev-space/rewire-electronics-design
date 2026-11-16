@@ -10,7 +10,6 @@ import type {
 import type {
   createTicketSchema,
   customerTicketSchema,
-  supportSettingsSchema,
   ticketAssignSchema,
   ticketCategorySchema,
   ticketMessageSchema,
@@ -23,6 +22,7 @@ export interface TicketRow {
   subject: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string | null;
   orderNumber: string | null;
   categoryName: string;
   assigneeId: string | null;
@@ -114,10 +114,6 @@ export type TicketFilters = {
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 export type CustomerTicketInput = z.input<typeof customerTicketSchema>;
 export type SubmittedTicket = { number: string };
-export type SupportSettingsInput = z.input<typeof supportSettingsSchema>;
-export interface SupportSettingsView {
-  inboxEmail: string;
-}
 export type SupportCategoryOption = Pick<TicketCategoryView, "id" | "name">;
 export type TicketMessageInput = z.input<typeof ticketMessageSchema>;
 export type TicketStatusInput = z.input<typeof ticketStatusSchema>;

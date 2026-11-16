@@ -56,6 +56,8 @@ the stored form.
 | Join a waitlist | `src/components/home/hero/waitlist-modal.tsx` |
 | Account waitlists | `src/components/account/account-waitlists.tsx` |
 | Admin Users | `src/components/admin/users/user-form-modal.tsx` |
+| Support ticket (storefront form) | `src/components/support/ticket-form.tsx` |
+| Support ticket (staff New ticket) | `src/components/admin/support/new-ticket-dialog.tsx` |
 
 ## 4. Existing data
 

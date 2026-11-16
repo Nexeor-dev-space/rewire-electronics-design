@@ -3,7 +3,6 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, isUniqueViolation, type Paginated } from "@/lib/api/api-response";
-import { appUrl } from "@/lib/app-url";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   MAX_TICKET_ASSIGNEES,
@@ -13,16 +12,10 @@ import {
   SUPPORT_CUSTOMER_HISTORY_LIMIT,
   SUPPORT_MESSAGE_LIMIT,
   SUPPORT_TICKET_NUMBER_PREFIX,
-  ADMIN_SUPPORT_PATH,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import type { EmailContent } from "@/lib/email/email-outcome";
-import { sendEmail } from "@/lib/email/send-email";
-import { ticketEmailMessage } from "@/lib/email/templates";
 import { generateReference } from "@/lib/reference-number";
-import { getSupportInboxEmail } from "@/services/store-settings.service";
 import {
-  CUSTOMER_NOTIFIED_STATUSES,
   DEFAULT_TICKET_PRIORITY,
   TICKET_ASSIGNEE_ME,
   TICKET_ASSIGNEE_NONE,
@@ -34,7 +27,6 @@ import {
   nextTicketStatuses,
   statusAfterMessage,
   type TicketPriority,
-  type TicketSender,
   type TicketStatus,
 } from "@/lib/support-tickets";
 import type {
@@ -86,6 +78,7 @@ const rowSelect = {
   subject: true,
   customerName: true,
   customerEmail: true,
+  customerPhone: true,
   priority: true,
   status: true,
   createdAt: true,
@@ -141,6 +134,7 @@ function toRow(row: RowData, now: Date): TicketRow {
     subject: row.subject,
     customerName: row.customerName,
     customerEmail: row.customerEmail,
+    customerPhone: row.customerPhone,
     orderNumber: row.order?.number ?? null,
     categoryName: row.category.name,
     assigneeId: row.assignee?.id ?? null,
@@ -222,108 +216,7 @@ function invalid(field: string, message: string) {
   return new ServiceError("VALIDATION", message, 422, { [field]: [message] });
 }
 
-/* ---------- notifications ---------- */
-
-/** Email is best effort: a failed send is logged and never undoes a saved change. */
-async function notify(to: string, content: EmailContent) {
-  try {
-    await sendEmail({ to, ...content });
-  } catch (error) {
-    console.error("support notification failed", error);
-  }
-}
-
-async function staffTicketUrl(number: string): Promise<string | undefined> {
-  try {
-    return await appUrl(`${ADMIN_SUPPORT_PATH}/${number}`);
-  } catch {
-    return undefined;
-  }
-}
-
-/** A new ticket from the storefront form also lands in the shared support mailbox. */
-async function notifySupportInbox(ticket: TicketRef & { message: string }) {
-  await notify(
-    await getSupportInboxEmail(),
-    ticketEmailMessage({
-      name: "team",
-      number: ticket.number,
-      subject: ticket.subject,
-      intro: `${ticket.customerName} (${ticket.customerEmail}) raised a support ticket.`,
-      quote: ticket.message,
-      url: await staffTicketUrl(ticket.number),
-    }),
-  );
-}
-
-async function notifyAssigned(assignee: { fullName: string; email: string }, ticket: TicketRef) {
-  await notify(
-    assignee.email,
-    ticketEmailMessage({
-      name: assignee.fullName,
-      number: ticket.number,
-      subject: ticket.subject,
-      intro: "A support ticket was assigned to you.",
-      url: await staffTicketUrl(ticket.number),
-    }),
-  );
-}
-
-async function notifyCustomerReply(ticket: TicketRef, staffName: string, body: string) {
-  await notify(
-    ticket.customerEmail,
-    ticketEmailMessage({
-      name: ticket.customerName,
-      number: ticket.number,
-      subject: ticket.subject,
-      intro: `${staffName} replied to your support request.`,
-      quote: body,
-    }),
-  );
-}
-
-async function notifyStaffOfReply(assignee: { fullName: string; email: string }, ticket: TicketRef, body: string) {
-  await notify(
-    assignee.email,
-    ticketEmailMessage({
-      name: assignee.fullName,
-      number: ticket.number,
-      subject: ticket.subject,
-      intro: `${ticket.customerName} replied to a ticket assigned to you.`,
-      quote: body,
-      url: await staffTicketUrl(ticket.number),
-    }),
-  );
-}
-
-async function notifyCustomerStatus(ticket: TicketRef, status: TicketStatus) {
-  if (!(CUSTOMER_NOTIFIED_STATUSES as readonly TicketStatus[]).includes(status)) return;
-  await notify(
-    ticket.customerEmail,
-    ticketEmailMessage({
-      name: ticket.customerName,
-      number: ticket.number,
-      subject: ticket.subject,
-      intro: `Your support request is now ${TICKET_STATUS_LABELS[status].toLowerCase()}.`,
-    }),
-  );
-}
-
-interface TicketRef {
-  number: string;
-  subject: string;
-  customerName: string;
-  customerEmail: string;
-}
-
-const refSelect = {
-  id: true,
-  number: true,
-  subject: true,
-  customerName: true,
-  customerEmail: true,
-  status: true,
-} satisfies Prisma.SupportTicketSelect;
+const refSelect = { id: true, status: true } satisfies Prisma.SupportTicketSelect;
 
 /* ---------- reads ---------- */
 
@@ -331,7 +224,13 @@ function searchWhere(search: string | undefined): Prisma.SupportTicketWhereInput
   if (!search) return {};
   const contains = { contains: search, mode: "insensitive" } as const;
   return {
-    OR: [{ number: contains }, { customerName: contains }, { customerEmail: contains }, { subject: contains }],
+    OR: [
+      { number: contains },
+      { customerName: contains },
+      { customerEmail: contains },
+      { customerPhone: contains },
+      { subject: contains },
+    ],
   };
 }
 
@@ -439,6 +338,7 @@ async function createInTransaction(tx: Tx, data: CreateData, actorId: string | n
       category: { connect: { id: category.id } },
       customerName: customer?.fullName ?? data.customerName,
       customerEmail: email,
+      customerPhone: data.customerPhone,
       ...(customer ? { customer: { connect: { id: customer.id } } } : {}),
       ...(orderId ? { order: { connect: { id: orderId } } } : {}),
       lastCustomerMessageAt: now,
@@ -467,25 +367,14 @@ export async function createTicket(data: CreateData, actorId: string): Promise<T
 
 /**
  * A customer raises a ticket from the storefront form. The result holds only the
- * number, never staff data, and `notifySupport` emails the support inbox so the
- * caller can send it after the response. The ticket is linked to a customer
- * account only when the signed in user's email is the one typed, so nobody can
- * attach a ticket to someone else's account by typing their address.
+ * number, never staff data. The ticket is linked to a customer account only when
+ * the signed in user's email is the one typed, so nobody can attach a ticket to
+ * someone else's account by typing their address.
  */
 export async function submitCustomerTicket(data: CustomerTicketData, signedInEmail: string | null) {
   const linkAccount = signedInEmail?.toLowerCase() === data.customerEmail;
   const number = await createWithRetry({ ...data, priority: DEFAULT_TICKET_PRIORITY }, null, linkAccount);
-  return {
-    result: { number },
-    notifySupport: () =>
-      notifySupportInbox({
-        number,
-        subject: data.subject,
-        customerName: data.customerName,
-        customerEmail: data.customerEmail,
-        message: data.message,
-      }),
-  };
+  return { number };
 }
 
 /* ---------- messages ---------- */
@@ -495,11 +384,8 @@ export async function addTicketMessage(
   { body, from }: MessageData,
   actor: TicketActor,
 ): Promise<TicketDetail> {
-  const ticket = await prisma.$transaction(async (tx) => {
-    const row = await tx.supportTicket.findUnique({
-      where: { number },
-      select: { ...refSelect, assignee: { select: { fullName: true, email: true } } },
-    });
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.supportTicket.findUnique({ where: { number }, select: refSelect });
     if (!row) throw ticketNotFound();
     if (!canReceiveMessages(row.status)) throw conflict(MESSAGE_CLOSED);
 
@@ -526,27 +412,15 @@ export async function addTicketMessage(
         },
       });
     }
-    return row;
   });
 
-  await notifyAboutMessage(ticket, from, actor, body);
   return getTicket(number);
-}
-
-async function notifyAboutMessage(
-  ticket: TicketRef & { assignee: { fullName: string; email: string } | null },
-  from: TicketSender,
-  actor: TicketActor,
-  body: string,
-) {
-  if (from === "STAFF") return notifyCustomerReply(ticket, actor.fullName, body);
-  if (ticket.assignee) return notifyStaffOfReply(ticket.assignee, ticket, body);
 }
 
 /* ---------- status, priority, assignment ---------- */
 
 export async function changeTicketStatus(number: string, to: TicketStatus, actorId: string): Promise<TicketDetail> {
-  const ticket = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const row = await tx.supportTicket.findUnique({ where: { number }, select: refSelect });
     if (!row) throw ticketNotFound();
     if (!nextTicketStatuses(row.status).includes(to)) {
@@ -569,10 +443,8 @@ export async function changeTicketStatus(number: string, to: TicketStatus, actor
         actorId,
       },
     });
-    return row;
   });
 
-  await notifyCustomerStatus(ticket, to);
   return getTicket(number);
 }
 
@@ -630,13 +502,13 @@ export async function assignTicket(
 ): Promise<TicketDetail> {
   const target = assigneeId === TICKET_ASSIGNEE_ME ? actor.id : assigneeId;
 
-  const assigned = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const row = await tx.supportTicket.findUnique({
       where: { number },
       select: { id: true, assigneeId: true, assignee: { select: { fullName: true } } },
     });
     if (!row) throw ticketNotFound();
-    if (row.assigneeId === target) return null;
+    if (row.assigneeId === target) return;
 
     if (!canAssignAny) {
       if (target !== actor.id) throw new ServiceError("FORBIDDEN", MESSAGE_ASSIGN_FORBIDDEN, 403);
@@ -646,7 +518,7 @@ export async function assignTicket(
     const assignee = target
       ? await tx.user.findFirst({
           where: { id: target, ...assigneeFilter },
-          select: { id: true, fullName: true, email: true },
+          select: { id: true, fullName: true },
         })
       : null;
     if (target && !assignee) throw invalid("assigneeId", MESSAGE_ASSIGNEE_UNKNOWN);
@@ -661,14 +533,8 @@ export async function assignTicket(
         actorId: actor.id,
       },
     });
-    return assignee;
   });
 
-  if (assigned && assigned.id !== actor.id) {
-    const detail = await getTicket(number);
-    await notifyAssigned(assigned, detail);
-    return detail;
-  }
   return getTicket(number);
 }
 

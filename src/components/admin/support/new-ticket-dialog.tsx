@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
 import { useCreateTicket, useGetTicketCategories } from "@/hooks/use-support";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { FULL_NAME_MAX_LENGTH, SUPPORT_MESSAGE_MAX_LENGTH, SUPPORT_SUBJECT_MAX_LENGTH } from "@/lib/constants";
@@ -35,6 +36,7 @@ function NewTicketForm({ onClose }: { onClose: () => void }) {
   const create = useCreateTicket();
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priority, setPriority] = useState<TicketPriority>("MEDIUM");
   const [orderNumber, setOrderNumber] = useState("");
@@ -48,6 +50,7 @@ function NewTicketForm({ onClose }: { onClose: () => void }) {
     const parsed = createTicketSchema.safeParse({
       customerName,
       customerEmail,
+      customerPhone,
       categoryId,
       priority,
       orderNumber,
@@ -67,6 +70,7 @@ function NewTicketForm({ onClose }: { onClose: () => void }) {
       {
         customerName,
         customerEmail,
+        customerPhone,
         categoryId,
         priority,
         orderNumber,
@@ -114,6 +118,15 @@ function NewTicketForm({ onClose }: { onClose: () => void }) {
               />
             </Field>
           </div>
+
+          <PhoneField
+            id={`${id}-phone`}
+            label="Customer phone (optional)"
+            value={customerPhone}
+            onChange={setCustomerPhone}
+            error={error("customerPhone")}
+            controlClassName="h-11"
+          />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <Field id={`${id}-category`} label="Category" error={error("categoryId")}>

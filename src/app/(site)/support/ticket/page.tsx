@@ -4,7 +4,7 @@ import { TicketForm } from "@/components/support/ticket-form";
 
 export const metadata = pageMetadata({
   title: "Raise a support ticket",
-  description: "Tell us what you need help with and a person at Rewire Electronics will reply by email.",
+  description: "Tell us what you need help with and a person at Rewire Electronics will look into it.",
   path: SUPPORT_TICKET_PAGE_PATH,
 });
 
@@ -29,7 +29,7 @@ export default function SupportTicketPage() {
           Raise a ticket.
         </h1>
         <p className="mt-6 max-w-lg text-base leading-relaxed text-ink-secondary">
-          Tell us what is wrong and we will reply by email. Include your order number if it is about a purchase.
+          Tell us what is wrong and a person will look into it. Include your order number if it is about a purchase.
         </p>
 
         <div className="mt-12">

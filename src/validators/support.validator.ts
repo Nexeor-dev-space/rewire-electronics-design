@@ -9,7 +9,7 @@ import {
   SUPPORT_TICKET_NUMBER_PREFIX,
 } from "@/lib/constants";
 import { DEFAULT_TICKET_PRIORITY, TICKET_PRIORITIES, TICKET_SENDERS, TICKET_SORTS, TICKET_STATUSES } from "@/lib/support-tickets";
-import { emailValidator, idValidator, paginationQueryValidator } from "./common/primitives.validator";
+import { emailValidator, idValidator, optionalPhoneValidator, paginationQueryValidator } from "./common/primitives.validator";
 import { orderNumberValidator } from "./order.validator";
 
 const TICKET_NUMBER_PATTERN = new RegExp(`^${SUPPORT_TICKET_NUMBER_PREFIX}\\d{${REFERENCE_NUMBER_DIGITS}}$`);
@@ -45,6 +45,7 @@ export const createTicketSchema = z.object({
     .min(1, "Enter the customer's name.")
     .max(FULL_NAME_MAX_LENGTH, "That name is too long."),
   customerEmail: emailValidator,
+  customerPhone: optionalPhoneValidator,
   subject: z
     .string()
     .trim()
@@ -91,6 +92,5 @@ export const ticketCategorySchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const supportSettingsSchema = z.object({ inboxEmail: emailValidator });
 
 export const ticketCategoryParamsSchema = z.object({ id: idValidator });

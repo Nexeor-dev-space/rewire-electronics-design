@@ -155,8 +155,6 @@ export const ORDER_TRACK_PAGE_PATH = "/order/track";
 export const ABOUT_PAGE_PATH = "/about";
 export const SUPPORT_PAGE_PATH = "/support";
 export const SUPPORT_TICKET_PAGE_PATH = "/support/ticket";
-/** Where a new storefront ticket is emailed until an Admin saves an address in Support Tickets, Inbox. */
-export const SUPPORT_TICKET_INBOX = "megha@nexeor.com";
 export const CART_PAGE_PATH = "/cart";
 /** Tax invoices: `INV-<year>-<sequence>`, see docs/INVOICES.md. */
 export const INVOICE_NUMBER_PREFIX = "INV-";
