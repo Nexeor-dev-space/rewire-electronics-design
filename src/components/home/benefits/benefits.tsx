@@ -74,7 +74,7 @@ export function Benefits() {
   return (
     <section
       aria-label="Shopping benefits"
-      className="relative overflow-hidden bg-void pt-(--spacing-section-sm) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div className="relative z-10 mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
         <motion.ul

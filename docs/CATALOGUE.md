@@ -438,10 +438,12 @@ suggestions as the shopper types. `useSearchSuggestions(q)` in
 `SEARCH_MIN_QUERY_LENGTH` (2) characters. How the panel opens and closes is in
 [STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md).
 
-**Category segments** go through `resolveCategory` in `src/lib/shop.ts` first,
-so older links keep working: `phones` becomes `smartphones`, `wearables`
-becomes `smartwatches`, and so on. A segment that matches no category in the
-database answers 404.
+**Category segments** are looked up as written first, so a real category
+always wins. Only a segment that matches no category goes through
+`resolveCategory` in `src/lib/shop.ts`, so older links keep working:
+`wearables` becomes `smartwatches`, and so on. A segment that still matches no
+category in the database answers 404. `phones` used to alias to `smartphones`;
+now that a Phones category exists it opens Phones.
 
 **Categories in the chrome.** The `(site)` layout loads
 `listStorefrontCategories()` once and hands it to `StorefrontCategoriesProvider`
@@ -463,8 +465,25 @@ change on the next request. The cache also expires after
 its description, and uses the description as the meta description when set.
 
 **The product card** is `ShopProductCard` in `src/components/shop/product-card.tsx`,
-used by the shop and the homepage shelf. It links to `/product/[slug]` through
-`productHref`.
+used by the shop, `/search`, the homepage Featured and Deals shelves and the
+wishlist. It links to `/product/[slug]` through `productHref`.
+
+Its order, top to bottom: brand, product name, image, then variant line,
+condition and grade, price and the Add to cart button. The name sits above the
+image so it is the first thing read at every screen size. It is clamped to two
+lines and always takes two lines of height (`line-clamp-2 min-h-[2lh]`), so the
+images in a grid row stay level when one name wraps and its neighbour does not.
+The full name is still in the link text for screen readers and on the product
+page.
+
+The price and the Add to cart button share one row, price on the left and the
+button on the right at a fixed 11rem (`w-44`, the same for Add to cart, Out of
+stock and the stepper), when the card is at least 18rem wide
+(the `@2xs` container query on the price block). On a narrower card, such as on
+phones or in the five column desktop grid, the button sits under the price at
+full width so neither is squeezed. The rule follows the card's own width rather
+than the screen's, because the same card is used in two, three and five column
+grids.
 
 ---
 

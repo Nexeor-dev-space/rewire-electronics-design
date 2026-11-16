@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchSuggestions } from "@/hooks/use-search";
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_QUERY_LENGTH } from "@/lib/constants";
@@ -251,13 +252,15 @@ export function SearchPanel({
 
 function Column({
   title,
+  className,
   children,
 }: {
   title: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <h2 className="mb-5 font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink-muted">
         {title}
       </h2>
@@ -268,6 +271,9 @@ function Column({
 
 const isEmpty = (data: SearchSuggestions) =>
   !data.products.length && !data.brands.length && !data.categories.length;
+
+/** Brands and Categories: a fixed width beside Products from `lg`. */
+const SIDE_COLUMN_CLASS = "lg:w-56 lg:shrink-0";
 
 const LINK_CLASS =
   "-mx-2 block rounded-md px-2 py-2 text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:text-accent";
@@ -311,9 +317,11 @@ function Suggestions({
         busy && "opacity-60",
       )}
     >
-      <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12">
+      {/* Products take all the width the other columns leave, so each row's
+          cart button sits at the far right, clear of the product name. */}
+      <div className="flex flex-col gap-10 lg:flex-row lg:gap-12">
         {data.products.length > 0 && (
-          <Column title="Products">
+          <Column title="Products" className="min-w-0 flex-1">
             <ul className="space-y-1">
               {data.products.map((product) => (
                 <li key={product.id}>
@@ -325,7 +333,7 @@ function Suggestions({
         )}
 
         {data.brands.length > 0 && (
-          <Column title="Brands">
+          <Column title="Brands" className={SIDE_COLUMN_CLASS}>
             <LinkList
               items={data.brands.map((brand) => ({
                 key: brand.name,
@@ -338,7 +346,7 @@ function Suggestions({
         )}
 
         {data.categories.length > 0 && (
-          <Column title="Categories">
+          <Column title="Categories" className={SIDE_COLUMN_CLASS}>
             <LinkList
               items={data.categories.map((category) => ({
                 key: category.slug,
@@ -371,41 +379,61 @@ function ProductSuggestion({
 }) {
   const availability = availabilityFromStock(product.stock);
 
+  // The cart action sits beside the link, not inside it, so adding never
+  // navigates and the panel stays open for the next pick.
   return (
-    <Link
-      href={productHref(product)}
-      onClick={onSelect}
-      className="group/result -mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
-    >
-      <span className="relative block size-11 shrink-0 overflow-hidden rounded-md border border-line bg-plate">
-        {product.imageUrl && (
-          <Image
-            src={product.imageUrl}
-            alt=""
-            fill
-            sizes="44px"
-            className="object-contain p-1 [mix-blend-mode:multiply]"
-          />
-        )}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) group-hover/result:text-accent">
-          {product.name}
+    <div className="flex items-center gap-3">
+      <Link
+        href={productHref(product)}
+        onClick={onSelect}
+        className="group/result -mx-2 flex min-w-0 flex-1 items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
+      >
+        <span className="relative block size-11 shrink-0 overflow-hidden rounded-md border border-line bg-plate">
+          {product.imageUrl && (
+            <Image
+              src={product.imageUrl}
+              alt=""
+              fill
+              sizes="44px"
+              className="object-contain p-1 [mix-blend-mode:multiply]"
+            />
+          )}
         </span>
-        <span className="mt-0.5 block truncate font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
-          {product.brand} · {formatMoney(product.price)}
-          {availability === "sold-out" && ` · ${AVAILABILITY_LABELS[availability]}`}
+        <span className="min-w-0">
+          <span className="block truncate text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) group-hover/result:text-accent">
+            {product.name}
+          </span>
+          <span className="mt-0.5 block truncate font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
+            {product.brand} · {formatMoney(product.price)}
+            {availability === "sold-out" && ` · ${AVAILABILITY_LABELS[availability]}`}
+          </span>
         </span>
-      </span>
-    </Link>
+      </Link>
+      <div className="shrink-0">
+        <AddToCartButton
+          product={{
+            variantId: product.variantId,
+            slug: product.slug,
+            name: product.name,
+            soldOut: availability === "sold-out",
+          }}
+          // One width for Add to cart, Out of stock and the stepper, so the
+          // rows line up. Below `sm` all three are the same icon size anyway.
+          className="sm:w-44"
+        />
+      </div>
+    </div>
   );
 }
 
 function SuggestionsSkeleton() {
   return (
-    <div aria-busy className="grid gap-10 py-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12 lg:py-12">
+    <div aria-busy className="flex flex-col gap-10 py-10 lg:flex-row lg:gap-12 lg:py-12">
       {Array.from({ length: 3 }, (_, column) => (
-        <div key={column} className="space-y-3">
+        <div
+          key={column}
+          className={cn("space-y-3", column === 0 ? "min-w-0 flex-1" : SIDE_COLUMN_CLASS)}
+        >
           <Skeleton className="h-3 w-24" />
           {Array.from({ length: 3 }, (_, row) => (
             <Skeleton key={row} className="h-9 w-full" />

@@ -78,6 +78,22 @@ the panel:
 2. While typing, `useSearchSuggestions` (`src/hooks/use-search.ts`) calls
    `GET /api/v1/search` after `SEARCH_DEBOUNCE_MS`, and shows Products, Brands
    and Categories, each linking to its page, plus "See all results".
+   Every product row also has the shared `AddToCartButton` beside it, which
+   adds the variant the suggestion shows (`ShopCard.variantId`). It shows
+   "Add to cart" from `sm` and only the cart icon below `sm`, turns into a
+   quantity stepper once that variant is in the cart, and is disabled when
+   the product is sold out. It sits beside the link rather than inside it, so
+   adding does not open the product page or close the panel. The full
+   `/search` page already had the button on every card, as it reuses the shop
+   grid.
+   From `lg` the three groups sit in one row: Products takes all the width
+   left over (`flex-1`) and Brands and Categories are fixed narrow columns
+   (`SIDE_COLUMN_CLASS`, 14rem), so each cart button sits at the far right of
+   the Products column, clear of the name. Below `lg` the groups stack at
+   full width. The loading skeleton uses the same layout.
+   From `sm` the button has a fixed width (`sm:w-44`, 11rem), so Add to cart,
+   Out of stock and the quantity stepper are all the same size and line up
+   down the list.
 3. It shows a skeleton while loading, a message if the request fails, and "No
    results found" with a Clear search button when nothing matches.
 4. Enter opens `/search?q=`. Clear empties the field; Escape or a click
@@ -101,10 +117,11 @@ it to Draft or Archived; its products disappear with it.
 
 ### Old slugs
 
-`resolveCategory()` in `lib/shop.ts` maps older slugs to the database ones
-through `categoryAliases` before the lookup, so `/collection/phones`
-renders Smartphones and links already in the wild keep working. The menus
-themselves link with the database slug.
+The collection page looks the slug up as written first. Only when no category
+has that slug does `resolveCategory()` in `lib/shop.ts` map an older slug to the
+database one through `categoryAliases`, so links already in the wild keep
+working but never override a real category such as Phones. The menus themselves
+link with the database slug.
 
 `src/lib/categories.ts`, the previous hardcoded list of four families and
 their studio photos, is no longer read by anything.

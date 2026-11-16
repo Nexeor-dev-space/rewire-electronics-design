@@ -31,7 +31,7 @@ export function FeaturedBrands({ section }: { section: PublishedSection }) {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.06, 0.1)}
-          className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-16 lg:grid-cols-6 lg:gap-4"
+          className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-12 lg:grid-cols-6 lg:gap-4"
         >
           {section.items.map((brand) => (
             <motion.li key={brand.id} variants={rise} className="flex">

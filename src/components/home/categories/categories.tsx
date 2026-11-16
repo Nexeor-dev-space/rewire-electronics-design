@@ -41,7 +41,7 @@ export function Categories() {
   return (
     <section
       aria-label="Shop by category"
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div
         aria-hidden

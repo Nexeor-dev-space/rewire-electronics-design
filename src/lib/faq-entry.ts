@@ -15,3 +15,10 @@ export function toFaqEntries(policy: PolicyData | null): FaqEntry[] {
     answer: block.content,
   }));
 }
+
+/** The FAQ policy's title split on its last space, to set over two lines. */
+export function faqHeading(title: string): [string, string] {
+  const trimmed = title.trim();
+  const split = trimmed.lastIndexOf(" ");
+  return split === -1 ? [trimmed, ""] : [trimmed.slice(0, split), trimmed.slice(split + 1)];
+}

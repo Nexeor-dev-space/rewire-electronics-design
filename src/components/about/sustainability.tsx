@@ -33,7 +33,7 @@ export function AboutSustainability() {
   return (
     <section
       aria-labelledby="about-sustainability-heading"
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

@@ -127,7 +127,7 @@ export function UpcomingDrops({ section }: { section: PublishedSection }) {
           viewport={viewportOnce}
           variants={staggerChildren(0.14, 0.1)}
           className={cn(
-            "mt-16 lg:mt-20",
+            "mt-10 lg:mt-12",
             // Two up from 360px, matching the shop grid — a full-width
             // plate per drop made phones scroll five screens to read
             // the calendar. Below 360 the card copy starts colliding,
@@ -160,7 +160,7 @@ export function UpcomingDrops({ section }: { section: PublishedSection }) {
             whileInView="visible"
             viewport={viewportOnce}
             variants={rise}
-            className="mt-20 flex justify-center lg:mt-24"
+            className="mt-10 flex justify-center lg:mt-12"
           >
             {/* Secondary to the cards' own actions, deliberately: buying one
                 of these is the section's job, and browsing the rest is the

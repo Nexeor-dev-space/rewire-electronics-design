@@ -233,6 +233,17 @@ draft and returns to Navigation, where Publish makes it live. The lists come fro
 as a category added later, shows after the listed ones, so nothing new is hidden by
 accident. `applyParts` and `listParts` in `lib/navigation-config.ts` do the ordering.
 
+**A category hidden here is also left out of the shop filter.** `useHiddenCategorySlugs`
+(`components/providers/navigation-provider.tsx`) lists the categories the storefront
+knows but the header no longer lists, and `FilterPanel` drops them, and their
+subcategories, from its Category options. Products and `/collection/[slug]` are
+unchanged. A hidden category that is already selected in the URL stays in the list
+so it can be unticked.
+
+If the Categories menu itself is switched off on the Header tab, `useCategoriesMenuShown`
+is false and the Category group is left out of the filter. A category already
+selected in the URL still shows as a removable chip above the results.
+
 **Upcoming drops are now real releases.** The header menu and the drawer used the mock
 `lib/drops.ts`. They now show the visible releases (Sales, Releases, see
 [RELEASES.md](RELEASES.md)) through `listHeaderDrops`. The `(site)` layout reads

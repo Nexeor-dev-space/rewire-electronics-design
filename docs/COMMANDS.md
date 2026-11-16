@@ -111,6 +111,11 @@ npm run build        # production build
 npm run start        # serve on port 3000; npm run start -- -p <port> for another
 ```
 
+On Coolify the `Dockerfile` runs `npm ci`, `npm run db:deploy` and
+`npm run build` itself, so a deploy applies its migrations automatically
+([DEPLOYMENT.md](DEPLOYMENT.md) §5). Run these steps by hand only outside
+Coolify.
+
 Migrations go before the build so the new code never runs against the old
 schema. Keep migrations additive where possible, since the old build serves
 traffic against the new schema until the restart.

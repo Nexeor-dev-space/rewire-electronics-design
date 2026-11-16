@@ -44,7 +44,7 @@ the editing screen: Storefront → Homepage Builder, `/admin/storefront/homepage
 | `src/components/admin/homepage/` | The builder screen, the section form, the brand picker, the items editor, the product picker and the category picker |
 | `src/app/admin/storefront/homepage/page.tsx` | The builder route, guarded by `storefront.homepage` |
 | `src/app/(site)/preview/homepage/page.tsx` | The staff draft preview |
-| `src/components/home/homepage-sections.tsx` | Renders a list of sections with the FAQ and product data they share. Used by `/` and the preview |
+| `src/components/home/homepage-sections.tsx` | Renders a list of sections with the product data they share. The `FAQ` section renders nothing here; the FAQ lives on the About page. Used by `/` and the preview |
 | `src/components/home/homepage-section.tsx` | Section type → storefront component |
 | `src/components/home/{hero,upcoming-drops,featured,stories}/` | The Hero, Upcoming drops, Just listed and Reviews sections |
 | `src/components/home/{promo-banner,featured-brands,featured-categories}/` | The three section types staff can add |

@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
+import {
+  useCategoriesMenuShown,
+  useHiddenCategorySlugs,
+} from "@/components/providers/navigation-provider";
 import { conditions, grades, priceBands, stockOptions } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
@@ -56,8 +60,15 @@ function withSelected(values: string[], selected: string[]): Option[] {
   return [...new Set([...values, ...selected])].map((value) => ({ value, label: value }));
 }
 
-function categoryOptions(facets: ShopFacets | undefined, selected: string[]): Option[] {
-  const categories = facets?.categories ?? [];
+function categoryOptions(
+  facets: ShopFacets | undefined,
+  selected: string[],
+  hiddenSlugs: Set<string>,
+): Option[] {
+  // A category hidden on the Navigation screen is hidden with its subcategories.
+  const categories = (facets?.categories ?? []).filter(
+    (category) => !hiddenSlugs.has(category.slug) && !hiddenSlugs.has(category.parentSlug ?? ""),
+  );
   const options = categories
     .filter((category) => category.parentSlug === null)
     .flatMap((parent) => [
@@ -70,8 +81,13 @@ function categoryOptions(facets: ShopFacets | undefined, selected: string[]): Op
   return [...options, ...missing.map((slug) => ({ value: slug, label: slug }))];
 }
 
-function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): Group[] {
-  return [
+function buildGroups(
+  facets: ShopFacets | undefined,
+  filters: ShopFilterState,
+  hiddenSlugs: Set<string>,
+  menuShown: boolean,
+): Group[] {
+  const groups: Group[] = [
     {
       axis: "stock",
       title: "Availability",
@@ -84,7 +100,7 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       axis: "category",
       title: "Category",
       note: "What the product is",
-      options: categoryOptions(facets, filters.category),
+      options: categoryOptions(facets, filters.category, hiddenSlugs),
       counts: facets
         ? Object.fromEntries(facets.categories.map((category) => [category.slug, category.count]))
         : null,
@@ -136,6 +152,8 @@ function buildGroups(facets: ShopFacets | undefined, filters: ShopFilterState): 
       openByDefault: false,
     },
   ];
+  // Categories menu switched off on the Navigation screen: no Category group at all.
+  return groups.filter((group) => group.axis !== "category" || menuShown);
 }
 
 export interface FilterPanelProps {
@@ -153,7 +171,9 @@ export function FilterPanel({
   idPrefix,
   className,
 }: FilterPanelProps) {
-  const groups = buildGroups(facets, filters);
+  const hiddenSlugs = useHiddenCategorySlugs();
+  const menuShown = useCategoriesMenuShown();
+  const groups = buildGroups(facets, filters, hiddenSlugs, menuShown);
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(groups.map((group) => [group.axis, group.openByDefault])),
   );
