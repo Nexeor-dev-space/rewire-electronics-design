@@ -72,7 +72,7 @@ export function Savings() {
       // and two full section paddings stack into a dead gap. The band
       // does need *some* bottom, though — without it the tone would stop
       // flush against the last tile.
-      className="relative overflow-hidden bg-surface-2 pb-(--spacing-section-sm) pt-(--spacing-section)"
+      className="relative overflow-hidden bg-surface-2 py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

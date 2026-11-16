@@ -4,14 +4,11 @@ import { UpcomingDrops } from "@/components/home/upcoming-drops/upcoming-drops";
 import { Featured } from "@/components/home/featured/featured";
 import { WhatYouHave } from "@/components/home/conditions/what-you-have";
 import { Stories } from "@/components/home/stories/stories";
-import { Faq } from "@/components/home/faq/faq";
 import { Invitation } from "@/components/home/invitation/invitation";
 import { PromoBanner } from "@/components/home/promo-banner/promo-banner";
 import { FeaturedBrands } from "@/components/home/featured-brands/featured-brands";
 import { FeaturedCategories } from "@/components/home/featured-categories/featured-categories";
 import { DealsSection } from "@/components/home/deals/deals-section";
-import type { FaqEntry } from "@/lib/faq-entry";
-import { headingLines } from "@/lib/homepage-sections";
 import type { ShopCard } from "@/types/catalogue";
 import type { PublishedSection } from "@/types/homepage";
 
@@ -21,12 +18,9 @@ import type { PublishedSection } from "@/types/homepage";
  */
 export function HomepageSection({
   section,
-  faqs,
   products,
 }: {
   section: PublishedSection;
-  /** The FAQ policy's entries; the FAQ section is omitted when there are none. */
-  faqs: FaqEntry[];
   /** The catalogue's newest products, for a Just Listed shelf with no picks. */
   products: ShopCard[];
 }): ReactNode {
@@ -46,9 +40,9 @@ export function HomepageSection({
     case "TESTIMONIALS":
       return <Stories section={section} />;
     case "FAQ":
-      return faqs.length > 0 ? (
-        <Faq faqs={faqs} heading={headingLines(section.title)} lede={section.subtitle} />
-      ) : null;
+      // The FAQ lives on the About page now; the stored section is kept so
+      // no data changes, but the homepage no longer renders it.
+      return null;
     case "INVITATION":
       return <Invitation section={section} />;
     case "PROMO_BANNER":

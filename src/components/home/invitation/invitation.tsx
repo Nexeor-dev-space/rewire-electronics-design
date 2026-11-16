@@ -81,7 +81,7 @@ export function Invitation({ section }: { section: PublishedSection }) {
         )}
 
         {/* The facts, set wide and quiet beneath the ask */}
-        <dl className="mx-auto mt-20 grid max-w-4xl grid-cols-1 gap-y-8 border-t border-line pt-10 sm:grid-cols-3 sm:gap-x-10">
+        <dl className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-y-8 border-t border-line pt-10 sm:grid-cols-3 sm:gap-x-10">
           {ledger.map((item) => (
             <div key={item.label} className="text-center">
               <dt className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-muted">

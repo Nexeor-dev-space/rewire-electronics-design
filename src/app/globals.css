@@ -130,7 +130,7 @@
   /* ---------- Spacing · Rhythm ---------- */
   --spacing-gutter: clamp(1.25rem, 4vw, 3rem); /* page side padding */
   --spacing-section: clamp(5rem, 12vw, 11rem); /* vertical section rhythm */
-  --spacing-section-sm: clamp(3rem, 7vw, 6rem);
+  --spacing-section-sm: clamp(2rem, 4.5vw, 3.5rem);
   --spacing-page-top: 6rem;
   --spacing-page-top-lg: 8rem;
 

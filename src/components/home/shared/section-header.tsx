@@ -23,9 +23,9 @@ export const rise = {
 };
 
 export const SHELF_GRID_CLASS = cn(
-  "mt-14 lg:mt-16",
+  "mt-10 lg:mt-12",
   "grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2",
-  "sm:gap-x-6 sm:gap-y-14",
+  "sm:gap-x-6 sm:gap-y-10",
   "xl:grid-cols-4 xl:gap-x-6",
 );
 
@@ -62,7 +62,7 @@ export function SectionHeader({
         </motion.p>
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="mt-6 grid gap-4 lg:grid-cols-12 lg:items-start">
         <h2
           id={id}
           className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.03] tracking-[-0.035em] text-ink lg:col-span-6"
@@ -99,7 +99,7 @@ export function SectionCta({ label, href }: { label: string | null; href: string
       whileInView="visible"
       viewport={viewportOnce}
       variants={rise}
-      className="mt-16 flex justify-center lg:mt-20"
+      className="mt-10 flex justify-center lg:mt-12"
     >
       <Link href={href} className={buttonVariants({ variant: "outline", size: "md" })}>
         {label}

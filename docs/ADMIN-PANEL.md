@@ -36,6 +36,12 @@ Users module are described under [Access control](#access-control) and
 
 No existing component, page or library was changed. The storefront is untouched.
 
+## Help area
+
+The last sidebar area, **Help**, holds the Admin Guide and the Customer Guide.
+Its rows are not permission modules, so every console user sees them. See
+[USER-GUIDES.md](USER-GUIDES.md).
+
 ## Navigation configuration
 
 `src/lib/admin-nav.ts` is the single source of truth. The sidebar, the

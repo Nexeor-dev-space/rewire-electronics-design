@@ -160,7 +160,7 @@ export function WhatYouHave({ section }: { section: PublishedSection }) {
           viewport={viewportOnce}
           variants={staggerChildren(0.06, 0.1)}
           className={cn(
-            "mt-14 grid gap-3 lg:mt-20 lg:gap-4",
+            "mt-10 grid gap-3 lg:mt-12 lg:gap-4",
             // Tablet: 2-across; the third card spans the row so no
             // lonely tile. Desktop: the three conditions run as one
             // equal row — the earlier 3+2 rhythm existed for five

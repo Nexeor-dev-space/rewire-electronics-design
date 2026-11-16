@@ -58,7 +58,7 @@ export function Scarcity() {
     <section
       aria-labelledby="scarcity-heading"
       // Top rhythm only — see the note in `standard.tsx`.
-      className="relative overflow-hidden bg-void pt-(--spacing-section-sm) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 

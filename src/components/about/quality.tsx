@@ -37,7 +37,7 @@ export function AboutQuality() {
   return (
     <section
       aria-labelledby="about-quality-heading"
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div
         aria-hidden

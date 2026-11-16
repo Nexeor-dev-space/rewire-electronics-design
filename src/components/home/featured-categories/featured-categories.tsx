@@ -31,7 +31,7 @@ export function FeaturedCategories({ section }: { section: PublishedSection }) {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.08, 0.1)}
-          className="mt-14 grid grid-cols-1 gap-x-4 gap-y-10 min-[360px]:grid-cols-2 sm:gap-x-6 lg:mt-16 xl:grid-cols-4"
+          className="mt-10 grid grid-cols-1 gap-x-4 gap-y-8 min-[360px]:grid-cols-2 sm:gap-x-6 lg:mt-12 xl:grid-cols-4"
         >
           {section.items.map((category) => (
             <motion.li key={category.id} variants={rise} className="flex">

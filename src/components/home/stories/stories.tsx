@@ -107,7 +107,7 @@ export function Stories({ section }: { section: PublishedSection }) {
           whileInView="visible"
           viewport={viewportOnce}
           variants={rise}
-          className="mt-12 lg:mt-16"
+          className="mt-10 lg:mt-12"
         >
           <TestimonialCarousel items={reviews} />
         </motion.div>
