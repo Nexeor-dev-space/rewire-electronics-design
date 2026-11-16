@@ -117,10 +117,11 @@ it to Draft or Archived; its products disappear with it.
 
 ### Old slugs
 
-`resolveCategory()` in `lib/shop.ts` maps older slugs to the database ones
-through `categoryAliases` before the lookup, so `/collection/phones`
-renders Smartphones and links already in the wild keep working. The menus
-themselves link with the database slug.
+The collection page looks the slug up as written first. Only when no category
+has that slug does `resolveCategory()` in `lib/shop.ts` map an older slug to the
+database one through `categoryAliases`, so links already in the wild keep
+working but never override a real category such as Phones. The menus themselves
+link with the database slug.
 
 `src/lib/categories.ts`, the previous hardcoded list of four families and
 their studio photos, is no longer read by anything.

@@ -21,6 +21,8 @@ export interface SupportPolicy {
   slug: PolicySlug;
   figure: string;
   unit: string;
+  /** A long title: the card spans both columns on a phone so it stays on one line. */
+  wide?: boolean;
 }
 
 /** Wording only. The email, phone, WhatsApp number and hours come from the saved contact settings. */
@@ -85,7 +87,7 @@ export function getSupportChannels(contact: ContactDetails): SupportChannel[] {
 const policies: SupportPolicy[] = [
   { slug: "warranty", figure: "12", unit: "months" },
   { slug: "shipping", figure: "2–4", unit: "working days" },
-  { slug: "returns-refunds-cancellation", figure: "30", unit: "days" },
+  { slug: "returns-refunds-cancellation", figure: "30", unit: "days", wide: true },
 ];
 
 export function getSupportPolicies(): SupportPolicy[] {
