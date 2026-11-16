@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchSuggestions } from "@/hooks/use-search";
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_QUERY_LENGTH } from "@/lib/constants";
@@ -371,33 +372,47 @@ function ProductSuggestion({
 }) {
   const availability = availabilityFromStock(product.stock);
 
+  // The cart action sits beside the link, not inside it, so adding never
+  // navigates and the panel stays open for the next pick.
   return (
-    <Link
-      href={productHref(product)}
-      onClick={onSelect}
-      className="group/result -mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
-    >
-      <span className="relative block size-11 shrink-0 overflow-hidden rounded-md border border-line bg-plate">
-        {product.imageUrl && (
-          <Image
-            src={product.imageUrl}
-            alt=""
-            fill
-            sizes="44px"
-            className="object-contain p-1 [mix-blend-mode:multiply]"
-          />
-        )}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) group-hover/result:text-accent">
-          {product.name}
+    <div className="flex items-center gap-3">
+      <Link
+        href={productHref(product)}
+        onClick={onSelect}
+        className="group/result -mx-2 flex min-w-0 flex-1 items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-(--duration-fast) hover:bg-surface-2"
+      >
+        <span className="relative block size-11 shrink-0 overflow-hidden rounded-md border border-line bg-plate">
+          {product.imageUrl && (
+            <Image
+              src={product.imageUrl}
+              alt=""
+              fill
+              sizes="44px"
+              className="object-contain p-1 [mix-blend-mode:multiply]"
+            />
+          )}
         </span>
-        <span className="mt-0.5 block truncate font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
-          {product.brand} · {formatMoney(product.price)}
-          {availability === "sold-out" && ` · ${AVAILABILITY_LABELS[availability]}`}
+        <span className="min-w-0">
+          <span className="block truncate text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) group-hover/result:text-accent">
+            {product.name}
+          </span>
+          <span className="mt-0.5 block truncate font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-muted">
+            {product.brand} · {formatMoney(product.price)}
+            {availability === "sold-out" && ` · ${AVAILABILITY_LABELS[availability]}`}
+          </span>
         </span>
-      </span>
-    </Link>
+      </Link>
+      <div className="shrink-0">
+        <AddToCartButton
+          product={{
+            variantId: product.variantId,
+            slug: product.slug,
+            name: product.name,
+            soldOut: availability === "sold-out",
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
