@@ -59,9 +59,9 @@ const BUTTON_CLASS = cn(
 /** Sold out reads as grey and inert, not as a faded accent button. */
 const SOLD_OUT_CLASS = "pointer-events-none bg-line-strong text-ink-muted disabled:opacity-100";
 
-/** The words beside the icon; below `sm` only the icon shows, the words stay for screen readers. */
+/** The button shows only the cart icon at every size; the words stay for screen readers. */
 function ButtonLabel({ children }: { children: string }) {
-  return <span className="max-sm:sr-only">{children}</span>;
+  return <span className="sr-only">{children}</span>;
 }
 
 function CartIcon() {

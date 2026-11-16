@@ -80,8 +80,8 @@ the panel:
    and Categories, each linking to its page, plus "See all results".
    Every product row also has the shared `AddToCartButton` beside it, which
    adds the variant the suggestion shows (`ShopCard.variantId`). It shows
-   "Add to cart" from `sm` and only the cart icon below `sm`, turns into a
-   quantity stepper once that variant is in the cart, and is disabled when
+   only the cart icon at every size (see CART.md), turns into a quantity
+   stepper once that variant is in the cart, and is grey and disabled when
    the product is sold out. It sits beside the link rather than inside it, so
    adding does not open the product page or close the panel. The full
    `/search` page already had the button on every card, as it reuses the shop

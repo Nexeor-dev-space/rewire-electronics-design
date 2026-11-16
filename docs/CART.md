@@ -624,9 +624,9 @@ guard, not only `isPending` (which React Query reports a tick late), so
 rapid clicks are one add. The confetti plays only from the add's
 `onSuccess`, never on a failed add.
 
-On phones (under the `sm` breakpoint) the Add to cart button on product cards and in the search panel shows only the cart icon; the words stay for screen readers. The same goes for "Out of stock".
+At every screen size the Add to cart button on product cards and in the search panel shows only the cart icon; the words ("Add to cart", "Out of stock") stay for screen readers through `ButtonLabel`, and the button's accessible name is "Add {name} to cart" or "{name} is out of stock".
 
-**Sold out is grey and inert.** When the product is sold out the button is disabled and drawn grey (`SOLD_OUT_CLASS` in `add-to-cart-button.tsx`: `bg-line-strong` with `text-ink-muted`) rather than as a faded accent button. `pointer-events-none` means a tap does nothing, and it does not fall through to the card's product link either. Its label is "Out of stock" from `sm` up; on phones it is the grey cart icon alone, with "{name} is out of stock" as its accessible name.
+**Sold out is grey and inert.** When the product is sold out the button is disabled and drawn grey (`SOLD_OUT_CLASS` in `add-to-cart-button.tsx`: `bg-line-strong` with `text-ink-muted`) rather than as a faded accent button. `pointer-events-none` means a tap does nothing, and it does not fall through to the card's product link either. The stock label in the corner of the card's photo, and the dimmed photo, say why.
 
 Every mutation writes the returned cart straight into the cache
 (`setQueryData`) and invalidates the quotes, instead of invalidating the cart
