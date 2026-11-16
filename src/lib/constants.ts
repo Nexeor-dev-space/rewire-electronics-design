@@ -168,6 +168,8 @@ export const INVOICE_TERMS_MAX_LENGTH = 2000;
 export const CONTACT_HOURS_MAX_LENGTH = 300;
 export const WHATSAPP_CHAT_BASE_URL = "https://wa.me/";
 export const WHATSAPP_GREETING = "Hello Rewire, I need some help.";
+/** Opens a staff to customer WhatsApp chat from a support ticket; the ticket number is added after it. */
+export const SUPPORT_STAFF_WHATSAPP_GREETING = "Hello, this is Rewire Electronics about your support request";
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";

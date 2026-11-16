@@ -1,23 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useModuleAccess } from "@/components/admin/admin-access";
 import { AdminPage } from "@/components/admin/admin-page";
 import { DetailRow, Section } from "@/components/admin/shared/detail-section";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Select, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useAddTicketMessage,
   useChangeTicketPriority,
   useChangeTicketStatus,
   useGetTicket,
 } from "@/hooks/use-support";
-import { apiFieldErrors } from "@/lib/api/api-client";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { ADMIN_SUPPORT_PATH, SUPPORT_MESSAGE_LIMIT, SUPPORT_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { ADMIN_SUPPORT_PATH, SUPPORT_MESSAGE_LIMIT, SUPPORT_STAFF_WHATSAPP_GREETING } from "@/lib/constants";
 import { formatOrderDate, formatOrderStamp } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS_LABELS } from "@/lib/orders";
@@ -35,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { TicketDetail } from "@/types/support";
 import { AssignTicketDialog } from "./assign-ticket-dialog";
+import { EmailLink, PhoneActions } from "./contact-actions";
 import { TicketPriorityPill, TicketStatusPill } from "./support-management";
 
 const ADMIN_ORDERS_PATH = "/admin/orders";
@@ -91,7 +90,8 @@ function TicketView({ detail }: { detail: TicketDetail }) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-6">
-          <ConversationSection detail={detail} canReply={access.edit} />
+          <RequestSection detail={detail} />
+          <MessagesSection detail={detail} />
           <HistorySection detail={detail} />
         </div>
 
@@ -118,11 +118,48 @@ function BackLink() {
   );
 }
 
-function ConversationSection({ detail, canReply }: { detail: TicketDetail; canReply: boolean }) {
+/** What the customer filled in, with one tap to email, message or call them. */
+function RequestSection({ detail }: { detail: TicketDetail }) {
+  const phone = detail.customerPhone ?? detail.customer?.phone ?? null;
+
+  return (
+    <Section title="Request details">
+      <dl className="divide-y divide-line">
+        <DetailRow label="Name">{detail.customerName}</DetailRow>
+        <DetailRow label="Email">
+          <EmailLink email={detail.customerEmail} subject={`Re: ${detail.subject} [${detail.number}]`} />
+        </DetailRow>
+        <DetailRow label="Phone">
+          {phone ? (
+            <PhoneActions phone={phone} greeting={`${SUPPORT_STAFF_WHATSAPP_GREETING} ${detail.number}.`} />
+          ) : (
+            "Not given"
+          )}
+        </DetailRow>
+        <DetailRow label="Subject">{detail.subject}</DetailRow>
+        <DetailRow label="Category">{detail.categoryName}</DetailRow>
+        <DetailRow label="Related order">
+          {detail.order ? (
+            <Link
+              href={`${ADMIN_ORDERS_PATH}/${detail.order.number}`}
+              className="font-mono underline-offset-4 hover:underline"
+            >
+              {detail.order.number}
+            </Link>
+          ) : (
+            "None"
+          )}
+        </DetailRow>
+      </dl>
+    </Section>
+  );
+}
+
+function MessagesSection({ detail }: { detail: TicketDetail }) {
   const hidden = detail.messageCount - detail.messages.length;
 
   return (
-    <Section title="Conversation">
+    <Section title="Message">
       {hidden > 0 && (
         <p className="mb-4 text-xs text-ink-muted">
           Showing the latest {SUPPORT_MESSAGE_LIMIT} of {detail.messageCount} messages.
@@ -151,79 +188,7 @@ function ConversationSection({ detail, canReply }: { detail: TicketDetail; canRe
           );
         })}
       </ol>
-
-      {canReply &&
-        (detail.canReceiveMessages ? (
-          <ReplyForm number={detail.number} />
-        ) : (
-          <p className="mt-5 text-sm text-ink-muted">This ticket is closed, so it cannot take new messages.</p>
-        ))}
     </Section>
-  );
-}
-
-function ReplyForm({ number }: { number: string }) {
-  const id = useId();
-  const [body, setBody] = useState("");
-  const [fromCustomer, setFromCustomer] = useState(false);
-  const add = useAddTicketMessage();
-  const bodyError = add.isError ? apiFieldErrors(add.error).body?.[0] : undefined;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    add.mutate(
-      { number, body, from: fromCustomer ? "CUSTOMER" : "STAFF" },
-      {
-        onSuccess: () => {
-          setBody("");
-          setFromCustomer(false);
-        },
-      },
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="mt-6 border-t border-line pt-5">
-      <Field
-        id={`${id}-body`}
-        label={fromCustomer ? "Customer message" : "Reply"}
-        hint={
-          fromCustomer
-            ? "Saved as a message from the customer."
-            : "Saved to the ticket history."
-        }
-        error={bodyError}
-      >
-        <Textarea
-          id={`${id}-body`}
-          value={body}
-          maxLength={SUPPORT_MESSAGE_MAX_LENGTH}
-          onChange={(event) => setBody(event.target.value)}
-          aria-invalid={bodyError ? true : undefined}
-          className="min-h-28"
-        />
-      </Field>
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <input
-            type="checkbox"
-            checked={fromCustomer}
-            onChange={(event) => setFromCustomer(event.target.checked)}
-          />
-          Log as a message from the customer
-        </label>
-        <Button type="submit" size="sm" loading={add.isPending} disabled={!body.trim()}>
-          {fromCustomer ? "Save message" : "Send reply"}
-        </Button>
-      </div>
-
-      {add.isError && !bodyError && (
-        <p role="alert" className="mt-3 text-sm text-danger">
-          {add.error.message}
-        </p>
-      )}
-    </form>
   );
 }
 
@@ -338,21 +303,8 @@ function TicketInfoSection({ detail }: { detail: TicketDetail }) {
         <DetailRow label="Ticket ID">
           <span className="font-mono">{detail.number}</span>
         </DetailRow>
-        <DetailRow label="Category">{detail.categoryName}</DetailRow>
         <DetailRow label="Created">{formatOrderStamp(detail.createdAt)}</DetailRow>
         <DetailRow label="Last updated">{formatOrderStamp(detail.updatedAt)}</DetailRow>
-        <DetailRow label="Related order">
-          {detail.order ? (
-            <Link
-              href={`${ADMIN_ORDERS_PATH}/${detail.order.number}`}
-              className="font-mono underline-offset-4 hover:underline"
-            >
-              {detail.order.number}
-            </Link>
-          ) : (
-            "None"
-          )}
-        </DetailRow>
         {detail.order && (
           <DetailRow label="Order total">
             {formatMoney(detail.order.total)}, {ORDER_STATUS_LABELS[detail.order.status].toLowerCase()}
@@ -365,16 +317,11 @@ function TicketInfoSection({ detail }: { detail: TicketDetail }) {
 
 function CustomerSection({ detail }: { detail: TicketDetail }) {
   return (
-    <Section title="Customer">
-      <p className="text-sm font-medium text-ink">{detail.customerName}</p>
-      <p className="mt-0.5 break-all text-sm text-ink-secondary">{detail.customerEmail}</p>
-      {(detail.customerPhone ?? detail.customer?.phone) && (
-        <p className="mt-0.5 text-sm text-ink-secondary">{detail.customerPhone ?? detail.customer?.phone}</p>
-      )}
-      {!detail.customer && <p className="mt-2 text-xs text-ink-muted">No customer account uses this email.</p>}
+    <Section title="Customer history">
+      {!detail.customer && <p className="text-sm text-ink-muted">No customer account uses this email.</p>}
 
       {detail.customerOrders.length > 0 && (
-        <div className="mt-5 border-t border-line pt-4">
+        <div className="mt-5 border-t border-line pt-4 first:mt-0 first:border-0 first:pt-0">
           <p className="eyebrow mb-2">Recent orders</p>
           <ul className="divide-y divide-line">
             {detail.customerOrders.map((order) => (

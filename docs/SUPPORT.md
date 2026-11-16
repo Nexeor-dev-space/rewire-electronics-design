@@ -17,8 +17,8 @@ email.
 This covers the admin screens and one customer entry point.
 
 1. Admin: the ticket list and ticket page under `/admin/support`. Staff can also
-   log a ticket on a customer's behalf with New ticket, and record a customer's
-   reply with "Log as a message from the customer" on the ticket page.
+   log a ticket on a customer's behalf with New ticket. The ticket page has no
+   reply box: staff contact the customer by email, WhatsApp or phone.
 2. Customer: the page `/support/ticket` (`SUPPORT_TICKET_PAGE_PATH`) holds a
    form that creates a ticket. It is linked from the contact page at `/support`,
    which is otherwise unchanged. Customers cannot yet see or reply to their
@@ -160,9 +160,17 @@ functions in `support.service.ts`, `CUSTOMER_NOTIFIED_STATUSES` and
    sort by created or last updated, pagination. New tickets (under a day old)
    and tickets awaiting a staff reply are highlighted; resolved and closed
    rows are muted.
-2. Ticket page: conversation and reply box, history, a Manage panel for status,
-   priority and assignment, ticket details, and the customer with recent orders
-   and other tickets.
+2. Ticket page: a Request details list of what the customer filled in (name,
+   email, phone, subject, category, related order), the message, history, a
+   Manage panel for status, priority and assignment, ticket details, and the
+   customer's history (recent orders and other tickets).
+   `src/components/admin/support/contact-actions.tsx` holds two helpers. The
+   email opens the mail app (`mailto:`) with the subject `Re: <subject>
+   [<number>]`. The phone number opens two options: Message on WhatsApp (a
+   `wa.me` link with `SUPPORT_STAFF_WHATSAPP_GREETING` and the ticket number)
+   and Call this number (`tel:`). The phone shown is the ticket's, else the
+   linked account's. `POST /[number]/messages` remains in the API but the
+   screen no longer uses it.
 3. Loading, empty, error and validation states are handled on both.
 
 ---
