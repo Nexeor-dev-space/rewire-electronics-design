@@ -129,30 +129,39 @@ export function ShopProductCard({
           )}
         </p>
 
-        <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
-          <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
-            {formatMoney(product.price)}
-          </span>
-          {product.originalPrice !== null && product.originalPrice > product.price && (
-            <>
-              <span className="sr-only">was </span>
-              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
-                {formatMoney(product.originalPrice)}
-              </s>
-            </>
-          )}
-        </p>
+        {/* Price and cart action. On a wide card (`@2xs`, 18rem) they share
+            one row, price left and button right; on a narrow card the button
+            drops under the price at full width. Measured on the card, not
+            the viewport, because the same card sits in 2, 3 and 5 column
+            grids. */}
+        <div className="@container mt-auto pt-5">
+          <div className="flex flex-col gap-4 @2xs:flex-row @2xs:items-center @2xs:justify-between @2xs:gap-3">
+            <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
+                {formatMoney(product.price)}
+              </span>
+              {product.originalPrice !== null && product.originalPrice > product.price && (
+                <>
+                  <span className="sr-only">was </span>
+                  <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+                    {formatMoney(product.originalPrice)}
+                  </s>
+                </>
+              )}
+            </p>
 
-        <div className="relative z-20 mt-4">
-          <AddToCartButton
-            product={{
-              variantId: product.variantId,
-              slug: product.slug,
-              name: product.name,
-              soldOut,
-            }}
-            className="w-full"
-          />
+            <div className="relative z-20 shrink-0">
+              <AddToCartButton
+                product={{
+                  variantId: product.variantId,
+                  slug: product.slug,
+                  name: product.name,
+                  soldOut,
+                }}
+                className="w-full @2xs:w-44"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </article>

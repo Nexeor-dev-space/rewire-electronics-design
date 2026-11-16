@@ -252,13 +252,15 @@ export function SearchPanel({
 
 function Column({
   title,
+  className,
   children,
 }: {
   title: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <h2 className="mb-5 font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink-muted">
         {title}
       </h2>
@@ -269,6 +271,9 @@ function Column({
 
 const isEmpty = (data: SearchSuggestions) =>
   !data.products.length && !data.brands.length && !data.categories.length;
+
+/** Brands and Categories: a fixed width beside Products from `lg`. */
+const SIDE_COLUMN_CLASS = "lg:w-56 lg:shrink-0";
 
 const LINK_CLASS =
   "-mx-2 block rounded-md px-2 py-2 text-[0.9375rem] text-ink-secondary transition-colors duration-(--duration-fast) hover:text-accent";
@@ -312,9 +317,11 @@ function Suggestions({
         busy && "opacity-60",
       )}
     >
-      <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12">
+      {/* Products take all the width the other columns leave, so each row's
+          cart button sits at the far right, clear of the product name. */}
+      <div className="flex flex-col gap-10 lg:flex-row lg:gap-12">
         {data.products.length > 0 && (
-          <Column title="Products">
+          <Column title="Products" className="min-w-0 flex-1">
             <ul className="space-y-1">
               {data.products.map((product) => (
                 <li key={product.id}>
@@ -326,7 +333,7 @@ function Suggestions({
         )}
 
         {data.brands.length > 0 && (
-          <Column title="Brands">
+          <Column title="Brands" className={SIDE_COLUMN_CLASS}>
             <LinkList
               items={data.brands.map((brand) => ({
                 key: brand.name,
@@ -339,7 +346,7 @@ function Suggestions({
         )}
 
         {data.categories.length > 0 && (
-          <Column title="Categories">
+          <Column title="Categories" className={SIDE_COLUMN_CLASS}>
             <LinkList
               items={data.categories.map((category) => ({
                 key: category.slug,
@@ -410,6 +417,9 @@ function ProductSuggestion({
             name: product.name,
             soldOut: availability === "sold-out",
           }}
+          // One width for Add to cart, Out of stock and the stepper, so the
+          // rows line up. Below `sm` all three are the same icon size anyway.
+          className="sm:w-44"
         />
       </div>
     </div>
@@ -418,9 +428,12 @@ function ProductSuggestion({
 
 function SuggestionsSkeleton() {
   return (
-    <div aria-busy className="grid gap-10 py-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-12 lg:py-12">
+    <div aria-busy className="flex flex-col gap-10 py-10 lg:flex-row lg:gap-12 lg:py-12">
       {Array.from({ length: 3 }, (_, column) => (
-        <div key={column} className="space-y-3">
+        <div
+          key={column}
+          className={cn("space-y-3", column === 0 ? "min-w-0 flex-1" : SIDE_COLUMN_CLASS)}
+        >
           <Skeleton className="h-3 w-24" />
           {Array.from({ length: 3 }, (_, row) => (
             <Skeleton key={row} className="h-9 w-full" />
