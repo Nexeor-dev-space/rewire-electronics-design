@@ -109,7 +109,8 @@ to keep that swap from shifting the layout.
 
 - `--spacing-gutter` — fluid page side padding (20–48px). Use `px-(--spacing-gutter)` or the `Container` component.
 - `--spacing-section` — vertical rhythm between chapters (80–176px).
-- **Each section owns its top padding only** (`pt-(--spacing-section)`), never `py`. Two sections that both pad top *and* bottom stack into a double gap — 346px at desktop — and the boundary rhythm then depends on which pair you are between. Top-only makes every gap exactly one token. The single exception is the last section before the footer, which adds `pb-(--spacing-section)` because there is no following section to supply it. Never hardcode the value (a stray `py-30` once put three different gaps on one page).
+- `--spacing-section-sm` — the standard section padding (48–96px).
+- **Every content section on the homepage and the About page uses `py-(--spacing-section-sm)`**, so each gap between two sections is the same (2 × the token) on desktop, tablet and mobile. Do not mix in `pb-14 lg:pb-16` or a hand picked value. Page openers that must clear the fixed header (`intro.tsx`, `certification.tsx`) and closing call to action sections (`cta.tsx`) keep the larger `pt-(--spacing-section)`. Never hardcode the value (a stray `py-30` once put three different gaps on one page). This replaces the earlier top-only rule, which left some sections with a bottom pad of its own and others with none.
 - Containers: `narrow` (48rem, prose) · `default` (80rem) · `wide` (110rem, editorial/product grids).
 - Whitespace is the luxury signal: when in doubt, double it.
 

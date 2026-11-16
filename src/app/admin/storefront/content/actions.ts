@@ -4,7 +4,11 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
-import { SEO_DESCRIPTION_MAX_LENGTH, SEO_TITLE_MAX_LENGTH } from "@/lib/constants";
+import {
+  ABOUT_PAGE_PATH,
+  SEO_DESCRIPTION_MAX_LENGTH,
+  SEO_TITLE_MAX_LENGTH,
+} from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { POLICIES_TAG, policyTag, readPolicy } from "@/lib/policies";
 import { validateRichText } from "@/lib/rich-text";
@@ -196,5 +200,5 @@ function revalidatePolicy(slug: PolicySlug) {
   revalidateTag(policyTag(slug));
   revalidateTag(POLICIES_TAG);
   revalidatePath(POLICY_ROUTES[slug]);
-  if (slug === "faq") revalidatePath("/");
+  if (slug === "faq") revalidatePath(ABOUT_PAGE_PATH);
 }

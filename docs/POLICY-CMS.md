@@ -238,20 +238,23 @@ it renders differently on purpose: a block's title is a question and its content
 is the answer, so the accordion is the right shape and the left/right block
 layout is not. `toFaqEntries` in `src/lib/faq-entry.ts` is the one adapter
 between the two shapes, and it lives in `lib` because two surfaces need it —
-`/faq` and the homepage section — and neither should have to know how a policy
+`/faq` and the About page — and neither should have to know how a policy
 block is put together.
 
-`/faq` passes the policy's own title and lede into the homepage's `Faq`
-section, so editing them in the console changes the page's `h1`. The title is
-split on its last space to set over two lines.
+`/faq` passes the policy's own title and lede into the `Faq` section, so
+editing them in the console changes the page's `h1`. The title is split on its
+last space to set over two lines.
 
-The FAQ section no longer appears at the bottom of the other policy pages. It
-exists once, as its own page, plus the homepage section that renders the same
-rows.
+The FAQ section no longer appears at the bottom of the other policy pages, and
+it no longer appears on the homepage. It renders on the About page
+(`src/app/(site)/about/page.tsx`, before the closing call to action) and on its
+own page `/faq`. The homepage `FAQ` section row is kept in the database so no
+data changes, but `HomepageSection` renders nothing for it.
 
-Emptiness is decided by the callers, not by `Faq`: the homepage omits the
+Emptiness is decided by the callers, not by `Faq`: the About page omits the
 section when there are no questions, while `/faq` still renders its heading and
-lede so the route never answers 200 with a blank body.
+lede so the route never answers 200 with a blank body. Publishing the FAQ
+revalidates `/about`.
 
 ---
 

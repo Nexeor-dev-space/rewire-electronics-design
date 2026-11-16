@@ -34,7 +34,7 @@ export function AboutWhat() {
   return (
     <section
       aria-labelledby="about-what-heading"
-      className="relative bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative bg-void py-(--spacing-section-sm)"
     >
       <div className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter)">
         <div className="grid gap-14 lg:grid-cols-12 lg:gap-16">

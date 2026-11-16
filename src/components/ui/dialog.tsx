@@ -156,7 +156,10 @@ export function Dialog({ open, onClose, title, description, children, className 
 /** The scrolling middle of a dialog. */
 export function DialogBody({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div data-lenis-prevent className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-5", className)}>
+    <div
+      data-lenis-prevent
+      className={cn("min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5", className)}
+    >
       {children}
     </div>
   );

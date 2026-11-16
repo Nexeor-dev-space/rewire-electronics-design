@@ -50,7 +50,7 @@ export function Setup() {
   return (
     <section
       aria-labelledby="setup-heading"
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-(--spacing-section-sm)"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       <div aria-hidden className="grain absolute inset-0" />
 
