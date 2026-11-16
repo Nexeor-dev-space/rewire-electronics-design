@@ -29,6 +29,18 @@ const lineClip = {
 };
 
 /**
+ * Columns per channel count, so the cards always fill whole rows with equal
+ * gaps. Four cards go 2x2 on tablet instead of leaving one orphaned.
+ * Full class strings so Tailwind can see them.
+ */
+const GRID_COLUMNS: Record<number, string> = {
+  1: "",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-2 lg:grid-cols-4",
+};
+
+/**
  * Section 04 — the escalation, and the page's close.
  *
  * Deliberately last. Every other section on this page is an attempt to
@@ -98,7 +110,10 @@ export function SupportContact() {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.08, 0.12)}
-          className="mx-auto mt-14 flex max-w-5xl flex-wrap justify-center gap-4 lg:mt-16 lg:gap-5"
+          className={cn(
+            "mx-auto mt-14 grid max-w-5xl grid-cols-1 gap-4 lg:mt-16 lg:max-w-7xl lg:gap-5",
+            GRID_COLUMNS[channels.length],
+          )}
         >
           {channels.map((channel) => {
             const inner = (
@@ -111,13 +126,15 @@ export function SupportContact() {
                   {channel.label}
                 </span>
 
-                <span className="mt-3 block text-[0.9375rem] leading-[1.7] text-ink-secondary">
+                <span className="mb-7 mt-3 block text-[0.9375rem] leading-[1.7] text-ink-secondary">
                   {channel.note}
                 </span>
 
                 <span
                   className={cn(
-                    "mt-7 flex items-center gap-2.5 border-t border-line pt-5",
+                    // mt-auto pins the action row to the card bottom so the dividers
+                    // and links line up across cards of different text length.
+                    "mt-auto flex items-center gap-2.5 border-t border-line pt-5",
                     // Tracking is 0.10em where the rest of the page's mono
                     // labels run 0.16em. The email address is the longest
                     // unbroken string on the site, and in a 3-up grid the
@@ -153,7 +170,7 @@ export function SupportContact() {
             );
 
             const shell = cn(
-              "group flex h-full flex-col rounded-2xl p-6 text-left lg:p-7",
+              "group flex h-full w-full flex-col rounded-2xl p-5 text-left lg:p-7",
               "border border-line bg-surface-2",
               "transition-[transform,border-color,background-color] duration-(--duration-base) ease-(--ease-out-expo)",
               "hover:-translate-y-1.5 hover:border-line-strong hover:bg-surface",
@@ -165,7 +182,7 @@ export function SupportContact() {
               <motion.li
                 key={channel.id}
                 variants={rise}
-                className="flex w-full sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+                className="flex min-w-0"
               >
                 {/* `mailto:`, `tel:` and the WhatsApp link are not routes —
                     next/link would try to prefetch them. Anchors for
