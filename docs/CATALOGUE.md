@@ -438,12 +438,10 @@ suggestions as the shopper types. `useSearchSuggestions(q)` in
 `SEARCH_MIN_QUERY_LENGTH` (2) characters. How the panel opens and closes is in
 [STOREFRONT-NAVIGATION.md](STOREFRONT-NAVIGATION.md).
 
-**Category segments** are looked up as written first, so a real category
-always wins. Only a segment that matches no category goes through
-`resolveCategory` in `src/lib/shop.ts`, so older links keep working:
-`wearables` becomes `smartwatches`, and so on. A segment that still matches no
-category in the database answers 404. `phones` used to alias to `smartphones`;
-now that a Phones category exists it opens Phones.
+**Category segments** go through `resolveCategory` in `src/lib/shop.ts` first,
+so older links keep working: `phones` becomes `smartphones`, `wearables`
+becomes `smartwatches`, and so on. A segment that matches no category in the
+database answers 404.
 
 **Categories in the chrome.** The `(site)` layout loads
 `listStorefrontCategories()` once and hands it to `StorefrontCategoriesProvider`
