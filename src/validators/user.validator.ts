@@ -45,8 +45,8 @@ export const addressListSchema = z
 /** PUT /account/addresses — the signed-in shopper's own list. */
 export const myAddressesSchema = z.object({ addresses: addressListSchema });
 
-/** PATCH /account/profile — the same name and phone rules as sign up. */
-export const myProfileSchema = signUpSchema.pick({ fullName: true, phone: true });
+/** PATCH /account/profile — sign up's name and phone rules; each field is optional and only sent fields change. */
+export const myProfileSchema = signUpSchema.pick({ fullName: true, phone: true }).partial();
 
 /**
  * Create and update take the same body. `addresses` is the full list:

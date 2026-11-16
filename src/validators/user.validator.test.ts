@@ -24,6 +24,18 @@ describe("myProfileSchema", () => {
   it("rejects a number from another country", () => {
     expect(myProfileSchema.safeParse({ fullName: "Sara", phone: "+447700900123" }).success).toBe(false);
   });
+
+  it("leaves out a phone that was not sent, so the saved one is kept", () => {
+    expect(myProfileSchema.parse({ fullName: "Sara" })).toEqual({ fullName: "Sara" });
+  });
+
+  it("accepts a phone on its own, so the saved name is kept", () => {
+    expect(myProfileSchema.parse({ phone: "050 123 4567" })).toEqual({ phone: "+971501234567" });
+  });
+
+  it("still rejects a blank name when one is sent", () => {
+    expect(myProfileSchema.safeParse({ fullName: "  " }).success).toBe(false);
+  });
 });
 
 const address = { emirate: "DUBAI", street: "Marina Gate 2", landmark: "Dubai Marina Mall", isPrimary: false };

@@ -115,7 +115,7 @@ export async function saveMyAddresses(userId: string, list: AddressList) {
 export async function updateMyProfile(userId: string, data: MyProfile) {
   return prisma.user.update({
     where: { id: userId },
-    data: { fullName: data.fullName, phone: data.phone },
+    data,
     select: { fullName: true, phone: true },
   });
 }
