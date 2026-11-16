@@ -17,7 +17,11 @@ interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const getCategory = cache((segment: string) => findShopCategory(resolveCategory(segment)));
+// A real category slug wins; the old alias (phones to smartphones) is only a fallback.
+const getCategory = cache(async (segment: string) => {
+  const category = await findShopCategory(segment.toLowerCase());
+  return category ?? findShopCategory(resolveCategory(segment));
+});
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const category = await getCategory((await params).category);
