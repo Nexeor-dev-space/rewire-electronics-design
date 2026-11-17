@@ -105,13 +105,25 @@ function linkEmail(
   return { subject, html, text };
 }
 
-export function verifyEmailMessage(input: LinkEmailInput): EmailContent {
+/** Sent at sign up: welcomes the new customer and carries the confirm link. */
+export function welcomeVerifyEmailMessage(input: LinkEmailInput): EmailContent {
   return linkEmail(
     `Welcome to ${siteConfig.name}: confirm your email`,
     input,
     `Welcome to ${siteConfig.name}. With your account you can track your orders, keep a wishlist, request returns and see your warranty details. Please confirm this is your email address to get started.`,
     "Confirm my email",
     `This link expires in ${hoursLabel(VERIFY_TOKEN_TTL_SECONDS)}. If you didn't create an account, you can ignore this email.`,
+  );
+}
+
+/** Sent when a customer asks for the confirm link again: no welcome, since they signed up earlier. */
+export function verifyEmailMessage(input: LinkEmailInput): EmailContent {
+  return linkEmail(
+    `Confirm your email for ${siteConfig.name}`,
+    input,
+    `Please confirm this is your ${siteConfig.name} email address.`,
+    "Confirm my email",
+    `This link expires in ${hoursLabel(VERIFY_TOKEN_TTL_SECONDS)}. If you didn't ask for this, you can ignore this email.`,
   );
 }
 
@@ -279,10 +291,9 @@ export function warrantyClaimOpenedMessage(input: ClaimUpdateInput & { issue: st
   ]);
 }
 
-export function warrantyClaimDecisionMessage(input: ClaimUpdateInput & { statusLabel: string; note: string }): EmailContent {
+export function warrantyClaimDecisionMessage(input: ClaimUpdateInput & { statusLabel: string }): EmailContent {
   return claimUpdate(input, "update", [
     `Warranty claim ${input.number} for your ${input.device} (order ${input.orderNumber}) is now: ${input.statusLabel}.`,
-    ...withNote(input.note),
   ]);
 }
 

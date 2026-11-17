@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     await startSession(user.id, user.sessionVersion);
     await adoptGuestCart(user.id);
     after(() =>
-      sendVerificationEmail(user, token).catch((error: unknown) =>
+      sendVerificationEmail(user, token, { welcome: true }).catch((error: unknown) =>
         console.error("POST /auth/sign-up verification email failed", error),
       ),
     );

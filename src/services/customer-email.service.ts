@@ -188,12 +188,12 @@ export function notifyClaimOpened(number: string): Promise<void> {
   });
 }
 
-export function notifyClaimDecision(number: string, status: WarrantyClaimStatus, note?: string | null): Promise<void> {
+export function notifyClaimDecision(number: string, status: WarrantyClaimStatus): Promise<void> {
   return safely(`claim ${number} decision`, async () => {
     const { to, input } = await loadClaim(number);
     await sendEmail({
       to,
-      ...warrantyClaimDecisionMessage({ ...input, statusLabel: WARRANTY_CLAIM_STATUS_LABELS[status], note: note ?? "" }),
+      ...warrantyClaimDecisionMessage({ ...input, statusLabel: WARRANTY_CLAIM_STATUS_LABELS[status] }),
     });
   });
 }

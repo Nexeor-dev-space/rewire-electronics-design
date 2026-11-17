@@ -323,6 +323,7 @@ customers have no claim screen yet (limit 1).
    email each step.
 2. Claim decision (`notifyClaimDecision`): from `changeClaimStatus` on every
    status change. States the new status label (for example Repair, Replacement,
-   Returned to customer, Declined) and the staff note shown to the customer.
+   Returned to customer, Declined). The claim note is for staff only, so it is
+   never put in the email.
 
 No new env var, database change or API change.

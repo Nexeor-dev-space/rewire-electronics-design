@@ -233,10 +233,12 @@ keeps the saved phone, and `PATCH { "phone": "0501234567" }` keeps the saved nam
 5. Lifetimes: `VERIFY_TOKEN_TTL_SECONDS` (24 hours), `RESET_TOKEN_TTL_SECONDS`
    (1 hour).
 
-**The verification email is also the welcome.** `verifyEmailMessage`
-(`src/lib/email/templates.ts`) welcomes the customer by name, says what the
-account is for (orders, wishlist, returns, warranty) and carries the confirm
-link. Sign up sends it, and Resend verification sends the same email. The flow
+**The sign up verification email is also the welcome.**
+`welcomeVerifyEmailMessage` (`src/lib/email/templates.ts`) welcomes the customer
+by name, says what the account is for (orders, wishlist, returns, warranty) and
+carries the confirm link. Only sign up sends it. Resend verification sends the
+plain `verifyEmailMessage`, so a customer who signed up weeks ago is not
+welcomed again. The flow
 stays link based; no code is typed on the site. Password reset is unchanged.
 Order, return and warranty emails are listed in [ORDERS.md](ORDERS.md)
 section 16.

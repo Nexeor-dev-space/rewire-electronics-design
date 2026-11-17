@@ -471,6 +471,6 @@ export async function changeClaimStatus(
 
     await tx.warrantyClaimEvent.create({ data: { claimId: row.id, status: to, note, actorId } });
   });
-  await notifyClaimDecision(number, to, note);
+  await notifyClaimDecision(number, to);
   return getAdminClaim(number);
 }

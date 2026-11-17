@@ -9,7 +9,7 @@ import { consumeAuthToken, hashToken, issueAuthToken } from "@/lib/auth/tokens";
 import { RESET_PASSWORD_PAGE_PATH, VERIFY_EMAIL_PAGE_PATH } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { sendEmail, type SendEmailResult } from "@/lib/email/send-email";
-import { resetPasswordMessage, verifyEmailMessage } from "@/lib/email/templates";
+import { resetPasswordMessage, verifyEmailMessage, welcomeVerifyEmailMessage } from "@/lib/email/templates";
 import type { SessionUser } from "@/types/auth";
 import type { signUpSchema } from "@/validators/auth.validator";
 import { emailTakenError } from "./user.service";
@@ -32,9 +32,15 @@ function tokenLink(path: string, token: string): Promise<string> {
   return appUrl(`${path}?${new URLSearchParams({ token })}`);
 }
 
-export async function sendVerificationEmail(recipient: Recipient, token: string): Promise<SendEmailResult> {
+/** `welcome` is true only at sign up; a resend sends the plain confirm email. */
+export async function sendVerificationEmail(
+  recipient: Recipient,
+  token: string,
+  { welcome = false } = {},
+): Promise<SendEmailResult> {
   const url = await tokenLink(VERIFY_EMAIL_PAGE_PATH, token);
-  return sendEmail({ to: recipient.email, ...verifyEmailMessage({ name: recipient.fullName, url }) });
+  const message = welcome ? welcomeVerifyEmailMessage : verifyEmailMessage;
+  return sendEmail({ to: recipient.email, ...message({ name: recipient.fullName, url }) });
 }
 
 export async function registerCustomer(data: SignUpData) {
