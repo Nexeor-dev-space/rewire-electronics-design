@@ -107,6 +107,13 @@ export const CART_MAX_LINE_QUANTITY = 5;
 /** Quantity taps show at once; the new quantity is sent after this pause, see `useDebouncedQuantity`. */
 export const CART_QUANTITY_DEBOUNCE_MS = 400;
 export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+/** How long a toast stays on screen before it hides itself, see `components/ui/toast.tsx`. */
+export const TOAST_DURATION_MS = 3_000;
+/** The toast wording, kept in one place so cards and the product page say the same thing. */
+export const TOAST_MESSAGES = {
+  addedToCart: (productName: string) => ` Added to Cart`,
+  savedToWishlist: (productName: string) => ` Saved to Wishlist`,
+} as const;
 export const RETURN_WINDOW_DAYS = 30;
 export const RETURN_WINDOW_MAX_DAYS = 365;
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;

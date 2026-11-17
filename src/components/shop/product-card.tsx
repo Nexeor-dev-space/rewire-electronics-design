@@ -39,7 +39,7 @@ export function ShopProductCard({
         <h3 className="mt-2 line-clamp-2 min-h-[2lh] text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
           <Link
             href={productHref(product)}
-            className="after:absolute after:inset-0 after:content-['']"
+            className="after:absolute after:inset-0 after:z-10 after:content-['']"
           >
             {product.name}
           </Link>

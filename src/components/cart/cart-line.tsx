@@ -258,19 +258,27 @@ export function toggledAddOnIds(
   return current.includes(addOnId) ? current.filter((id) => id !== addOnId) : [...current, addOnId];
 }
 
+/**
+ * The line's add-ons as toggles. `layout="chips"` (the cart page) wraps
+ * them as compact pills; `layout="rows"` (the Add to cart modal) gives each
+ * one a full width row with its price on the right.
+ */
 export function LineAddOns({
   offered,
   chosen,
   onToggle,
   disabled,
   productName,
+  layout = "chips",
 }: {
   offered: CartLineData["offeredAddOns"];
   chosen: CartLineData["addOns"];
   onToggle: (addOnId: string) => void;
   disabled?: boolean;
   productName: string;
+  layout?: "chips" | "rows";
 }) {
+  const rowLayout = layout === "rows";
   const chosenIds = new Set(chosen.map((addOn) => addOn.id));
   // An add-on the line already has, but that fell out of what's offered
   // (deactivated, no longer applicable) still needs a row so the
@@ -291,7 +299,7 @@ export function LineAddOns({
         {chosenIds.size > 0 && <span className="text-accent">{chosenIds.size} added</span>}
       </p>
 
-      <ul className="mt-3.5 flex flex-wrap gap-2">
+      <ul className={cn("mt-3.5 flex gap-2", rowLayout ? "flex-col" : "flex-wrap")}>
         {rows.map((addOn) => {
           const checked = chosenIds.has(addOn.id);
           return (
@@ -303,7 +311,10 @@ export function LineAddOns({
                 aria-pressed={checked}
                 aria-label={`${addOn.label}, ${checked ? "remove from" : "add to"} ${productName} for ${formatMoney(addOn.price)}`}
                 className={cn(
-                  "group/chip inline-flex h-9 items-center gap-2 rounded-full border pl-2.5 pr-3.5",
+                  "group/chip items-center border",
+                  rowLayout
+                    ? "flex min-h-11 w-full gap-3 rounded-xl px-3.5 py-2 text-left"
+                    : "inline-flex h-9 gap-2 rounded-full pl-2.5 pr-3.5",
                   "text-[0.8125rem] tracking-tight",
                   "transition-[border-color,background-color,color] duration-(--duration-fast) ease-(--ease-out-quart)",
                   "active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
@@ -348,11 +359,11 @@ export function LineAddOns({
                   )}
                 </span>
 
-                <span className="whitespace-nowrap">{addOn.label}</span>
+                <span className={rowLayout ? "min-w-0 flex-1" : "whitespace-nowrap"}>{addOn.label}</span>
 
                 <span
                   className={cn(
-                    "whitespace-nowrap font-mono text-[0.6875rem] tabular-nums",
+                    "shrink-0 whitespace-nowrap font-mono text-[0.6875rem] tabular-nums",
                     checked ? "text-accent" : "text-ink-muted",
                   )}
                 >

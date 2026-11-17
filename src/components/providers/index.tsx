@@ -7,6 +7,7 @@ import { AccountProvider } from "./account-provider";
 import { QueryProvider } from "./query-provider";
 import { CartFeedbackProvider } from "@/components/cart/cart-feedback-provider";
 import { AddToCartModal } from "@/components/cart/add-to-cart-modal";
+import { ToastProvider } from "@/components/ui/toast";
 
 /**
  * App-wide client providers.
@@ -20,16 +21,20 @@ import { AddToCartModal } from "@/components/cart/add-to-cart-modal";
  *   replace AccountProvider without touching the modal.
  * - AddToCartModal is mounted once, at the root, so any buy panel on any
  *   page can open the same polished confirmation.
+ * - ToastProvider shows the short "added to your cart" and "saved to your
+ *   wishlist" messages, one at a time, bottom centre.
  */
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
       <QueryProvider>
         <AccountProvider>
-          <CartFeedbackProvider>
-            <SmoothScrollProvider>{children}</SmoothScrollProvider>
-            <AddToCartModal />
-          </CartFeedbackProvider>
+          <ToastProvider>
+            <CartFeedbackProvider>
+              <SmoothScrollProvider>{children}</SmoothScrollProvider>
+              <AddToCartModal />
+            </CartFeedbackProvider>
+          </ToastProvider>
         </AccountProvider>
       </QueryProvider>
     </MotionConfig>
