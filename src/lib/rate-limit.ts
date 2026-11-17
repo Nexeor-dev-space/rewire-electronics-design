@@ -71,6 +71,11 @@ export function limitByIp(req: Request, name: RateLimitName): Response | null {
   return limitByKey(name, clientIp(req));
 }
 
+/** A second key besides the address, because a script can change its forwarded address. */
+export function limitByEmail(email: string, name: RateLimitName): Response | null {
+  return limitByKey(name, `email:${email.trim().toLowerCase()}`);
+}
+
 export function limitByUser(userId: string, name: RateLimitName): Response | null {
   return limitByKey(name, `user:${userId}`);
 }

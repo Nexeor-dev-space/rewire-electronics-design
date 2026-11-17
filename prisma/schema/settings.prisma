@@ -6,6 +6,8 @@ model StoreSettings {
   lowStockThreshold        Int      @default(5)
   releaseHoldMinutes       Int      @default(15)
   releaseEmailGraceMinutes Int      @default(30)
+  /// Where a new storefront support ticket is emailed. Null reads as the default in constants.
+  supportInboxEmail        String?
 
   /// Seller block on tax invoices. See docs/INVOICES.md.
   invoiceSellerName        String   @default("")

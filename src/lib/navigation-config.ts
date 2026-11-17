@@ -6,6 +6,7 @@ import {
   ORDER_TRACK_PAGE_PATH,
   RELEASES_PAGE_PATH,
   SUPPORT_PAGE_PATH,
+  SUPPORT_TICKET_PAGE_PATH,
   WISHLIST_PAGE_PATH,
 } from "@/lib/constants";
 import { isSafeHref } from "@/lib/homepage-sections";
@@ -155,6 +156,7 @@ export function defaultNavigation(): NavigationConfig {
           policyLink("shipping"),
           policyLink("returns-refunds-cancellation"),
           { label: "Contact", href: `${SUPPORT_PAGE_PATH}#contact` },
+          { label: "Raise a ticket", href: SUPPORT_TICKET_PAGE_PATH },
         ]),
       ],
       bottomLinks: [
