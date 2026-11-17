@@ -94,6 +94,13 @@ export const controlSwap: Variants = {
   exit: { opacity: 0, scale: 0.96, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
 };
 
+/** Toast: rises a little into view, sinks back out faster than it came. */
+export const toastRise: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_OUT_EXPO } },
+  exit: { opacity: 0, y: 8, transition: { duration: DURATION.fast, ease: EASE_OUT_EXPO } },
+};
+
 /** Disclosure panel: height and opacity collapse. Pair with an overflow-hidden element. */
 export const collapsePanel: Variants = {
   hidden: {
