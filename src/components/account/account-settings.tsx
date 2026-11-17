@@ -1,21 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState, type FormEvent } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { useGetMe, useSignOut } from "@/hooks/use-auth";
+import { Field as FormField } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PhoneField } from "@/components/ui/phone-field";
+import { useGetMe, useSignOut, useUpdateMyProfile } from "@/hooks/use-auth";
+import { apiFieldErrors } from "@/lib/api/api-client";
+import { FULL_NAME_MAX_LENGTH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import type { Me } from "@/types/auth";
+import { myProfileSchema } from "@/validators/user.validator";
 import { AccountShell } from "./account-shell";
 
 /**
  * AccountSettings — /account/settings.
  *
  * Three horizontal beats, each in its own card: personal info,
- * password, notification preferences. Personal info is read-only —
- * editing it lands in Stage 3.3 (`account/profile`) — while password
- * and notifications are still client-only stand-ins with success
- * confirmations, so the interaction is reviewable end-to-end until
- * their real endpoints land in Phase 3.
+ * password, notification preferences. Name and phone save through
+ * `PATCH account/profile`; email stays read-only. Password and
+ * notifications are still client-only stand-ins with success
+ * confirmations until their real endpoints land.
  */
+
+type FieldErrors = Record<string, string[] | undefined>;
 
 const NOTIFY_KEY = "rewire.account.notifications.v1";
 
@@ -75,21 +84,7 @@ export function AccountSettings() {
       subtitle="Personal information, sign-in and how we reach out to you."
     >
       <div className="flex flex-col gap-6">
-        {/* ---------- Personal info — read only until account/profile lands ---------- */}
-        <section className="rounded-2xl border border-line bg-surface p-6 md:p-7">
-          <div className="mb-5">
-            <h2 className="text-[1.125rem] font-medium text-ink">Personal information</h2>
-            <p className="mt-1 text-[0.875rem] text-ink-secondary">
-              Used on invoices and delivery notes. Editing these arrives soon — contact support for
-              changes in the meantime.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ReadOnlyField label="Full name" value={user?.fullName ?? ""} />
-            <ReadOnlyField label="Phone" value={user?.phone ?? "Not added yet"} />
-            <ReadOnlyField className="sm:col-span-2" label="Email" value={user?.email ?? ""} />
-          </div>
-        </section>
+        {user && <ProfileCard key={user.id} user={user} />}
 
         {/* ---------- Password ---------- */}
         <SettingsCard
@@ -206,6 +201,71 @@ export function AccountSettings() {
         </section>
       </div>
     </AccountShell>
+  );
+}
+
+function ProfileCard({ user }: { user: Me }) {
+  const id = useId();
+  const update = useUpdateMyProfile();
+  const [values, setValues] = useState({ fullName: user.fullName, phone: user.phone ?? "" });
+  const [clientErrors, setClientErrors] = useState<FieldErrors>({});
+
+  const dirty = values.fullName.trim() !== user.fullName || values.phone !== (user.phone ?? "");
+  const fields: FieldErrors = { ...clientErrors, ...apiFieldErrors(update.error) };
+  const nameError = fields.fullName?.[0];
+  const phoneError = fields.phone?.[0];
+  const formError = update.isError && !nameError && !phoneError ? update.error.message : null;
+
+  function change(next: Partial<typeof values>) {
+    if (update.isError || update.isSuccess) update.reset();
+    setClientErrors({});
+    setValues({ ...values, ...next });
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const parsed = myProfileSchema.safeParse(values);
+    if (!parsed.success) {
+      setClientErrors(z.flattenError(parsed.error).fieldErrors);
+      return;
+    }
+    update.mutate(parsed.data);
+  }
+
+  return (
+    <SettingsCard
+      title="Personal information"
+      hint="Used on invoices and delivery notes. Contact support to change your email."
+      onSubmit={handleSubmit}
+      saveLabel={update.isPending ? "Saving…" : "Save changes"}
+      saveDisabled={!dirty || update.isPending}
+      savedMessage={formError ?? (update.isSuccess && !dirty ? "Details saved" : null)}
+      savedTone={formError ? "danger" : "live"}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField id={`${id}-name`} label="Full name" error={nameError}>
+          <Input
+            id={`${id}-name`}
+            value={values.fullName}
+            onChange={(event) => change({ fullName: event.target.value })}
+            autoComplete="name"
+            maxLength={FULL_NAME_MAX_LENGTH}
+            required
+            aria-invalid={nameError ? true : undefined}
+            className="h-11 bg-surface-2"
+          />
+        </FormField>
+        <PhoneField
+          id={`${id}-phone`}
+          label="Phone (optional)"
+          value={values.phone}
+          onChange={(phone) => change({ phone })}
+          error={phoneError}
+          controlClassName="h-11 bg-surface-2"
+        />
+        <ReadOnlyField className="sm:col-span-2" label="Email" value={user.email} />
+      </div>
+    </SettingsCard>
   );
 }
 

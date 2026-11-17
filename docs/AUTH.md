@@ -189,6 +189,31 @@ Route by route:
    inactive user answers the same 422 as an invalid one. It does not start a
    session; the page links to sign-in.
 
+### Account profile
+
+`PATCH /api/v1/account/profile` (`API_ENDPOINTS.account.profile`) lets the
+signed in user change their own name and phone. Added for issue #163.
+
+| Session | Body | Success | Errors |
+| --- | --- | --- | --- |
+| required | `{ fullName?, phone? }` | 200 `{ fullName, phone }` | 401, 422 `fields.fullName` or `fields.phone` |
+
+It is a partial update: only the fields sent are changed. `PATCH { "fullName": "Sara" }`
+keeps the saved phone, and `PATCH { "phone": "0501234567" }` keeps the saved name.
+
+1. `myProfileSchema` in `src/validators/user.validator.ts` picks `fullName` and
+   `phone` from the sign up schema and makes both optional. A field that is sent
+   follows the sign up rules: the name must not be blank and is trimmed, and the
+   phone follows [PHONE-NUMBERS.md](PHONE-NUMBERS.md). A phone sent as `""` or
+   `null` removes it; a phone left out is not touched.
+2. `updateMyProfile` in `src/services/user.service.ts` writes only the user in
+   the session and only the fields that were sent. Email cannot be changed here.
+3. `useUpdateMyProfile` in `src/hooks/use-auth.ts` refreshes `auth.me`, so
+   Account Settings, the account overview and the header show the new values.
+4. The form is the Personal information card in
+   `src/components/account/account-settings.tsx`. Save stays disabled until
+   something changes.
+
 ---
 
 ## 6. Emailed tokens

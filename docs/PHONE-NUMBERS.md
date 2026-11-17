@@ -22,8 +22,8 @@ number in `+<country code><number>` form.
 1. `phoneValidator` is the required phone, used by checkout. It replaces
    `uaePhoneValidator`.
 2. `optionalPhoneValidator` turns a blank value into null and otherwise applies
-   the same rules. It is used by sign up, both waitlist forms and the admin
-   Users form. It used to accept any 7 to 20 digits.
+   the same rules. It is used by sign up, Account Settings, both waitlist forms
+   and the admin Users form. It used to accept any 7 to 20 digits.
 
 A local number starting with `0` is read as UAE. `+971`, `00971` and `971` are
 all read as the country code, and the same for Saudi Arabia. A second country
@@ -53,6 +53,7 @@ the stored form.
 | --- | --- |
 | Checkout | `src/components/checkout/checkout-view.tsx` |
 | Sign up | `src/components/auth/register-form.tsx` |
+| Account Settings (`PATCH account/profile`, see [AUTH.md](AUTH.md)) | `src/components/account/account-settings.tsx` |
 | Join a waitlist | `src/components/home/hero/waitlist-modal.tsx` |
 | Account waitlists | `src/components/account/account-waitlists.tsx` |
 | Admin Users | `src/components/admin/users/user-form-modal.tsx` |

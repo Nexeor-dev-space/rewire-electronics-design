@@ -2,7 +2,12 @@ import type { z } from "zod";
 import type { Role } from "@/lib/auth/permissions";
 import type { Emirate } from "@/lib/emirates";
 import type { NamedRef } from "@/types/product";
-import type { myAddressesSchema, UserGroup, userSchema } from "@/validators/user.validator";
+import type {
+  myAddressesSchema,
+  myProfileSchema,
+  UserGroup,
+  userSchema,
+} from "@/validators/user.validator";
 
 export interface UserAddress {
   id: string;
@@ -41,3 +46,9 @@ export type UserFilters = {
 
 export type UserInput = z.input<typeof userSchema>;
 export type MyAddressesInput = z.input<typeof myAddressesSchema>;
+export type MyProfileInput = z.input<typeof myProfileSchema>;
+
+export interface MyProfile {
+  fullName: string;
+  phone: string | null;
+}
