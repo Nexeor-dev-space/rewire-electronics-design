@@ -6,8 +6,8 @@ and the ticket history.
 
 Read this before changing the Support Tickets screens or the support API.
 
-Support tickets send one email: a "ticket raised" confirmation to the customer
-when they raise a ticket on the storefront form (section 7). The ticket is saved
+Support tickets email the customer when a ticket is raised, resolved, closed or
+reopened (section 7). The ticket is saved
 and shown in the admin list at once. Staff are not emailed.
 
 ---
@@ -141,24 +141,33 @@ Changes are written to the change log through `recordAudit`.
 
 ---
 
-## 7. The one email
+## 7. Emails to the customer
 
-When a customer raises a ticket on `/support/ticket`, `POST /api/v1/support/tickets`
-saves it and, after the response, `notifyCustomer` sends them one email through the
-existing `sendEmail` (SMTP, the same setup as sign up and orders; Resend works
-through SMTP as set out in `docs/INTEGRATIONS.md`). No new environment variable.
+Three moments email the customer, through the existing `sendEmail` (SMTP, the same
+setup as sign up and orders; Resend works through SMTP as set out in
+`docs/INTEGRATIONS.md`). No new environment variable. Staff are never emailed.
 
-1. Template: `ticketReceivedMessage` in `src/lib/email/templates.ts`. Subject
-   `Ticket <number> raised successfully`. Body: the ticket number and subject, "We
-   will look into it", and a line saying it is automated and not to reply. It has
-   no links. `sendEmail` adds the saved support contact footer.
-2. It is sent from the `EMAIL_FROM` address. For a true no reply mailbox, point
-   `EMAIL_FROM` at a no reply address on the verified domain.
-3. It is best effort: a failed send is logged (`support ticket email failed`) and
-   never fails the form or undoes the ticket.
-4. Only the storefront form sends it. A ticket staff log with New ticket sends
-   nothing, and nothing else on a ticket sends email: not assignment, status
-   changes or messages.
+| When | Email (subject) |
+| --- | --- |
+| The customer raises a ticket on `/support/ticket` | "Ticket TK-… raised successfully": we will look into it |
+| Staff mark a ticket Resolved | "Ticket TK-… resolved": the issue is resolved, we are closing the ticket, contact us to reopen |
+| Staff reopen a resolved ticket (Resolved to Open) | "Ticket TK-… reopened": we are looking into it again |
+| Staff close a ticket that was not resolved first | "Ticket TK-… closed" |
+
+1. Templates: `ticketReceivedMessage`, `ticketResolvedMessage`,
+   `ticketReopenedMessage` and `ticketClosedMessage` in
+   `src/lib/email/templates.ts`, all built by one private `ticketNotice`. Each says
+   it is automated and not to reply, and has no links. `sendEmail` adds the saved
+   support contact footer.
+2. Closing a ticket that was already resolved sends nothing, because the customer
+   was told when it was resolved. `statusEmail` in `support.service.ts` decides.
+3. The email goes after the response (`after()` from `next/server`), so the screen
+   is never slowed down by mail. It is best effort: a failed send is logged
+   (`support ticket email failed`) and never undoes the change.
+4. Nothing else sends email: not assignment, priority, or the other status
+   changes. A ticket staff log with New ticket sends no "raised" email.
+5. The sender is `EMAIL_FROM`. For a true no reply mailbox, point it at a no reply
+   address on the verified domain.
 
 ---
 

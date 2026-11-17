@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { z } from "zod";
+import { after } from "next/server";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, isUniqueViolation, type Paginated } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -15,7 +16,13 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email/send-email";
-import { ticketReceivedMessage } from "@/lib/email/templates";
+import type { EmailContent } from "@/lib/email/email-outcome";
+import {
+  ticketClosedMessage,
+  ticketReceivedMessage,
+  ticketReopenedMessage,
+  ticketResolvedMessage,
+} from "@/lib/email/templates";
 import { generateReference } from "@/lib/reference-number";
 import {
   DEFAULT_TICKET_PRIORITY,
@@ -25,6 +32,7 @@ import {
   TICKET_STATUS_LABELS,
   canReceiveMessages,
   isNewTicket,
+  isReopen,
   needsStaffReply,
   nextTicketStatuses,
   statusAfterMessage,
@@ -218,7 +226,14 @@ function invalid(field: string, message: string) {
   return new ServiceError("VALIDATION", message, 422, { [field]: [message] });
 }
 
-const refSelect = { id: true, status: true } satisfies Prisma.SupportTicketSelect;
+const refSelect = {
+  id: true,
+  number: true,
+  subject: true,
+  customerName: true,
+  customerEmail: true,
+  status: true,
+} satisfies Prisma.SupportTicketSelect;
 
 /* ---------- reads ---------- */
 
@@ -380,20 +395,37 @@ export async function submitCustomerTicket(data: CustomerTicketData, signedInEma
   return {
     result: { number },
     notifyCustomer: () =>
-      notifyTicketReceived({ number, name: data.customerName, email: data.customerEmail, subject: data.subject }),
+      emailCustomer(
+        data.customerEmail,
+        ticketReceivedMessage({ name: data.customerName, number, subject: data.subject }),
+      ),
   };
 }
 
-/** Best effort: a failed send is logged and never undoes the saved ticket. */
-async function notifyTicketReceived(ticket: { number: string; name: string; email: string; subject: string }) {
+/** Best effort: a failed send is logged and never undoes a saved change. */
+async function emailCustomer(to: string, content: EmailContent) {
   try {
-    await sendEmail({
-      to: ticket.email,
-      ...ticketReceivedMessage({ name: ticket.name, number: ticket.number, subject: ticket.subject }),
-    });
+    await sendEmail({ to, ...content });
   } catch (error) {
     console.error("support ticket email failed", error);
   }
+}
+
+/**
+ * The email a status change earns, or null. Resolved tells the customer the
+ * ticket is closing, a reopen says it is being looked at again. Closing a ticket
+ * that was already resolved sends nothing, since they were told at the resolve.
+ */
+function statusEmail(
+  from: TicketStatus,
+  to: TicketStatus,
+  ticket: { number: string; subject: string; customerName: string },
+): EmailContent | null {
+  const input = { name: ticket.customerName, number: ticket.number, subject: ticket.subject };
+  if (isReopen(from, to)) return ticketReopenedMessage(input);
+  if (to === "RESOLVED") return ticketResolvedMessage(input);
+  if (to === "CLOSED" && from !== "RESOLVED") return ticketClosedMessage(input);
+  return null;
 }
 
 /* ---------- messages ---------- */
@@ -439,7 +471,7 @@ export async function addTicketMessage(
 /* ---------- status, priority, assignment ---------- */
 
 export async function changeTicketStatus(number: string, to: TicketStatus, actorId: string): Promise<TicketDetail> {
-  await prisma.$transaction(async (tx) => {
+  const ticket = await prisma.$transaction(async (tx) => {
     const row = await tx.supportTicket.findUnique({ where: { number }, select: refSelect });
     if (!row) throw ticketNotFound();
     if (!nextTicketStatuses(row.status).includes(to)) {
@@ -462,8 +494,11 @@ export async function changeTicketStatus(number: string, to: TicketStatus, actor
         actorId,
       },
     });
+    return row;
   });
 
+  const content = statusEmail(ticket.status, to, ticket);
+  if (content) after(() => emailCustomer(ticket.customerEmail, content));
   return getTicket(number);
 }
 
