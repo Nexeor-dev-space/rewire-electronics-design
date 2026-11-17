@@ -1,5 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { myAddressesSchema } from "./user.validator";
+import { myAddressesSchema, myProfileSchema } from "./user.validator";
+
+describe("myProfileSchema", () => {
+  it("trims the name and stores the phone in its full form", () => {
+    expect(myProfileSchema.parse({ fullName: "  Sara Ali ", phone: "050 123 4567" })).toEqual({
+      fullName: "Sara Ali",
+      phone: "+971501234567",
+    });
+  });
+
+  it("accepts a Saudi number", () => {
+    expect(myProfileSchema.parse({ fullName: "Sara", phone: "+966501234567" }).phone).toBe("+966501234567");
+  });
+
+  it("turns a blank phone into null, which removes it", () => {
+    expect(myProfileSchema.parse({ fullName: "Sara", phone: "" }).phone).toBeNull();
+  });
+
+  it("rejects a blank name", () => {
+    expect(myProfileSchema.safeParse({ fullName: "  ", phone: "" }).success).toBe(false);
+  });
+
+  it("rejects a number from another country", () => {
+    expect(myProfileSchema.safeParse({ fullName: "Sara", phone: "+447700900123" }).success).toBe(false);
+  });
+
+  it("leaves out a phone that was not sent, so the saved one is kept", () => {
+    expect(myProfileSchema.parse({ fullName: "Sara" })).toEqual({ fullName: "Sara" });
+  });
+
+  it("accepts a phone on its own, so the saved name is kept", () => {
+    expect(myProfileSchema.parse({ phone: "050 123 4567" })).toEqual({ phone: "+971501234567" });
+  });
+
+  it("still rejects a blank name when one is sent", () => {
+    expect(myProfileSchema.safeParse({ fullName: "  " }).success).toBe(false);
+  });
+});
 
 const address = { emirate: "DUBAI", street: "Marina Gate 2", landmark: "Dubai Marina Mall", isPrimary: false };
 

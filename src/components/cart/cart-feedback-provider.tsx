@@ -4,10 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { DURATION } from "@/lib/motion";
 
 /**
  * CartFeedbackProvider — the channel between an Add to cart button and the
@@ -20,7 +23,13 @@ import {
  *
  * `nonce` is bumped every time a product is added, so the modal re-runs its
  * enter animation when the same line is added to twice in a row.
+ *
+ * The modal opens `POPUP_DELAY_MS` after the add, once the button's
+ * confetti pop has played, so the modal's backdrop never hides it.
  */
+
+/** The length of the small confetti pop (`ConfettiBurst size="sm"`). */
+const POPUP_DELAY_MS = DURATION.slow * 1000;
 
 export interface AddedFeedback {
   /** The cart line the add landed on. */
@@ -42,12 +51,22 @@ export function CartFeedbackProvider({ children }: { children: ReactNode }) {
   const [latest, setLatest] = useState<AddedFeedback | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
+  const openTimer = useRef<number | undefined>(undefined);
+
   const notifyAdded = useCallback((lineId: string) => {
-    setLatest((prev) => ({ lineId, nonce: (prev?.nonce ?? 0) + 1 }));
-    setIsOpen(true);
+    window.clearTimeout(openTimer.current);
+    openTimer.current = window.setTimeout(() => {
+      setLatest((prev) => ({ lineId, nonce: (prev?.nonce ?? 0) + 1 }));
+      setIsOpen(true);
+    }, POPUP_DELAY_MS);
   }, []);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    window.clearTimeout(openTimer.current);
+    setIsOpen(false);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(openTimer.current), []);
 
   const value = useMemo(
     () => ({ latest, isOpen, notifyAdded, close }),

@@ -7,7 +7,9 @@ import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
+import { useToast } from "@/components/ui/toast";
 import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
+import { TOAST_MESSAGES } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { controlSwap } from "@/lib/motion";
@@ -98,6 +100,7 @@ export function AddToCartButton({
   const removeCartItem = useRemoveCartItem();
   const cart = useGetCart();
   const { notifyAdded } = useCartFeedback();
+  const { showToast } = useToast();
   const soldOut = product.soldOut === true;
   const addInFlight = useRef(false);
 
@@ -152,9 +155,11 @@ export function AddToCartButton({
       {
         onSuccess: (next) => {
           setCelebrate((count) => count + 1);
-          // Cart extensions: offer this product's add-ons in the modal.
           const added = next.items.find((item) => item.variantId === product.variantId);
-          if (added && added.offeredAddOns.length > 0) notifyAdded(added.id);
+          if (!added) return;
+          showToast(TOAST_MESSAGES.addedToCart(product.name));
+          // Cart extensions: offer this product's add-ons in the modal.
+          if (added.offeredAddOns.length > 0) notifyAdded(added.id);
         },
         onSettled: () => {
           addInFlight.current = false;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useCartFeedback } from "@/components/cart/cart-feedback-provider";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ProductOption } from "@/types";
 import { AVAILABILITY_LABELS, availabilityFromStock } from "@/types";
@@ -9,17 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
 import { controlSwap } from "@/lib/motion";
-import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
-import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
+import { formatMoney } from "@/lib/money";
+import { CART_MAX_LINE_QUANTITY, TOAST_MESSAGES } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogue";
-import { ProductAddOns } from "./product-add-ons";
 import { HeartIcon } from "@/components/product/heart-icon";
 import { useAccount } from "@/components/providers/account-provider";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * ProductBuyPanel — the right-hand column on desktop, the second block on
@@ -43,9 +44,6 @@ const OPTION_UNSELECTABLE =
   "cursor-not-allowed border-line text-ink-muted line-through decoration-1";
 
 const inStock = (variant: ShopVariant) => variant.stock > 0;
-
-/** How long the add-ons stay ringed after Add to Cart scrolls to them. */
-const ADD_ONS_HIGHLIGHT_MS = 1600;
 
 type Axis = "state" | "storage" | "colour";
 const AXES: Axis[] = ["state", "storage", "colour"];
@@ -103,7 +101,13 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const storageOptions = optionsFor(variants, variant, "storage");
   const colorOptions = optionsFor(variants, variant, "colour");
   const { isSaved, toggleSaved } = useAccount();
+  const { showToast } = useToast();
   const saved = isSaved(product.slug);
+
+  function handleToggleSaved() {
+    toggleSaved(product.slug);
+    if (!saved) showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
+  }
 
   function choose(axis: Axis, value: string) {
     const next = closestVariant(variants, variant, axis, value);
@@ -115,42 +119,15 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const updateCartItem = useUpdateCartItem();
   const removeCartItem = useRemoveCartItem();
   const cartLoading = cart.isPending;
+  const { notifyAdded } = useCartFeedback();
   /** Bumped on each successful add: plays the confetti. */
   const [celebrate, setCelebrate] = useState(0);
-  /** Briefly true after an add: rings the add-ons the page scrolled to. */
-  const [highlightAddOns, setHighlightAddOns] = useState(false);
-  const addOnsRef = useRef<HTMLDivElement>(null);
   const addInFlight = useRef(false);
 
   // The line for THIS variant, if any — drives the stepper and the
-  // add-on checkboxes. Add-ons ticked before the line exists live in
-  // local state; once it exists the line's own set is the source of
-  // truth and a toggle mutates it directly.
-  const [pendingAddOns, setPendingAddOns] = useState<string[]>([]);
+  // warranty line (add-ons are chosen in the Add to cart popup).
   const line = cart.data?.items.find((item) => item.variantId === variant.id);
-  const offeredAddOnIds = line
-    ? new Set(line.offeredAddOns.map((addOn) => addOn.id))
-    : null;
-  const selectedAddOns = line
-    ? line.addOns.map((addOn) => addOn.id).filter((id) => offeredAddOnIds!.has(id))
-    : pendingAddOns;
-
-  function toggleAddOn(id: string) {
-    if (line) {
-      const current = line.addOns
-        .map((addOn) => addOn.id)
-        .filter((entry) => offeredAddOnIds!.has(entry) || entry === id);
-      const next = current.includes(id)
-        ? current.filter((entry) => entry !== id)
-        : [...current, id];
-      updateCartItem.mutate({ id: line.id, addOnIds: next });
-    } else {
-      const next = pendingAddOns.includes(id)
-        ? pendingAddOns.filter((entry) => entry !== id)
-        : [...pendingAddOns, id];
-      setPendingAddOns(next);
-    }
-  }
+  const selectedAddOns = line?.addOns.map((addOn) => addOn.id) ?? [];
 
   const inCartQty = line?.quantity ?? 0;
   const warrantyMonths = addOns
@@ -174,26 +151,23 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
       : "Add to Cart";
 
   /**
-   * On the product page an add is confirmed in place, not by the "Added to
-   * cart" popup: a confetti pop from the button, then a smooth scroll to
-   * "Add to your order" with a brief highlight, so the shopper sees the
-   * extras next. Products without add-ons only get the confetti.
+   * A successful add plays a confetti pop from the button and shows a
+   * toast, then opens the "Added to your cart" popup with this product's
+   * add-ons, the same one product cards open. Products without add-ons
+   * skip the popup.
    */
   function handleAddToCart() {
     if (!purchasable || addInFlight.current) return;
     addInFlight.current = true;
     addCartItem.mutate(
-      { variantId: variant.id, quantity: 1, addOnIds: pendingAddOns },
+      { variantId: variant.id, quantity: 1, addOnIds: [] },
       {
         onSuccess: (nextCart) => {
-          if (!nextCart.items.some((item) => item.variantId === variant.id)) return;
-          setPendingAddOns([]);
+          const added = nextCart.items.find((item) => item.variantId === variant.id);
+          if (!added) return;
           setCelebrate((count) => count + 1);
-          if (addOns.length > 0 && addOnsRef.current) {
-            addOnsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-            setHighlightAddOns(true);
-            window.setTimeout(() => setHighlightAddOns(false), ADD_ONS_HIGHLIGHT_MS);
-          }
+          showToast(TOAST_MESSAGES.addedToCart(product.name));
+          if (added.offeredAddOns.length > 0) notifyAdded(added.id);
         },
         onSettled: () => {
           addInFlight.current = false;
@@ -471,7 +445,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
 
       <button
         type="button"
-        onClick={() => toggleSaved(product.slug)}
+        onClick={handleToggleSaved}
         aria-pressed={saved}
         className={cn(
           "mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full border text-sm font-medium transition-colors duration-(--duration-fast)",
@@ -483,32 +457,6 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
         <HeartIcon saved={saved} className="size-5" />
         {saved ? "Saved to wishlist" : "Save to wishlist"}
       </button>
-
-      {/* ---------- Add to your order ----------
-          The fourth axis after Storage / Colour / Grade: category-scoped
-          extras (charger, sleeve, warranty extension, …) shown as
-          checkbox rows with their own prices. Silently absent for
-          categories with no add-ons defined (accessories). See
-          `product-add-ons.tsx` for the two rules the panel enforces
-          (every row states its price; the total appears only after
-          something is ticked). */}
-      <div
-        ref={addOnsRef}
-        className={cn(
-          "mt-10 scroll-mt-24 rounded-2xl transition-shadow duration-(--duration-slow)",
-          highlightAddOns && "ring-2 ring-accent ring-offset-4 ring-offset-void",
-        )}
-      >
-        <ProductAddOns
-          addOns={addOns}
-          selected={selectedAddOns}
-          onToggle={toggleAddOn}
-          basePrice={price}
-          currency={CURRENCY}
-          locale={LOCALE}
-        />
-      </div>
-
 
       {/* ---------- Trust row ----------
           Rewritten to earn attention: two-column card grid on mobile,

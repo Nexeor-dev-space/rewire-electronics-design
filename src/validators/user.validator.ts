@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ROLES } from "@/lib/auth/permissions";
 import { EMIRATE_VALUES } from "@/lib/emirates";
+import { signUpSchema } from "./auth.validator";
 import {
   emailValidator,
   newPasswordValidator,
@@ -43,6 +44,9 @@ export const addressListSchema = z
 
 /** PUT /account/addresses — the signed-in shopper's own list. */
 export const myAddressesSchema = z.object({ addresses: addressListSchema });
+
+/** PATCH /account/profile — sign up's name and phone rules; each field is optional and only sent fields change. */
+export const myProfileSchema = signUpSchema.pick({ fullName: true, phone: true }).partial();
 
 /**
  * Create and update take the same body. `addresses` is the full list:

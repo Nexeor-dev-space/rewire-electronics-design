@@ -54,6 +54,11 @@ export function ShopCatalogue({
   const activeCount =
     AXES.reduce((sum, axis) => sum + filters[axis].length, 0) +
     (isDefaultStock(filters.stock) ? 0 : 1);
+  const onlyCategories =
+    filters.category.length > 0 && activeCount === filters.category.length && !filters.q;
+  const comingSoon = onlyCategories
+    ? filters.category.map((slug) => categoryName(facets, slug))
+    : null;
 
   /** A filter or sort change can leave fewer pages, so it always starts again at page 1. */
   function applyFilters(next: ShopFilterState) {
@@ -290,6 +295,7 @@ export function ShopCatalogue({
                 <EmptyState
                   filtered={activeCount > 0}
                   query={filters.q}
+                  comingSoon={comingSoon}
                   onClear={clearAll}
                 />
               )
@@ -315,31 +321,40 @@ export function ShopCatalogue({
 function EmptyState({
   filtered,
   query,
+  comingSoon,
   onClear,
 }: {
   filtered: boolean;
   query: string | undefined;
+  comingSoon: string[] | null;
   onClear: () => void;
 }) {
-  const [title, body] = filtered
+  const [eyebrow, title, body] = comingSoon
     ? [
-        "No devices meet all of those conditions at once.",
-        "Try widening one axis — grade and storage narrow a catalogue faster than anything else.",
+        "Coming soon",
+        `Nothing in ${comingSoon.join(" or ")} yet.`,
+        "New devices for this category are being inspected and graded. Check back soon.",
       ]
-    : query
-      ? [`Nothing matches “${query}”.`, "Check the spelling, or try a brand or model name."]
-      : ["Nothing is listed right now.", "Check back soon."];
+    : filtered
+      ? [
+          "Nothing matches",
+          "No devices meet all of those conditions at once.",
+          "Try widening one axis — grade and storage narrow a catalogue faster than anything else.",
+        ]
+      : query
+        ? ["No results found", `Nothing matches “${query}”.`, "Check the spelling, or try a brand or model name."]
+        : ["Nothing matches", "Nothing is listed right now.", "Check back soon."];
 
   return (
     <div className="flex flex-col items-start gap-5 py-24 lg:py-32">
-      <p className="eyebrow">{query && !filtered ? "No results found" : "Nothing matches"}</p>
+      <p className="eyebrow">{eyebrow}</p>
       <p className="max-w-md text-[clamp(1.5rem,2.4vw,2rem)] font-light leading-[1.1] tracking-[-0.03em] text-ink">
         {title}
       </p>
       <p className="max-w-md text-base leading-relaxed text-ink-secondary">{body}</p>
       {filtered && (
         <Button variant="outline" size="md" onClick={onClear} className="mt-2">
-          Clear all filters
+          {comingSoon ? "Browse all devices" : "Clear all filters"}
         </Button>
       )}
     </div>
@@ -353,16 +368,17 @@ interface Chip {
   label: string;
 }
 
-function chipsFor(filters: ShopFilterState, facets: ShopFacets | undefined): Chip[] {
-  const categoryName = (slug: string) =>
-    facets?.categories.find((category) => category.slug === slug)?.name ?? slug;
+function categoryName(facets: ShopFacets | undefined, slug: string) {
+  return facets?.categories.find((category) => category.slug === slug)?.name ?? slug;
+}
 
+function chipsFor(filters: ShopFilterState, facets: ShopFacets | undefined): Chip[] {
   return [
     ...filters.category.map((value) => ({
       axis: "category" as const,
       axisLabel: "Category",
       value,
-      label: categoryName(value),
+      label: categoryName(facets, value),
     })),
     ...filters.condition.map((value) => ({
       axis: "condition" as const,

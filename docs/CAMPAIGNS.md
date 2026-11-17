@@ -291,8 +291,9 @@ running campaign, just as Edit on Products can change a price.
 
 ## 10. Known limits
 
-1. **Shop sort and price filter use the regular price.** They read
-   `Product.minPrice`, so a phone normally AED 2,100 and now AED 1,800 is missed
+1. **Shop sort and price filter use the regular price.** Sort reads
+   `Product.minPrice` and the filter reads each variant's regular `price`, so a
+   phone normally AED 2,100 and now AED 1,800 is missed
    by an "under AED 2,000" filter while its card shows AED 1,800. Fixing it
    needs a heavier query on every shop page, so it was left out on purpose.
 2. **No shopper page at the Campaign URL yet.** A later issue builds it.

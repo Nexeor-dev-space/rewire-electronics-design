@@ -17,6 +17,12 @@ interface OrderConfirmationInput extends LinkEmailInput {
   paymentMethod: PaymentMethod;
 }
 
+interface TicketNoticeInput {
+  name: string;
+  number: string;
+  subject: string;
+}
+
 interface WaitlistConfirmInput {
   title: string;
   url: string;
@@ -291,6 +297,41 @@ export function integrationTestEmail(name: string): EmailContent {
     html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
     text: lines.join("\n\n"),
   };
+}
+
+/** One short, automated note about a support ticket. Nothing to reply to or click. */
+function ticketNotice(title: string, { name, number, subject }: TicketNoticeInput, message: string): EmailContent {
+  const lines = [
+    `Hi ${name},`,
+    `${message} (Ticket ${number}: ${subject})`,
+    "This is an automated message, so please do not reply to it.",
+    siteConfig.name,
+  ];
+  return {
+    subject: `Ticket ${number} ${title}`,
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+    text: lines.join("\n\n"),
+  };
+}
+
+export function ticketReceivedMessage(input: TicketNoticeInput): EmailContent {
+  return ticketNotice("raised successfully", input, "Your support ticket was raised successfully. We will look into it.");
+}
+
+export function ticketResolvedMessage(input: TicketNoticeInput): EmailContent {
+  return ticketNotice(
+    "resolved",
+    input,
+    "Your issue has been resolved, so we are closing this ticket. If you still need help, contact us and we will reopen it.",
+  );
+}
+
+export function ticketClosedMessage(input: TicketNoticeInput): EmailContent {
+  return ticketNotice("closed", input, "Your support ticket has been closed.");
+}
+
+export function ticketReopenedMessage(input: TicketNoticeInput): EmailContent {
+  return ticketNotice("reopened", input, "Your support ticket has been reopened and we are looking into it again.");
 }
 
 export function waitlistConfirmMessage({ title, url, leaveUrl, confirmUrl }: WaitlistConfirmInput): EmailContent {

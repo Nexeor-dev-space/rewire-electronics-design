@@ -469,6 +469,18 @@ order goes to `/account/orders/{number}` when signed in, or to
 `/order/track?number=…&email=…` for a guest. A guest who reloads has no cache,
 so the page offers "Track your order" with only the number filled in.
 
+After a successful purchase, a short full screen confetti burst
+(`ConfettiBurst size="screen"`, about 1.4 s) plays over the page. Successful
+means the order is shown and is not awaiting payment: a cash on delivery order
+once placed, or a card or Apple Pay order once paid. It plays once per order per
+browser (a `rewire.order-celebrated.{number}` key in localStorage), so a reload
+or a later visit does not replay it; if storage is blocked it still plays. An
+unpaid card or Apple Pay order, the payment not finished panel and the loading
+and error panels get no confetti. The pieces ignore the pointer and are hidden
+from screen readers, so the order details and links stay usable while it plays,
+and it is skipped under reduced motion. See [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)
+§7.
+
 Once the order is not awaiting payment (a paid card or Apple Pay order, or a
 cash on delivery order when placed), the page sends a purchase event to GA4
 and Meta Pixel when their tags are running, once per order per browser. See
