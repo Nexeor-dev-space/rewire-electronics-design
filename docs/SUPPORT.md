@@ -6,9 +6,9 @@ and the ticket history.
 
 Read this before changing the Support Tickets screens or the support API.
 
-Support tickets send no emails. A ticket is raised on the storefront form, saved,
-and shown in the admin list at once. Staff and customers are not notified by
-email.
+Support tickets send one email: a "ticket raised" confirmation to the customer
+when they raise a ticket on the storefront form (section 7). The ticket is saved
+and shown in the admin list at once. Staff are not emailed.
 
 ---
 
@@ -141,16 +141,24 @@ Changes are written to the change log through `recordAudit`.
 
 ---
 
-## 7. No emails
+## 7. The one email
 
-Tickets do not use `sendEmail`, SMTP or Resend. Nothing is emailed when a ticket
-is raised, assigned, replied to or changed. Staff find new tickets in the admin
-list, where new and unanswered tickets are highlighted (section 8).
+When a customer raises a ticket on `/support/ticket`, `POST /api/v1/support/tickets`
+saves it and, after the response, `notifyCustomer` sends them one email through the
+existing `sendEmail` (SMTP, the same setup as sign up and orders; Resend works
+through SMTP as set out in `docs/INTEGRATIONS.md`). No new environment variable.
 
-Removed: the support inbox setting (the Inbox button, `GET` and `PUT
-/api/v1/admin/support/settings`), `ticketEmailMessage`, the notification
-functions in `support.service.ts`, `CUSTOMER_NOTIFIED_STATUSES` and
-`SUPPORT_TICKET_INBOX`.
+1. Template: `ticketReceivedMessage` in `src/lib/email/templates.ts`. Subject
+   `Ticket <number> raised successfully`. Body: the ticket number and subject, "We
+   will look into it", and a line saying it is automated and not to reply. It has
+   no links. `sendEmail` adds the saved support contact footer.
+2. It is sent from the `EMAIL_FROM` address. For a true no reply mailbox, point
+   `EMAIL_FROM` at a no reply address on the verified domain.
+3. It is best effort: a failed send is logged (`support ticket email failed`) and
+   never fails the form or undoes the ticket.
+4. Only the storefront form sends it. A ticket staff log with New ticket sends
+   nothing, and nothing else on a ticket sends email: not assignment, status
+   changes or messages.
 
 ---
 

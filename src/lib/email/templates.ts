@@ -17,6 +17,12 @@ interface OrderConfirmationInput extends LinkEmailInput {
   paymentMethod: PaymentMethod;
 }
 
+interface TicketReceivedInput {
+  name: string;
+  number: string;
+  subject: string;
+}
+
 interface WaitlistConfirmInput {
   title: string;
   url: string;
@@ -140,6 +146,21 @@ export function integrationTestEmail(name: string): EmailContent {
   ];
   return {
     subject: `Test email from ${siteConfig.name}`,
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+    text: lines.join("\n\n"),
+  };
+}
+
+/** Sent to a customer when their support ticket is raised. Nothing to reply to or click. */
+export function ticketReceivedMessage({ name, number, subject }: TicketReceivedInput): EmailContent {
+  const lines = [
+    `Hi ${name},`,
+    `Your support ticket ${number} (${subject}) was raised successfully. We will look into it.`,
+    "This is an automated message, so please do not reply to it.",
+    siteConfig.name,
+  ];
+  return {
+    subject: `Ticket ${number} raised successfully`,
     html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
     text: lines.join("\n\n"),
   };

@@ -14,6 +14,8 @@ import {
   SUPPORT_TICKET_NUMBER_PREFIX,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { sendEmail } from "@/lib/email/send-email";
+import { ticketReceivedMessage } from "@/lib/email/templates";
 import { generateReference } from "@/lib/reference-number";
 import {
   DEFAULT_TICKET_PRIORITY,
@@ -367,14 +369,31 @@ export async function createTicket(data: CreateData, actorId: string): Promise<T
 
 /**
  * A customer raises a ticket from the storefront form. The result holds only the
- * number, never staff data. The ticket is linked to a customer account only when
- * the signed in user's email is the one typed, so nobody can attach a ticket to
- * someone else's account by typing their address.
+ * number, never staff data, and `notifyCustomer` sends the "ticket raised" email so
+ * the caller can run it after the response. The ticket is linked to a customer
+ * account only when the signed in user's email is the one typed, so nobody can
+ * attach a ticket to someone else's account by typing their address.
  */
 export async function submitCustomerTicket(data: CustomerTicketData, signedInEmail: string | null) {
   const linkAccount = signedInEmail?.toLowerCase() === data.customerEmail;
   const number = await createWithRetry({ ...data, priority: DEFAULT_TICKET_PRIORITY }, null, linkAccount);
-  return { number };
+  return {
+    result: { number },
+    notifyCustomer: () =>
+      notifyTicketReceived({ number, name: data.customerName, email: data.customerEmail, subject: data.subject }),
+  };
+}
+
+/** Best effort: a failed send is logged and never undoes the saved ticket. */
+async function notifyTicketReceived(ticket: { number: string; name: string; email: string; subject: string }) {
+  try {
+    await sendEmail({
+      to: ticket.email,
+      ...ticketReceivedMessage({ name: ticket.name, number: ticket.number, subject: ticket.subject }),
+    });
+  } catch (error) {
+    console.error("support ticket email failed", error);
+  }
 }
 
 /* ---------- messages ---------- */

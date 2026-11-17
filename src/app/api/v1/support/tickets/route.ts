@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { getSession } from "@/lib/auth/session";
@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     const emailLimited = limitByEmail(input.data.customerEmail, "createSupportTicket");
     if (emailLimited) return emailLimited;
 
-    return apiSuccess(await submitCustomerTicket(input.data, session?.user.email ?? null), 201);
+    const { result, notifyCustomer } = await submitCustomerTicket(input.data, session?.user.email ?? null);
+    after(notifyCustomer);
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiErrorFrom(error, "POST /support/tickets");
   }
