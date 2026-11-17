@@ -171,6 +171,7 @@ export function AddToCartModal() {
                   chosen={line.addOns}
                   disabled={updateCartItem.isPending}
                   productName={line.productName}
+                  layout="rows"
                   onToggle={(addOnId) =>
                     updateCartItem.mutate({ id: line.id, addOnIds: toggledAddOnIds(line, addOnId) })
                   }
