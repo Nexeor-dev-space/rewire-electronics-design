@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useGetMe } from "@/hooks/use-auth";
 import { useConfirmPayment, usePlacedOrder } from "@/hooks/use-checkout";
 import { useGetAccountOrder } from "@/hooks/use-order";
@@ -21,10 +21,25 @@ import {
 } from "@/lib/orders";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { cn } from "@/lib/utils";
+import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { Spinner } from "@/components/ui/spinner";
 import type { OrderDetail } from "@/types/order";
 
 const ACCOUNT_ORDERS_PATH = `${ACCOUNT_HOME_PATH}/orders`;
+/** Marks, per browser, the orders whose confetti has already played. */
+const ORDER_CELEBRATED_KEY_PREFIX = "rewire.order-celebrated.";
+
+/** True the first time this browser shows the order; records that it has. */
+function isFirstCelebration(number: string): boolean {
+  const key = ORDER_CELEBRATED_KEY_PREFIX + number;
+  try {
+    if (window.localStorage.getItem(key) !== null) return false;
+    window.localStorage.setItem(key, "1");
+  } catch {
+    // Storage blocked: still celebrate, it just may replay on reload.
+  }
+  return true;
+}
 
 const PRIMARY_LINK = cn(
   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6",
@@ -191,12 +206,21 @@ function StatusPanel({ children }: { children: ReactNode }) {
 function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boolean }) {
   const awaitingPayment = paysOnline(order.paymentMethod) && order.paymentStatus === "UNPAID";
 
+  const [celebrate, setCelebrate] = useState(0);
+
   useEffect(() => {
     if (!awaitingPayment) trackPurchase(order);
   }, [order, awaitingPayment]);
 
+  // Confetti for a successful purchase only: never while payment is pending,
+  // and once per order, so a reload or a later visit does not replay it.
+  useEffect(() => {
+    if (!awaitingPayment && isFirstCelebration(order.number)) setCelebrate(1);
+  }, [order.number, awaitingPayment]);
+
   return (
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">
+      <ConfettiBurst trigger={celebrate} size="screen" />
       <header className="flex flex-col items-center gap-6 text-center">
         <span
           aria-hidden
