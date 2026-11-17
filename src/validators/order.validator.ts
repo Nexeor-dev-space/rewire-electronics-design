@@ -9,6 +9,7 @@ import {
   SERIAL_NUMBER_MAX_LENGTH,
   STAFF_NOTE_MAX_LENGTH,
   TRACKING_NUMBER_MAX_LENGTH,
+  CARRIER_MAX_LENGTH,
 } from "@/lib/constants";
 import {
   FULFILMENT_QUEUE_STATUSES,
@@ -34,6 +35,11 @@ const trackingNumberValidator = z
   .string()
   .trim()
   .max(TRACKING_NUMBER_MAX_LENGTH, `Use ${TRACKING_NUMBER_MAX_LENGTH} characters or fewer.`);
+
+const carrierValidator = z
+  .string()
+  .trim()
+  .max(CARRIER_MAX_LENGTH, `Use ${CARRIER_MAX_LENGTH} characters or fewer.`);
 
 /** One device's serial or IMEI; empty clears it. */
 export const serialNumberValidator = z
@@ -61,13 +67,14 @@ export const adminOrderListQuerySchema = paginationQueryValidator.extend({
 export const updateOrderSchema = z
   .object({
     trackingNumber: trackingNumberValidator.optional(),
+    carrier: carrierValidator.optional(),
     staffNote: z
       .string()
       .trim()
       .max(STAFF_NOTE_MAX_LENGTH, `Use ${STAFF_NOTE_MAX_LENGTH} characters or fewer.`)
       .optional(),
   })
-  .refine((data) => data.trackingNumber !== undefined || data.staffNote !== undefined, {
+  .refine((data) => data.trackingNumber !== undefined || data.carrier !== undefined || data.staffNote !== undefined, {
     message: MESSAGE_NOTHING_TO_UPDATE,
   });
 
@@ -92,6 +99,7 @@ export const fulfilmentUpdateSchema = z
   .object({
     status: z.enum(FULFILMENT_TARGET_STATUSES, { error: "Choose a status." }).optional(),
     trackingNumber: trackingNumberValidator.optional(),
+    carrier: carrierValidator.optional(),
     serials: z
       .array(
         z.object({
@@ -102,6 +110,11 @@ export const fulfilmentUpdateSchema = z
       .max(CART_MAX_LINES * CART_MAX_LINE_QUANTITY)
       .optional(),
   })
-  .refine((data) => data.status !== undefined || data.trackingNumber !== undefined || data.serials !== undefined, {
-    message: MESSAGE_NOTHING_TO_UPDATE,
-  });
+  .refine(
+    (data) =>
+      data.status !== undefined ||
+      data.trackingNumber !== undefined ||
+      data.carrier !== undefined ||
+      data.serials !== undefined,
+    { message: MESSAGE_NOTHING_TO_UPDATE },
+  );

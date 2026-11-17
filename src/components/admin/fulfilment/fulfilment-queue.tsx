@@ -19,7 +19,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetFulfilmentOrders, useUpdateFulfilment } from "@/hooks/use-order";
 import { apiFieldErrors } from "@/lib/api/api-client";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { ADMIN_PAGE_SIZE, SERIAL_NUMBER_MAX_LENGTH, TRACKING_NUMBER_MAX_LENGTH } from "@/lib/constants";
+import {
+  ADMIN_PAGE_SIZE,
+  CARRIER_MAX_LENGTH,
+  SERIAL_NUMBER_MAX_LENGTH,
+  TRACKING_NUMBER_MAX_LENGTH,
+} from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
 import {
@@ -91,7 +96,7 @@ export function FulfilmentQueue() {
             {items.map((order) => (
               <li key={order.number} className="border-b border-line last:border-b-0">
                 <QueueRow
-                  key={`${order.status}|${order.trackingNumber}|${orderDevices(order).map(({ device }) => device.serialNumber ?? "").join("|")}`}
+                  key={`${order.status}|${order.carrier}|${order.trackingNumber}|${orderDevices(order).map(({ device }) => device.serialNumber ?? "").join("|")}`}
                   order={order}
                   canEdit={canEdit}
                   linkToOrder={canViewOrders}
@@ -144,6 +149,7 @@ function QueueRow({
   linkToOrder: boolean;
 }) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber);
+  const [carrier, setCarrier] = useState(order.carrier);
   const devices = orderDevices(order);
   const [serials, setSerials] = useState<Record<string, string>>(() =>
     Object.fromEntries(devices.map(({ device }) => [device.id, device.serialNumber ?? ""])),
@@ -152,6 +158,7 @@ function QueueRow({
   const updateFulfilment = useUpdateFulfilment();
   const next = nextFulfilmentStatus(order.status);
   const trackingChanged = trackingNumber !== order.trackingNumber;
+  const carrierChanged = carrier !== order.carrier;
   const changedSerials = devices
     .filter(({ device }) => (serials[device.id] ?? "") !== (device.serialNumber ?? ""))
     .map(({ device }) => ({ deviceId: device.id, serialNumber: serials[device.id] ?? "" }));
@@ -164,12 +171,13 @@ function QueueRow({
         number: order.number,
         ...(status ? { status } : {}),
         ...(trackingChanged ? { trackingNumber } : {}),
+        ...(carrierChanged ? { carrier } : {}),
         ...(serialsChanged ? { serials: changedSerials } : {}),
       },
       {
         onError: (failure) => {
           const fields = apiFieldErrors(failure);
-          setError(fields.trackingNumber?.[0] ?? fields.serials?.[0] ?? fields.status?.[0] ?? failure.message);
+          setError(fields.trackingNumber?.[0] ?? fields.carrier?.[0] ?? fields.serials?.[0] ?? fields.status?.[0] ?? failure.message);
         },
       },
     );
@@ -216,6 +224,15 @@ function QueueRow({
         <form onSubmit={handleSubmit} className="flex flex-col gap-1">
           <div className="flex flex-wrap gap-2">
             <Input
+              value={carrier}
+              onChange={(event) => setCarrier(event.target.value)}
+              maxLength={CARRIER_MAX_LENGTH}
+              placeholder="Carrier"
+              aria-label={`Carrier for ${order.number}`}
+              aria-invalid={Boolean(error) || undefined}
+              className="h-10 min-w-32 flex-1"
+            />
+            <Input
               value={trackingNumber}
               onChange={(event) => setTrackingNumber(event.target.value)}
               maxLength={TRACKING_NUMBER_MAX_LENGTH}
@@ -224,7 +241,7 @@ function QueueRow({
               aria-invalid={Boolean(error) || undefined}
               className="h-10 min-w-40 flex-1 font-mono"
             />
-            {(trackingChanged || serialsChanged) && (
+            {(trackingChanged || carrierChanged || serialsChanged) && (
               <Button type="submit" variant="outline" size="sm" loading={saving} disabled={updateFulfilment.isPending}>
                 Save
               </Button>
@@ -259,6 +276,7 @@ function QueueRow({
         </form>
       ) : (
         <div>
+          {order.carrier && <p className="text-sm text-ink-secondary">{order.carrier}</p>}
           <p className="font-mono text-sm text-ink-secondary">{order.trackingNumber || "No tracking number"}</p>
           {devices.map(({ item, device }) => (
             <p key={device.id} className="mt-0.5 truncate font-mono text-xs text-ink-muted">

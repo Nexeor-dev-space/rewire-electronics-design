@@ -92,6 +92,7 @@ export interface OrderDetail {
   deliveredAt: string | null;
   returnableUntil: string | null;
   trackingNumber: string;
+  carrier: string;
   contact: OrderContact;
   address: OrderAddress;
   lines: OrderLine[];
@@ -140,6 +141,7 @@ export interface AdminOrderRow {
   total: number;
   lineCount: number;
   trackingNumber: string;
+  carrier: string;
   placedAsGuest: boolean;
   items: AdminOrderRowItem[];
 }

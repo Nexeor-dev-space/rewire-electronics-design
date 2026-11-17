@@ -27,6 +27,7 @@ import {
   ORDER_NOTE_MAX_LENGTH,
   STAFF_NOTE_MAX_LENGTH,
   TRACKING_NUMBER_MAX_LENGTH,
+  CARRIER_MAX_LENGTH,
 } from "@/lib/constants";
 import { DELIVERY_METHOD_LABELS, formatEta } from "@/lib/delivery";
 import { emirateLabel } from "@/lib/emirates";
@@ -152,7 +153,7 @@ function OrderDetailBody({ order, canEdit }: { order: AdminOrderDetail; canEdit:
             )}
           </dl>
           {canEdit ? (
-            <TrackingAndNoteForm key={`${order.trackingNumber}|${order.staffNote}`} order={order} />
+            <TrackingAndNoteForm key={`${order.carrier}|${order.trackingNumber}|${order.staffNote}`} order={order} />
           ) : (
             <TrackingAndNoteView order={order} />
           )}
@@ -412,13 +413,15 @@ function PaymentActions({ order }: { order: AdminOrderDetail }) {
 function TrackingAndNoteForm({ order }: { order: AdminOrderDetail }) {
   const id = useId();
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber);
+  const [carrier, setCarrier] = useState(order.carrier);
   const [staffNote, setStaffNote] = useState(order.staffNote);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const updateOrder = useUpdateOrder();
 
   const trackingChanged = trackingNumber !== order.trackingNumber;
+  const carrierChanged = carrier !== order.carrier;
   const noteChanged = staffNote !== order.staffNote;
-  const hasFieldErrors = Boolean(errors.trackingNumber || errors.staffNote);
+  const hasFieldErrors = Boolean(errors.trackingNumber || errors.carrier || errors.staffNote);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -427,6 +430,7 @@ function TrackingAndNoteForm({ order }: { order: AdminOrderDetail }) {
       {
         number: order.number,
         ...(trackingChanged ? { trackingNumber } : {}),
+        ...(carrierChanged ? { carrier } : {}),
         ...(noteChanged ? { staffNote } : {}),
       },
       { onError: (error) => setErrors(apiFieldErrors(error)) },
@@ -435,6 +439,21 @@ function TrackingAndNoteForm({ order }: { order: AdminOrderDetail }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4 border-t border-line pt-5">
+      <Field
+        id={`${id}-carrier`}
+        label="Carrier"
+        hint="Shown to the customer and in the dispatched email."
+        error={errors.carrier?.[0]}
+      >
+        <Input
+          id={`${id}-carrier`}
+          value={carrier}
+          onChange={(event) => setCarrier(event.target.value)}
+          maxLength={CARRIER_MAX_LENGTH}
+          aria-invalid={Boolean(errors.carrier) || undefined}
+          className="h-10"
+        />
+      </Field>
       <Field
         id={`${id}-tracking`}
         label="Tracking number"
@@ -467,7 +486,7 @@ function TrackingAndNoteForm({ order }: { order: AdminOrderDetail }) {
       </Field>
       {updateOrder.isError && !hasFieldErrors && <FieldError>{updateOrder.error.message}</FieldError>}
       <div>
-        <Button type="submit" size="sm" loading={updateOrder.isPending} disabled={!trackingChanged && !noteChanged}>
+        <Button type="submit" size="sm" loading={updateOrder.isPending} disabled={!trackingChanged && !carrierChanged && !noteChanged}>
           Save
         </Button>
       </div>
@@ -478,6 +497,7 @@ function TrackingAndNoteForm({ order }: { order: AdminOrderDetail }) {
 function TrackingAndNoteView({ order }: { order: AdminOrderDetail }) {
   return (
     <dl className="mt-3 border-t border-line pt-3">
+      <Row label="Carrier">{order.carrier || "Not set"}</Row>
       <Row label="Tracking number">
         <span className="font-mono">{order.trackingNumber || "Not set"}</span>
       </Row>

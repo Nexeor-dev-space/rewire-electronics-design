@@ -39,6 +39,8 @@ model Order {
   deliveredAt             DateTime?
   returnableUntil         DateTime?
   trackingNumber          String        @default("")
+  /// Courier staff entered with the tracking number; shown in the dispatched email.
+  carrier                 String        @default("")
   staffNote               String        @default("")
   /// Stripe PaymentIntent (`pi_…`) that paid the order; null for cash on delivery or unpaid. See docs/PAYMENTS.md.
   stripePaymentIntentId   String?       @unique

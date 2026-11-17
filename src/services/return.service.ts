@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { accountOrdersWhere } from "@/lib/orders";
 import { generateReference } from "@/lib/reference-number";
+import { notifyRefundIssued, notifyReturnDecision, notifyReturnReceived } from "@/services/customer-email.service";
 import {
   ACTIVE_RETURN_STATUSES,
   CLOSED_RETURN_STATUSES,
@@ -382,6 +383,7 @@ export async function createReturn(viewer: Viewer, input: CreateReturnData): Pro
   for (let attempt = 1; ; attempt += 1) {
     try {
       const row = await prisma.$transaction((tx) => createInTransaction(tx, viewer, input));
+      await notifyReturnReceived(row.number);
       return toCustomerReturn(row);
     } catch (error) {
       if (!isUniqueViolation(error) || attempt >= REFERENCE_NUMBER_ATTEMPTS) throw error;
@@ -453,6 +455,7 @@ export async function changeReturnStatus(
 
     await tx.returnStatusEvent.create({ data: { returnRequestId: row.id, status: to, note, actorId } });
   });
+  await notifyReturnDecision(number, to, note);
   return getAdminReturn(number);
 }
 
@@ -510,5 +513,6 @@ export async function recordRefund(
       },
     });
   });
+  await notifyRefundIssued(number);
   return getAdminReturn(number);
 }
