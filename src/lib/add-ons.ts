@@ -206,13 +206,6 @@ export function addOnsFor(category: string | undefined): AddOn[] {
   return [...specific, ...universal].slice(0, MAX_ADD_ONS);
 }
 
-/** Sum of the selected add-ons, in minor units. */
-export function addOnsTotal(addOns: AddOn[], selectedIds: string[]): number {
-  return addOns
-    .filter((addOn) => selectedIds.includes(addOn.id))
-    .reduce((total, addOn) => total + addOn.price, 0);
-}
-
 /**
  * Nothing is ticked on load — see the note on `popular`. Kept as a
  * function rather than an inlined `[]` so the panel has one obvious place
