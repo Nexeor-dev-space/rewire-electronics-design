@@ -21,8 +21,8 @@ import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 /**
  * Per size: piece count; how far pieces travel (sideways spread, upward lift,
  * then the fall below their peak) and in which units; how close to the origin
- * a piece may land (0 to 1 of the full reach); how long it runs and when in
- * that run the pieces peak (0 to 1); the overlay
+ * a piece may land (0 to 1 of the full reach); how long it runs, the window
+ * the pieces launch across, and when in that run the pieces peak (0 to 1); the overlay
  * and origin classes; and the piece shapes.
  */
 const SIZES = {
@@ -35,6 +35,7 @@ const SIZES = {
     yUnit: "px",
     minReach: 0.55,
     duration: DURATION.slow,
+    stagger: 0,
     peakAt: 0.6,
     overlay: "absolute inset-0 overflow-visible",
     origin: "left-1/2 top-1/2",
@@ -50,6 +51,9 @@ const SIZES = {
     yUnit: "vh",
     minReach: 0.2,
     duration: DURATION.cinematic,
+    // Pieces launch across this window, so the shower lasts about twice
+    // `cinematic` while each piece stays on the duration scale.
+    stagger: DURATION.cinematic,
     // Peak early so most of the run is the fall across the screen.
     peakAt: 0.35,
     // Above the header (z-50), below dialogs (z-[80]) and the toast (z-[90]).
@@ -74,7 +78,7 @@ interface Piece {
 }
 
 function makePieces(size: ConfettiSize): Piece[] {
-  const { count, spread, lift, minReach } = SIZES[size];
+  const { count, spread, lift, minReach, stagger } = SIZES[size];
   return Array.from({ length: count }, (_, index) => {
     // Fan across the upper half, jittered so it never looks like a pattern.
     const angle = Math.PI + (index / (count - 1)) * Math.PI + (Math.random() - 0.5) * 0.4;
@@ -83,8 +87,7 @@ function makePieces(size: ConfettiSize): Piece[] {
       x: Math.cos(angle) * spread * reach,
       y: Math.sin(angle) * lift * reach,
       rotate: (Math.random() - 0.5) * 540,
-      // A small stagger so a large burst reads as a pop, not a single frame.
-      delay: size === "screen" ? Math.random() * DURATION.fast : 0,
+      delay: Math.random() * stagger,
       colour: COLOURS[index % COLOURS.length],
       round: index % 3 === 0,
     };
