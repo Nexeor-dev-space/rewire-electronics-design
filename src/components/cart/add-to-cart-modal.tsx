@@ -29,14 +29,24 @@ import { LineAddOns, toggledAddOnIds } from "./cart-line";
  * resolves to the palette the brief calls for, without disturbing the
  * light-first tokens the rest of the site sits on.
  *
- * A side panel that slides in from the right on every width, the same
- * shape and motion as the shop's filter drawer (`filter-drawer.tsx`):
- * full height, full width on phones, capped from there up. The add-on
- * list scrolls between a fixed header and footer.
+ * On phones it is a bottom sheet that covers at most half the screen and
+ * slides up, so the page the shopper was on stays in view above it. From
+ * `sm` up it is a full height side panel from the right, the same shape
+ * and motion as the shop's filter drawer (`filter-drawer.tsx`). Either
+ * way the add-on list scrolls between a fixed header and footer.
  */
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/** Tailwind's `sm` breakpoint: from here up the panel slides in from the side. */
+const SIDE_PANEL_QUERY = "(min-width: 40rem)";
+
+/** Where the panel slides from: the right edge, or the bottom on phones. */
+function hiddenOffset() {
+  const sidePanel = typeof window !== "undefined" && window.matchMedia(SIDE_PANEL_QUERY).matches;
+  return sidePanel ? { x: "100%" } : { y: "100%" };
+}
 
 export function AddToCartModal() {
   const { latest, isOpen, close } = useCartFeedback();
@@ -95,6 +105,8 @@ export function AddToCartModal() {
 
   const showPanel = isOpen && Boolean(latest && line);
   const transition = { duration: prefersReduced ? 0 : DURATION.base, ease: EASE_OUT_EXPO };
+  const hidden = prefersReduced ? { opacity: 0 } : hiddenOffset();
+  const shown = prefersReduced ? { opacity: 1 } : { x: 0, y: 0 };
 
   return (
     <AnimatePresence>
@@ -120,20 +132,29 @@ export function AddToCartModal() {
             aria-labelledby="add-to-cart-title"
             tabIndex={-1}
             onKeyDown={handleKeyDown}
-            initial={prefersReduced ? { opacity: 0 } : { x: "100%" }}
-            animate={prefersReduced ? { opacity: 1 } : { x: 0 }}
-            exit={prefersReduced ? { opacity: 0 } : { x: "100%" }}
+            initial={hidden}
+            animate={shown}
+            exit={hidden}
             transition={transition}
             key={latest.nonce}
             className={cn(
               // Scoped commerce dark palette — every token below resolves
               // to the transactional palette defined in globals.css.
               "commerce-dark",
-              "absolute inset-y-0 right-0 flex w-full max-w-[26rem] flex-col overflow-hidden",
+              "absolute bottom-0 right-0 flex w-full flex-col overflow-hidden",
               "pb-[env(safe-area-inset-bottom)]",
-              "bg-surface text-ink border-l border-line shadow-[0_24px_48px_rgb(0_0_0/0.45)]",
+              "bg-surface text-ink border-line shadow-[0_24px_48px_rgb(0_0_0/0.45)]",
+              // Bottom sheet on phones, at most half the screen tall
+              "max-h-[50dvh] rounded-t-3xl border-t",
+              // Full height side panel from sm
+              "sm:top-0 sm:max-h-none sm:max-w-[26rem] sm:rounded-none sm:border-t-0 sm:border-l",
             )}
           >
+            {/* Grabber (phones only) */}
+            <div className="pt-2.5 sm:hidden" aria-hidden>
+              <span className="mx-auto block h-1 w-10 rounded-full bg-white/15" />
+            </div>
+
             <ModalHeader onClose={close} />
 
             {/*
@@ -141,8 +162,8 @@ export function AddToCartModal() {
               swallowing wheel/touch events inside the modal body — the
               add-on list needs to scroll on its own when it overflows.
             */}
-            <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="px-5 pb-2 max-[22rem]:px-3 sm:px-7">
+            <div data-lenis-prevent className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="px-4 pb-2 max-[22rem]:px-3 sm:px-7">
                 <AddedProduct line={line} />
 
                 <LineAddOns
@@ -180,7 +201,7 @@ export function AddToCartModal() {
 
 function ModalHeader({ onClose }: { onClose: () => void }) {
   return (
-    <header className="flex items-center justify-between gap-4 px-5 pb-4 pt-5 max-[22rem]:px-3 sm:px-7 sm:pt-6">
+    <header className="flex items-center justify-between gap-4 px-4 pb-1 pt-1 max-[22rem]:px-3 sm:px-7 sm:pb-4 sm:pt-6">
       <p
         id="add-to-cart-title"
         className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-ink-secondary"
@@ -218,15 +239,17 @@ function AddedProduct({ line }: { line: CartLine }) {
   const { productName, brand, imageUrl, imageAlt, quantity } = line;
   const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
   return (
-    <article className="flex items-start gap-4 max-[22rem]:flex-col max-[22rem]:gap-3 sm:gap-5">
-      <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:size-28">
+    // Compact on phones, where the sheet is at most half the screen and
+    // the room belongs to the add-ons below.
+    <article className="flex items-start gap-3 sm:gap-5">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:size-28">
         {imageUrl && (
           <Image
             src={imageUrl}
             alt={imageAlt}
             fill
             sizes="112px"
-            className="object-contain p-3"
+            className="object-contain p-2 sm:p-3"
           />
         )}
       </div>
@@ -235,15 +258,15 @@ function AddedProduct({ line }: { line: CartLine }) {
         <p className="break-words font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-muted">
           {brand}
         </p>
-        <h2 className="mt-1 text-[1.125rem] font-medium leading-tight tracking-[-0.01em] text-ink [overflow-wrap:anywhere] sm:text-[1.25rem]">
+        <h2 className="mt-0.5 text-base font-medium leading-tight tracking-[-0.01em] text-ink [overflow-wrap:anywhere] sm:mt-1 sm:text-[1.25rem]">
           {productName}
         </h2>
-        <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+        <p className="mt-0.5 text-[0.8125rem] text-ink-secondary sm:mt-1">
           {variantLabel}
         </p>
 
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-[1.125rem] font-medium tabular-nums text-ink">
+        <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 sm:mt-3">
+          <p className="text-base font-medium tabular-nums text-ink sm:text-[1.125rem]">
             {formatMoney(line.lineTotal)}
           </p>
           {quantity > 1 && (
@@ -267,7 +290,8 @@ function AddedBadge() {
       initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: prefersReduced ? 0 : 0.08, duration: 0.22 }}
-      className="mt-3 inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-live"
+      // Hidden on phones: the header already says "Added to your cart".
+      className="mt-3 hidden items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-live sm:inline-flex"
     >
       <svg
         aria-hidden
@@ -300,7 +324,7 @@ function ModalFooter({
   onContinue: () => void;
 }) {
   return (
-    <footer className="border-t border-line bg-void/60 px-5 pb-5 pt-4 max-[22rem]:px-3 sm:px-7 sm:pb-7 sm:pt-5">
+    <footer className="border-t border-line bg-void/60 px-4 py-3 max-[22rem]:px-3 sm:px-7 sm:pb-7 sm:pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-ink-secondary">
           {cartCount} {cartCount === 1 ? "item" : "items"} in your cart
@@ -313,18 +337,20 @@ function ModalFooter({
         </p>
       </div>
 
-      <div className="mt-4 grid gap-2.5 sm:grid-cols-[1fr_1.4fr]">
+      {/* Side by side on every width, so the half height sheet on phones
+          keeps its room for the add-ons rather than two stacked buttons. */}
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-[1fr_1.4fr] sm:gap-2.5">
         <button
           type="button"
           onClick={onContinue}
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-line-strong px-5 py-2 text-center text-sm font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5"
+          className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border border-line-strong px-3 py-1.5 text-center text-[0.8125rem] font-medium text-ink transition-colors duration-(--duration-fast) hover:bg-white/5 sm:min-h-12 sm:px-5 sm:py-2 sm:text-sm"
         >
           Continue Shopping
         </button>
         <Link
           href={CART_PAGE_PATH}
           onClick={onContinue}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-medium text-white transition-colors duration-(--duration-fast) hover:bg-accent-hover"
+          className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-accent px-3 py-1.5 text-[0.8125rem] font-medium text-white transition-colors duration-(--duration-fast) hover:bg-accent-hover sm:min-h-12 sm:px-5 sm:py-2 sm:text-sm"
         >
           View Cart
           <svg
