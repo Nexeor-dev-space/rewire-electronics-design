@@ -51,9 +51,9 @@ const SIZES = {
     yUnit: "vh",
     minReach: 0.2,
     duration: DURATION.cinematic,
-    // Pieces launch across this window, so the shower lasts about twice
-    // `cinematic` while each piece stays on the duration scale.
-    stagger: DURATION.cinematic,
+    // Pieces launch across this window, so the shower lasts about 2 s
+    // while each piece stays on the duration scale.
+    stagger: DURATION.slow,
     // Peak early so most of the run is the fall across the screen.
     peakAt: 0.35,
     // Above the header (z-50), below dialogs (z-[80]) and the toast (z-[90]).
