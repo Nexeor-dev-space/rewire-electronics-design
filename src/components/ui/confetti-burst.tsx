@@ -5,69 +5,124 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 
 /**
- * ConfettiBurst — a small, subtle confetti pop for "added to cart".
+ * ConfettiBurst — a short confetti pop.
  *
- * Place it inside a `relative` element (the button's wrapper); it covers
- * that box and never takes clicks. Each time `trigger` increases, about a
- * dozen tiny pieces fly up and out from the centre, tumble and fade. With
- * reduced motion it renders nothing.
+ * Each time `trigger` increases, pieces fly up and out from the origin,
+ * tumble, fall and fade. It never takes clicks and is hidden from screen
+ * readers. With reduced motion it renders nothing.
+ *
+ * `size="sm"` (default): the subtle pop on "added to cart". Place it inside a
+ * `relative` element (the button's wrapper); it covers that box.
+ *
+ * `size="screen"`: the celebration after a successful purchase. It covers the
+ * whole viewport, so it can sit anywhere in the page.
  */
 
-const PIECE_COUNT = 14;
-/** How far pieces travel, in px: sideways spread and upward lift. */
-const SPREAD_PX = 70;
-const LIFT_PX = 46;
-/** After rising, pieces fall back this far below where they peaked. */
-const FALL_PX = 18;
+/**
+ * Per size: piece count; how far pieces travel (sideways spread, upward lift,
+ * then the fall below their peak) and in which units; how close to the origin
+ * a piece may land (0 to 1 of the full reach); how long it runs and when in
+ * that run the pieces peak (0 to 1); the overlay
+ * and origin classes; and the piece shapes.
+ */
+const SIZES = {
+  sm: {
+    count: 14,
+    spread: 70,
+    lift: 46,
+    fall: 18,
+    xUnit: "px",
+    yUnit: "px",
+    minReach: 0.55,
+    duration: DURATION.slow,
+    peakAt: 0.6,
+    overlay: "absolute inset-0 overflow-visible",
+    origin: "left-1/2 top-1/2",
+    round: "size-1.5 rounded-full",
+    strip: "h-1 w-2 rounded-[1px]",
+  },
+  screen: {
+    count: 90,
+    spread: 50,
+    lift: 40,
+    fall: 55,
+    xUnit: "vw",
+    yUnit: "vh",
+    minReach: 0.2,
+    duration: DURATION.cinematic,
+    // Peak early so most of the run is the fall across the screen.
+    peakAt: 0.35,
+    // Above the header (z-50), below dialogs (z-[80]) and the toast (z-[90]).
+    overlay: "fixed inset-0 z-[60] overflow-hidden",
+    origin: "left-1/2 top-2/5",
+    round: "size-2.5 rounded-full",
+    strip: "h-2 w-3.5 rounded-[2px]",
+  },
+} as const;
+
+type ConfettiSize = keyof typeof SIZES;
+
 const COLOURS = ["bg-love", "bg-live", "bg-warn", "bg-ink", "bg-accent"] as const;
 
 interface Piece {
   x: number;
   y: number;
   rotate: number;
+  delay: number;
   colour: (typeof COLOURS)[number];
   round: boolean;
 }
 
-function makePieces(): Piece[] {
-  return Array.from({ length: PIECE_COUNT }, (_, index) => {
+function makePieces(size: ConfettiSize): Piece[] {
+  const { count, spread, lift, minReach } = SIZES[size];
+  return Array.from({ length: count }, (_, index) => {
     // Fan across the upper half, jittered so it never looks like a pattern.
-    const angle = Math.PI + (index / (PIECE_COUNT - 1)) * Math.PI + (Math.random() - 0.5) * 0.4;
-    const reach = 0.55 + Math.random() * 0.45;
+    const angle = Math.PI + (index / (count - 1)) * Math.PI + (Math.random() - 0.5) * 0.4;
+    const reach = minReach + Math.random() * (1 - minReach);
     return {
-      x: Math.cos(angle) * SPREAD_PX * reach,
-      y: Math.sin(angle) * LIFT_PX * reach,
+      x: Math.cos(angle) * spread * reach,
+      y: Math.sin(angle) * lift * reach,
       rotate: (Math.random() - 0.5) * 540,
+      // A small stagger so a large burst reads as a pop, not a single frame.
+      delay: size === "screen" ? Math.random() * DURATION.fast : 0,
       colour: COLOURS[index % COLOURS.length],
       round: index % 3 === 0,
     };
   });
 }
 
-export function ConfettiBurst({ trigger }: { trigger: number }) {
+export function ConfettiBurst({ trigger, size = "sm" }: { trigger: number; size?: ConfettiSize }) {
   const reduceMotion = useReducedMotion();
   // New random pieces for each burst.
-  const pieces = useMemo(() => (trigger > 0 ? makePieces() : []), [trigger]);
+  const pieces = useMemo(() => (trigger > 0 ? makePieces(size) : []), [trigger, size]);
+  const config = SIZES[size];
+  const x = (value: number) => `${value}${config.xUnit}`;
+  const y = (value: number) => `${value}${config.yUnit}`;
 
   if (reduceMotion) return null;
 
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">
+    <span aria-hidden className={`pointer-events-none ${config.overlay}`}>
       <AnimatePresence>
         {trigger > 0 &&
           pieces.map((piece, index) => (
             <motion.span
               key={`${trigger}-${index}`}
-              className={`absolute left-1/2 top-1/2 ${piece.round ? "size-1.5 rounded-full" : "h-1 w-2 rounded-[1px]"} ${piece.colour}`}
-              initial={{ x: 0, y: 0, opacity: 1, rotate: 0, scale: 0.6 }}
+              className={`absolute ${config.origin} ${piece.round ? config.round : config.strip} ${piece.colour}`}
+              initial={{ x: x(0), y: y(0), opacity: 1, rotate: 0, scale: 0.6 }}
               animate={{
-                x: piece.x,
-                y: [0, piece.y, piece.y + FALL_PX],
+                x: x(piece.x),
+                y: [y(0), y(piece.y), y(piece.y + config.fall)],
                 opacity: [1, 1, 0],
                 rotate: piece.rotate,
                 scale: 1,
               }}
-              transition={{ duration: DURATION.slow, ease: EASE_OUT_EXPO, times: [0, 0.6, 1] }}
+              transition={{
+                duration: config.duration,
+                delay: piece.delay,
+                ease: EASE_OUT_EXPO,
+                times: [0, config.peakAt, 1],
+              }}
             />
           ))}
       </AnimatePresence>
