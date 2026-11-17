@@ -157,9 +157,16 @@ functions in `support.service.ts`, `CUSTOMER_NOTIFIED_STATUSES` and
 ## 8. Screens
 
 1. List: search, filters for status, priority, category and assigned staff,
-   sort by created or last updated, pagination. New tickets (under a day old)
-   and tickets awaiting a staff reply are highlighted; resolved and closed
-   rows are muted.
+   sort by created or last updated, pagination. The filters sit in an even
+   grid. New tickets (under a day old) and tickets awaiting a staff reply are
+   highlighted; resolved and closed rows are muted; rows have a hover state.
+   From `xl` up it is a seven column table (`COLUMNS` in
+   `support-management.tsx`): ticket, customer, category with order,
+   assignee, status with priority, dates, and actions. Subject, customer and
+   email wrap instead of being cut off. Actions are two full width compact
+   buttons, View and Assign (Assign needs Edit). There is no separate Edit
+   button, since it opened the same page as View. Under `xl` each row is a two
+   column card and every value shows its own label (`Cell`).
 2. Ticket page: a Request details list of what the customer filled in (name,
    email, phone, subject, category, related order), the message, history, a
    Manage panel for status, priority and assignment, ticket details, and the

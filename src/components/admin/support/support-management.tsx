@@ -35,9 +35,14 @@ import { AssignTicketDialog } from "./assign-ticket-dialog";
 import { CategoriesDialog } from "./categories-dialog";
 import { NewTicketDialog } from "./new-ticket-dialog";
 
+/**
+ * Seven columns from `xl` up: ticket, customer, category with order, assignee,
+ * status with priority, dates and actions. Under `xl` each row becomes a two
+ * column card whose cells carry their own label (see `Cell`).
+ */
 const COLUMNS =
-  "xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_6rem_minmax(0,1fr)_minmax(0,1fr)_5rem_6rem_6rem_8rem_10rem]";
-
+  "xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_8rem_6.5rem_5.5rem]";
+const ACTION_BUTTON_CLASS = "w-full justify-center";
 
 export function TicketStatusPill({ status }: { status: TicketStatus }) {
   return <StatusPill tone={ticketStatusTone(status)}>{TICKET_STATUS_LABELS[status]}</StatusPill>;
@@ -173,16 +178,16 @@ export function SupportManagement() {
         </div>
       }
     >
-      <div className="mb-5 flex flex-wrap gap-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Input
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder="Ticket ID, customer, email or subject"
           aria-label="Search tickets"
-          className="h-10 sm:w-80"
+          className="h-10 w-full sm:col-span-2"
         />
-        <Select value={status} onChange={filter(setStatus)} aria-label="Filter by status" className="h-10 sm:w-44">
+        <Select value={status} onChange={filter(setStatus)} aria-label="Filter by status" className="h-10 w-full">
           <option value="">All statuses</option>
           {TICKET_STATUSES.map((value) => (
             <option key={value} value={value}>
@@ -194,7 +199,7 @@ export function SupportManagement() {
           value={priority}
           onChange={filter(setPriority)}
           aria-label="Filter by priority"
-          className="h-10 sm:w-40"
+          className="h-10 w-full"
         >
           <option value="">All priorities</option>
           {TICKET_PRIORITIES.map((value) => (
@@ -207,7 +212,7 @@ export function SupportManagement() {
           value={categoryId}
           onChange={filter(setCategoryId)}
           aria-label="Filter by category"
-          className="h-10 sm:w-52"
+          className="h-10 w-full"
         >
           <option value="">All categories</option>
           {categories.data?.map((category) => (
@@ -220,7 +225,7 @@ export function SupportManagement() {
           value={assignee}
           onChange={filter(setAssignee)}
           aria-label="Filter by assigned staff"
-          className="h-10 sm:w-48"
+          className="h-10 w-full"
         >
           <option value="">All staff</option>
           <option value={TICKET_ASSIGNEE_ME}>Assigned to me</option>
@@ -235,7 +240,7 @@ export function SupportManagement() {
           value={sort}
           onChange={filter(setSort)}
           aria-label="Sort tickets"
-          className="h-10 sm:w-52"
+          className="h-10 w-full"
         >
           {TICKET_SORTS.map((value) => (
             <option key={value} value={value}>
@@ -272,68 +277,89 @@ function TicketTableRow({
   return (
     <div
       className={cn(
-        "grid gap-x-4 gap-y-1 border-l-2 px-5 py-4 xl:items-center",
+        "grid grid-cols-2 gap-x-4 gap-y-4 border-l-2 px-5 py-4 transition-colors duration-(--duration-fast) xl:items-center xl:gap-y-0",
         COLUMNS,
-        attention ? "border-l-accent bg-accent/5" : "border-l-transparent",
+        attention
+          ? "border-l-accent bg-accent/5 hover:bg-accent/10"
+          : "border-l-transparent hover:bg-surface-2",
         !isUnresolved(row.status) && "text-ink-muted",
       )}
     >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <Link href={ticketHref(row.number)} className="truncate font-mono text-sm font-medium text-ink hover:underline">
+      <Cell label="Ticket" className="col-span-2 xl:col-span-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={ticketHref(row.number)} className="font-mono text-sm font-medium text-ink hover:underline">
             {row.number}
           </Link>
           {row.isNew && <StatusPill tone="accent">New</StatusPill>}
           {row.needsReply && !row.isNew && <StatusPill tone="warn">Awaiting reply</StatusPill>}
         </div>
-        <p className="mt-0.5 truncate text-sm text-ink-secondary">{row.subject}</p>
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm text-ink">{row.customerName}</p>
-        <p className="mt-0.5 truncate text-xs text-ink-muted">{row.customerEmail}</p>
-      </div>
-      <p className="truncate font-mono text-xs text-ink-secondary">{row.orderNumber ?? "None"}</p>
-      <p className="truncate text-sm text-ink-secondary">{row.categoryName}</p>
-      <p className="truncate text-sm text-ink-secondary">{row.assigneeName ?? "Unassigned"}</p>
-      <div>
-        <TicketPriorityPill priority={row.priority} />
-      </div>
-      <p className="text-sm tabular-nums text-ink-secondary">{formatOrderDate(row.createdAt)}</p>
-      <p className="text-sm tabular-nums text-ink-secondary">{formatOrderDate(row.updatedAt)}</p>
-      <div>
-        <TicketStatusPill status={row.status} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={ticketHref(row.number)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-          View
-        </Link>
-        {canEdit && (
-          <>
-            <Link href={ticketHref(row.number)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              Edit
-            </Link>
-            <Button variant="outline" size="sm" onClick={onAssign}>
+        <p className="mt-1 line-clamp-2 break-words text-sm text-ink-secondary">{row.subject}</p>
+      </Cell>
+
+      <Cell label="Customer">
+        <p className="break-words text-sm text-ink">{row.customerName}</p>
+        <p className="mt-0.5 break-all text-xs text-ink-muted">{row.customerEmail}</p>
+      </Cell>
+
+      <Cell label="Category">
+        <p className="break-words text-sm text-ink-secondary">{row.categoryName}</p>
+        <p className="mt-0.5 font-mono text-xs text-ink-muted">{row.orderNumber ?? "No order"}</p>
+      </Cell>
+
+      <Cell label="Assigned to">
+        <p className="break-words text-sm text-ink-secondary">{row.assigneeName ?? "Unassigned"}</p>
+      </Cell>
+
+      <Cell label="Status">
+        <div className="flex flex-wrap gap-1.5 xl:flex-col xl:items-start">
+          <TicketStatusPill status={row.status} />
+          <TicketPriorityPill priority={row.priority} />
+        </div>
+      </Cell>
+
+      <Cell label="Created">
+        <p className="text-sm tabular-nums text-ink-secondary">{formatOrderDate(row.createdAt)}</p>
+        <p className="mt-0.5 text-xs tabular-nums text-ink-muted">Updated {formatOrderDate(row.updatedAt)}</p>
+      </Cell>
+
+      <Cell label="Actions" className="col-span-2 xl:col-span-1">
+        <div className="flex gap-2 xl:flex-col">
+          <Link
+            href={ticketHref(row.number)}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), ACTION_BUTTON_CLASS)}
+          >
+            View
+          </Link>
+          {canEdit && (
+            <Button variant="outline" size="sm" className={ACTION_BUTTON_CLASS} onClick={onAssign}>
               Assign
             </Button>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      </Cell>
+    </div>
+  );
+}
+
+/** One value in a row. Under `xl` it shows its own label, since the header row is hidden. */
+function Cell({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={cn("min-w-0", className)}>
+      <p className="eyebrow mb-1.5 xl:hidden">{label}</p>
+      {children}
     </div>
   );
 }
 
 function TableHeader() {
   return (
-    <div className={cn("hidden gap-4 border-b border-line bg-surface-2 px-5 py-3 xl:grid", COLUMNS)}>
+    <div className={cn("hidden gap-x-4 border-b border-line bg-surface-2 px-5 py-3 xl:grid", COLUMNS)}>
       <p className="eyebrow">Ticket</p>
       <p className="eyebrow">Customer</p>
-      <p className="eyebrow">Order</p>
-      <p className="eyebrow">Category</p>
-      <p className="eyebrow">Assigned</p>
-      <p className="eyebrow">Priority</p>
+      <p className="eyebrow">Category and order</p>
+      <p className="eyebrow">Assigned to</p>
+      <p className="eyebrow">Status and priority</p>
       <p className="eyebrow">Created</p>
-      <p className="eyebrow">Updated</p>
-      <p className="eyebrow">Status</p>
       <p className="eyebrow">Actions</p>
     </div>
   );
@@ -346,18 +372,33 @@ function TableSkeleton() {
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
-          className={cn("grid gap-x-4 gap-y-2 border-b border-line px-5 py-4 last:border-b-0", COLUMNS)}
+          className={cn("grid grid-cols-2 gap-x-4 gap-y-3 border-b border-line px-5 py-4 last:border-b-0", COLUMNS)}
         >
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-4 w-16" />
+          <div className="col-span-2 space-y-2 xl:col-span-1">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-36" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-20" />
+          </div>
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-8 w-28" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <div className="col-span-2 space-y-2 xl:col-span-1">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
         </div>
       ))}
     </div>
