@@ -13,13 +13,21 @@ environment. The auth flows that use these values are in [AUTH.md](AUTH.md).
 1. **Env** (`.env` locally, the Coolify environment in deployment) holds every
    value in section 3. They differ per environment and include secrets, so they
    are deployment values, not admin settings.
-2. **Nothing is read from the database.** Until 2026-10-12 SMTP, `EMAIL_FROM`,
+2. **No secret is read from the database.** Until 2026-10-12 SMTP, `EMAIL_FROM`,
    `APP_URL` and a DEV / LIVE mode were stored encrypted in the database and
    edited on an admin API Credentials screen. Staging never had them set, so
    every email was printed to the log instead of sent. The screen, its API and
    the `integration_settings` and `integration_credentials` tables were
    removed (migration `drop_integration_settings`).
-3. A change to any value needs a restart (Coolify redeploys on save).
+3. **Public IDs are read from the database.** The GA4 measurement ID, the
+   Microsoft Clarity project ID, the Google Search Console token and the Meta
+   Pixel ID are saved in the `integrations` table on the admin Integrations,
+   API Keys screen. They are not secrets: every storefront page prints them.
+4. **Email and Stripe stay in env.** Their values are secrets and differ per
+   environment, so by project rule they are deployment values. The same
+   screen shows their status read only and tests them, without showing any
+   secret. See [INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md).
+5. A change to any env value needs a restart (Coolify redeploys on save).
 
 Do not add a new env var without asking first (`CLAUDE.md`). A value an admin
 should change belongs in the database instead.
@@ -31,10 +39,11 @@ should change belongs in the database instead.
 | File | Purpose |
 | --- | --- |
 | `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `stripeEnv()`, `stripeWebhookEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv`, `parseStripeEnv`, `parseStripeWebhookEnv` (tested in `env.test.ts`) |
-| `src/lib/stripe.ts` | `stripeClient()`: the Stripe SDK with `STRIPE_SECRET_KEY` |
+| `src/lib/stripe.ts` | `stripeClient()`: the Stripe SDK with `STRIPE_SECRET_KEY`. `describeStripe(env)`: configured or not, live or test mode, webhook secret set or not, never echoing a value (tested in `stripe.test.ts`). `checkStripeKey()`: asks Stripe whether it accepts the key |
 | `src/lib/integration-config.ts` | `resolveIntegrationConfig(env, nodeEnv)`, `describeEmailTransport(config)`, `getIntegrationConfig()` (tested in `integration-config.test.ts`) |
 | `src/lib/email/send-email.ts` | `sendEmail`: sends, prints or refuses per the transport |
-| `src/lib/app-url.ts` | `appUrl(path)`: absolute links for emails |
+| `src/lib/app-url.ts` | `appUrl(path)`: absolute links for emails, and the homepage address the integration Tests open |
+| `src/services/integration.service.ts` | The Email and Stripe status and Tests on the Integrations, API Keys screen, through `getIntegrationConfig()`, `describeStripe(process.env)` and `checkStripeKey()` ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md)) |
 | `src/lib/db.ts`, `prisma/seed.ts`, `prisma7.config.ts` | Read `DATABASE_URL` through `env.ts` |
 | `src/lib/auth/sign.ts` | Reads `AUTH_SECRET` through `authEnv()` |
 
@@ -122,6 +131,21 @@ Quote values with spaces in `.env` to be safe:
 `EMAIL_FROM="Rewire <no-reply@rewire-electronics.com>"`.
 
 ---
+
+## 5a. Contact details and email footers
+
+Issue #155. The support email, phone number and WhatsApp number are not env
+values. Staff save them in Governance, VAT & Configuration, under Contact &
+invoice details, so a change needs no deploy. See [VAT.md](VAT.md). No env var
+was added.
+
+`sendEmail` in `src/lib/email/send-email.ts` reads the saved details
+(`getContactDetails`) and adds them to the foot of every email through
+`withContactFooter`: the support email and, when set, the phone and WhatsApp
+numbers. The text version gets the same lines. With nothing saved the email is
+unchanged. If the settings cannot be read, the email is still sent without the
+footer and the error is logged. The branded template in issue #154 only needs to
+keep calling `sendEmail` to get the footer.
 
 ## 6. Known limits
 

@@ -1,10 +1,9 @@
 import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
-import { getSession } from "@/lib/auth/session";
-import { readGuestTokenHash, type CartOwner } from "@/lib/cart-owner";
+import { authorizeApi } from "@/lib/auth/session";
 import { paysOnline } from "@/lib/orders";
-import { limitByIp, limitByUser } from "@/lib/rate-limit";
+import { limitByUser } from "@/lib/rate-limit";
 import { placeOrder, sendOrderConfirmation } from "@/services/checkout.service";
 import { startOnlinePayment } from "@/services/payment.service";
 import type { OrderDetail, PlacedOrder } from "@/types/order";
@@ -16,8 +15,11 @@ function awaitsOnlinePayment(order: OrderDetail): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    const limited = session ? limitByUser(session.user.id, "placeOrder") : limitByIp(req, "placeOrder");
+    const auth = await authorizeApi();
+    if (!auth.ok) return auth.response;
+    const { user } = auth.session;
+
+    const limited = limitByUser(user.id, "placeOrder");
     if (limited) return limited;
 
     const input = placeOrderSchema.safeParse(await req.json().catch(() => null));
@@ -26,14 +28,7 @@ export async function POST(req: NextRequest) {
         z.flattenError(input.error).fieldErrors);
     }
 
-    const tokenHash = session ? null : await readGuestTokenHash();
-    const owner: CartOwner = session
-      ? { kind: "user", userId: session.user.id }
-      : tokenHash
-        ? { kind: "guest", tokenHash }
-        : null;
-
-    const { order, created } = await placeOrder(owner, session?.user ?? null, input.data);
+    const { order, created } = await placeOrder({ kind: "user", userId: user.id }, user, input.data);
     if (created) {
       after(() =>
         sendOrderConfirmation(order).catch((error: unknown) =>

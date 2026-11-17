@@ -71,7 +71,7 @@ export function Featured({
               of the right column empty — the two blocks read as unrelated.
               `items-start` pins both to the same top edge, so the
               description sits as a sibling explainer beside the heading. */}
-          <div className="mt-8 grid gap-6 lg:grid-cols-12 lg:items-start">
+          <div className="mt-6 grid gap-4 lg:grid-cols-12 lg:items-start">
             <h2
               id="featured-heading"
               className="font-sans text-[clamp(2.25rem,4.2vw,3.5rem)] font-light leading-[1.03] tracking-[-0.035em] text-ink lg:col-span-6"
@@ -123,7 +123,7 @@ export function Featured({
             whileInView="visible"
             viewport={viewportOnce}
             variants={rise}
-            className="mt-16 flex justify-center lg:mt-20"
+            className="mt-10 flex justify-center lg:mt-12"
           >
             <Link
               href={section.ctaHref}

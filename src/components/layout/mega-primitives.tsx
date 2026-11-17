@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useContact } from "@/components/providers/contact-provider";
+import { formatPhoneDisplay, hoursLines, mailtoHref, telHref, whatsappHref } from "@/lib/contact";
 import { supportContact, type MenuLink } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -98,11 +100,17 @@ export function MenuCta({
  * trigger already pointed at; a reader who has opened the company menu
  * is far more often looking for a way to reach a person.
  *
- * Every value is read from `supportContact` in `lib/support.ts`, so
+ * Every value is read from the saved contact settings (`useContact`), so
  * this box, the support page's own contact section and the footer all
- * quote the same address and the same hours.
+ * quote the same details. A field staff left empty is not shown, and Live
+ * Chat opens WhatsApp with the saved number.
  */
 export function MenuSupportBox({ className }: { className?: string }) {
+  const contact = useContact();
+  const hours = hoursLines(contact.hours);
+  const linkClass =
+    "text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent";
+
   return (
     <div className={cn("rounded-2xl border border-line bg-void p-8", className)}>
       <p className="text-[1.25rem] font-light tracking-[-0.02em] text-ink">
@@ -110,55 +118,66 @@ export function MenuSupportBox({ className }: { className?: string }) {
       </p>
 
       <dl className="mt-6 space-y-4">
-        <div>
-          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-            Email
-          </dt>
-          <dd className="mt-1.5">
+        {contact.email && (
+          <MenuSupportRow label="Email">
             {/* `mailto:` must not be routed through next/link. */}
-            <a
-              href={`mailto:${supportContact.email}`}
-              className="text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
-            >
-              {supportContact.email}
+            <a href={mailtoHref(contact.email)} className={linkClass}>
+              {contact.email}
             </a>
-          </dd>
-        </div>
+          </MenuSupportRow>
+        )}
 
-        <div>
-          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-            Chat
-          </dt>
-          <dd className="mt-1.5">
-            <Link
-              href={supportContact.chat.href}
-              className="inline-flex items-center gap-2 text-[0.9375rem] text-ink transition-colors duration-(--duration-fast) hover:text-accent"
+        {contact.phone && (
+          <MenuSupportRow label="Phone">
+            <a href={telHref(contact.phone)} className={linkClass}>
+              {formatPhoneDisplay(contact.phone)}
+            </a>
+          </MenuSupportRow>
+        )}
+
+        {contact.whatsapp && (
+          <MenuSupportRow label="Chat">
+            <a
+              href={whatsappHref(contact.whatsapp)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn("inline-flex items-center gap-2", linkClass)}
             >
               <span
                 aria-hidden
                 className="size-1.5 animate-pulse-dot rounded-full bg-live"
               />
-              {supportContact.chat.label}
-            </Link>
-          </dd>
-        </div>
+              {supportContact.chatLabel}
+            </a>
+          </MenuSupportRow>
+        )}
 
-        <div>
-          <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
-            Hours
-          </dt>
-          <dd className="mt-1.5 space-y-1">
-            {supportContact.hours.map((line) => (
-              <span
-                key={line}
-                className="block text-[0.875rem] text-ink-secondary"
-              >
-                {line}
-              </span>
-            ))}
-          </dd>
-        </div>
+        {hours.length > 0 && (
+          <MenuSupportRow label="Hours">
+            <span className="space-y-1">
+              {hours.map((line) => (
+                <span
+                  key={line}
+                  className="block text-[0.875rem] text-ink-secondary"
+                >
+                  {line}
+                </span>
+              ))}
+            </span>
+          </MenuSupportRow>
+        )}
       </dl>
+    </div>
+  );
+}
+
+function MenuSupportRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
+        {label}
+      </dt>
+      <dd className="mt-1.5">{children}</dd>
     </div>
   );
 }

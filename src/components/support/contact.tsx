@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useContact } from "@/components/providers/contact-provider";
+import { hoursLines } from "@/lib/contact";
 import { getSupportChannels, supportContact } from "@/lib/support";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +29,18 @@ const lineClip = {
 };
 
 /**
+ * Columns per channel count, so the cards always fill whole rows with equal
+ * gaps. Four cards go 2x2 on tablet instead of leaving one orphaned.
+ * Full class strings so Tailwind can see them.
+ */
+const GRID_COLUMNS: Record<number, string> = {
+  1: "",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-2 lg:grid-cols-4",
+};
+
+/**
  * Section 04 — the escalation, and the page's close.
  *
  * Deliberately last. Every other section on this page is an attempt to
@@ -41,13 +55,15 @@ const lineClip = {
  * before they decide whether to wait.
  */
 export function SupportContact() {
-  const channels = getSupportChannels();
+  const contact = useContact();
+  const channels = getSupportChannels(contact);
+  const hours = hoursLines(contact.hours);
 
   return (
     <section
       id="contact"
       aria-labelledby="support-contact-heading"
-      className="relative scroll-mt-28 overflow-hidden bg-void pt-(--spacing-section) pb-(--spacing-section)"
+      className="relative scroll-mt-28 overflow-hidden bg-void pt-(--spacing-section-sm) pb-(--spacing-section)"
     >
       <div
         aria-hidden
@@ -83,8 +99,8 @@ export function SupportContact() {
             className="mt-6 max-w-lg text-base leading-relaxed text-ink-secondary"
           >
             No ticket numbers read back at you, and no queue for the sake
-            of one. Three ways in, all of them answered by the people who
-            certify the devices.
+            of one. Every way in is answered by the people who certify the
+            devices.
           </motion.p>
         </motion.div>
 
@@ -94,7 +110,10 @@ export function SupportContact() {
           whileInView="visible"
           viewport={viewportOnce}
           variants={staggerChildren(0.08, 0.12)}
-          className="mx-auto mt-14 grid max-w-5xl gap-4 sm:grid-cols-3 lg:mt-16 lg:gap-5"
+          className={cn(
+            "mx-auto mt-14 grid max-w-5xl grid-cols-1 gap-4 lg:mt-16 lg:max-w-7xl lg:gap-5",
+            GRID_COLUMNS[channels.length],
+          )}
         >
           {channels.map((channel) => {
             const inner = (
@@ -107,13 +126,15 @@ export function SupportContact() {
                   {channel.label}
                 </span>
 
-                <span className="mt-3 block text-[0.9375rem] leading-[1.7] text-ink-secondary">
+                <span className="mb-7 mt-3 block text-[0.9375rem] leading-[1.7] text-ink-secondary">
                   {channel.note}
                 </span>
 
                 <span
                   className={cn(
-                    "mt-7 flex items-center gap-2.5 border-t border-line pt-5",
+                    // mt-auto pins the action row to the card bottom so the dividers
+                    // and links line up across cards of different text length.
+                    "mt-auto flex items-center gap-2.5 border-t border-line pt-5",
                     // Tracking is 0.10em where the rest of the page's mono
                     // labels run 0.16em. The email address is the longest
                     // unbroken string on the site, and in a 3-up grid the
@@ -149,7 +170,7 @@ export function SupportContact() {
             );
 
             const shell = cn(
-              "group flex h-full flex-col rounded-2xl p-6 text-left lg:p-7",
+              "group flex h-full w-full flex-col rounded-2xl p-5 text-left lg:p-7",
               "border border-line bg-surface-2",
               "transition-[transform,border-color,background-color] duration-(--duration-base) ease-(--ease-out-expo)",
               "hover:-translate-y-1.5 hover:border-line-strong hover:bg-surface",
@@ -158,12 +179,20 @@ export function SupportContact() {
             );
 
             return (
-              <motion.li key={channel.id} variants={rise} className="flex">
-                {/* A `mailto:` is not a route — next/link would try to
-                    prefetch it. Anchors for external schemes, Link for
-                    everything the router owns. */}
+              <motion.li
+                key={channel.id}
+                variants={rise}
+                className="flex min-w-0"
+              >
+                {/* `mailto:`, `tel:` and the WhatsApp link are not routes —
+                    next/link would try to prefetch them. Anchors for
+                    external schemes, Link for everything the router owns. */}
                 {channel.external ? (
-                  <a href={channel.href} className={shell}>
+                  <a
+                    href={channel.href}
+                    className={shell}
+                    {...(channel.newTab && { target: "_blank", rel: "noopener noreferrer" })}
+                  >
                     {inner}
                   </a>
                 ) : (
@@ -176,23 +205,25 @@ export function SupportContact() {
           })}
         </motion.ul>
 
-        {/* ---------- Hours ---------- */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={viewportOnce}
-          variants={rise}
-          className="mx-auto mt-10 flex max-w-5xl flex-col items-center gap-2 text-center lg:mt-12"
-        >
-          <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-muted">
-            Hours
-          </p>
-          {supportContact.hours.map((line) => (
-            <p key={line} className="text-[0.9375rem] text-ink-secondary">
-              {line}
+        {/* ---------- Hours (hidden until staff save them) ---------- */}
+        {hours.length > 0 && (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOnce}
+            variants={rise}
+            className="mx-auto mt-10 flex max-w-5xl flex-col items-center gap-2 text-center lg:mt-12"
+          >
+            <p className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-muted">
+              Hours
             </p>
-          ))}
-        </motion.div>
+            {hours.map((line) => (
+              <p key={line} className="text-[0.9375rem] text-ink-secondary">
+                {line}
+              </p>
+            ))}
+          </motion.div>
+        )}
       </div>
     </section>
   );

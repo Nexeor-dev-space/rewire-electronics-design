@@ -16,6 +16,7 @@ export function PhoneField({
   error,
   hint,
   required,
+  disabled,
   className,
   controlClassName,
 }: {
@@ -28,6 +29,7 @@ export function PhoneField({
   error?: string;
   hint?: string;
   required?: boolean;
+  disabled?: boolean;
   className?: string;
   controlClassName?: string;
 }) {
@@ -54,6 +56,7 @@ export function PhoneField({
       <div className="flex gap-2">
         <Select
           aria-label="Country code"
+          disabled={disabled}
           value={parts.country.dialCode}
           onChange={(event) => changeCountry(event.target.value)}
           className={cn("w-28 pl-3 pr-8", controlClassName)}
@@ -70,6 +73,7 @@ export function PhoneField({
           inputMode="tel"
           autoComplete="tel-national"
           required={required}
+          disabled={disabled}
           placeholder={parts.country.example}
           value={parts.number}
           onChange={(event) => update(splitPhone(event.target.value, parts.country))}

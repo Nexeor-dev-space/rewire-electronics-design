@@ -1,12 +1,17 @@
+import type { Metadata } from "next";
+import { StorefrontTags } from "@/components/analytics/storefront-tags";
 import { Footer } from "@/components/layout/footer";
 import { SiteChrome } from "@/components/layout/site-chrome";
 import { CheckoutHeader } from "@/components/checkout/checkout-header";
 import { TrustFooter } from "@/components/checkout/trust-footer";
 import { cookies } from "next/headers";
 import { NavigationPreviewBar } from "@/components/layout/navigation-preview-bar";
+import { ContactProvider } from "@/components/providers/contact-provider";
 import { NavigationProvider } from "@/components/providers/navigation-provider";
+import { getContactDetails } from "@/services/store-settings.service";
 import { StorefrontCategoriesProvider } from "@/components/providers/storefront-categories-provider";
 import { listStorefrontCategories } from "@/services/catalogue.service";
+import { getStorefrontIntegrations } from "@/services/integration.service";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { NAV_PREVIEW_COOKIE } from "@/lib/constants";
@@ -17,6 +22,11 @@ import {
 } from "@/services/navigation.service";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { searchConsole } = await getStorefrontIntegrations();
+  return searchConsole ? { verification: { google: searchConsole } } : {};
+}
 
 /**
  * Site chrome — header, footer, skip-link, `<main>` container, and the
@@ -38,9 +48,10 @@ export default async function SiteLayout({
     session && hasPermission(session.user.permissions, PERMISSIONS.navigation),
   );
 
-  const [categories, navigation] = await Promise.all([
+  const [categories, navigation, contact] = await Promise.all([
     listStorefrontCategories(),
     previewing ? getDraftPreviewNavigation() : getPublishedNavigation(),
+    getContactDetails(),
   ]);
   // The drops cost a query, so skip it when staff hid the Upcoming Drops menu.
   const dropsShown = navigation.header.rail.some((item) => item.id === "drops");
@@ -48,6 +59,7 @@ export default async function SiteLayout({
 
   return (
     <StorefrontCategoriesProvider categories={categories}>
+      <ContactProvider contact={contact}>
       <NavigationProvider navigation={navigation} drops={drops}>
       {/* Keyboard users can bypass the fixed header */}
       <a
@@ -57,14 +69,16 @@ export default async function SiteLayout({
         Skip to content
       </a>
       <SiteChrome
-        footer={<Footer navigation={navigation} />}
+        footer={<Footer navigation={navigation} contact={contact} />}
         checkoutHeader={<CheckoutHeader />}
         checkoutFooter={<TrustFooter />}
       >
         {children}
       </SiteChrome>
+      <StorefrontTags />
       {previewing && <NavigationPreviewBar />}
       </NavigationProvider>
+      </ContactProvider>
     </StorefrontCategoriesProvider>
   );
 }

@@ -27,6 +27,25 @@ export function ShopProductCard({
 
   return (
     <article className="group/card relative flex h-full w-full flex-col">
+      {/* ---------- Identity ----------
+          Brand and name sit above the plate. The name always takes two
+          lines of height (clamped to two), so plates in a grid row line
+          up whether a name wraps or not. */}
+      <div className="pb-4">
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
+          {product.brand}
+        </p>
+
+        <h3 className="mt-2 line-clamp-2 min-h-[2lh] text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+          <Link
+            href={productHref(product)}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {product.name}
+          </Link>
+        </h3>
+      </div>
+
       {/* ---------- Plate ----------
           See `drop-card.tsx` for the plate-as-editorial-showcase pattern
           in detail: warm cream ground so the baked-in white studio
@@ -85,24 +104,11 @@ export function ShopProductCard({
       </div>
 
       {/* ---------- Copy ---------- */}
-      <div className="flex flex-1 flex-col pt-5">
-        <p className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-muted">
-          {product.brand}
-        </p>
-
-        <h3 className="mt-2 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
-          <Link
-            href={productHref(product)}
-            className="after:absolute after:inset-0 after:content-['']"
-          >
-            {product.name}
-          </Link>
-        </h3>
-
+      <div className="flex flex-1 flex-col pt-4">
         {/* The reference's "Variant · Storage" line, plus condition and
             grade where the catalogue has them. Kept mono because these
             are technical facts about the unit, not marketing copy. */}
-        <p className="mt-1 truncate text-[0.8125rem] text-ink-secondary">
+        <p className="truncate text-[0.8125rem] text-ink-secondary">
           {[product.storage, product.variant].filter(Boolean).join(" · ") ||
             product.keySpec}
         </p>
@@ -123,30 +129,39 @@ export function ShopProductCard({
           )}
         </p>
 
-        <p className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pt-5">
-          <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
-            {formatMoney(product.price)}
-          </span>
-          {product.originalPrice !== null && product.originalPrice > product.price && (
-            <>
-              <span className="sr-only">was </span>
-              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
-                {formatMoney(product.originalPrice)}
-              </s>
-            </>
-          )}
-        </p>
+        {/* Price and cart action. On a wide card (`@2xs`, 18rem) they share
+            one row, price left and button right; on a narrow card the button
+            drops under the price at full width. Measured on the card, not
+            the viewport, because the same card sits in 2, 3 and 5 column
+            grids. */}
+        <div className="@container mt-auto pt-5">
+          <div className="flex flex-col gap-4 @2xs:flex-row @2xs:items-center @2xs:justify-between @2xs:gap-3">
+            <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
+                {formatMoney(product.price)}
+              </span>
+              {product.originalPrice !== null && product.originalPrice > product.price && (
+                <>
+                  <span className="sr-only">was </span>
+                  <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+                    {formatMoney(product.originalPrice)}
+                  </s>
+                </>
+              )}
+            </p>
 
-        <div className="relative z-20 mt-4">
-          <AddToCartButton
-            product={{
-              variantId: product.variantId,
-              slug: product.slug,
-              name: product.name,
-              soldOut,
-            }}
-            className="w-full"
-          />
+            <div className="relative z-20 shrink-0">
+              <AddToCartButton
+                product={{
+                  variantId: product.variantId,
+                  slug: product.slug,
+                  name: product.name,
+                  soldOut,
+                }}
+                className="w-full @2xs:w-44"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </article>

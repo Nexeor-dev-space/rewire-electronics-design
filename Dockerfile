@@ -17,8 +17,9 @@ RUN --mount=type=cache,target=/root/.npm \
 # ---- build ----
 FROM deps AS build
 COPY . .
-# Required while collecting page data; set as a build variable in Coolify.
+# Required for migrations and while collecting page data; set as a build variable in Coolify.
 ARG DATABASE_URL
+RUN npm run db:deploy
 ENV NEXT_TELEMETRY_DISABLED=1
 # Type checking runs out of memory on the default heap. See docs/DEPLOYMENT.md.
 ENV NODE_OPTIONS=--max-old-space-size=2048

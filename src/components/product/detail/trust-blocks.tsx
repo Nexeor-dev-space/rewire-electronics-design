@@ -1,9 +1,14 @@
+import { ContactLinks } from "@/components/contact/contact-links";
+import { getContactDetails } from "@/services/store-settings.service";
+
 /**
  * TrustBlocks — the four questions that follow the price on any
  * considered purchase: warranty, returns, delivery, support. Placeholder
  * copy is used deliberately; specific durations belong in policy pages
  * once Rewire commits to them, not invented here.
  */
+const SUPPORT_BLOCK_TITLE = "Support";
+
 const BLOCKS = [
   {
     title: "Warranty",
@@ -32,9 +37,8 @@ const BLOCKS = [
     ],
   },
   {
-    title: "Support",
-    detail:
-      "Real people, based in Dubai. Reach us by email or live chat and expect a considered reply — never a template.",
+    title: SUPPORT_BLOCK_TITLE,
+    detail: "Real people, based in Dubai. Expect a considered reply — never a template.",
     icon: [
       "M4 12a8 8 0 0 1 16 0v4a3 3 0 0 1-3 3h-1v-6h4",
       "M4 12v4a3 3 0 0 0 3 3h1v-6H4",
@@ -42,7 +46,9 @@ const BLOCKS = [
   },
 ];
 
-export function TrustBlocks() {
+export async function TrustBlocks() {
+  const contact = await getContactDetails();
+
   return (
     <div className="grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
       {BLOCKS.map((block) => (
@@ -69,6 +75,7 @@ export function TrustBlocks() {
             <p className="mt-2 text-[0.875rem] leading-relaxed text-ink-secondary">
               {block.detail}
             </p>
+            {block.title === SUPPORT_BLOCK_TITLE && <ContactLinks contact={contact} className="mt-3" />}
           </div>
         </div>
       ))}

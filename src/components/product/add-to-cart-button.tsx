@@ -56,6 +56,14 @@ const BUTTON_CLASS = cn(
   "disabled:pointer-events-none disabled:opacity-40",
 );
 
+/** Sold out reads as grey and inert, not as a faded accent button. */
+const SOLD_OUT_CLASS = "pointer-events-none bg-line-strong text-ink-muted disabled:opacity-100";
+
+/** The words beside the icon; below `sm` only the icon shows, the words stay for screen readers. */
+function ButtonLabel({ children }: { children: string }) {
+  return <span className="max-sm:sr-only">{children}</span>;
+}
+
 function CartIcon() {
   return (
     <svg
@@ -126,10 +134,10 @@ export function AddToCartButton({
           event.stopPropagation();
         }}
         aria-disabled={soldOut || undefined}
-        className={cn(className, BUTTON_CLASS, soldOut && "pointer-events-none opacity-40")}
+        className={cn(className, BUTTON_CLASS, soldOut && SOLD_OUT_CLASS)}
       >
         <CartIcon />
-        {soldOut ? OUT_OF_STOCK_LABEL : "View & Buy"}
+        <ButtonLabel>{soldOut ? OUT_OF_STOCK_LABEL : "View & Buy"}</ButtonLabel>
       </Link>
     );
   }
@@ -197,16 +205,12 @@ export function AddToCartButton({
                   ? `${product.name} is out of stock`
                   : `Add ${product.name} to cart`
               }
-              className={cn(className, BUTTON_CLASS, "relative")}
+              className={cn(className, BUTTON_CLASS, "relative", soldOut && SOLD_OUT_CLASS)}
             >
               {adding && <Spinner className="absolute size-4" />}
               <span className={cn("inline-flex items-center gap-2", adding && "opacity-0")}>
                 <CartIcon />
-                {soldOut ? (
-                  OUT_OF_STOCK_LABEL
-                ) : (
-                  <span className="max-sm:sr-only">Add to cart</span>
-                )}
+                <ButtonLabel>{soldOut ? OUT_OF_STOCK_LABEL : "Add to cart"}</ButtonLabel>
               </span>
             </button>
           </motion.div>

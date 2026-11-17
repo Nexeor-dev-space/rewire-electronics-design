@@ -10,6 +10,9 @@ import { AboutWhy } from "@/components/about/why";
 import { AboutSustainability } from "@/components/about/sustainability";
 import { AboutCta } from "@/components/about/cta";
 import { Process } from "@/components/home/process/process";
+import { Faq } from "@/components/home/faq/faq";
+import { faqHeading, toFaqEntries } from "@/lib/faq-entry";
+import { getPublishedPolicy } from "@/lib/policies";
 
 export const metadata = pageMetadata({
   title: "About",
@@ -27,7 +30,10 @@ export const metadata = pageMetadata({
  * figure to arrive later, rather than putting a placeholder in a shape
  * that looks like a claim.
  */
-export default function AboutPage() {
+export default async function AboutPage() {
+  const faqPolicy = await getPublishedPolicy("faq");
+  const faqs = toFaqEntries(faqPolicy);
+
   return (
     <>
       <AboutIntro />
@@ -42,6 +48,10 @@ export default function AboutPage() {
           so the About page ends with the customer journey immediately
           before the closing CTA. */}
       <Process />
+      {/* Moved here from the homepage. Omitted when there are no questions. */}
+      {faqs.length > 0 && (
+        <Faq faqs={faqs} heading={faqHeading(faqPolicy?.title ?? "")} lede={faqPolicy?.lede} />
+      )}
       <AboutCta />
     </>
   );

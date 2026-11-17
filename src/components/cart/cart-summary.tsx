@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { useGetMe } from "@/hooks/use-auth";
+import { signInHref } from "@/lib/auth/next-path";
 import { formatMoney } from "@/lib/money";
-import { RETURN_WINDOW_DAYS } from "@/lib/constants";
+import { CHECKOUT_PAGE_PATH, RETURN_WINDOW_DAYS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { CartTotals } from "@/types/cart";
 
@@ -26,6 +28,9 @@ interface CartSummaryProps {
  * items column beside it.
  */
 export function CartSummary({ totals, itemCount, canCheckout }: CartSummaryProps) {
+  const { data: me } = useGetMe();
+  const checkoutHref = me === null ? signInHref(CHECKOUT_PAGE_PATH) : CHECKOUT_PAGE_PATH;
+
   return (
     <div className="lg:sticky lg:top-(--spacing-page-top-lg)">
       <div className="rounded-2xl bg-surface p-8 lg:p-9">
@@ -77,7 +82,7 @@ export function CartSummary({ totals, itemCount, canCheckout }: CartSummaryProps
         {/* ---------- Primary CTA ---------- */}
         {canCheckout ? (
           <Link
-            href="/checkout"
+            href={checkoutHref}
             aria-label={`Proceed to checkout with ${formatMoney(totals.total)}`}
             className={cn(
               buttonVariants({ variant: "primary", size: "lg" }),

@@ -146,6 +146,7 @@ What is recorded today:
 | Content & Policies | save (title, text, published, draft notice, blocks) |
 | Customers, Staff accounts | create, update (including a Staff role change), delete, restore; logged under the account's module |
 | Roles | create, update, delete a Staff role |
+| Integrations, API Keys | update of a saved ID, recording only `{ value }` ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §8) |
 
 Older stock changes were recorded under the removed Inventory module
 (`catalogue.inventory`), and older credential changes under the removed API

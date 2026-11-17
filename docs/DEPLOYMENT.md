@@ -41,7 +41,7 @@ Next's standalone output. It also gives:
 | --- | --- | --- |
 | `base` | `node:24-alpine`, working folder `/app` | Yes, as the base |
 | `deps` | Copies `package.json`, `package-lock.json`, the Prisma config and `prisma/`, runs `npm ci` (which runs `prisma generate`) | No |
-| `build` | Copies the source and runs `npm run build` | No |
+| `build` | Copies the source, applies pending migrations with `npm run db:deploy`, then runs `npm run build` | No |
 | `runtime` | Copies `.next/standalone`, `.next/static` and `public/`, runs `node server.js` as `node` | Yes |
 
 The `postinstall` script runs `prisma generate`, so three things are copied
@@ -115,11 +115,61 @@ SMTP login and `APP_URL`, production email is off and the log says
 
 ## 5. Migrations
 
-The runtime image does not contain the `prisma` CLI, so
-`prisma migrate deploy` cannot run inside the container. Until a migration
-step is added to the deploy, run `npm run db:deploy` from a machine with the
-repo and the production `DATABASE_URL` before deploying a release that
-includes a migration.
+Migrations apply automatically on every deploy. The `build` stage runs
+`npm run db:deploy` (`prisma migrate deploy`) before `npm run build`, against
+the database in that app's build `DATABASE_URL`. This is the order in
+[COMMANDS.md](COMMANDS.md) §6, and the Next.js convention of migrating in the
+build step.
+
+Staging and production are two Coolify apps that both deploy the `current`
+branch, each with its own database. Each app migrates its own database when it
+builds, so no one runs migrations by hand.
+
+The step only applies committed migrations. It never creates a migration,
+resets, pushes the schema or seeds.
+
+Conditions:
+
+1. The build must reach the database through the build `DATABASE_URL`. If it
+   cannot connect, the build fails at the migration step and Coolify keeps the
+   previous version running. Point the build variable at a host the build can
+   reach.
+2. A push to `current` migrates staging and production in the same round of
+   deploys. A broken migration fails both deploys, and both keep their
+   previous version.
+3. Migrations run while the old version still serves traffic, so keep them
+   additive: add columns and tables rather than renaming or dropping in the
+   same release.
+4. If the build fails after the migration applied, the database is ahead of
+   the running code. The additive rule keeps that safe.
+5. Rolling back to an older image in Coolify does not roll back the database.
+6. With the Docker build cache on, the step reruns whenever a source file
+   changes, which every commit does. Redeploying an identical commit from cache
+   may skip it, which is harmless because nothing is pending.
+
+To check or apply by hand, run `npx prisma migrate status` (read only) or
+`npm run db:deploy` from a machine with the repo and that environment's
+`DATABASE_URL`.
+
+The runtime image does not contain the `prisma` CLI, so migrations cannot run
+inside the running container.
+
+---
+
+## 5a. Go live checklist
+
+Before the first customer:
+
+1. Deploy once. The build applies every migration (section 5); check the
+   build log for the `prisma migrate deploy` output.
+2. Sign in to the admin and open Governance, VAT & Configuration. Fill
+   **Contact & invoice details**: legal name, TRN, address, support email,
+   phone number, WhatsApp number and support hours (in Gulf time). Until they
+   are filled the storefront, emails and invoices show no contact at all, and
+   Live Chat is hidden. See [VAT.md](VAT.md).
+3. Check the VAT rate on the same screen.
+4. Place a test order and open the support menu, Support page, footer, a
+   product page and the order email to confirm the contact details show.
 
 ---
 
@@ -141,3 +191,19 @@ Always compare sizes with the same measure. The baseline above is the
 | --- | --- |
 | Nixpacks | 2.53 GB |
 | Dockerfile (standalone) | to be measured |
+
+---
+
+## 7. Go live checklist
+
+After the first production deploy, on the admin Integrations, API Keys
+screen:
+
+1. Enter and save the GA4, Microsoft Clarity and Google Search Console values.
+2. Press Test on each of them; each should find its tag on the homepage.
+3. Verify the site in Google Search Console.
+4. Test Email and Stripe. Both read their values from the Coolify environment
+   (section 3 and [PAYMENTS.md](PAYMENTS.md) §8).
+
+Nothing on that screen is required for the site to run. The full steps are in
+[INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md) §14.

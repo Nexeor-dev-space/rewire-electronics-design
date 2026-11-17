@@ -91,7 +91,7 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
   return (
     <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
       <DialogBody>
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 [&>*]:min-w-0">
           <Field id={`${id}-name`} label="Name" error={error("name")} className="sm:col-span-2">
             <Input
               id={`${id}-name`}
@@ -163,15 +163,15 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
           )}
 
           <div className="flex flex-col gap-3 sm:col-span-2">
-            <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+            <label className="flex items-center gap-2 text-sm text-ink-secondary">
               <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
               Offered to shoppers
             </label>
-            <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+            <label className="flex items-center gap-2 text-sm text-ink-secondary">
               <input type="checkbox" checked={popular} onChange={(event) => setPopular(event.target.checked)} />
               Tag as &ldquo;Most chosen&rdquo;. It is never pre-ticked.
             </label>
-            <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+            <label className="flex items-center gap-2 text-sm text-ink-secondary">
               <input
                 type="checkbox"
                 checked={appliesToAll}
@@ -182,16 +182,18 @@ function AddOnForm({ initial, onClose }: { initial?: AddOnItem; onClose: () => v
           </div>
 
           {!appliesToAll && (
-            <fieldset className="sm:col-span-2">
+            // A fieldset defaults to `min-width: min-content`, which is what
+            // pushed long category names past the dialog edge.
+            <fieldset className="min-w-0 sm:col-span-2">
               <legend className="eyebrow">Categories</legend>
               {categories.isPending ? (
                 <p className="mt-3 text-sm text-ink-muted">Loading…</p>
               ) : categories.isError ? (
                 <p className="mt-3 text-sm text-danger">{categories.error.message}</p>
               ) : (
-                <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {categories.data.items.map((parent) => (
-                    <li key={parent.id} className="rounded-lg border border-line bg-surface p-3">
+                    <li key={parent.id} className="min-w-0 rounded-lg border border-line bg-surface p-3">
                       <CategoryCheckbox
                         name={parent.name}
                         checked={categoryIds.includes(parent.id)}
@@ -247,9 +249,14 @@ function CategoryCheckbox({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      {name}
+    <label className="flex items-start gap-2 text-sm text-ink-secondary">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 shrink-0"
+      />
+      <span className="min-w-0 break-words">{name}</span>
     </label>
   );
 }

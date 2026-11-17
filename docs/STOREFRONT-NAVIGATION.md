@@ -78,6 +78,22 @@ the panel:
 2. While typing, `useSearchSuggestions` (`src/hooks/use-search.ts`) calls
    `GET /api/v1/search` after `SEARCH_DEBOUNCE_MS`, and shows Products, Brands
    and Categories, each linking to its page, plus "See all results".
+   Every product row also has the shared `AddToCartButton` beside it, which
+   adds the variant the suggestion shows (`ShopCard.variantId`). It shows
+   "Add to cart" from `sm` and only the cart icon below `sm`, turns into a
+   quantity stepper once that variant is in the cart, and is disabled when
+   the product is sold out. It sits beside the link rather than inside it, so
+   adding does not open the product page or close the panel. The full
+   `/search` page already had the button on every card, as it reuses the shop
+   grid.
+   From `lg` the three groups sit in one row: Products takes all the width
+   left over (`flex-1`) and Brands and Categories are fixed narrow columns
+   (`SIDE_COLUMN_CLASS`, 14rem), so each cart button sits at the far right of
+   the Products column, clear of the name. Below `lg` the groups stack at
+   full width. The loading skeleton uses the same layout.
+   From `sm` the button has a fixed width (`sm:w-44`, 11rem), so Add to cart,
+   Out of stock and the quantity stepper are all the same size and line up
+   down the list.
 3. It shows a skeleton while loading, a message if the request fails, and "No
    results found" with a Clear search button when nothing matches.
 4. Enter opens `/search?q=`. Clear empties the field; Escape or a click
@@ -101,10 +117,11 @@ it to Draft or Archived; its products disappear with it.
 
 ### Old slugs
 
-`resolveCategory()` in `lib/shop.ts` maps older slugs to the database ones
-through `categoryAliases` before the lookup, so `/collection/phones`
-renders Smartphones and links already in the wild keep working. The menus
-themselves link with the database slug.
+The collection page looks the slug up as written first. Only when no category
+has that slug does `resolveCategory()` in `lib/shop.ts` map an older slug to the
+database one through `categoryAliases`, so links already in the wild keep
+working but never override a real category such as Phones. The menus themselves
+link with the database slug.
 
 `src/lib/categories.ts`, the previous hardcoded list of four families and
 their studio photos, is no longer read by anything.
@@ -251,20 +268,15 @@ from `md` at every width. `MoreItem` was deleted along with three other
 components in that file that had already fallen out of use
 (`LinkListItem`, `ShopLink`, `BrandDropdown`), removing 375 lines.
 
-### Not changed: font loading
+### Font loading
 
-`src/lib/fonts.ts` serves Söhne locally through `next/font/local` with
-`display: "swap"` and an explicit Helvetica fallback stack rather than a
-synthesised metric fallback. That is a deliberate decision documented in
-that file: the trial cuts carry only 68 glyphs, so the substitute is
-doing real work on punctuation rather than merely covering a swap, and
-Helvetica already matches Söhne's metrics closely.
-
-Turning on `adjustFontFallback` would metric match the fallback and
-remove the last of the first paint reflow, at the cost of rendering all
-substituted punctuation through adjusted Arial. That trade was left
-alone. If navbar movement on first paint is still visible after the four
-fixes above, this is the remaining lever.
+`src/lib/fonts.ts` serves Geist locally through `next/font/local` with
+`display: "swap"`. This note used to explain why `adjustFontFallback` was
+turned off: the old Söhne trial cuts carried only 68 glyphs, so the
+Helvetica fallback was rendering real punctuation. Geist has a full
+character set, so that reason is gone and the option is back on its
+default (metric matched Arial). That removes the last of the first paint
+reflow this section described.
 
 ---
 
@@ -368,9 +380,30 @@ It now carries the support box lifted verbatim from the old Support
 panel: email, live chat with its pulsing status dot, and the hours
 behind both. The markup moved into the shared primitives rather than
 being rewritten inside `AboutMenu`, so there is one implementation, not
-two. Every value is read from `supportContact` in `lib/support.ts`, so
-the box, the support page's contact section and the footer all quote the
-same address and the same hours.
+two. Since issue #155 every value is read from the saved contact settings
+(`useContact`, see [VAT.md](VAT.md)), not from code, so the box, the support
+page's contact section and the footer all quote the same details. A field
+staff left empty is not shown. The email and phone are links (`mailto:` and
+`tel:`), and **Live Chat** opens WhatsApp with the saved number and a short
+prefilled greeting. It is not shown when no WhatsApp number is saved. The
+hours are free text in Gulf time.
+
+### Every surface that reads the contact settings (#155)
+
+| Surface | File | How it reads them |
+| --- | --- | --- |
+| Header support menu | `components/layout/mega-primitives.tsx` (`MenuSupportBox`) | `useContact` |
+| Support page cards and hours | `components/support/contact.tsx`, `lib/support.ts` (`getSupportChannels`) | `useContact`. Cards for email, Live Chat, phone and hours appear only when saved. Track an order is always there |
+| Footer brand block | `components/layout/footer.tsx` | `contact` prop from the site layout, through `ContactLinks` |
+| Product page trust block | `components/product/detail/trust-blocks.tsx` | `getContactDetails` (server) |
+| Policy pages | `components/policy/policy-document.tsx` | `getContactDetails` (server). The draft note names the email only when one is saved |
+| Account order screen, Track Order | `components/contact/order-help.tsx`, inside `OrderDetailBody` | `useContact` |
+| Every email | `lib/email/send-email.ts`, `lib/email/templates.ts` | `withContactFooter` |
+| Tax invoice | `services/invoice.service.ts` | `getInvoiceSettings` |
+
+`ContactProvider` is mounted in `app/(site)/layout.tsx`, which reads
+`getContactDetails` on every request. No contact value, address or phone number
+is left in code.
 
 `MenuSupportBox` takes an optional `className`, which the About panel
 uses to pass `h-full` so the box matches the column height.
@@ -759,3 +792,32 @@ do this). The checkout header is sticky, so checkout needs none.
 
 The tab bar's bottom pad (`pb-16 lg:pb-0` on the footer wrapper) is applied
 only when the bar shows, so it never covers the footer's last line.
+
+---
+
+## 15. The storefront 404 page
+
+**The rule:** a visitor who lands on a page that does not exist keeps the
+site chrome and gets two ways on: the collection to shop, or the homepage.
+
+| File | Role |
+|---|---|
+| `src/app/(site)/not-found.tsx` | The page. A three line headline in the house weights, one sentence, and two buttons: **Shop the collection** (`SHOP_INDEX_HREF`, primary) and **Back to home** (`/`, outline) |
+| `src/app/(site)/[...notFound]/page.tsx` | Catch-all for URLs no storefront route owns. It calls `notFound()` so the page above renders inside the `(site)` layout instead of Next's bare default |
+
+It is reached two ways:
+
+1. A page calls `notFound()`: an unpublished product, a renamed category, a
+   closed release, an unpublished policy.
+2. A URL matches no route at all. Admin and API paths match their own routes
+   first, so the catch-all never takes them; `/admin/*` keeps its own
+   `not-found.tsx`.
+
+Next answers with a real 404 status in both cases, and the catch-all sets
+`NOINDEX_ROBOTS`, so search engines drop the URL. The page carries no data
+and renders no chrome of its own; the header, footer and tab bar come from
+the layout as on every other page (§14).
+
+House rule: a nav item never 404s (§11). This page is for links from outside
+the site and for content that has been taken down, not a destination to
+link to.

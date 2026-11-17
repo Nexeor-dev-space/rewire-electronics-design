@@ -77,21 +77,18 @@ export function Hero({ section }: { section: PublishedSection }) {
       aria-labelledby="hero-heading"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      // `min-h-svh` is a landscape assumption: on a portrait desktop-width
-      // canvas (iPad Pro 12.9", 1024×1366) stretching to the viewport
-      // opens a ~500px void between the masthead and the product, because
-      // the composition is bottom-anchored and the content column is only
-      // ~700px tall. In portrait the banner sizes to its content instead
-      // and hands the rest of the screen to the calendar below.
+      // Compact: the banner sizes to its content on every screen (no
+      // `min-h-svh`), so there is no void between masthead and product and
+      // the category strip lands higher.
       //
-      // The section now starts at y=0 and flows *behind* the fixed
+      // The section starts at y=0 and flows *behind* the fixed
       // header (which is semi-transparent with backdrop-blur, so its
       // material shows through). No `mt-*` gap between header and
       // hero means no flat body-bg strip under the nav's bottom
       // divider — the ground, grain and ambient light all extend up
       // to the top of the viewport. REIMAGINED's own offset (bumped
       // in the masthead wrapper below) keeps it clear of the nav.
-      className="relative flex min-h-svh flex-col overflow-hidden bg-void md:portrait:min-h-0"
+      className="relative flex flex-col overflow-hidden bg-void"
     >
       {/* Paper grain, nothing else */}
       <div aria-hidden className="grain absolute inset-0" />
@@ -192,7 +189,7 @@ export function Hero({ section }: { section: PublishedSection }) {
           product and the cards. Top padding came down one step for the
           same reason — every pixel spent above the composition is a
           pixel the strip loses at the fold. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-6 pt-12 sm:pb-8 sm:pt-16 md:pt-20 lg:pb-8 lg:pt-24">
+      <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-1 flex-col justify-end px-(--spacing-gutter) pb-4 pt-24 sm:pb-6 sm:pt-28 md:pt-36 lg:pb-6 lg:pt-40">
         {/* Three arrangements of the same five blocks.
             Mobile: one column — device, then everything needed to buy it,
             then the brand statement.
@@ -220,7 +217,7 @@ export function Hero({ section }: { section: PublishedSection }) {
             intent: the edition/title reads on the calendar below, and
             repeating it here was pushing the promise "Premium certified
             electronics." down a rank on the page it is meant to open. */}
-        <div className="grid w-full gap-y-6 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-10 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[auto_auto_1fr] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
+        <div className="grid w-full gap-y-5 min-[480px]:max-md:grid-cols-2 min-[480px]:max-md:gap-x-6 sm:gap-y-6 sm:max-md:mx-auto sm:max-md:max-w-xl md:grid-cols-12 md:grid-rows-[auto_auto_1fr] md:gap-x-4 md:gap-y-0 lg:gap-x-6">
           {/* ---------- Centrepiece · columns 5–9 ---------- */}
           {section.imageUrl && (
             <motion.div
@@ -262,7 +259,7 @@ export function Hero({ section }: { section: PublishedSection }) {
                 // of the device rather than out of the strip because a
                 // half-visible row of five plates reads as a bug, while a
                 // slightly smaller product still reads as the product.
-                className="relative z-10 mx-auto h-[26svh] max-h-[12rem] w-full max-w-xl min-[480px]:max-h-[16rem] sm:h-[40svh] sm:max-h-[21rem] md:h-[min(55svh,38vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
+                className="relative z-10 mx-auto h-[22svh] max-h-[10rem] w-full max-w-xl min-[480px]:max-h-[12rem] sm:h-[30svh] sm:max-h-[15rem] md:h-[min(40svh,30vw)] md:max-h-none md:max-w-none md:translate-x-[6%]"
               >
                 <motion.div
                   animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
@@ -328,7 +325,7 @@ export function Hero({ section }: { section: PublishedSection }) {
               "md:relative md:col-span-4 md:col-start-9 md:row-start-1",
               // Nudged below the REIMAGINED background word so the mono
               // tagline reads under the masthead, not through it.
-              "md:mt-[9vw]",
+              "md:mt-[3vw]",
               "md:flex md:flex-col md:pl-3 lg:col-span-3 lg:col-start-10 lg:pl-5 xl:pl-8",
             )}
           >
@@ -346,11 +343,11 @@ export function Hero({ section }: { section: PublishedSection }) {
               just no longer stands between a shopper and the button. */}
           <motion.div
             {...enter(0.1)}
-            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-1 md:mt-[9vw]"
+            className="order-5 max-w-[26.25rem] min-[480px]:max-md:col-span-2 min-[480px]:max-md:row-start-4 min-[480px]:max-md:mx-auto min-[480px]:max-md:text-center md:col-span-4 md:col-start-1 md:row-start-1 md:mt-[3vw]"
           >
             <h1
               id="hero-heading"
-              className="font-sans text-[clamp(2.25rem,3.4vw,3.25rem)] font-light leading-[1.06] tracking-[-0.03em] text-ink"
+              className="font-sans text-[clamp(2rem,3.2vw,3rem)] font-light leading-[1.06] tracking-[-0.03em] text-ink"
             >
               {headingLines(section.title).map((line, index) => (
                 <span key={index} className="block">
@@ -359,14 +356,14 @@ export function Hero({ section }: { section: PublishedSection }) {
               ))}
             </h1>
             {section.subtitle && (
-              <p className="mt-5 text-base leading-relaxed text-ink-secondary sm:mt-8">
+              <p className="mt-4 text-base leading-relaxed text-ink-secondary sm:mt-6">
                 {section.subtitle}
               </p>
             )}
             {section.ctaLabel && section.ctaHref && (
               <Link
                 href={section.ctaHref}
-                className={cn(buttonVariants({ size: "md" }), "mt-8")}
+                className={cn(buttonVariants({ size: "md" }), "mt-6")}
               >
                 {section.ctaLabel}
                 <svg

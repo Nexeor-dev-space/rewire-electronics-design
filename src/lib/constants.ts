@@ -148,6 +148,11 @@ export const INVOICE_TITLE = "Tax Invoice";
 export const INVOICE_FOOTER_NOTE = "Computer-generated tax invoice - No signature required";
 export const INVOICE_SELLER_FIELD_MAX_LENGTH = 200;
 export const INVOICE_TERMS_MAX_LENGTH = 2000;
+
+/** Contact details (docs/VAT.md): support hours are free text in Gulf time. */
+export const CONTACT_HOURS_MAX_LENGTH = 300;
+export const WHATSAPP_CHAT_BASE_URL = "https://wa.me/";
+export const WHATSAPP_GREETING = "Hello Rewire, I need some help.";
 export const WISHLIST_PAGE_PATH = "/wishlist";
 export const ACCOUNT_ORDERS_PATH = "/account/orders";
 export const ACCOUNT_RETURNS_PATH = "/account/returns";
@@ -172,6 +177,13 @@ export const SMTP_IMPLICIT_TLS_PORT = 465;
 export const SMTP_TIMEOUT_MS = 10_000;
 export const DEV_APP_URL = "http://localhost:3000";
 
+export const INTEGRATIONS_CACHE_TAG = "integrations";
+export const INTEGRATION_TEST_TIMEOUT_MS = 10_000;
+export const INTEGRATION_VALUE_MAX_LENGTH = 200;
+export const GA4_SCRIPT_URL = "https://www.googletagmanager.com/gtm.js";
+export const CLARITY_SCRIPT_URL = "https://www.clarity.ms/tag/";
+export const META_PIXEL_SCRIPT_URL = "https://connect.facebook.net/en_US/fbevents.js";
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const VERIFY_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 export const RESET_TOKEN_TTL_SECONDS = 60 * 60;
@@ -195,6 +207,7 @@ export const RATE_LIMITS = {
   confirmPayment: { limit: 20, windowSeconds: 60 * 10 },
   returnRequest: { limit: 10, windowSeconds: 60 * 60 },
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
+  integrationTest: { limit: 10, windowSeconds: 60 * 10 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";

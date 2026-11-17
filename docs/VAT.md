@@ -60,12 +60,61 @@ to the Change Log with the before and after rate.
 `PERMISSIONS.vat` (`governance.vat`) offers View and Edit and can be granted to
 a Staff role. See [PERMISSIONS.md](PERMISSIONS.md).
 
-## Invoice details
+## Contact & invoice details
 
-The same screen has an **Invoice details** section: the seller's legal name,
-TRN, address, support email and the Terms & Conditions printed on every tax
-invoice. It uses the same permission as the VAT rate. See
-[INVOICES.md](INVOICES.md).
+Issue #155. The same screen has a **Contact & invoice details** section. It
+used to be called Invoice details. It is now the single place for the store's
+contact information, and the seller block printed on every tax invoice. It
+uses the same permission as the VAT rate, with no new role.
+
+| Field | Where it shows |
+| --- | --- |
+| Legal name | Tax invoice (Sold by, footer) |
+| TRN | Tax invoice |
+| Address | Tax invoice |
+| Support email | Header support menu, Support page, footer, product page trust block, policy pages (draft note), account order screen, Track Order, every email footer, tax invoice |
+| Phone number | Header support menu, Support page, footer, product page trust block, account order screen, Track Order, email footers. A tap to call link on mobile |
+| WhatsApp number | Live Chat in the header support menu and on the Support page, plus the footer, product page, order screens and email footers. Opens a WhatsApp chat with a short prefilled greeting |
+| Support hours | Header support menu, Support page, footer, product page trust block, order screens. Free text in Gulf time, one line per row |
+| Terms & Conditions | Tax invoice |
+
+Rules:
+
+1. Email is empty or a valid address. Phone and WhatsApp are empty or follow the
+   shared phone rules in [PHONE-NUMBERS.md](PHONE-NUMBERS.md) (UAE +971 and
+   Saudi +966), and are saved as `+971501234567`.
+2. A field left empty is not shown. Nothing falls back to a value in code. With
+   everything empty there is no contact anywhere, and Live Chat is not shown.
+3. Live Chat is a link to `https://wa.me/<number>?text=<greeting>`, not a chat
+   widget. The base address and greeting are `WHATSAPP_CHAT_BASE_URL` and
+   `WHATSAPP_GREETING` in `src/lib/constants.ts`.
+4. Phone numbers always show as `+971 50 123 4567`
+   (`formatPhoneDisplay` in `src/lib/contact.ts`).
+5. The storefront layout is ``force-dynamic``, so a saved change shows on the next
+   page load with no deploy.
+6. Each save is written to the Change Log as "Contact & invoice details" with
+   the before and after values, who changed it and when.
+
+Code map:
+
+| File | Role |
+| --- | --- |
+| `src/validators/invoice.validator.ts` | `invoiceSettingsSchema` with `phone`, `whatsapp`, `supportHours` |
+| `src/services/store-settings.service.ts` | `getContactDetails` (customer safe view, cached per request), `getInvoiceSettings`, `updateInvoiceSettings` |
+| `src/types/contact.ts` | `ContactDetails` |
+| `src/lib/contact.ts` | `formatPhoneDisplay`, `telHref`, `mailtoHref`, `whatsappHref`, `hoursLines`, `hasContact`, `NO_CONTACT` |
+| `src/components/providers/contact-provider.tsx` | `ContactProvider` and `useContact` for client components. Mounted in `src/app/(site)/layout.tsx` |
+| `src/components/contact/contact-links.tsx` | `ContactLinks`, the shared list of email, phone, Live Chat and hours |
+| `src/components/contact/order-help.tsx` | `OrderHelp`, shown on the account order screen and Track Order through `OrderDetailBody` |
+| `src/lib/support.ts` | `getSupportChannels(contact)` builds the Support page cards from the saved details |
+| `src/lib/email/templates.ts` | `withContactFooter`, applied to every email by `sendEmail` |
+| `src/components/admin/vat/invoice-details-section.tsx` | The admin form |
+
+The tax invoice still reads the legal name, TRN, address and support email from
+the same settings. See [INVOICES.md](INVOICES.md).
+
+Go live: fill this section before the first customer. See the go live checklist
+in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 7. Database change
 
@@ -74,12 +123,33 @@ is `20261030140000_add_vat_rate_percent`. Existing rows take the default 5.
 Apply it with `npm run db:deploy`. Do not run `prisma db pull` against a database
 that has not had it applied, because the pull removes the column from the schema.
 
+## 7a. Database change for contact details
+
+The phone number, WhatsApp number and support hours are three columns on
+`StoreSettings` in `prisma/schema/settings.prisma`, all `String @default("")`:
+
+| Column | Holds |
+| --- | --- |
+| `contactPhone` | Phone number in stored form |
+| `contactWhatsapp` | WhatsApp number in stored form |
+| `contactSupportHours` | Support hours, free text |
+
+The migration is `20261113071918_add_contact_details`, additive only. Existing
+rows take the empty default, so nothing shows until staff fill the fields.
+Apply it with `npm run db:deploy` before running this code against any other
+database. The Prisma client expects these columns, so any read of the settings
+row fails on a database that does not have them yet.
+
 ## 8. Not covered
 
 1. Decimal rates. `Order.vatRatePercent` is an `Int`, so rates are whole
    percentages.
+2. Social media links and a chat widget. Live Chat only opens WhatsApp.
+3. Per language or per page contact details.
 
 ## 9. Tests
 
 `src/lib/pricing/price-cart.test.ts` covers pricing with a given rate, a 0%
 rate and bad rates. `src/validators/vat.validator.test.ts` covers the bounds.
+`src/lib/contact.test.ts` covers phone display, the call and WhatsApp links,
+the hours rows, the email footer and the contact field validation.

@@ -1,8 +1,9 @@
 import { RESET_TOKEN_TTL_SECONDS, VERIFY_TOKEN_TTL_SECONDS, WAITLIST_CONFIRM_LINK_TTL_SECONDS } from "@/lib/constants";
+import { formatPhoneDisplay, mailtoHref, telHref, whatsappHref } from "@/lib/contact";
 import { formatMoney } from "@/lib/money";
 import { PAYMENT_METHOD_LABELS, PAYMENT_PENDING_NOTICE, paysOnline, type PaymentMethod } from "@/lib/orders";
 import { siteConfig } from "@/lib/site";
-import { supportContact } from "@/lib/support";
+import type { ContactDetails } from "@/types/contact";
 import type { EmailContent } from "./email-outcome";
 
 interface LinkEmailInput {
@@ -41,6 +42,30 @@ export function escapeHtml(value: string): string {
 export function hoursLabel(seconds: number): string {
   const hours = Math.round(seconds / SECONDS_PER_HOUR);
   return hours === 1 ? "1 hour" : `${hours} hours`;
+}
+
+/**
+ * Adds the saved support details to the foot of an email: the support email
+ * and, when set, the phone and WhatsApp numbers. With nothing saved the
+ * email is returned as it is.
+ */
+export function withContactFooter<T extends EmailContent>(message: T, contact: ContactDetails): T {
+  const rows: { label: string; value: string; href: string }[] = [];
+  if (contact.email) rows.push({ label: "Email", value: contact.email, href: mailtoHref(contact.email) });
+  if (contact.phone) rows.push({ label: "Phone", value: formatPhoneDisplay(contact.phone), href: telHref(contact.phone) });
+  if (contact.whatsapp) {
+    rows.push({ label: "WhatsApp", value: formatPhoneDisplay(contact.whatsapp), href: whatsappHref(contact.whatsapp) });
+  }
+  if (rows.length === 0) return message;
+
+  const html = [
+    "<hr>",
+    `<p>${rows
+      .map((row) => `${row.label}: <a href="${escapeHtml(row.href)}">${escapeHtml(row.value)}</a>`)
+      .join("<br>")}</p>`,
+  ].join("\n");
+  const text = ["--", ...rows.map((row) => `${row.label}: ${row.value}`)].join("\n");
+  return { ...message, html: `${message.html}\n${html}`, text: `${message.text}\n\n${text}` };
 }
 
 function linkEmail(
@@ -105,7 +130,7 @@ export function orderConfirmationMessage({ number, total, paymentMethod, ...link
     link,
     `${received} Your order number is ${number} and the total is ${formatMoney(total)}, VAT included. ${payment}`,
     "Track my order",
-    `Keep this email: the link above shows the latest status of your order. Questions? Email us at ${supportContact.email}.`,
+    `Keep this email: the link above shows the latest status of your order.`,
   );
 }
 
@@ -121,12 +146,10 @@ interface UpdateEmailInput {
 
 /** One layout for every customer update: greeting, paragraphs, one link, the support address. */
 function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): EmailContent {
-  const support = `Questions? Email us at ${supportContact.email}.`;
   const html = [
     `<p>Hi ${escapeHtml(name)},</p>`,
     ...paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`),
     `<p><a href="${escapeHtml(action.url)}">${escapeHtml(action.label)}</a></p>`,
-    `<p>${escapeHtml(support)}</p>`,
     `<p>${escapeHtml(siteConfig.name)}</p>`,
   ].join("\n");
   const text = [
@@ -134,8 +157,6 @@ function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): E
     ...paragraphs.flatMap((paragraph) => ["", paragraph]),
     "",
     `${action.label}: ${action.url}`,
-    "",
-    support,
     "",
     siteConfig.name,
   ].join("\n");
@@ -257,6 +278,19 @@ export function warrantyClaimDecisionMessage(input: ClaimUpdateInput & { statusL
     `Warranty claim ${input.number} for your ${input.device} (order ${input.orderNumber}) is now: ${input.statusLabel}.`,
     ...withNote(input.note),
   ]);
+}
+
+export function integrationTestEmail(name: string): EmailContent {
+  const lines = [
+    `Hi ${name},`,
+    `This is a test email from the Integrations, API Keys screen. If you can read it, ${siteConfig.name} can send email.`,
+    siteConfig.name,
+  ];
+  return {
+    subject: `Test email from ${siteConfig.name}`,
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+    text: lines.join("\n\n"),
+  };
 }
 
 export function waitlistConfirmMessage({ title, url, leaveUrl, confirmUrl }: WaitlistConfirmInput): EmailContent {

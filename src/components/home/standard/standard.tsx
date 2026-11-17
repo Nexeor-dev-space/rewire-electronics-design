@@ -51,7 +51,7 @@ export function Standard() {
       // double-padded the junction to twice the page's spacing.
       /* Bottom padding mirrors the stat row's own `pt-14 lg:pt-16`, so the
          vertical dividers get the same air below them as they have above. */
-      className="relative overflow-hidden bg-void pt-(--spacing-section) pb-14 lg:pb-16"
+      className="relative overflow-hidden bg-void py-(--spacing-section-sm)"
     >
       {/* One wash, one light. Nothing else behind the content. */}
       <div

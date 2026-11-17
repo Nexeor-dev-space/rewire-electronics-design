@@ -294,7 +294,7 @@ export function HomepageBuilder({ openType }: { openType?: AddableSectionType })
       {content}
 
       <p className="mt-5 text-sm text-ink-secondary">
-        The FAQ section&apos;s questions are edited in{" "}
+        The FAQ now appears on the About page, not the homepage. Its questions are edited in{" "}
         <Link href={FAQ_EDITOR_PATH} className="text-ink underline-offset-4 hover:underline">
           Content &amp; Policies
         </Link>

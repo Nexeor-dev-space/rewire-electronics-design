@@ -18,7 +18,8 @@ Now:
 2. Each invoice gets a sequential number (`INV-2026-000001`) the first time
    it is downloaded. The number never changes after that.
 3. The seller details and the Terms & Conditions are edited by an admin on
-   Governance, VAT & Configuration, under **Invoice details**.
+   Governance, VAT & Configuration, under **Contact & invoice details**
+   (the section was called Invoice details until issue #155).
 
 The Wishmaster kit used Python and WeasyPrint, which this app cannot run.
 The same layout is drawn with `@react-pdf/renderer` (pure JavaScript, no
@@ -124,7 +125,7 @@ Matches the Wishmaster sample invoice (November 2026), top to bottom:
 2. Three columns: **Billing Address**, **Delivery Address** and **Sold by**.
    Rewire stores one address per order, so Billing and Delivery show the
    same address. Sold by is the legal name, address, `VAT: <TRN>`, email and
-   website, each from the Invoice details settings and hidden when empty.
+   website, each from the Contact & invoice details settings and hidden when empty.
 3. **Order Information**: order date, order number, delivered on (when
    delivered), payment method and payment status.
 4. **Invoice Detail** table: the items, then a `Shipping Charges` row when
@@ -173,7 +174,10 @@ response as above.
 ### `GET` and `PUT /api/v1/admin/invoice-settings`
 
 The seller block. View or Edit on VAT & Configuration (`PERMISSIONS.vat`).
-Every save is recorded in the change log as "Invoice details".
+Every save is recorded in the change log as "Contact & invoice details".
+The same settings also hold the store's phone, WhatsApp number and support
+hours, which the storefront and emails show. See [VAT.md](VAT.md). The invoice
+keeps reading only the legal name, TRN, address, support email and terms.
 
 ```json
 {
@@ -181,12 +185,17 @@ Every save is recorded in the change log as "Invoice details".
   "sellerTrn": "100123456700003",
   "sellerAddress": "Office 12, Business Bay, Dubai, UAE",
   "sellerEmail": "support@rewire-electronics.com",
+  "phone": "+971501234567",
+  "whatsapp": "+971501234567",
+  "supportHours": "Sunday to Thursday, 9:00 to 18:00 Gulf time",
   "terms": "Devices can be returned within 30 days of delivery.\nPrices include 5% VAT."
 }
 ```
 
 Rules: legal name required; TRN empty or exactly 15 digits; email empty or
-valid; each field up to 200 characters; terms up to 2000 characters, one
+valid; phone and WhatsApp empty or a valid UAE or Saudi number; support hours
+up to `CONTACT_HOURS_MAX_LENGTH` (300) characters; each other field up to 200
+characters; terms up to 2000 characters, one
 point per line. `GET` also returns `updatedAt`.
 
 Until a legal name is saved, invoices show the site name (`Rewire

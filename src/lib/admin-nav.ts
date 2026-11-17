@@ -21,7 +21,7 @@
 export const ADMIN_ROOT = "/admin";
 
 /**
- * The eight operational areas of the console. Staff access is granted by
+ * The operational areas of the console, plus Help. Staff access is granted by
  * area, so this is the coarse half of the future permission key.
  */
 export type AdminArea =
@@ -32,7 +32,8 @@ export type AdminArea =
   | "service"
   | "marketing"
   | "integrations"
-  | "governance";
+  | "governance"
+  | "help";
 
 export interface AdminNavItem {
   /** Unique within its area. Forms the second half of the permission key. */
@@ -293,6 +294,13 @@ export const adminNav: AdminNavSection[] = [
     ],
     items: [
       {
+        key: "api-keys",
+        label: "API Keys",
+        href: "/admin/integrations/api-keys",
+        description:
+          "Analytics and site verification IDs for the storefront, and the status and tests of email and Stripe.",
+      },
+      {
         key: "google-merchant",
         label: "Google Merchant",
         href: "/admin/integrations/google-merchant",
@@ -376,6 +384,26 @@ export const adminNav: AdminNavSection[] = [
             description: "Deleted staff and customer accounts.",
           },
         ],
+      },
+    ],
+  },
+  {
+    // Not permission modules, so every console user sees them.
+    area: "help",
+    label: "Help",
+    glyph: ["M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16z", "M9.75 9.75a2.25 2.25 0 1 1 3.5 1.87c-.8.55-1.25 1-1.25 1.88", "M12 16.5h.01"],
+    items: [
+      {
+        key: "admin-guide",
+        label: "Admin Guide",
+        href: "/admin/help/admin-guide",
+        description: "Step by step help for running the shop from this console.",
+      },
+      {
+        key: "customer-guide",
+        label: "Customer Guide",
+        href: "/admin/help/customer-guide",
+        description: "How shoppers use the website, to help you support them.",
       },
     ],
   },
