@@ -112,7 +112,8 @@ export function ConfettiBurst({ trigger, size = "sm" }: { trigger: number; size?
             <motion.span
               key={`${trigger}-${index}`}
               className={`absolute ${config.origin} ${piece.round ? config.round : config.strip} ${piece.colour}`}
-              initial={{ x: x(0), y: y(0), opacity: 1, rotate: 0, scale: 0.6 }}
+              // Hidden until launch: delayed pieces would otherwise sit visible at the origin.
+              initial={{ x: x(0), y: y(0), opacity: 0, rotate: 0, scale: 0.6 }}
               animate={{
                 x: x(piece.x),
                 y: [y(0), y(piece.y), y(piece.y + config.fall)],
