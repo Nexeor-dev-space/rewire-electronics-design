@@ -111,8 +111,8 @@ export const CART_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const TOAST_DURATION_MS = 3_000;
 /** The toast wording, kept in one place so cards and the product page say the same thing. */
 export const TOAST_MESSAGES = {
-  addedToCart: (productName: string) => ` Added to cart`,
-  savedToWishlist: (productName: string) => ` Saved to wishlist`,
+  addedToCart: (productName: string) => ` Added to Cart`,
+  savedToWishlist: (productName: string) => ` Saved to Wishlist`,
 } as const;
 export const RETURN_WINDOW_DAYS = 30;
 export const RETURN_WINDOW_MAX_DAYS = 365;
