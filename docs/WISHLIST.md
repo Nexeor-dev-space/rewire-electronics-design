@@ -18,6 +18,7 @@ the heart.
 3. **The product page heart did nothing.** It flipped a local toggle that
    was never saved. It now uses the same wishlist as every other heart.
 4. **The heart turns red, with a pop.** See §4.
+5. **Saving shows a toast.** See §5.
 
 No database change and no new environment variable.
 
@@ -94,7 +95,22 @@ The button around it keeps the click, `aria-pressed` and the label.
 
 ---
 
-## 5. Not covered
+## 5. The toast
+
+Saving a product, from a card heart (`WishlistButton`) or the product page's
+"Save to wishlist", shows a toast: a filled red heart and "{product name}
+saved to your wishlist". Unsaving shows no toast; the heart going back to an
+outline is enough.
+
+The toast comes from `useToast().showToast(message, "heart")`
+(`src/components/ui/toast.tsx`). The wording is
+`TOAST_MESSAGES.savedToWishlist` and the time on screen is
+`TOAST_DURATION_MS` (3 s), both in `src/lib/constants.ts`. How the toast
+looks and behaves is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) §6.
+
+---
+
+## 6. Not covered
 
 The wishlist does not follow a signed in shopper to another device. That
 would need a wishlist table (a migration) and a merge on sign in.

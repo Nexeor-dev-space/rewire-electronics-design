@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn, savingsPercent } from "@/lib/utils";
 import { controlSwap } from "@/lib/motion";
 import { CURRENCY, LOCALE, formatMoney } from "@/lib/money";
-import { CART_MAX_LINE_QUANTITY } from "@/lib/constants";
+import { CART_MAX_LINE_QUANTITY, TOAST_MESSAGES } from "@/lib/constants";
 import { useAddCartItem, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
@@ -20,6 +20,7 @@ import type { ShopAddOn, ShopProductDetail, ShopVariant } from "@/types/catalogu
 import { ProductAddOns } from "./product-add-ons";
 import { HeartIcon } from "@/components/product/heart-icon";
 import { useAccount } from "@/components/providers/account-provider";
+import { useToast } from "@/components/ui/toast";
 
 /**
  * ProductBuyPanel — the right-hand column on desktop, the second block on
@@ -103,7 +104,13 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
   const storageOptions = optionsFor(variants, variant, "storage");
   const colorOptions = optionsFor(variants, variant, "colour");
   const { isSaved, toggleSaved } = useAccount();
+  const { showToast } = useToast();
   const saved = isSaved(product.slug);
+
+  function handleToggleSaved() {
+    toggleSaved(product.slug);
+    if (!saved) showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
+  }
 
   function choose(axis: Axis, value: string) {
     const next = closestVariant(variants, variant, axis, value);
@@ -175,9 +182,9 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
 
   /**
    * On the product page an add is confirmed in place, not by the "Added to
-   * cart" popup: a confetti pop from the button, then a smooth scroll to
-   * "Add to your order" with a brief highlight, so the shopper sees the
-   * extras next. Products without add-ons only get the confetti.
+   * cart" popup: a confetti pop from the button and a toast, then a smooth
+   * scroll to "Add to your order" with a brief highlight, so the shopper
+   * sees the extras next. Products without add-ons skip the scroll.
    */
   function handleAddToCart() {
     if (!purchasable || addInFlight.current) return;
@@ -189,6 +196,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
           if (!nextCart.items.some((item) => item.variantId === variant.id)) return;
           setPendingAddOns([]);
           setCelebrate((count) => count + 1);
+          showToast(TOAST_MESSAGES.addedToCart(product.name));
           if (addOns.length > 0 && addOnsRef.current) {
             addOnsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
             setHighlightAddOns(true);
@@ -471,7 +479,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
 
       <button
         type="button"
-        onClick={() => toggleSaved(product.slug)}
+        onClick={handleToggleSaved}
         aria-pressed={saved}
         className={cn(
           "mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full border text-sm font-medium transition-colors duration-(--duration-fast)",
