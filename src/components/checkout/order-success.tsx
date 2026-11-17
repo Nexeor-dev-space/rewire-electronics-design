@@ -222,10 +222,12 @@ function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boole
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">
       <ConfettiBurst trigger={celebrate} size="screen" />
       <header className="flex flex-col items-center gap-6 text-center">
+        {/* Solid base above the confetti overlay (z-60), so no piece shows inside the circle. */}
         <span
           aria-hidden
-          className="flex size-16 items-center justify-center rounded-full bg-live/15"
+          className="relative z-[61] flex size-16 items-center justify-center rounded-full bg-void"
         >
+          <span className="absolute inset-0 rounded-full bg-live/15" />
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -233,7 +235,7 @@ function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boole
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="size-7 text-live"
+            className="relative size-7 text-live"
           >
             <path d="m5 12 4.5 4.5L19 7" />
           </svg>
