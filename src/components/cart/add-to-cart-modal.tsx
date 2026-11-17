@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useGetCart, useUpdateCartItem } from "@/hooks/use-cart";
 import { CART_PAGE_PATH } from "@/lib/constants";
+import { DURATION, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
 import type { CartLine } from "@/types/cart";
@@ -13,16 +14,14 @@ import { useCartFeedback } from "./cart-feedback-provider";
 import { LineAddOns, toggledAddOnIds } from "./cart-line";
 
 /**
- * AddToCartModal — the cart extensions shown after a product card's Add to
- * cart, when that product offers add-ons.
+ * AddToCartModal — the cart extensions shown after Add to cart on a product
+ * card or the product page, when that product offers add-ons.
  *
  * Mounted once at the root of the tree. Reads the last `notifyAdded` line
  * id off the CartFeedbackProvider and that line live from `useGetCart`:
  * the confirmation, the line's add-ons as the same "Complete the setup"
  * chips the cart page shows (ticking one updates the line at once), the
- * running cart summary, and Continue Shopping / View Cart. The product
- * page does not open it: it confirms in place and scrolls to its own
- * add-ons.
+ * running cart summary, and Continue Shopping / View Cart.
  *
  * The panel adopts the user-specified dark palette by scoping the
  * design-token CSS variables inside its own subtree — every Tailwind
@@ -30,9 +29,10 @@ import { LineAddOns, toggledAddOnIds } from "./cart-line";
  * resolves to the palette the brief calls for, without disturbing the
  * light-first tokens the rest of the site sits on.
  *
- * Layout adapts by viewport rather than by matchMedia: a centred panel
- * from `sm` up, and a bottom sheet on phones. The same DOM either way —
- * only the wrapper positioning changes.
+ * A side panel that slides in from the right on every width, the same
+ * shape and motion as the shop's filter drawer (`filter-drawer.tsx`):
+ * full height, full width on phones, capped from there up. The add-on
+ * list scrolls between a fixed header and footer.
  */
 
 const FOCUSABLE =
@@ -94,23 +94,21 @@ export function AddToCartModal() {
   );
 
   const showPanel = isOpen && Boolean(latest && line);
+  const transition = { duration: prefersReduced ? 0 : DURATION.base, ease: EASE_OUT_EXPO };
 
   return (
     <AnimatePresence>
       {showPanel && latest && line && (
-        <motion.div
-          aria-hidden={false}
-          className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
-        >
+        <motion.div key="add-to-cart-panel" className="fixed inset-0 z-[80]">
           {/* ---------- Backdrop ---------- */}
-          <button
+          <motion.button
             type="button"
             aria-label="Close"
             onClick={close}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={transition}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
@@ -122,35 +120,20 @@ export function AddToCartModal() {
             aria-labelledby="add-to-cart-title"
             tabIndex={-1}
             onKeyDown={handleKeyDown}
-            initial={
-              prefersReduced
-                ? { opacity: 0 }
-                : { opacity: 0, y: 24, scale: 0.985 }
-            }
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              prefersReduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.99 }
-            }
-            transition={{ duration: prefersReduced ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
+            initial={prefersReduced ? { opacity: 0 } : { x: "100%" }}
+            animate={prefersReduced ? { opacity: 1 } : { x: 0 }}
+            exit={prefersReduced ? { opacity: 0 } : { x: "100%" }}
+            transition={transition}
             key={latest.nonce}
             className={cn(
               // Scoped commerce dark palette — every token below resolves
               // to the transactional palette defined in globals.css.
               "commerce-dark",
-              "relative z-10 flex w-full flex-col overflow-hidden",
-              // Bottom sheet on mobile
-              "max-h-[92dvh] rounded-t-3xl pb-[env(safe-area-inset-bottom)] sm:pb-0",
-              // Centred panel from sm
-              "sm:my-8 sm:max-h-[88dvh] sm:max-w-[560px] sm:rounded-3xl lg:max-w-[640px]",
-              // Chrome
-              "bg-surface text-ink border border-line shadow-[0_24px_48px_rgb(0_0_0/0.45)]",
+              "absolute inset-y-0 right-0 flex w-full max-w-[26rem] flex-col overflow-hidden",
+              "pb-[env(safe-area-inset-bottom)]",
+              "bg-surface text-ink border-l border-line shadow-[0_24px_48px_rgb(0_0_0/0.45)]",
             )}
           >
-            {/* Grabber (mobile only) */}
-            <div className="pt-2.5 sm:hidden" aria-hidden>
-              <span className="mx-auto block h-1 w-10 rounded-full bg-white/15" />
-            </div>
-
             <ModalHeader onClose={close} />
 
             {/*
