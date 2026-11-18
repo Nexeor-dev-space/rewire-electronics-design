@@ -324,3 +324,4 @@ export const WHATSAPP_TEMPLATES = {
 export const WHATSAPP_TEMPLATE_LANGUAGE = "en";
 export const WHATSAPP_REQUEST_TIMEOUT_MS = 10_000;
 export const WHATSAPP_API_BASE = "https://graph.facebook.com/v21.0";
+export const EMAIL_INLINE_IMAGE_MAX_BYTES = 300 * 1024;

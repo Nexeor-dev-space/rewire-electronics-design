@@ -210,7 +210,41 @@ would need columns on the store settings table (a migration).
 
 ---
 
-## 9. Known limits
+## 9. The branded order emails
+
+Every email about an order uses the designed layout (`src/lib/email/order-layout.ts`,
+filled by `order-email.ts`): order confirmation, payment received, dispatched,
+delivered, cancelled, delivery attempt failed, device record, add-on summary,
+review request, entitlement reminder and warranty expiry notice. The wording,
+subject and badge (tick, warning or cross) follow the message (`copyFor` in
+`order-email.ts`). Device records and add-on summaries add a list of the units
+or add-ons above the order summary. The return, warranty claim, account and
+release emails still use the plain layout.
+
+Processing sends no email: `notifyOrderStatus` only emails Confirmed (payment
+received), Dispatched, Delivered and Cancelled.
+
+1. **Theme.** It uses the storefront's dark tokens from `globals.css` (void
+   canvas, surface card, ink text, accent button) as plain inline colours, so
+   it looks the same in every mail app and does not depend on dark mode.
+2. **Content.** Items, add-ons, discount, delivery, VAT, totals, address,
+   payment and placed date come from the placed order. The help block and
+   footer come from the saved Contact & invoice details and show only what
+   staff filled in. Nothing is typed in code.
+3. **Images.** The logo and each product photo are sent inside the email as
+   `cid:` images (`src/services/email-images.service.ts`), so they show even
+   when the site address is private or tunnelled (an ngrok `APP_URL` blocks
+   mail apps) or the app blocks remote images. A photo over
+   `EMAIL_INLINE_IMAGE_MAX_BYTES` (300 KB) falls back to its web address. The
+   logo file is `public/images/brand/email-logo-on-dark.png`.
+4. **Footer.** `EmailContent.branded` stops `sendEmail` adding the plain
+   contact footer on top, since the layout has its own.
+5. **Fonts.** Geist loads from `{APP_URL}/fonts/Geist-VariableFont_wght.ttf`
+   where the app allows web fonts, and falls back to Helvetica or Arial.
+
+---
+
+## 10. Known limits
 
 1. The `ReleaseEmail` table from issue #108 is unused; `MessageLog` replaced it.
 2. A server crash mid send leaves a row at Sending. It shows in the log and is

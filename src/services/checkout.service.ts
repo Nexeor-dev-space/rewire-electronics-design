@@ -302,5 +302,5 @@ export async function placeOrder(
 
 /** The order confirmation email, recorded in the message history like every other message. */
 export function sendOrderConfirmation(order: OrderDetail): Promise<void> {
-  return notifyOrderPlaced(order.number);
+  return notifyOrderPlaced(order);
 }

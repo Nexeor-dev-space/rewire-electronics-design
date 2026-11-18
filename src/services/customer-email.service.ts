@@ -2,33 +2,24 @@ import "server-only";
 
 import { appUrl } from "@/lib/app-url";
 import { ACCOUNT_ORDERS_PATH, ACCOUNT_RETURNS_PATH, ORDER_TRACK_PAGE_PATH } from "@/lib/constants";
-import { formatOrderDate } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import type { EmailContent } from "@/lib/email/email-outcome";
 import {
-  addOnEntitlementSummaryMessage,
-  deliveryAttemptFailedMessage,
-  deviceRecordMessage,
-  type DeviceLine,
-  type EntitlementLine,
-} from "@/lib/email/message-templates";
-import {
-  orderCancelledMessage,
-  orderConfirmationMessage,
-  orderDeliveredMessage,
-  orderDispatchedMessage,
-  orderPaymentReceivedMessage,
   refundIssuedMessage,
   returnDecisionMessage,
   returnReceivedMessage,
   warrantyClaimDecisionMessage,
   warrantyClaimOpenedMessage,
 } from "@/lib/email/templates";
+import { orderEmail, type OrderEmailKind } from "@/lib/email/order-email";
 import { dedupeKey, type MessageTrigger } from "@/lib/messaging";
 import type { OrderStatus } from "@/lib/orders";
 import type { ReturnStatus } from "@/lib/returns";
-import { WARRANTY_CLAIM_STATUS_LABELS, unitLabel, type WarrantyClaimStatus } from "@/lib/warranty";
+import { WARRANTY_CLAIM_STATUS_LABELS, type WarrantyClaimStatus } from "@/lib/warranty";
+import { loadOrderEmailImages } from "@/services/email-images.service";
 import { dispatchEmail } from "@/services/message.service";
+import { getInvoiceSettings } from "@/services/store-settings.service";
+import type { OrderDetail } from "@/types/order";
 
 /**
  * Emails to the customer when an order, return or warranty claim changes.
@@ -41,7 +32,6 @@ import { dispatchEmail } from "@/services/message.service";
 const LINK_TRACK_ORDER = "Track my order";
 const LINK_VIEW_ORDER = "View my order";
 const LINK_VIEW_RETURNS = "View my returns";
-const WARRANTY_DATE_PENDING = "a date to be confirmed";
 
 export const customerSelect = {
   number: true,
@@ -59,19 +49,14 @@ export interface Customer {
   placedAsGuest: boolean;
 }
 
-interface OrderInput {
-  url: string;
-  linkLabel: string;
-  name: string;
-  number: string;
+async function trackOrderLink(order: Customer): Promise<{ url: string; linkLabel: string }> {
+  const query = new URLSearchParams({ number: order.number, email: order.email });
+  return { url: await appUrl(`${ORDER_TRACK_PAGE_PATH}?${query}`), linkLabel: LINK_TRACK_ORDER };
 }
 
 /** Guests get Track Order; account holders get their account page. */
 export async function orderLink(order: Customer): Promise<{ url: string; linkLabel: string }> {
-  if (order.placedAsGuest) {
-    const query = new URLSearchParams({ number: order.number, email: order.email });
-    return { url: await appUrl(`${ORDER_TRACK_PAGE_PATH}?${query}`), linkLabel: LINK_TRACK_ORDER };
-  }
+  if (order.placedAsGuest) return trackOrderLink(order);
   return { url: await appUrl(`${ACCOUNT_ORDERS_PATH}/${order.number}`), linkLabel: LINK_VIEW_ORDER };
 }
 
@@ -112,34 +97,96 @@ function send({ trigger, customer, refId, refLabel, key, content }: Send) {
 
 /* ---------- orders ---------- */
 
-const orderSelect = {
-  ...customerSelect,
-  status: true,
-  paymentStatus: true,
-  paymentMethod: true,
-  total: true,
-  trackingNumber: true,
-  carrier: true,
-} as const;
+/** The order statuses that email the customer. PROCESSING is deliberately not one of them. */
+const NOTIFIED_STATUSES: readonly OrderStatus[] = ["DISPATCHED", "DELIVERED", "CANCELLED"];
+
+const orderSelect = { ...customerSelect } as const;
+
+async function loadOrderDetail(number: string): Promise<OrderDetail> {
+  // Imported when needed: order.service imports this file to send these emails.
+  const { getOrderDetail } = await import("@/services/order.service");
+  const order = await getOrderDetail({ number });
+  if (!order) throw new Error(`order ${number} not found`);
+  return order;
+}
+
+interface OrderSend {
+  number: string;
+  trigger: MessageTrigger;
+  kind: OrderEmailKind;
+  /** Parts of the event's key, read from the order as it is now. */
+  key: (order: OrderDetail) => (string | number)[];
+  /** The record the message is about, when it is not the order itself (an order line). */
+  refId?: string;
+  /** The order as the caller already has it. */
+  order?: OrderDetail;
+  /** Sends nothing when this is false for the order as it is now. */
+  onlyIf?: (order: OrderDetail) => boolean;
+}
+
+/**
+ * One branded order email. The layout is shared; the wording, icon and
+ * subject follow `kind`, and everything shown is read from the live order and
+ * the saved store details. Returns the customer and link, so a caller can
+ * send a follow up to the same person.
+ */
+async function sendOrderEmail({ number, trigger, kind, key, refId, order: loaded, onlyIf }: OrderSend) {
+  const order = loaded ?? (await loadOrderDetail(number));
+  if (onlyIf && !onlyIf(order)) return null;
+  const [customer, siteUrl, settings, images] = await Promise.all([
+    prisma.order.findUniqueOrThrow({ where: { number }, select: orderSelect }),
+    appUrl("/"),
+    getInvoiceSettings(),
+    loadOrderEmailImages(order),
+  ]);
+  const link = kind.type === "PLACED" ? await trackOrderLink(customer) : await orderLink(customer);
+
+  await send({
+    trigger,
+    customer,
+    refId: refId ?? number,
+    refLabel: `Order ${number}`,
+    key: key(order),
+    content: {
+      ...orderEmail(
+        order,
+        {
+          siteUrl,
+          cta: { label: link.linkLabel, url: link.url },
+          contact: {
+            email: settings.sellerEmail,
+            phone: settings.phone,
+            whatsapp: settings.whatsapp,
+            hours: settings.supportHours,
+          },
+          legal: { name: settings.sellerName, address: settings.sellerAddress, trn: settings.sellerTrn },
+          year: new Date().getFullYear(),
+          images,
+        },
+        kind,
+      ),
+      images: images.attachments,
+    },
+  });
+  return { customer, link };
+}
+
+/** A timed order email (review request, warranty notices), sent by the scheduler. Never throws. */
+export function notifyOrderEmail(input: Omit<OrderSend, "order" | "onlyIf">): Promise<void> {
+  return safely(`order ${input.number} ${input.trigger}`, async () => {
+    await sendOrderEmail(input);
+  });
+}
 
 /** The confirmation sent when an order is placed. */
-export function notifyOrderPlaced(number: string): Promise<void> {
-  return safely(`order ${number} confirmation`, async () => {
-    const order = await prisma.order.findUniqueOrThrow({ where: { number }, select: orderSelect });
-    const query = new URLSearchParams({ number, email: order.email });
-    await send({
+export function notifyOrderPlaced(order: OrderDetail): Promise<void> {
+  return safely(`order ${order.number} confirmation`, async () => {
+    await sendOrderEmail({
+      number: order.number,
+      order,
       trigger: "ORDER_CONFIRMATION",
-      customer: order,
-      refId: number,
-      refLabel: `Order ${number}`,
-      key: [number],
-      content: orderConfirmationMessage({
-        name: order.firstName,
-        url: await appUrl(`${ORDER_TRACK_PAGE_PATH}?${query}`),
-        number,
-        total: order.total,
-        paymentMethod: order.paymentMethod,
-      }),
+      kind: { type: "PLACED" },
+      key: (current) => [current.number],
     });
   });
 }
@@ -147,52 +194,54 @@ export function notifyOrderPlaced(number: string): Promise<void> {
 /** Card or Apple Pay paid, or staff marked the order paid. */
 export function notifyOrderPaid(number: string): Promise<void> {
   return safely(`order ${number} payment`, async () => {
-    const order = await prisma.order.findUniqueOrThrow({ where: { number }, select: orderSelect });
-    const link = await orderLink(order);
-    await send({
+    await sendOrderEmail({
+      number,
       trigger: "ORDER_PAYMENT_RECEIVED",
-      customer: order,
-      refId: number,
-      refLabel: `Order ${number}`,
-      key: [number],
-      content: orderPaymentReceivedMessage({
-        ...link,
-        name: order.firstName,
-        number,
-        total: order.total,
-        paymentMethod: order.paymentMethod,
-        confirmed: order.status === "CONFIRMED",
-      }),
+      kind: { type: "PAYMENT_RECEIVED" },
+      key: (current) => [current.number],
     });
   });
 }
 
-/** The one order status change path: dispatched, delivered, cancelled, or confirmed by payment. */
+/**
+ * The one order status change path. Paid (confirmed), dispatched, delivered
+ * and cancelled email the customer; every other status, Processing included,
+ * sends nothing.
+ */
 export function notifyOrderStatus(number: string, status: OrderStatus): Promise<void> {
   if (status === "CONFIRMED") return notifyOrderPaid(number);
-  if (status !== "DISPATCHED" && status !== "DELIVERED" && status !== "CANCELLED") return Promise.resolve();
+  if (!NOTIFIED_STATUSES.includes(status)) return Promise.resolve();
 
   return safely(`order ${number} ${status}`, async () => {
-    const order = await prisma.order.findUniqueOrThrow({ where: { number }, select: orderSelect });
-    const input = { ...(await orderLink(order)), name: order.firstName, number };
-    const base = { customer: order, refId: number, refLabel: `Order ${number}` };
-
     if (status === "DISPATCHED") {
-      await send({
-        ...base,
+      await sendOrderEmail({
+        number,
         trigger: "ORDER_DISPATCHED",
-        key: [number, order.trackingNumber],
-        content: orderDispatchedMessage({ ...input, trackingNumber: order.trackingNumber, carrier: order.carrier }),
+        kind: { type: "DISPATCHED" },
+        key: (current) => [current.number, current.trackingNumber],
       });
     } else if (status === "DELIVERED") {
-      await send({ ...base, trigger: "ORDER_DELIVERED", key: [number], content: orderDeliveredMessage(input) });
-      await sendDeliveryRecords(number, order, input);
+      await sendOrderEmail({
+        number,
+        trigger: "ORDER_DELIVERED",
+        kind: { type: "DELIVERED" },
+        key: (current) => [current.number],
+      });
+      // Delivery starts the warranty: the device record, and what any add-ons entitle.
+      await sendOrderEmail({ number, trigger: "DEVICE_RECORD", kind: { type: "DEVICE_RECORD" }, key: (current) => [current.number] });
+      await sendOrderEmail({
+        number,
+        trigger: "ADDON_ENTITLEMENT_SUMMARY",
+        kind: { type: "ADDON_SUMMARY" },
+        key: (current) => [current.number],
+        onlyIf: (current) => current.lines.some((line) => line.addOns.length > 0),
+      });
     } else {
-      await send({
-        ...base,
+      await sendOrderEmail({
+        number,
         trigger: "ORDER_CANCELLED",
-        key: [number],
-        content: orderCancelledMessage({ ...input, refundApplies: order.paymentStatus !== "UNPAID" }),
+        kind: { type: "CANCELLED" },
+        key: (current) => [current.number],
       });
     }
   });
@@ -201,79 +250,13 @@ export function notifyOrderStatus(number: string, status: OrderStatus): Promise<
 /** Staff logged a failed delivery attempt. `eventId` is that order event, so each attempt is its own message. */
 export function notifyDeliveryAttemptFailed(number: string, eventId: string, note: string): Promise<void> {
   return safely(`order ${number} failed delivery`, async () => {
-    const order = await prisma.order.findUniqueOrThrow({ where: { number }, select: orderSelect });
-    await send({
+    await sendOrderEmail({
+      number,
       trigger: "DELIVERY_ATTEMPT_FAILED",
-      customer: order,
-      refId: number,
-      refLabel: `Order ${number}`,
-      key: [eventId],
-      content: deliveryAttemptFailedMessage({ ...(await orderLink(order)), name: order.firstName, number, note }),
+      kind: { type: "DELIVERY_FAILED", note },
+      key: () => [eventId],
     });
   });
-}
-
-/* ---------- after delivery: device record and add-on entitlements ---------- */
-
-const deliveredItemsSelect = {
-  items: {
-    orderBy: { createdAt: "asc" },
-    select: {
-      productName: true,
-      quantity: true,
-      warrantyEndsAt: true,
-      devices: { orderBy: { unitNumber: "asc" }, select: { unitNumber: true, serialNumber: true } },
-      addOns: { select: { name: true, extraWarrantyMonths: true } },
-    },
-  },
-} as const;
-
-export function warrantyDate(date: Date | null): string {
-  return date ? formatOrderDate(date.toISOString()) : WARRANTY_DATE_PENDING;
-}
-
-function addOnLabel(addOn: { name: string; extraWarrantyMonths: number }): string {
-  return addOn.extraWarrantyMonths > 0 ? `${addOn.name} (+${addOn.extraWarrantyMonths} months cover)` : addOn.name;
-}
-
-/** The entitlement lines of an order's items that carry add-ons. */
-export function entitlementLines(
-  items: { productName: string; warrantyEndsAt: Date | null; addOns: { name: string; extraWarrantyMonths: number }[] }[],
-): EntitlementLine[] {
-  return items
-    .filter((item) => item.addOns.length > 0)
-    .map((item) => ({
-      product: item.productName,
-      addOns: item.addOns.map(addOnLabel),
-      warrantyEndsAt: warrantyDate(item.warrantyEndsAt),
-    }));
-}
-
-/** Delivery starts the warranty: send the device record and, when the order had add-ons, what they entitle. */
-async function sendDeliveryRecords(number: string, customer: Customer, input: OrderInput) {
-  const { items } = await prisma.order.findUniqueOrThrow({ where: { number }, select: deliveredItemsSelect });
-  const base = { customer, refId: number, refLabel: `Order ${number}`, key: [number] };
-
-  const devices: DeviceLine[] = items.flatMap((item) =>
-    item.devices.map((device) => ({
-      product: item.productName,
-      unit: unitLabel(device.unitNumber, item.quantity),
-      serial: device.serialNumber ?? "",
-      warrantyEndsAt: warrantyDate(item.warrantyEndsAt),
-    })),
-  );
-  if (devices.length > 0) {
-    await send({ ...base, trigger: "DEVICE_RECORD", content: deviceRecordMessage({ ...input, devices }) });
-  }
-
-  const lines = entitlementLines(items);
-  if (lines.length > 0) {
-    await send({
-      ...base,
-      trigger: "ADDON_ENTITLEMENT_SUMMARY",
-      content: addOnEntitlementSummaryMessage({ ...input, lines }),
-    });
-  }
 }
 
 /* ---------- returns ---------- */

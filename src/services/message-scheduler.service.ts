@@ -17,21 +17,9 @@ import {
   WARRANTY_FOLLOW_UP_MAX_AGE_DAYS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import {
-  abandonedCheckoutMessage,
-  entitlementReminderMessage,
-  reviewRequestMessage,
-  warrantyExpiryNoticeMessage,
-  warrantyFollowUpMessage,
-} from "@/lib/email/message-templates";
+import { abandonedCheckoutMessage, warrantyFollowUpMessage } from "@/lib/email/message-templates";
 import { dedupeKey } from "@/lib/messaging";
-import {
-  customerSelect,
-  entitlementLines,
-  loadClaim,
-  orderLink,
-  warrantyDate,
-} from "@/services/customer-email.service";
+import { loadClaim, notifyOrderEmail } from "@/services/customer-email.service";
 import { dispatchEmail, settledRefs } from "@/services/message.service";
 import { sweepCampaignMessages, sweepReleaseSequence } from "@/services/release-message.service";
 
@@ -109,39 +97,24 @@ async function sweepReviewRequests(now: Date) {
       deliveredAt: { gte: daysAgo(now, REVIEW_REQUEST_MAX_AGE_DAYS), lte: daysAgo(now, REVIEW_REQUEST_AFTER_DAYS) },
       returns: { none: {} },
     },
-    select: { ...customerSelect, items: { select: { productName: true }, orderBy: { createdAt: "asc" } } },
+    select: { number: true },
     orderBy: { deliveredAt: "asc" },
     take: MESSAGE_SWEEP_BATCH,
   });
 
-  for (const order of orders) {
-    await dispatchEmail({
+  for (const { number } of orders) {
+    await notifyOrderEmail({
+      number,
       trigger: "REVIEW_REQUEST",
-      recipient: order.email,
-      userId: order.userId,
-      refId: order.number,
-      refLabel: `Order ${order.number}`,
-      dedupeKey: dedupeKey("REVIEW_REQUEST", order.number),
-      build: async () =>
-        reviewRequestMessage({
-          ...(await orderLink(order)),
-          name: order.firstName,
-          number: order.number,
-          products: order.items.map((item) => item.productName),
-        }),
+      kind: { type: "REVIEW_REQUEST" },
+      key: (order) => [order.number],
     });
   }
 }
 
 /* ---------- warranty and entitlements ---------- */
 
-const warrantyItemSelect = {
-  id: true,
-  productName: true,
-  warrantyEndsAt: true,
-  addOns: { select: { name: true, extraWarrantyMonths: true } },
-  order: { select: customerSelect },
-} as const;
+const warrantyItemSelect = { id: true, warrantyEndsAt: true, order: { select: { number: true } } } as const;
 
 /** Delivered lines whose warranty ends within the notice period. */
 async function sweepWarrantyExpiry(now: Date) {
@@ -160,22 +133,16 @@ async function sweepWarrantyExpiry(now: Date) {
   for (const item of items) {
     const endsAt = item.warrantyEndsAt;
     if (!endsAt) continue;
-    await dispatchEmail({
+    await notifyOrderEmail({
+      number: item.order.number,
       trigger: "WARRANTY_EXPIRY_NOTICE",
-      recipient: item.order.email,
-      userId: item.order.userId,
+      kind: {
+        type: "WARRANTY_EXPIRY",
+        lineId: item.id,
+        daysLeft: Math.max(1, Math.round((endsAt.getTime() - now.getTime()) / MS_PER_DAY)),
+      },
+      key: () => [item.id, endsAt.getTime()],
       refId: item.id,
-      refLabel: `Order ${item.order.number}`,
-      dedupeKey: dedupeKey("WARRANTY_EXPIRY_NOTICE", item.id, endsAt.getTime()),
-      build: async () =>
-        warrantyExpiryNoticeMessage({
-          ...(await orderLink(item.order)),
-          name: item.order.firstName,
-          number: item.order.number,
-          product: item.productName,
-          warrantyEndsAt: warrantyDate(endsAt),
-          daysLeft: Math.max(1, Math.round((endsAt.getTime() - now.getTime()) / MS_PER_DAY)),
-        }),
     });
   }
 }
@@ -198,20 +165,12 @@ async function sweepEntitlementReminders(now: Date) {
   for (const item of items) {
     const endsAt = item.warrantyEndsAt;
     if (!endsAt) continue;
-    await dispatchEmail({
+    await notifyOrderEmail({
+      number: item.order.number,
       trigger: "ENTITLEMENT_REMINDER",
-      recipient: item.order.email,
-      userId: item.order.userId,
+      kind: { type: "ENTITLEMENT_REMINDER", lineId: item.id },
+      key: () => [item.id, endsAt.getTime()],
       refId: item.id,
-      refLabel: `Order ${item.order.number}`,
-      dedupeKey: dedupeKey("ENTITLEMENT_REMINDER", item.id, endsAt.getTime()),
-      build: async () =>
-        entitlementReminderMessage({
-          ...(await orderLink(item.order)),
-          name: item.order.firstName,
-          number: item.order.number,
-          lines: entitlementLines([item]),
-        }),
     });
   }
 }

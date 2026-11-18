@@ -33,11 +33,19 @@ async function sendOverSmtp(smtp: SmtpConfig, message: EmailMessage) {
     subject: message.subject,
     html: message.html,
     text: message.text,
+    attachments: message.images?.map((image) => ({
+      cid: image.cid,
+      filename: image.filename,
+      content: image.content,
+      contentType: image.contentType,
+      contentDisposition: "inline" as const,
+    })),
   });
 }
 
 /** The footer is a courtesy: if the settings cannot be read, the email still goes out without it. */
 async function withSavedFooter(message: EmailMessage): Promise<EmailMessage> {
+  if (message.branded) return message;
   try {
     return withContactFooter(message, await getContactDetails());
   } catch (error) {
