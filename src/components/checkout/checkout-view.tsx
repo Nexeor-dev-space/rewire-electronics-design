@@ -413,7 +413,6 @@ export function CheckoutView({ payment }: Props) {
 
           <OrderSummary
             cart={cart!}
-            deliveryLabel={deliveryLabel}
             className="lg:hidden"
             compact
             onApplyCoupon={(code) => applyCoupon.mutate({ code })}
@@ -731,7 +730,6 @@ export function CheckoutView({ payment }: Props) {
           <div className="sticky top-40">
             <OrderSummary
               cart={cart!}
-              deliveryLabel={deliveryLabel}
               onApplyCoupon={(code) => applyCoupon.mutate({ code })}
               onRemoveCoupon={() => removeCoupon.mutate()}
               couponPending={applyCoupon.isPending || removeCoupon.isPending}
@@ -749,7 +747,6 @@ export function CheckoutView({ payment }: Props) {
       <StickyMobileCta
         placing={placing}
         cart={cart!}
-        deliveryLabel={deliveryLabel}
         canCheckout={cart!.canCheckout && stepsComplete}
         onPlaceOrder={handlePlaceOrder}
       />
@@ -941,13 +938,11 @@ function ReviewRow({
 function StickyMobileCta({
   placing,
   cart,
-  deliveryLabel,
   canCheckout,
   onPlaceOrder,
 }: {
   placing: boolean;
   cart: Cart;
-  deliveryLabel: string;
   canCheckout: boolean;
   onPlaceOrder: () => void;
 }) {
@@ -981,11 +976,7 @@ function StickyMobileCta({
           className="overflow-hidden"
         >
           <motion.div variants={collapsePanelBody} className="pb-4 pt-1">
-            <PriceBreakdown
-              totals={totals}
-              coupon={coupon}
-              deliveryLabel={deliveryLabel}
-            />
+            <PriceBreakdown totals={totals} coupon={coupon} />
             <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
               <span className="text-[0.9375rem] font-medium text-ink">Total</span>
               <span className="text-[1.0625rem] font-medium tabular-nums text-ink">

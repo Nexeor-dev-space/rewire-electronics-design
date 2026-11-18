@@ -15,7 +15,6 @@ import { POLICY_ROUTES } from "@/lib/policy-types";
 
 interface Props {
   cart: Cart;
-  deliveryLabel: string;
   onApplyCoupon?: (code: string) => void;
   onRemoveCoupon?: () => void;
   couponPending?: boolean;
@@ -32,7 +31,6 @@ interface Props {
 
 export function OrderSummary({
   cart,
-  deliveryLabel,
   onApplyCoupon,
   onRemoveCoupon,
   couponPending,
@@ -81,11 +79,7 @@ export function OrderSummary({
         />
       )}
 
-      <PriceBreakdown
-        totals={totals}
-        coupon={coupon}
-        deliveryLabel={deliveryLabel}
-      />
+      <PriceBreakdown totals={totals} coupon={coupon} />
 
       <div className="flex items-baseline justify-between border-t border-line pt-4">
         <span className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink">
@@ -193,11 +187,9 @@ export function OrderSummary({
 export function PriceBreakdown({
   totals,
   coupon,
-  deliveryLabel,
 }: {
   totals: Cart["totals"];
   coupon: AppliedCoupon | null;
-  deliveryLabel: string;
 }) {
   return (
     <dl className="grid gap-2.5 text-[0.9375rem]">
@@ -210,10 +202,11 @@ export function PriceBreakdown({
         />
       )}
       <Row
-        label={`Delivery · ${deliveryLabel}`}
+        label="Delivery"
         value={
+          // No fee yet: the emirate has areas and none is picked.
           totals.delivery === null
-            ? "—"
+            ? "Choose an area"
             : totals.delivery === 0
               ? "Free"
               : formatMoney(totals.delivery)
