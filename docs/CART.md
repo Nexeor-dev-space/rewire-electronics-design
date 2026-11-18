@@ -678,17 +678,19 @@ unticking.
 
 ### 9.1 Checkout steps
 
-`/checkout` is a four step accordion: **01 Information** (contact and
-address), **02 Delivery** (method), **03 Payment**, **04 Review**. The order
-summary sits beside it from `lg`, and above it on smaller screens.
+`/checkout` is a three step accordion: **01 Information** (contact and
+address), **02 Delivery** (method), **03 Payment & review** (the payment
+method, with the order review — delivery, payment and total — under it in the
+same step). The order summary sits beside it from `lg`, and above it on
+smaller screens.
 
 1. **Strictly linear.** One step is open at a time (`openStep` in
    `checkout-view.tsx`). Steps before it are done, steps after it are locked
    and show only their title. A step opens only through the Continue button
    of the step before it.
 2. **Done steps collapse to a summary with Edit.** Information shows email,
-   phone and "city, emirate"; Delivery shows method, ETA and fee; Payment shows
-   the method. Edit reopens that step and locks every step after it again, so
+   phone and "city, emirate"; Delivery shows method, ETA and fee. Payment &
+   review is the last step, so it never collapses. Edit reopens that step and locks every step after it again, so
    the shopper continues through each once more. Edit does nothing while an
    order is being placed.
 3. **Bodies stay mounted.** `CheckoutSection` collapses a closed body to zero
@@ -700,14 +702,14 @@ summary sits beside it from `lg`, and above it on smaller screens.
    (instantly under reduced motion); its `scroll-mt-*` clears the header and
    the progress bar.
 5. **Enter** in a field continues the open step, or places the order on
-   Review.
+   Payment & review.
 6. **Progress bar.** `CheckoutProgress` sits in a sticky bar just below the
-   checkout header (`top-16`, `md:top-20`). From `sm` it shows four pills: the
+   checkout header (`top-16`, `md:top-20`). From `sm` it shows three pills: the
    open one carries `aria-current="step"`, and done pills are buttons that
    reopen their step, the same as Edit. Below `sm` it compacts to "Step X of
-   4" and the step name, with no buttons; Edit on each section does the job.
+   3" and the step name, with no buttons; Edit on each section does the job.
 7. **Place Order waits for every step.** `OrderSummary` takes `stepsComplete`
-   (true only while Review is open) and keeps Place Order disabled until then,
+   (true only while Payment & review is open) and keeps Place Order disabled until then,
    with "Complete each step to place your order." under it. The mobile sticky
    bar is disabled on the same condition, and `handlePlaceOrder` checks it
    again.

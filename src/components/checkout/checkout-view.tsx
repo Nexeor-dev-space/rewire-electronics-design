@@ -61,14 +61,13 @@ interface Props {
 const STEPS: ProgressStep[] = [
   { id: "information", label: "Information" },
   { id: "delivery", label: "Delivery" },
-  { id: "payment", label: "Payment" },
-  { id: "review", label: "Review" },
+  { id: "payment", label: "Payment & review" },
 ];
 
 const INFORMATION_STEP = 0;
 const DELIVERY_STEP = 1;
+/** The last step: pick payment, check the order, then place it. */
 const PAYMENT_STEP = 2;
-const REVIEW_STEP = 3;
 
 const INFORMATION_FIELDS = {
   email: "email",
@@ -196,7 +195,7 @@ export function CheckoutView({ payment }: Props) {
   const placing = placeOrder.isPending || placeOrder.isSuccess;
   const cart = quote.data?.cart;
   const lines = cart?.items ?? [];
-  const stepsComplete = openStep === REVIEW_STEP;
+  const stepsComplete = openStep === PAYMENT_STEP;
 
   const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map(
     (option) => ({
@@ -264,9 +263,7 @@ export function CheckoutView({ payment }: Props) {
 
   const continueDelivery = () => setOpenStep(PAYMENT_STEP);
 
-  const continuePayment = () => setOpenStep(REVIEW_STEP);
-
-  const continueStep = [continueInformation, continueDelivery, continuePayment];
+  const continueStep = [continueInformation, continueDelivery];
 
   const handlePlaceError = (error: Error) => {
     if (!isRetryable(error)) idempotencyKey.current = null;
@@ -335,7 +332,7 @@ export function CheckoutView({ payment }: Props) {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (openStep === REVIEW_STEP) handlePlaceOrder();
+    if (openStep === PAYMENT_STEP) handlePlaceOrder();
     else continueStep[openStep]?.();
   };
 
@@ -654,11 +651,9 @@ export function CheckoutView({ payment }: Props) {
           <CheckoutSection
             id={STEPS[PAYMENT_STEP].id}
             index="03"
-            title="Payment"
-            description="Choose how you'd like to pay. We never ask for card details on this page."
+            title="Payment and review"
+            description="Choose how you'd like to pay, then check your order. We never ask for card details on this page."
             state={stepState(PAYMENT_STEP)}
-            summary={activePayment?.label}
-            onEdit={() => editStep(PAYMENT_STEP)}
           >
             <OptionList
               name="payment-method"
@@ -690,28 +685,25 @@ export function CheckoutView({ payment }: Props) {
               Secure payment · encrypted end-to-end
             </div>
 
-            <ContinueButton
-              label="Continue to review"
-              onClick={continuePayment}
-            />
-          </CheckoutSection>
+            <div className="mt-8 border-t border-line pt-6">
+              <h3 className="text-[1.25rem] font-medium tracking-tight text-ink">
+                Review your order
+              </h3>
+              <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+                Everything checks out? Place your order from the summary, or
+                the bar at the bottom on mobile.
+              </p>
 
-          <CheckoutSection
-            id={STEPS[REVIEW_STEP].id}
-            index="04"
-            title="Review and place order"
-            description="Everything checks out? Place your order from the summary, or the bar at the bottom on mobile."
-            state={stepState(REVIEW_STEP)}
-          >
-            <dl className="grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
-              <ReviewRow label="Delivery" value={deliveryLabel} />
-              <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
-              <ReviewRow
-                label="Order total"
-                value={formatMoney(cart!.totals.total)}
-                strong
-              />
-            </dl>
+              <dl className="mt-5 grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-3 sm:gap-5">
+                <ReviewRow label="Delivery" value={deliveryLabel} />
+                <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
+                <ReviewRow
+                  label="Order total"
+                  value={formatMoney(cart!.totals.total)}
+                  strong
+                />
+              </dl>
+            </div>
             {placeError && (
               <p
                 role="alert"
@@ -910,7 +902,7 @@ function ReviewRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-line pb-2.5 last:border-b-0 last:pb-0 sm:border-b-0 sm:pb-0">
+    <div className="flex min-w-0 flex-col gap-1 border-b border-line pb-2.5 last:border-b-0 last:pb-0 sm:border-b-0 sm:pb-0">
       <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
         {label}
       </dt>
