@@ -154,7 +154,7 @@ export function orderConfirmationMessage({ number, total, paymentMethod, ...link
 
 /* ---------- customer updates (orders, returns, warranty) ---------- */
 
-interface UpdateEmailInput {
+export interface UpdateEmailInput {
   name: string;
   /** Short subject after the store name, for example "order RW-1234 dispatched". */
   subject: string;
@@ -163,7 +163,7 @@ interface UpdateEmailInput {
 }
 
 /** One layout for every customer update: greeting, paragraphs, one link, the support address. */
-function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): EmailContent {
+export function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): EmailContent {
   const html = [
     `<p>Hi ${escapeHtml(name)},</p>`,
     ...paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`),
@@ -181,54 +181,14 @@ function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): E
   return { subject: `${siteConfig.name}: ${subject}`, html, text };
 }
 
-interface CustomerLink {
+export interface CustomerLink {
   name: string;
   url: string;
   linkLabel: string;
 }
 
-interface OrderUpdateInput extends CustomerLink {
+export interface OrderUpdateInput extends CustomerLink {
   number: string;
-}
-
-function orderUpdate(input: OrderUpdateInput, subject: string, paragraphs: string[]): EmailContent {
-  return updateEmail({
-    name: input.name,
-    subject: `order ${input.number} ${subject}`,
-    paragraphs,
-    action: { label: input.linkLabel, url: input.url },
-  });
-}
-
-export function orderPaymentReceivedMessage(
-  input: OrderUpdateInput & { total: number; paymentMethod: PaymentMethod; confirmed: boolean },
-): EmailContent {
-  const { number, total, paymentMethod, confirmed } = input;
-  const received = `We have received your payment of ${formatMoney(total)} for order ${number} (${PAYMENT_METHOD_LABELS[paymentMethod]}).`;
-  return orderUpdate(input, "payment received", [
-    confirmed ? `${received} Your order is confirmed and we will start preparing it.` : received,
-  ]);
-}
-
-export function orderDispatchedMessage(
-  input: OrderUpdateInput & { trackingNumber: string; carrier: string },
-): EmailContent {
-  const carrier = input.carrier ? ` Carrier: ${input.carrier}.` : "";
-  const tracking = input.trackingNumber ? ` Tracking number: ${input.trackingNumber}.` : "";
-  return orderUpdate(input, "dispatched", [`Order ${input.number} is on its way to you.${carrier}${tracking}`]);
-}
-
-export function orderDeliveredMessage(input: OrderUpdateInput): EmailContent {
-  return orderUpdate(input, "delivered", [
-    `Order ${input.number} has been delivered. Your warranty starts from today. You can see the dates on your order page.`,
-  ]);
-}
-
-export function orderCancelledMessage(input: OrderUpdateInput & { refundApplies: boolean }): EmailContent {
-  const refund = input.refundApplies
-    ? "As you had paid, a refund applies and we will process it to your original payment method."
-    : "No payment was taken, so no refund is due.";
-  return orderUpdate(input, "cancelled", [`Order ${input.number} has been cancelled. ${refund}`]);
 }
 
 interface ReturnUpdateInput extends CustomerLink {
@@ -269,7 +229,7 @@ export function refundIssuedMessage(input: ReturnUpdateInput & { amount: number;
   ]);
 }
 
-interface ClaimUpdateInput extends CustomerLink {
+export interface ClaimUpdateInput extends CustomerLink {
   number: string;
   device: string;
   orderNumber: string;

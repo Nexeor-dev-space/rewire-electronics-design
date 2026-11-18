@@ -89,8 +89,8 @@ function OrderTimeline({ order }: { order: OrderDetail }) {
                     "flex size-6 shrink-0 items-center justify-center rounded-full border",
                     !step.reached && "border-line-strong text-ink-muted",
                     step.reached && cancelled && "border-danger/60 bg-danger/10 text-danger",
-                    step.reached && !cancelled && step.current && "border-accent bg-accent/15 text-accent",
-                    step.reached && !cancelled && !step.current && "border-live/60 bg-live/15 text-live",
+                    step.reached && !cancelled && "border-live/60 bg-live/15 text-live",
+                    step.reached && !cancelled && step.current && "ring-2 ring-live/30",
                   )}
                 >
                   {step.reached ? (

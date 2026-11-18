@@ -52,6 +52,8 @@ export const PERMISSIONS = {
   coupons: adminPermission("marketing", "coupons"),
   /** Campaigns and their types. Publish covers publishing, pausing, resuming and cancelling. */
   campaigns: adminPermission("marketing", "campaigns"),
+  /** Marketing Messages: the sent, failed and skipped message history, read only. */
+  messages: adminPermission("marketing", "messages"),
   releases: adminPermission("sales", "releases"),
   orders: adminPermission("sales", "orders"),
   fulfilment: adminPermission("sales", "fulfilment"),
@@ -104,6 +106,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.customers, label: "Customers", actions: CRUD },
   { key: PERMISSIONS.coupons, label: "Discount Codes", actions: CRUD },
   { key: PERMISSIONS.campaigns, label: "Campaigns", actions: ALL_ACTIONS },
+  { key: PERMISSIONS.messages, label: "Marketing Messages", actions: ["VIEW"] },
   { key: PERMISSIONS.deliveryZones, label: "Delivery Zones", actions: VIEW_EDIT },
   { key: PERMISSIONS.vat, label: "VAT & Configuration", actions: VIEW_EDIT },
   { key: PERMISSIONS.integrations, label: "Integrations, API Keys", actions: VIEW_EDIT },

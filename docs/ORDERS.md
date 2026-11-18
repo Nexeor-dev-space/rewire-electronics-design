@@ -609,7 +609,13 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
 
 Plain text emails in the existing style. A branded HTML template is separate
 work. Release and waitlist emails ([RELEASES.md](RELEASES.md)) and marketing
-messages are out of scope.
+messages are in [MESSAGING.md](MESSAGING.md).
+
+Since issue #94 every `notify…` sends through `dispatchEmail`, which records
+the outcome (sent, failed or skipped) in the message history and sends each
+event once. The order emails also include a device record and add on
+entitlement summary at delivery, and a Delivery attempt failed email staff
+trigger from a dispatched order. Point 3 below still holds for the transport.
 
 **What changed and why.** Customers only heard from the store once, at
 checkout. They now get an email at each step they would expect one. All the

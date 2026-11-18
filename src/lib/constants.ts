@@ -289,3 +289,39 @@ export const PRODUCT_IMPORT_MAX_STALLED_CALLS = 3;
 export const PRODUCT_IMPORT_IMAGE_FETCH_TIMEOUT_MS = 10_000;
 export const ADMIN_PRODUCT_IMPORT_HISTORY_PATH = "/admin/products/upload-history";
 export const PRODUCT_IMPORT_EXCEL_TEMPLATE_PATH = "/templates/rewire-product-upload-sheet.xlsx";
+
+/** Marketing automation and message history; see docs/MESSAGING.md. */
+export const MESSAGE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+/** Most recipients or records one sweep handles per message type, so a run stays small. */
+export const MESSAGE_SWEEP_BATCH = 50;
+/** A failed send is tried again by later sweeps until it has been attempted this many times. */
+export const MESSAGE_MAX_ATTEMPTS = 3;
+/** A timed message is dropped, not sent late, once its moment passed by more than this. */
+export const MESSAGE_SCHEDULE_GRACE_MINUTES = 60;
+/** A release offset at or above this is a countdown update; a shorter one is a drop reminder. */
+export const COUNTDOWN_MIN_OFFSET_MINUTES = 24 * 60;
+/** How far ahead of an opening the sweep looks for due reminders. */
+export const RELEASE_REMINDER_LOOKAHEAD_DAYS = 14;
+export const ABANDONED_CHECKOUT_AFTER_HOURS = 2;
+export const ABANDONED_CHECKOUT_MAX_AGE_DAYS = 3;
+export const ABANDONED_CHECKOUT_COOLDOWN_DAYS = 7;
+export const REVIEW_REQUEST_AFTER_DAYS = 7;
+export const REVIEW_REQUEST_MAX_AGE_DAYS = 30;
+export const ENTITLEMENT_REMINDER_DAYS_BEFORE_END = 60;
+export const WARRANTY_EXPIRY_NOTICE_DAYS_BEFORE_END = 30;
+export const WARRANTY_FOLLOW_UP_AFTER_DAYS = 7;
+export const WARRANTY_FOLLOW_UP_MAX_AGE_DAYS = 60;
+export const MESSAGE_REASON_MAX_LENGTH = 500;
+export const MESSAGE_SUBJECT_MAX_LENGTH = 200;
+export const ADMIN_MESSAGES_PATH = "/admin/marketing/messages";
+export const MESSAGE_SEARCH_MAX_LENGTH = 100;
+/** Pre-approved WhatsApp template names, as approved in the WhatsApp Business account. */
+export const WHATSAPP_TEMPLATES = {
+  COUNTDOWN_UPDATE: "release_countdown_update",
+  DROP_REMINDER: "release_drop_reminder",
+  DROP_LIVE: "release_drop_live",
+} as const;
+export const WHATSAPP_TEMPLATE_LANGUAGE = "en";
+export const WHATSAPP_REQUEST_TIMEOUT_MS = 10_000;
+export const WHATSAPP_API_BASE = "https://graph.facebook.com/v21.0";
+export const EMAIL_INLINE_IMAGE_MAX_BYTES = 300 * 1024;

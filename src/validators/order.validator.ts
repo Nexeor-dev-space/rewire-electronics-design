@@ -78,14 +78,19 @@ export const updateOrderSchema = z
     message: MESSAGE_NOTHING_TO_UPDATE,
   });
 
+const orderNoteSchema = z
+  .string()
+  .trim()
+  .max(ORDER_NOTE_MAX_LENGTH, `Use ${ORDER_NOTE_MAX_LENGTH} characters or fewer.`)
+  .default("");
+
 export const orderStatusChangeSchema = z.object({
   status: z.enum(ORDER_STATUSES, { error: "Choose a status." }),
-  note: z
-    .string()
-    .trim()
-    .max(ORDER_NOTE_MAX_LENGTH, `Use ${ORDER_NOTE_MAX_LENGTH} characters or fewer.`)
-    .default(""),
+  note: orderNoteSchema,
 });
+
+/** A failed delivery attempt on a dispatched order: only the note to the customer. */
+export const deliveryAttemptSchema = z.object({ note: orderNoteSchema });
 
 export const orderPaymentSchema = z.object({
   paymentStatus: z.enum(MANUAL_PAYMENT_STATUSES, { error: "Choose a payment status." }),

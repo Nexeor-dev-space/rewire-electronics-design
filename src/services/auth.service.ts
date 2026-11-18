@@ -8,8 +8,9 @@ import { hashPassword } from "@/lib/auth/password";
 import { consumeAuthToken, hashToken, issueAuthToken } from "@/lib/auth/tokens";
 import { RESET_PASSWORD_PAGE_PATH, VERIFY_EMAIL_PAGE_PATH } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { sendEmail, type SendEmailResult } from "@/lib/email/send-email";
+import { sendEmail } from "@/lib/email/send-email";
 import { resetPasswordMessage, verifyEmailMessage, welcomeVerifyEmailMessage } from "@/lib/email/templates";
+import { dispatchEmail } from "@/services/message.service";
 import type { SessionUser } from "@/types/auth";
 import type { signUpSchema } from "@/validators/auth.validator";
 import { emailTakenError } from "./user.service";
@@ -17,6 +18,7 @@ import { emailTakenError } from "./user.service";
 type SignUpData = z.output<typeof signUpSchema>;
 
 interface Recipient {
+  id: string;
   email: string;
   fullName: string;
 }
@@ -32,15 +34,27 @@ function tokenLink(path: string, token: string): Promise<string> {
   return appUrl(`${path}?${new URLSearchParams({ token })}`);
 }
 
-/** `welcome` is true only at sign up; a resend sends the plain confirm email. */
+/**
+ * `welcome` is true only at sign up; a resend sends the plain confirm email.
+ * Each send is its own event, so every resend is recorded in the message
+ * history. Throws when the email could not go, so a resend can say so.
+ */
 export async function sendVerificationEmail(
   recipient: Recipient,
   token: string,
   { welcome = false } = {},
-): Promise<SendEmailResult> {
+): Promise<void> {
   const url = await tokenLink(VERIFY_EMAIL_PAGE_PATH, token);
   const message = welcome ? welcomeVerifyEmailMessage : verifyEmailMessage;
-  return sendEmail({ to: recipient.email, ...message({ name: recipient.fullName, url }) });
+  const result = await dispatchEmail({
+    trigger: "EMAIL_VERIFICATION",
+    recipient: recipient.email,
+    userId: recipient.id,
+    refId: recipient.id,
+    refLabel: "Email confirmation link",
+    build: async () => message({ name: recipient.fullName, url }),
+  });
+  if (result === "FAILED") throw new ServiceError("INTERNAL", MESSAGE_SEND_FAILED, 500);
 }
 
 export async function registerCustomer(data: SignUpData) {

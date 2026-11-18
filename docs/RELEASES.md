@@ -223,9 +223,11 @@ Both only add, so the previous app version keeps working while they apply.
 3. A release's slug never changes after create.
 4. A variant with held, sold or returned units on a release can't be removed
    from its product, even once the release is completed (section 6).
-5. Waitlisters get only the confirm email until #118 adds the welcome,
-   reminder and live emails. WhatsApp opt ins and phones are stored, never
-   sent.
+5. Waitlisters get the confirm email, a welcome once confirmed, countdown
+   and reminder messages at each saved offset, a drop live message and a back
+   in stock email. WhatsApp (countdown, reminder, live) is sent only with the
+   WhatsApp opt in and a phone, once credentials are approved. See
+   [MESSAGING.md](MESSAGING.md).
 6. The release page has no buying until #119; a live card says "View
    release".
 7. The rate limit lives in memory per server instance, like every other

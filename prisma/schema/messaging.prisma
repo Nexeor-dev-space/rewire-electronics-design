@@ -1,0 +1,76 @@
+enum MessageChannel {
+  EMAIL
+  WHATSAPP
+}
+
+/// SENDING while the send is in flight, then SENT, FAILED (the transport
+/// refused it) or SKIPPED (a rule stopped it, with the reason saved).
+enum MessageStatus {
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// The backend event a message answers. Mirrored by MESSAGE_TRIGGERS in
+/// src/lib/messaging.ts.
+enum MessageTrigger {
+  WAITLIST_WELCOME
+  CAMPAIGN_MESSAGE
+  COUNTDOWN_UPDATE
+  DROP_REMINDER
+  DROP_LIVE
+  BACK_IN_STOCK
+  ABANDONED_CHECKOUT
+  EMAIL_VERIFICATION
+  ACCOUNT_REACTIVATION
+  ORDER_CONFIRMATION
+  ORDER_PAYMENT_RECEIVED
+  ORDER_DISPATCHED
+  DELIVERY_ATTEMPT_FAILED
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  DEVICE_RECORD
+  REVIEW_REQUEST
+  ADDON_ENTITLEMENT_SUMMARY
+  ENTITLEMENT_REMINDER
+  WARRANTY_EXPIRY_NOTICE
+  WARRANTY_CLAIM_STATUS
+  WARRANTY_FOLLOW_UP
+  RETURN_UPDATE
+}
+
+/// One message the system tried to send, or chose not to. Written by
+/// `src/services/message.service.ts` for every trigger, so Admin can show a
+/// customer's history and find failed or skipped sends. See docs/MESSAGING.md.
+model MessageLog {
+  id        String         @id @default(cuid())
+  trigger   MessageTrigger
+  channel   MessageChannel
+  status    MessageStatus  @default(SENDING)
+  /// The email address or phone number the message went, or would have gone, to.
+  recipient String
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// The record the event came from: an order number, release id, claim number.
+  refId     String?
+  /// Human readable form of the record, for example "Order RW-1234".
+  refLabel  String         @default("")
+  subject   String         @default("")
+  /// Why a message was skipped or failed.
+  reason    String         @default("")
+  attempts  Int            @default(1)
+  /// One send per event: a second attempt with the same key is refused. Events that
+  /// may repeat (a resent verification link) use a fresh key.
+  dedupeKey String         @unique
+  sentAt    DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([recipient, createdAt])
+  @@index([trigger, refId])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("message_logs")
+}

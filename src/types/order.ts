@@ -16,6 +16,7 @@ import type { placeOrderSchema } from "@/validators/checkout.validator";
 import type {
   fulfilmentUpdateSchema,
   orderPaymentSchema,
+  deliveryAttemptSchema,
   orderStatusChangeSchema,
   trackOrderSchema,
   updateOrderSchema,
@@ -217,5 +218,6 @@ export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
 export type TrackOrderInput = z.input<typeof trackOrderSchema>;
 export type UpdateOrderInput = z.input<typeof updateOrderSchema>;
 export type OrderStatusChangeInput = z.input<typeof orderStatusChangeSchema>;
+export type DeliveryAttemptInput = z.input<typeof deliveryAttemptSchema>;
 export type OrderPaymentInput = z.input<typeof orderPaymentSchema>;
 export type FulfilmentUpdateInput = z.input<typeof fulfilmentUpdateSchema>;

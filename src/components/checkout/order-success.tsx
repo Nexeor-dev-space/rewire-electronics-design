@@ -222,10 +222,10 @@ function Confirmation({ order, signedIn }: { order: OrderDetail; signedIn: boole
     <div className="mx-auto w-full max-w-4xl px-(--spacing-gutter) py-14 md:py-20">
       <ConfettiBurst trigger={celebrate} size="screen" />
       <header className="flex flex-col items-center gap-6 text-center">
-        {/* Solid base above the confetti overlay (z-60), so no piece shows inside the circle. */}
+        {/* No z-index here: it would sit above the header (z-50) and cover its menus. */}
         <span
           aria-hidden
-          className="relative z-[61] flex size-16 items-center justify-center rounded-full bg-void"
+          className="relative flex size-16 items-center justify-center rounded-full bg-void"
         >
           <span className="absolute inset-0 rounded-full bg-live/15" />
           <svg

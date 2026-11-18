@@ -51,6 +51,7 @@ model User {
   ticketEvents      TicketEvent[]        @relation("TicketEventActor")
   releaseTallies   ReleaseCustomerTally[]
   waitlistEntries   WaitlistEntry[]
+  messageLogs       MessageLog[]
 
   storeSettingsUpdates StoreSettings[]
   integrationChanges   Integration[]

@@ -1,9 +1,20 @@
 import type { IntegrationConfig, SmtpConfig } from "@/lib/integration-config";
 
+/** An image sent inside the email, shown with `src="cid:…"`, so it needs no public web address. */
+export interface InlineImage {
+  cid: string;
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 export interface EmailContent {
   subject: string;
   html: string;
   text: string;
+  /** A fully designed email that carries its own help and footer, so the plain contact footer is not added. */
+  branded?: boolean;
+  images?: InlineImage[];
 }
 
 export interface EmailMessage extends EmailContent {
