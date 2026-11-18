@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { signInHref } from "@/lib/auth/next-path";
 import { CHECKOUT_PAGE_PATH } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ export function OrderSummary({
         ))}
       </ul>
 
-      {!compact && (
+      {onApplyCoupon && (
         <CouponField
           coupon={coupon}
           allowed={couponsAllowed}
@@ -81,31 +81,11 @@ export function OrderSummary({
         />
       )}
 
-      <dl className="grid gap-2.5 text-[0.9375rem]">
-        <Row label="Subtotal" value={formatMoney(totals.subtotal)} />
-        {totals.discount > 0 && (
-          <Row
-            label={coupon ? `Discount · ${coupon.code}` : "Discount"}
-            value={`− ${formatMoney(totals.discount)}`}
-            accent
-          />
-        )}
-        <Row
-          label={`Delivery · ${deliveryLabel}`}
-          value={
-            totals.delivery === null
-              ? "—"
-              : totals.delivery === 0
-                ? "Free"
-                : formatMoney(totals.delivery)
-          }
-        />
-        <Row
-          label={`Includes VAT ${totals.vatRatePercent}%`}
-          value={formatMoney(totals.vatIncluded)}
-          muted
-        />
-      </dl>
+      <PriceBreakdown
+        totals={totals}
+        coupon={coupon}
+        deliveryLabel={deliveryLabel}
+      />
 
       <div className="flex items-baseline justify-between border-t border-line pt-4">
         <span className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink">
@@ -209,6 +189,45 @@ export function OrderSummary({
   );
 }
 
+/** Subtotal, discount, delivery and VAT rows, without the total. */
+export function PriceBreakdown({
+  totals,
+  coupon,
+  deliveryLabel,
+}: {
+  totals: Cart["totals"];
+  coupon: AppliedCoupon | null;
+  deliveryLabel: string;
+}) {
+  return (
+    <dl className="grid gap-2.5 text-[0.9375rem]">
+      <Row label="Subtotal" value={formatMoney(totals.subtotal)} />
+      {totals.discount > 0 && (
+        <Row
+          label={coupon ? `Discount · ${coupon.code}` : "Discount"}
+          value={`− ${formatMoney(totals.discount)}`}
+          accent
+        />
+      )}
+      <Row
+        label={`Delivery · ${deliveryLabel}`}
+        value={
+          totals.delivery === null
+            ? "—"
+            : totals.delivery === 0
+              ? "Free"
+              : formatMoney(totals.delivery)
+        }
+      />
+      <Row
+        label={`Includes VAT ${totals.vatRatePercent}%`}
+        value={formatMoney(totals.vatIncluded)}
+        muted
+      />
+    </dl>
+  );
+}
+
 function LineRow({ line }: { line: CartLine }) {
   const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
   const blocked = line.issues.some((issue) =>
@@ -304,6 +323,8 @@ function CouponField({
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [signInRequired, setSignInRequired] = useState(false);
+  // The phone and desktop summaries are both on the page, so the id is per field.
+  const errorId = useId();
 
   const apply = () => {
     if (pending || !value.trim()) return;
@@ -404,9 +425,10 @@ function CouponField({
               placeholder="Enter code"
               aria-label="Promo code"
               aria-invalid={Boolean(error) || undefined}
-              aria-describedby={error ? "promo-error" : undefined}
+              aria-describedby={error ? errorId : undefined}
               className={cn(
-                "h-11 flex-1 rounded-lg bg-void px-3 text-sm text-ink placeholder:text-ink-muted",
+                // 16px on phones so iOS Safari doesn't zoom in on focus.
+                "h-11 min-w-0 flex-1 rounded-lg bg-void px-3 text-base text-ink placeholder:text-ink-muted sm:text-sm",
                 "border transition-colors duration-(--duration-fast)",
                 error
                   ? "border-danger"
@@ -424,7 +446,7 @@ function CouponField({
             </button>
           </div>
           {error && (
-            <p id="promo-error" role="alert" className="mt-2 text-[0.75rem] text-danger">
+            <p id={errorId} role="alert" className="mt-2 text-[0.75rem] text-danger">
               {error}
               {signInRequired && (
                 <>

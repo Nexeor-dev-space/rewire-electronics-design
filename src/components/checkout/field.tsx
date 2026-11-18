@@ -51,7 +51,9 @@ export function Field({
       <Input
         id={id}
         name={id}
-        className="mt-2"
+        // 16px on phones: iOS Safari zooms into any smaller field on focus
+        // and leaves the page zoomed in afterwards.
+        className="mt-2 text-base sm:text-sm"
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         {...inputProps}
