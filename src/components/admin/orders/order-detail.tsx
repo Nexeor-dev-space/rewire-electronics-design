@@ -17,6 +17,7 @@ import {
   useChangeOrderPayment,
   useChangeOrderStatus,
   useGetAdminOrder,
+  useReportDeliveryAttempt,
   useUpdateOrder,
 } from "@/hooks/use-order";
 import { apiFieldErrors } from "@/lib/api/api-client";
@@ -289,6 +290,7 @@ function StatusActions({ order }: { order: AdminOrderDetail }) {
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
   const changeStatus = useChangeOrderStatus();
+  const reportAttempt = useReportDeliveryAttempt();
 
   if (order.nextStatuses.length === 0) {
     return <p className="mt-3 text-xs text-ink-muted">This order is final. Its status can&apos;t change.</p>;
@@ -339,8 +341,19 @@ function StatusActions({ order }: { order: AdminOrderDetail }) {
             {statusActionLabel(status)}
           </Button>
         ))}
+        {order.status === "DISPATCHED" && (
+          <Button
+            size="sm"
+            variant="outline"
+            loading={reportAttempt.isPending}
+            disabled={changeStatus.isPending || reportAttempt.isPending}
+            onClick={() => reportAttempt.mutate({ number: order.number, note }, { onSuccess: () => setNote("") })}
+          >
+            Delivery attempt failed
+          </Button>
+        )}
       </div>
-      {!confirming && <FieldError>{changeStatus.error?.message}</FieldError>}
+      {!confirming && <FieldError>{changeStatus.error?.message ?? reportAttempt.error?.message}</FieldError>}
 
       <ConfirmDialog
         open={confirming}

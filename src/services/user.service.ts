@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { assignableRoles, canManageUser, canSetPassword, type Actor } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { phoneSearchTerms } from "@/lib/phone";
+import { notifyAccountReactivated } from "@/services/message-triggers.service";
 import { assertStaffRoleExists } from "@/services/staff-role.service";
 import type {
   addressListSchema,
@@ -251,6 +252,7 @@ export async function restoreUser(viewer: Actor, id: string) {
     where: { id },
     data: { state: "ACTIVE", sessionVersion: { increment: 1 } },
   });
+  await notifyAccountReactivated(id);
   return getUser(id);
 }
 

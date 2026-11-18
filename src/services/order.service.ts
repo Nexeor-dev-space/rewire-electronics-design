@@ -24,7 +24,7 @@ import {
 import { returnableQuantity } from "@/lib/returns";
 import { PAYMENT_NOTES, paymentOutcome, type PaymentOutcome } from "@/lib/stripe-checkout";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
-import { notifyOrderPaid, notifyOrderStatus } from "@/services/customer-email.service";
+import { notifyDeliveryAttemptFailed, notifyOrderPaid, notifyOrderStatus } from "@/services/customer-email.service";
 import { returnedQuantities } from "@/services/return.service";
 import { getStoreSettings } from "@/services/store-settings.service";
 import type {
@@ -627,6 +627,27 @@ export async function changeOrderStatus(actorId: string, number: string, { statu
     await applyStatusChange(tx, order, status, note, actorId);
   });
   await notifyOrderStatus(number, status);
+  return getAdminOrder(number);
+}
+
+const MESSAGE_NOT_DISPATCHED = "Only a dispatched order can have a failed delivery attempt.";
+const NOTE_DELIVERY_FAILED = "Delivery attempt failed";
+
+/**
+ * Staff log that the courier could not deliver. The order stays Dispatched;
+ * the attempt is saved as an order event, and the customer is told.
+ */
+export async function reportDeliveryAttemptFailed(actorId: string, number: string, note: string) {
+  const eventId = await prisma.$transaction(async (tx) => {
+    const order = await findState(tx, number);
+    if (order.status !== "DISPATCHED") throw new ServiceError("CONFLICT", MESSAGE_NOT_DISPATCHED, 409);
+    const event = await tx.orderStatusEvent.create({
+      data: { orderId: order.id, status: order.status, note: note ? `${NOTE_DELIVERY_FAILED}: ${note}` : NOTE_DELIVERY_FAILED, actorId },
+      select: { id: true },
+    });
+    return event.id;
+  });
+  await notifyDeliveryAttemptFailed(number, eventId, note);
   return getAdminOrder(number);
 }
 

@@ -1,9 +1,10 @@
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiErrorFrom, apiSuccess } from "@/lib/api/api-response";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { authorizeApi } from "@/lib/auth/session";
 import { recordAudit } from "@/services/audit.service";
+import { notifyBackInStock } from "@/services/message-triggers.service";
 import { setAllocations } from "@/services/release-allocation.service";
 import { getRelease } from "@/services/release.service";
 import type { AdminReleaseDetail } from "@/types/release";
@@ -37,6 +38,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       before: allocationSnapshot(before),
       after: allocationSnapshot(result),
     });
+    // Units came back to a sold out release: tell the waitlist, after the response.
+    if (before.allocated > 0 && before.remaining === 0 && result.remaining > 0) {
+      after(() => notifyBackInStock(id));
+    }
     return apiSuccess(result);
   } catch (error) {
     return apiErrorFrom(error, "PUT /admin/releases/[id]/allocations");

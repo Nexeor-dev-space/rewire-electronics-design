@@ -26,10 +26,10 @@ export async function POST(req: NextRequest, { params }: Params) {
         z.flattenError(input.error).fieldErrors);
     }
 
-    const { result, sendConfirmEmail } = await joinWaitlist(slug.data, input.data, session);
-    if (sendConfirmEmail) {
+    const { result, afterJoin } = await joinWaitlist(slug.data, input.data, session);
+    if (afterJoin) {
       after(() =>
-        sendConfirmEmail().catch((error: unknown) =>
+        afterJoin().catch((error: unknown) =>
           console.error("POST /releases/[slug]/waitlist confirm email failed", error),
         ),
       );

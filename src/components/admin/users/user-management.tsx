@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { AdminEmptyState, AdminPage } from "@/components/admin/admin-page";
+import { CustomerMessagesDialog } from "@/components/admin/messages/customer-messages-dialog";
 import { GuestBadge } from "@/components/admin/shared/guest-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteUser, useGetUsers } from "@/hooks/use-user";
-import { ROLE_LABELS, accountModule, canManageUser, hasPermission } from "@/lib/auth/permissions";
+import { PERMISSIONS, ROLE_LABELS, accountModule, canManageUser, hasPermission } from "@/lib/auth/permissions";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types/auth";
@@ -23,7 +24,7 @@ import { UserFormModal } from "./user-form-modal";
  * the people who can reach the console, Customers the people who buy.
  */
 
-const COLUMNS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_6rem_minmax(0,1fr)_7rem_5rem]";
+const COLUMNS = "lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_6rem_minmax(0,1fr)_7rem_7rem]";
 
 const COPY = {
   staff: {
@@ -51,6 +52,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<Modal>(null);
   const [toDelete, setToDelete] = useState<UserListItem | null>(null);
+  const [messagesFor, setMessagesFor] = useState<UserListItem | null>(null);
 
   const users = useGetUsers({ group, page, pageSize: ADMIN_PAGE_SIZE, search: search || undefined });
   const deleteUser = useDeleteUser();
@@ -107,6 +109,7 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
                 deleting={deleteUser.isPending && deleteUser.variables === user.id}
                 onEdit={() => setModal({ kind: "edit", id: user.id })}
                 onDelete={() => setToDelete(user)}
+                onMessages={() => setMessagesFor(user)}
               />
             ))}
           </ul>
@@ -175,6 +178,8 @@ export function UserManagement({ viewer, group }: { viewer: SessionUser; group: 
         onCancel={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />
+
+      <CustomerMessagesDialog customer={messagesFor} onClose={() => setMessagesFor(null)} />
     </AdminPage>
   );
 }
@@ -198,17 +203,20 @@ function UserRow({
   deleting,
   onEdit,
   onDelete,
+  onMessages,
 }: {
   user: UserListItem;
   viewer: SessionUser;
   deleting: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onMessages: () => void;
 }) {
   const manageable = canManageUser(viewer, user);
   const accountKey = accountModule(user.role);
   const canEdit = manageable && hasPermission(viewer.permissions, accountKey, "EDIT");
   const canDelete = manageable && user.id !== viewer.id && hasPermission(viewer.permissions, accountKey, "DELETE");
+  const canSeeMessages = user.role === "CUSTOMER" && hasPermission(viewer.permissions, PERMISSIONS.messages);
 
   return (
     <li className={cn("border-b border-line last:border-b-0", deleting && "opacity-50")}>
@@ -233,6 +241,12 @@ function UserRow({
           })}
         </time>
         <div className="mt-2 flex gap-1.5 lg:mt-0 lg:justify-end">
+          {canSeeMessages && (
+            <IconButton label={`Messages for ${user.fullName}`} onClick={onMessages} disabled={deleting}>
+              <path d="M4 6.5h16v11H4z" />
+              <path d="M4 7l8 6 8-6" />
+            </IconButton>
+          )}
           {canEdit && (
             <IconButton label={`Edit ${user.fullName}`} onClick={onEdit} disabled={deleting}>
               <path d="M12 20h9" />

@@ -3,22 +3,19 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, isUniqueViolation } from "@/lib/api/api-response";
-import { appUrl } from "@/lib/app-url";
 import { resolveGuestUser } from "@/lib/auth/guest-user";
 import type { CartOwner } from "@/lib/cart-owner";
 import {
   DB_WRITE_TIMEOUT_MS,
   ORDER_NUMBER_PREFIX,
-  ORDER_TRACK_PAGE_PATH,
   REFERENCE_NUMBER_ATTEMPTS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { sendEmail } from "@/lib/email/send-email";
-import { orderConfirmationMessage } from "@/lib/email/templates";
 import { initialStatus } from "@/lib/orders";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { generateReference } from "@/lib/reference-number";
 import { unitNumbers } from "@/lib/warranty";
+import { notifyOrderPlaced } from "@/services/customer-email.service";
 import { clearCheckedOutCart, loadPricedCart, lockCart, type PricedCart } from "@/services/cart.service";
 import { DELIVERY_MESSAGES } from "@/lib/delivery";
 import { resolveDelivery } from "@/services/delivery-zone.service";
@@ -303,17 +300,7 @@ export async function placeOrder(
   }
 }
 
-export async function sendOrderConfirmation(order: OrderDetail): Promise<void> {
-  const query = new URLSearchParams({ number: order.number, email: order.contact.email });
-  const url = await appUrl(`${ORDER_TRACK_PAGE_PATH}?${query}`);
-  await sendEmail({
-    to: order.contact.email,
-    ...orderConfirmationMessage({
-      name: order.contact.firstName,
-      url,
-      number: order.number,
-      total: order.totals.total,
-      paymentMethod: order.paymentMethod,
-    }),
-  });
+/** The order confirmation email, recorded in the message history like every other message. */
+export function sendOrderConfirmation(order: OrderDetail): Promise<void> {
+  return notifyOrderPlaced(order.number);
 }

@@ -13,6 +13,7 @@ import type {
   FulfilmentUpdateInput,
   OrderDetail,
   OrderPaymentInput,
+  DeliveryAttemptInput,
   OrderStatusChangeInput,
   OrderSummary,
   TrackOrderInput,
@@ -117,6 +118,15 @@ export function useChangeOrderStatus() {
   return useOrderMutation(({ number, ...input }: OrderStatusChangeInput & { number: string }) =>
     apiRequest<AdminOrderDetail>(API_ENDPOINTS.admin.orders.status(number), {
       method: "PATCH",
+      body: input,
+    }),
+  );
+}
+
+export function useReportDeliveryAttempt() {
+  return useOrderMutation(({ number, ...input }: DeliveryAttemptInput & { number: string }) =>
+    apiRequest<AdminOrderDetail>(API_ENDPOINTS.admin.orders.deliveryAttempt(number), {
+      method: "POST",
       body: input,
     }),
   );

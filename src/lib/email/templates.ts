@@ -154,7 +154,7 @@ export function orderConfirmationMessage({ number, total, paymentMethod, ...link
 
 /* ---------- customer updates (orders, returns, warranty) ---------- */
 
-interface UpdateEmailInput {
+export interface UpdateEmailInput {
   name: string;
   /** Short subject after the store name, for example "order RW-1234 dispatched". */
   subject: string;
@@ -163,7 +163,7 @@ interface UpdateEmailInput {
 }
 
 /** One layout for every customer update: greeting, paragraphs, one link, the support address. */
-function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): EmailContent {
+export function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): EmailContent {
   const html = [
     `<p>Hi ${escapeHtml(name)},</p>`,
     ...paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`),
@@ -181,13 +181,13 @@ function updateEmail({ name, subject, paragraphs, action }: UpdateEmailInput): E
   return { subject: `${siteConfig.name}: ${subject}`, html, text };
 }
 
-interface CustomerLink {
+export interface CustomerLink {
   name: string;
   url: string;
   linkLabel: string;
 }
 
-interface OrderUpdateInput extends CustomerLink {
+export interface OrderUpdateInput extends CustomerLink {
   number: string;
 }
 
@@ -269,7 +269,7 @@ export function refundIssuedMessage(input: ReturnUpdateInput & { amount: number;
   ]);
 }
 
-interface ClaimUpdateInput extends CustomerLink {
+export interface ClaimUpdateInput extends CustomerLink {
   number: string;
   device: string;
   orderNumber: string;

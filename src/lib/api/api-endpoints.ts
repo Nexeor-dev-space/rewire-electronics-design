@@ -90,6 +90,7 @@ export const API_ENDPOINTS = {
       detail: (number: string) => `${V1}/admin/orders/${number}`,
       status: (number: string) => `${V1}/admin/orders/${number}/status`,
       payment: (number: string) => `${V1}/admin/orders/${number}/payment`,
+      deliveryAttempt: (number: string) => `${V1}/admin/orders/${number}/delivery-attempt`,
       /** Serves a PDF, not the JSON envelope — see docs/INVOICES.md. */
       invoice: (number: string) => `${V1}/admin/orders/${number}/invoice`,
     },
@@ -149,6 +150,9 @@ export const API_ENDPOINTS = {
     },
     auditLogs: {
       list: `${V1}/admin/audit-logs`,
+    },
+    messages: {
+      list: `${V1}/admin/messages`,
     },
     trash: {
       products: `${V1}/admin/trash/products`,

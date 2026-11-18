@@ -3,14 +3,13 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, isUniqueViolation, type Paginated } from "@/lib/api/api-response";
-import { appUrl } from "@/lib/app-url";
 import type { Session } from "@/lib/auth/session";
-import { RELEASES_PAGE_PATH, WAITLIST_CONFIRM_PAGE_PATH, WAITLIST_LEAVE_PAGE_PATH } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { releaseHref } from "@/lib/releases";
-import { sendEmail } from "@/lib/email/send-email";
 import { waitlistConfirmMessage } from "@/lib/email/templates";
-import { readWaitlistToken, waitlistToken, type WaitlistLinkPurpose } from "@/lib/waitlist-links";
+import { readWaitlistToken } from "@/lib/waitlist-links";
+import { releaseLinks, waitlistConfirmUrl, type LinkRelease } from "@/lib/waitlist-urls";
+import { dispatchEmail } from "@/services/message.service";
+import { sendWaitlistWelcome } from "@/services/message-triggers.service";
 import { visibleReleaseWhere } from "@/services/release-storefront.service";
 import type {
   AdminWaitlistEntry,
@@ -29,14 +28,10 @@ interface PageQuery {
   pageSize: number;
 }
 
-interface LinkRelease {
-  slug: string | null;
-  title: string;
-}
-
 export interface JoinOutcome {
   result: WaitlistJoinResult;
-  sendConfirmEmail: (() => Promise<void>) | null;
+  /** Runs after the response: the confirm link for a guest, the welcome for a verified owner. */
+  afterJoin: (() => Promise<void>) | null;
 }
 
 const MESSAGE_RELEASE_NOT_FOUND = "This release isn't open for sign ups.";
@@ -48,7 +43,7 @@ const invalidLink = () =>
 
 const entryNotFound = () => new ServiceError("NOT_FOUND", MESSAGE_ENTRY_NOT_FOUND, 404);
 
-const joinedSelect = { id: true, email: true, confirmedAt: true } satisfies Prisma.WaitlistEntrySelect;
+const joinedSelect = { id: true, email: true, releaseId: true, confirmedAt: true } satisfies Prisma.WaitlistEntrySelect;
 
 const mySelect = {
   id: true,
@@ -62,24 +57,18 @@ const mySelect = {
 
 type MyRow = Prisma.WaitlistEntryGetPayload<{ select: typeof mySelect }>;
 
-function tokenUrl(path: string, entryId: string, purpose: WaitlistLinkPurpose): Promise<string> {
-  return appUrl(`${path}?${new URLSearchParams({ token: waitlistToken(entryId, purpose) })}`);
-}
-
-async function releaseLinks(release: LinkRelease, entryId: string) {
-  const [url, leaveUrl] = await Promise.all([
-    appUrl(release.slug ? releaseHref(release.slug) : RELEASES_PAGE_PATH),
-    tokenUrl(WAITLIST_LEAVE_PAGE_PATH, entryId, "leave"),
-  ]);
-  return { title: release.title, url, leaveUrl };
-}
-
-async function mailConfirmLink(entry: { id: string; email: string }, release: LinkRelease): Promise<void> {
+async function mailConfirmLink(entry: { id: string; email: string; releaseId: string }, release: LinkRelease): Promise<void> {
   const [links, confirmUrl] = await Promise.all([
     releaseLinks(release, entry.id),
-    tokenUrl(WAITLIST_CONFIRM_PAGE_PATH, entry.id, "confirm"),
+    waitlistConfirmUrl(entry.id),
   ]);
-  await sendEmail({ to: entry.email, ...waitlistConfirmMessage({ ...links, confirmUrl }) });
+  await dispatchEmail({
+    trigger: "WAITLIST_WELCOME",
+    recipient: entry.email,
+    refId: entry.releaseId,
+    refLabel: `Release ${release.title}`,
+    build: async () => waitlistConfirmMessage({ ...links, confirmUrl }),
+  });
 }
 
 function provenOwnerId(session: Session | null, email: string): string | null {
@@ -125,22 +114,24 @@ export async function joinWaitlist(slug: string, data: JoinData, session: Sessio
     if (!entry.confirmedAt) {
       await prisma.waitlistEntry.update({ where: { id: entry.id }, data: { confirmedAt: now } });
     }
-    return { result: { status: "CONFIRMED" }, sendConfirmEmail: null };
+    // The welcome's key is per entry, so joining again never sends a second one.
+    return { result: { status: "CONFIRMED" }, afterJoin: () => sendWaitlistWelcome(entry.id) };
   }
 
   return {
     result: { status: "CHECK_INBOX" },
-    sendConfirmEmail: entry.confirmedAt ? null : () => mailConfirmLink(entry, release),
+    afterJoin: entry.confirmedAt ? null : () => mailConfirmLink(entry, release),
   };
 }
 
 export async function confirmEntry(token: string): Promise<WaitlistConfirmResult> {
   const entryId = readWaitlistToken(token, "confirm");
   if (!entryId) throw invalidLink();
-  await prisma.waitlistEntry.updateMany({
+  const { count } = await prisma.waitlistEntry.updateMany({
     where: { id: entryId, confirmedAt: null },
     data: { confirmedAt: new Date() },
   });
+  if (count > 0) await sendWaitlistWelcome(entryId);
   const entry = await prisma.waitlistEntry.findUnique({
     where: { id: entryId },
     select: { release: { select: { slug: true, title: true } } },
