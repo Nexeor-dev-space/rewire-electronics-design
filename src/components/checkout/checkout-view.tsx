@@ -476,6 +476,8 @@ export function CheckoutView({ payment }: Props) {
                 onBlur={() => revalidateInformation("phone")}
                 className="col-span-6"
                 controlClassName="text-base sm:text-sm"
+                // Wider on phones so "+971 UAE" fits at the 16px text size.
+                countryClassName="w-32 sm:w-28"
               />
               <div className="col-span-6">
                 <Checkbox

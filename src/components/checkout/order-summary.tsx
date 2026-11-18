@@ -235,7 +235,7 @@ function LineRow({ line }: { line: CartLine }) {
   );
 
   return (
-    <li className="flex items-start gap-4 py-4 lg:first:pt-0 lg:last:pb-0">
+    <li className="flex items-start gap-4 py-5">
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg border border-line bg-void">
         {line.imageUrl && (
           <Image
