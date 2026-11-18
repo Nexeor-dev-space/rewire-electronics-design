@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { useAcknowledgeCart, useGetCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/use-cart";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { TOAST_MESSAGES } from "@/lib/constants";
 import { SHOP_INDEX_HREF } from "@/lib/route-map";
 import { fadeUp, staggerChildren, viewportOnce } from "@/lib/motion";
 import { CartLine, toggledAddOnIds } from "./cart-line";
@@ -24,6 +26,7 @@ export function CartView() {
   const updateCartItem = useUpdateCartItem();
   const removeCartItem = useRemoveCartItem();
   const acknowledgeCart = useAcknowledgeCart();
+  const { showToast } = useToast();
 
   if (cart.isPending) {
     return (
@@ -135,7 +138,11 @@ export function CartView() {
                     onQuantityChange={(quantity) =>
                       updateCartItem.mutateAsync({ id: line.id, quantity })
                     }
-                    onRemove={() => removeCartItem.mutate(line.id)}
+                    onRemove={() => {
+                      // The line leaves at once (see useRemoveCartItem), so the toast does too.
+                      removeCartItem.mutate(line.id);
+                      showToast(TOAST_MESSAGES.removedFromCart);
+                    }}
                     onToggleAddOn={(addOnId) =>
                       updateCartItem.mutate({ id: line.id, addOnIds: toggledAddOnIds(line, addOnId) })
                     }

@@ -2,6 +2,8 @@
 
 import { ShopProductCard } from "@/components/shop/product-card";
 import { useAccount } from "@/components/providers/account-provider";
+import { useToast } from "@/components/ui/toast";
+import { TOAST_MESSAGES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { ShopCard } from "@/types/catalogue";
 
@@ -16,6 +18,7 @@ import type { ShopCard } from "@/types/catalogue";
  */
 export function WishlistCard({ product, priority }: { product: ShopCard; priority?: boolean }) {
   const { removeSaved } = useAccount();
+  const { showToast } = useToast();
 
   return (
     <div className="flex h-full flex-col">
@@ -23,7 +26,10 @@ export function WishlistCard({ product, priority }: { product: ShopCard; priorit
       <div className="mt-4 flex flex-col">
         <button
           type="button"
-          onClick={() => removeSaved(product.slug)}
+          onClick={() => {
+            removeSaved(product.slug);
+            showToast(TOAST_MESSAGES.removedFromWishlist, "heart-outline");
+          }}
           className={cn(
             "self-center text-[0.8125rem] font-medium text-ink-secondary underline-offset-4",
             "transition-colors duration-(--duration-fast) hover:text-ink hover:underline",

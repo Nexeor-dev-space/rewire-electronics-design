@@ -648,7 +648,15 @@ your cart", from `ToastProvider` (`components/ui/toast.tsx`, mounted once in
 never on a failed add. It shows on product cards and on the product page,
 for every product. When an add also opens the Add to cart modal, the
 toast is drawn above the modal so it is still seen. A quantity change on the
-stepper is not an add and shows no toast. The wording is `TOAST_MESSAGES.addedToCart` and
+stepper is not an add and shows no toast. A remove shows "Removed from Cart"
+(`TOAST_MESSAGES.removedFromCart`) at once: the cart page's Remove, and −
+taking a card or product page stepper to 0. `useRemoveCartItem` takes the line
+out of the cached cart before the request, so it disappears without waiting;
+the totals settle when the server's cart arrives, and a failed remove fetches
+the cart again, which brings the line back with the error.
+Unsaving shows "Removed from Wishlist" (`TOAST_MESSAGES.removedFromWishlist`,
+an outline heart): the heart on cards and the product page, and the wishlist
+page's Remove link. The wording is in `TOAST_MESSAGES` and
 the time on screen is `TOAST_DURATION_MS` (3 s), both in `src/lib/constants.ts`.
 How the toast looks and behaves is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) §6.
 

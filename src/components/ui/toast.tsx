@@ -30,7 +30,8 @@ import { toastRise } from "@/lib/motion";
  * modal, so every cart and wishlist confirmation looks the same.
  */
 
-export type ToastIcon = "check" | "heart";
+/** `heart` is the filled saved heart; `heart-outline` confirms an unsave. */
+export type ToastIcon = "check" | "heart" | "heart-outline";
 
 interface ToastState {
   id: number;
@@ -80,7 +81,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               exit="exit"
               className="commerce-dark inline-flex max-w-full items-center gap-2.5 rounded-full border border-line bg-surface px-5 py-3 text-[0.875rem] font-medium tracking-tight text-ink shadow-[0_12px_32px_rgb(0_0_0/0.35)]"
             >
-              {toast.icon === "heart" ? <HeartIcon saved className="size-4 shrink-0" /> : <CheckIcon />}
+              {toast.icon === "check" ? (
+                <CheckIcon />
+              ) : (
+                <HeartIcon saved={toast.icon === "heart"} className="size-4 shrink-0" />
+              )}
               <span className="truncate">{toast.message}</span>
             </motion.p>
           )}

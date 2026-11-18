@@ -106,7 +106,8 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
 
   function handleToggleSaved() {
     toggleSaved(product.slug);
-    if (!saved) showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
+    if (saved) showToast(TOAST_MESSAGES.removedFromWishlist, "heart-outline");
+    else showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
   }
 
   function choose(axis: Axis, value: string) {
@@ -199,6 +200,7 @@ export function ProductBuyPanel({ product, addOns, variant, returnWindowDays, on
     if (stepper.quantity <= 1) {
       stepper.cancel();
       removeCartItem.mutate(line.id);
+      showToast(TOAST_MESSAGES.removedFromCart);
     } else stepper.set(stepper.quantity - 1);
   }
 

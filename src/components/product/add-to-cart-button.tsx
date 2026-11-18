@@ -124,6 +124,7 @@ export function AddToCartButton({
     if (stepper.quantity <= 1) {
       stepper.cancel();
       removeCartItem.mutate(line.id);
+      showToast(TOAST_MESSAGES.removedFromCart);
     } else stepper.set(stepper.quantity - 1);
   }
 

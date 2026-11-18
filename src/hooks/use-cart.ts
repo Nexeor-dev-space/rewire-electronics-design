@@ -51,11 +51,16 @@ export function useGetCartQuote(
 
 /* ---------- mutations ---------- */
 
-function useCartMutation<TInput>(mutationFn: (input: TInput) => Promise<Cart>) {
+function useCartMutation<TInput>(
+  mutationFn: (input: TInput) => Promise<Cart>,
+  options: { onMutate?: (input: TInput) => Promise<void>; onError?: () => void } = {},
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,
     scope: CART_MUTATION_SCOPE,
+    onMutate: options.onMutate,
+    onError: options.onError,
     onSuccess: (cart) => {
       queryClient.setQueryData(cartKeys.detail, cart);
       queryClient.invalidateQueries({ queryKey: cartKeys.quotes });
@@ -75,8 +80,28 @@ export function useUpdateCartItem() {
   );
 }
 
+/**
+ * The line leaves the cached cart at once, so it disappears without waiting
+ * for the server; the totals settle when the server's cart arrives. On a
+ * failure the cart is fetched again, which brings the line back (a snapshot
+ * restore could undo a newer change that landed meanwhile).
+ */
 export function useRemoveCartItem() {
-  return useCartMutation((id: string) => apiRequest<Cart>(endpoints.item(id), { method: "DELETE" }));
+  const queryClient = useQueryClient();
+  return useCartMutation(
+    (id: string) => apiRequest<Cart>(endpoints.item(id), { method: "DELETE" }),
+    {
+      onMutate: async (id) => {
+        await queryClient.cancelQueries({ queryKey: cartKeys.detail });
+        queryClient.setQueryData<Cart>(cartKeys.detail, (cart) =>
+          cart && { ...cart, items: cart.items.filter((item) => item.id !== id) },
+        );
+      },
+      onError: () => {
+        queryClient.invalidateQueries({ queryKey: cartKeys.detail });
+      },
+    },
+  );
 }
 
 export function useApplyCoupon() {
