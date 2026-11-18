@@ -705,10 +705,13 @@ smaller screens.
    height with the shared `collapsePanel` / `collapsePanelBody` variants and
    marks it `inert`, so it cannot be tabbed into. The inputs keep their values,
    and Place Order reads the whole form with `FormData`.
-4. **Focus and scroll.** Opening a step moves focus to its heading. When the
-   open animation ends, the section scrolls to the top of the viewport
-   (instantly under reduced motion); its `scroll-mt-*` clears the header and
-   the progress bar.
+4. **Focus and scroll.** Opening a step moves focus to its heading and
+   scrolls the section to the top of the viewport in one eased motion
+   (`scrollAlongside` in `checkout-section.tsx`) that runs while the step
+   above collapses and this one opens. It measures the section on every frame,
+   so it ends exactly on it; under reduced motion it stays pinned there
+   instead of easing. A wheel, touch or key stops it. Its `scroll-mt-*` clears
+   the header and the progress bar.
 5. **Enter** in a field continues the open step, or places the order on
    Payment & review.
 6. **Progress bar.** `CheckoutProgress` sits in a sticky bar just below the

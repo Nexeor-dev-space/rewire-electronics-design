@@ -36,25 +36,16 @@ export function CheckoutSection({
   const sectionRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const wasOpen = useRef(open);
-  const scrollOnOpen = useRef(false);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (open && !wasOpen.current) {
-      scrollOnOpen.current = true;
-      headingRef.current?.focus({ preventScroll: true });
-    }
+    const opened = open && !wasOpen.current;
     wasOpen.current = open;
-  }, [open]);
-
-  function handleAnimationComplete(definition: unknown) {
-    if (definition !== "visible" || !scrollOnOpen.current) return;
-    scrollOnOpen.current = false;
-    sectionRef.current?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  }
+    if (!opened) return;
+    headingRef.current?.focus({ preventScroll: true });
+    const section = sectionRef.current;
+    if (section) return scrollAlongside(section, Boolean(reduceMotion));
+  }, [open, reduceMotion]);
 
   return (
     <section
@@ -125,7 +116,6 @@ export function CheckoutSection({
         initial={false}
         animate={open ? "visible" : "hidden"}
         variants={collapsePanel}
-        onAnimationComplete={handleAnimationComplete}
         className="overflow-hidden"
       >
         <motion.div variants={collapsePanelBody}>
@@ -134,4 +124,73 @@ export function CheckoutSection({
       </motion.div>
     </section>
   );
+}
+
+/** A little longer than `collapsePanel`'s open (0.62 s), so the scroll ends after the layout settles. */
+const SCROLL_DURATION_MS = 700;
+
+/**
+ * Scrolls a section that has just opened to the top of the viewport, in one
+ * motion that runs while the step before it collapses and it expands.
+ *
+ * The easing is on the section's place on screen, not on the scroll
+ * position: each frame works out where its top should be on screen (gliding
+ * from where it started to just under the progress bar), measures where it
+ * is on the page now, and scrolls to match. So the heading only ever moves
+ * one way, however fast the step above collapses. (Easing the scroll
+ * position instead let a long step's fast collapse carry the heading past
+ * the top before the scroll caught up and brought it back: the jerk from
+ * Information to Delivery.) Under reduced motion it stays pinned under the
+ * progress bar. Any wheel, touch or key stops it, so it never fights the
+ * shopper. Returns a cleanup that stops it.
+ */
+function scrollAlongside(section: HTMLElement, instant: boolean): () => void {
+  const root = document.documentElement;
+  const startTop = section.getBoundingClientRect().top;
+  const startTime = performance.now();
+  let frame = 0;
+  let stopped = false;
+
+  // A long step collapsing shrinks the page by hundreds of pixels. Without
+  // this the browser would clamp the scroll position the moment the page got
+  // shorter (the jerk from Information to Delivery), so the page keeps its
+  // height until the scroll ends; the extra room sits below the footer.
+  // Scroll anchoring is off meanwhile, so the browser doesn't adjust the
+  // position against this scroll either.
+  const previous = { minHeight: root.style.minHeight, overflowAnchor: root.style.overflowAnchor };
+  root.style.minHeight = `${root.scrollHeight}px`;
+  root.style.overflowAnchor = "none";
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    cancelAnimationFrame(frame);
+    root.style.minHeight = previous.minHeight;
+    root.style.overflowAnchor = previous.overflowAnchor;
+    window.removeEventListener("wheel", stop);
+    window.removeEventListener("touchstart", stop);
+    window.removeEventListener("keydown", stop);
+  };
+
+  const step = (now: number) => {
+    const margin = parseFloat(getComputedStyle(section).scrollMarginTop) || 0;
+    // The body is not stretched by the root's min-height, so its bottom is
+    // where the page really ends. Never aim past that, or the scroll would
+    // jump when the extra room is removed.
+    const maxY = document.body.getBoundingClientRect().bottom + window.scrollY - window.innerHeight;
+    // The first frame's timestamp can fall just before `startTime`.
+    const progress = Math.min(1, Math.max(0, now - startTime) / SCROLL_DURATION_MS);
+    const eased = instant ? 1 : 1 - (1 - progress) ** 3;
+    const screenTop = startTop + (margin - startTop) * eased;
+    const pageTop = section.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo(0, Math.max(0, Math.min(pageTop - screenTop, maxY)));
+    if (progress < 1) frame = requestAnimationFrame(step);
+    else stop();
+  };
+
+  window.addEventListener("wheel", stop, { passive: true });
+  window.addEventListener("touchstart", stop, { passive: true });
+  window.addEventListener("keydown", stop);
+  frame = requestAnimationFrame(step);
+  return stop;
 }
