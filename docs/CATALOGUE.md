@@ -75,8 +75,9 @@ Rules the model encodes:
    hidden category disappear from every storefront list, search and product
    page, and the category page answers 404.
 8. **`showInNav`** decides whether a published top level category appears in
-   the header, menus, mobile drawer and home strip. A hidden one stays
-   browsable at `/collection/[slug]` and in the shop filters.
+   the header, menus, mobile drawer, home strip and the shop filter category
+   list (its children are hidden from the filter too). A hidden one stays
+   browsable at `/collection/[slug]`.
 9. **`sortOrder`** orders categories everywhere: lower first, then by name.
 
 ### Migrations
