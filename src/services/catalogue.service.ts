@@ -55,6 +55,15 @@ export const VISIBLE_CATEGORY: Prisma.CategoryWhereInput = {
   OR: [{ parentId: null }, { parent: { is: { status: "PUBLISHED" } } }],
 };
 
+/** Categories offered in the shop filter: visible, and not hidden from the storefront by showInNav. */
+const FILTER_CATEGORY: Prisma.CategoryWhereInput = {
+  status: "PUBLISHED",
+  OR: [
+    { parentId: null, showInNav: true },
+    { parent: { is: { status: "PUBLISHED", showInNav: true } } },
+  ],
+};
+
 export const PUBLISHED: Prisma.ProductWhereInput = {
   status: "PUBLISHED",
   deletedAt: null,
@@ -435,7 +444,7 @@ async function facetsFor(query: ShopQuery, total: Promise<number>): Promise<Shop
   const [categories, conditionPairs, gradePairs, brands, storagePairs, bandCounts, stock] =
     await Promise.all([
       prisma.category.findMany({
-        where: VISIBLE_CATEGORY,
+        where: FILTER_CATEGORY,
         select: {
           name: true,
           slug: true,
