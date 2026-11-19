@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { z } from "zod";
 import {
   cartKeys,
@@ -29,12 +30,14 @@ import {
 } from "@/lib/delivery";
 import { EMIRATES, emirateLabel, type Emirate } from "@/lib/emirates";
 import { formatMoney } from "@/lib/money";
+import { collapsePanel, collapsePanelBody } from "@/lib/motion";
 import {
   PAYMENT_REDIRECT_NOTICE,
   paysOnline,
   type PaymentMethod,
 } from "@/lib/orders";
 import { cn, randomUuid } from "@/lib/utils";
+import type { Cart } from "@/types/cart";
 import type { DeliveryAreaOptions } from "@/types/delivery";
 import {
   CITY_REQUIRED_MESSAGE,
@@ -48,7 +51,7 @@ import { CheckoutProgress, type ProgressStep } from "./checkout-progress";
 import { CheckoutSection, type CheckoutSectionState } from "./checkout-section";
 import { Field } from "./field";
 import { OptionList, type OptionListItem } from "./option-list";
-import { OrderSummary } from "./order-summary";
+import { OrderSummary, PriceBreakdown } from "./order-summary";
 
 export interface PaymentOption extends OptionListItem {
   value: PaymentMethod;
@@ -61,14 +64,13 @@ interface Props {
 const STEPS: ProgressStep[] = [
   { id: "information", label: "Information" },
   { id: "delivery", label: "Delivery" },
-  { id: "payment", label: "Payment" },
-  { id: "review", label: "Review" },
+  { id: "payment", label: "Payment & review" },
 ];
 
 const INFORMATION_STEP = 0;
 const DELIVERY_STEP = 1;
+/** The last step: pick payment, check the order, then place it. */
 const PAYMENT_STEP = 2;
-const REVIEW_STEP = 3;
 
 const INFORMATION_FIELDS = {
   email: "email",
@@ -196,7 +198,7 @@ export function CheckoutView({ payment }: Props) {
   const placing = placeOrder.isPending || placeOrder.isSuccess;
   const cart = quote.data?.cart;
   const lines = cart?.items ?? [];
-  const stepsComplete = openStep === REVIEW_STEP;
+  const stepsComplete = openStep === PAYMENT_STEP;
 
   const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map(
     (option) => ({
@@ -264,9 +266,7 @@ export function CheckoutView({ payment }: Props) {
 
   const continueDelivery = () => setOpenStep(PAYMENT_STEP);
 
-  const continuePayment = () => setOpenStep(REVIEW_STEP);
-
-  const continueStep = [continueInformation, continueDelivery, continuePayment];
+  const continueStep = [continueInformation, continueDelivery];
 
   const handlePlaceError = (error: Error) => {
     if (!isRetryable(error)) idempotencyKey.current = null;
@@ -335,7 +335,7 @@ export function CheckoutView({ payment }: Props) {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (openStep === REVIEW_STEP) handlePlaceOrder();
+    if (openStep === PAYMENT_STEP) handlePlaceOrder();
     else continueStep[openStep]?.();
   };
 
@@ -386,7 +386,7 @@ export function CheckoutView({ payment }: Props) {
       ref={formRef}
       onSubmit={handleSubmit}
       noValidate
-      className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 pb-40 md:py-12 lg:pb-14"
+      className="mx-auto w-full max-w-[110rem] px-(--spacing-gutter) py-8 md:py-12 lg:pb-14"
     >
       <div className="sticky top-16 z-30 -mx-(--spacing-gutter) mb-8 border-b border-line bg-void/95 px-(--spacing-gutter) py-3 backdrop-blur-xl md:top-[4.5rem] md:mb-12">
         <CheckoutProgress
@@ -396,8 +396,10 @@ export function CheckoutView({ payment }: Props) {
         />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-16">
-        <div className="flex flex-col gap-6 lg:gap-8">
+      {/* grid-cols-1 is minmax(0, 1fr): without it the one mobile column grows to
+          fit a done step's one-line summary, and the page outgrows the screen. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_28rem] xl:gap-16">
+        <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
           <header>
             <p className="eyebrow">Secure checkout</p>
             <h1 className="mt-3 text-display-md font-light text-ink">
@@ -411,9 +413,12 @@ export function CheckoutView({ payment }: Props) {
 
           <OrderSummary
             cart={cart!}
-            deliveryLabel={deliveryLabel}
             className="lg:hidden"
             compact
+            onApplyCoupon={(code) => applyCoupon.mutate({ code })}
+            onRemoveCoupon={() => removeCoupon.mutate()}
+            couponPending={applyCoupon.isPending || removeCoupon.isPending}
+            couponFieldError={couponFieldError}
             quotePending={quote.isFetching}
           />
 
@@ -469,6 +474,9 @@ export function CheckoutView({ payment }: Props) {
                 error={informationErrors.phone}
                 onBlur={() => revalidateInformation("phone")}
                 className="col-span-6"
+                controlClassName="text-base sm:text-sm"
+                // Wider on phones so "+971 UAE" fits at the 16px text size.
+                countryClassName="w-32 sm:w-28"
               />
               <div className="col-span-6">
                 <Checkbox
@@ -654,11 +662,9 @@ export function CheckoutView({ payment }: Props) {
           <CheckoutSection
             id={STEPS[PAYMENT_STEP].id}
             index="03"
-            title="Payment"
-            description="Choose how you'd like to pay. We never ask for card details on this page."
+            title="Payment and review"
+            description="Choose how you'd like to pay, then check your order. We never ask for card details on this page."
             state={stepState(PAYMENT_STEP)}
-            summary={activePayment?.label}
-            onEdit={() => editStep(PAYMENT_STEP)}
           >
             <OptionList
               name="payment-method"
@@ -690,28 +696,25 @@ export function CheckoutView({ payment }: Props) {
               Secure payment · encrypted end-to-end
             </div>
 
-            <ContinueButton
-              label="Continue to review"
-              onClick={continuePayment}
-            />
-          </CheckoutSection>
+            <div className="mt-8 border-t border-line pt-6">
+              <h3 className="text-[1.25rem] font-medium tracking-tight text-ink">
+                Review your order
+              </h3>
+              <p className="mt-1 text-[0.8125rem] text-ink-secondary">
+                Everything checks out? Place your order from the summary, or
+                the bar at the bottom on mobile.
+              </p>
 
-          <CheckoutSection
-            id={STEPS[REVIEW_STEP].id}
-            index="04"
-            title="Review and place order"
-            description="Everything checks out? Place your order from the summary, or the bar at the bottom on mobile."
-            state={stepState(REVIEW_STEP)}
-          >
-            <dl className="grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-2">
-              <ReviewRow label="Delivery" value={deliveryLabel} />
-              <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
-              <ReviewRow
-                label="Order total"
-                value={formatMoney(cart!.totals.total)}
-                strong
-              />
-            </dl>
+              <dl className="mt-5 grid gap-3 text-[0.875rem] text-ink-secondary sm:grid-cols-3 sm:gap-5">
+                <ReviewRow label="Delivery" value={deliveryLabel} />
+                <ReviewRow label="Payment" value={activePayment?.label ?? "—"} />
+                <ReviewRow
+                  label="Order total"
+                  value={formatMoney(cart!.totals.total)}
+                  strong
+                />
+              </dl>
+            </div>
             {placeError && (
               <p
                 role="alert"
@@ -727,7 +730,6 @@ export function CheckoutView({ payment }: Props) {
           <div className="sticky top-40">
             <OrderSummary
               cart={cart!}
-              deliveryLabel={deliveryLabel}
               onApplyCoupon={(code) => applyCoupon.mutate({ code })}
               onRemoveCoupon={() => removeCoupon.mutate()}
               couponPending={applyCoupon.isPending || removeCoupon.isPending}
@@ -744,7 +746,7 @@ export function CheckoutView({ payment }: Props) {
 
       <StickyMobileCta
         placing={placing}
-        total={cart!.totals.total}
+        cart={cart!}
         canCheckout={cart!.canCheckout && stepsComplete}
         onPlaceOrder={handlePlaceOrder}
       />
@@ -813,7 +815,7 @@ function SelectField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={cn(
-            "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-sm text-ink",
+            "h-12 w-full appearance-none rounded-md bg-surface pl-4 pr-10 text-base text-ink sm:text-sm",
             "border border-line transition-colors duration-(--duration-fast)",
             "hover:border-line-strong focus:border-accent focus:outline-none aria-invalid:border-danger",
             "disabled:cursor-not-allowed disabled:text-ink-muted",
@@ -910,7 +912,7 @@ function ReviewRow({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-line pb-2.5 last:border-b-0 last:pb-0 sm:border-b-0 sm:pb-0">
+    <div className="flex min-w-0 flex-col gap-1 border-b border-line pb-2.5 last:border-b-0 last:pb-0 sm:border-b-0 sm:pb-0">
       <dt className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ink-muted">
         {label}
       </dt>
@@ -928,38 +930,113 @@ function ReviewRow({
   );
 }
 
+/**
+ * The phone Place Order bar. The total on the left is its own button (Place
+ * Order stays disabled until the last step) and slides the price breakdown
+ * up above the bar.
+ */
 function StickyMobileCta({
   placing,
-  total,
+  cart,
   canCheckout,
   onPlaceOrder,
 }: {
   placing: boolean;
-  total: number;
+  cart: Cart;
   canCheckout: boolean;
   onPlaceOrder: () => void;
 }) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const panelId = useId();
+  const { totals, coupon } = cart;
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-void/95 backdrop-blur-xl px-(--spacing-gutter) py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden">
-      <button
-        type="button"
-        onClick={onPlaceOrder}
-        disabled={placing || !canCheckout}
-        aria-busy={placing || undefined}
-        className={cn(
-          "flex h-13 w-full items-center justify-between gap-3 rounded-full px-5",
-          "bg-accent text-white",
-          "text-[0.9375rem] font-medium",
-          "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
-          "hover:bg-accent-hover active:scale-[0.99]",
-          "disabled:pointer-events-none disabled:opacity-70",
-          "h-12",
-        )}
+    <>
+      {breakdownOpen && (
+        <div
+          aria-hidden
+          onClick={() => setBreakdownOpen(false)}
+          className="fixed inset-0 z-30 bg-void/60 lg:hidden"
+        />
+      )}
+      <div
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setBreakdownOpen(false);
+        }}
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-void/95 backdrop-blur-xl px-(--spacing-gutter) py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden"
       >
-        <span>{placing ? "Processing…" : "Place Order"}</span>
-        <span className="tabular-nums">{formatMoney(total)}</span>
-      </button>
-    </div>
+        <motion.div
+          id={panelId}
+          role="region"
+          aria-label="Price breakdown"
+          inert={!breakdownOpen}
+          initial={false}
+          animate={breakdownOpen ? "visible" : "hidden"}
+          variants={collapsePanel}
+          className="overflow-hidden"
+        >
+          <motion.div variants={collapsePanelBody} className="pb-4 pt-1">
+            <PriceBreakdown totals={totals} coupon={coupon} />
+            <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
+              <span className="text-[0.9375rem] font-medium text-ink">Total</span>
+              <span className="text-[1.0625rem] font-medium tabular-nums text-ink">
+                {formatMoney(totals.total)}
+              </span>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setBreakdownOpen((open) => !open)}
+            aria-expanded={breakdownOpen}
+            aria-controls={panelId}
+            aria-label={`Total ${formatMoney(totals.total)}. ${breakdownOpen ? "Hide" : "Show"} price breakdown`}
+            className="flex h-12 shrink-0 flex-col items-start justify-center rounded-md pr-1 text-left"
+          >
+            <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-ink-muted">
+              Total
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[1rem] font-medium tabular-nums text-ink">
+              {formatMoney(totals.total)}
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={cn(
+                  "size-3 text-ink-secondary transition-transform duration-(--duration-fast)",
+                  breakdownOpen && "rotate-180",
+                )}
+              >
+                <path d="m4 10 4-4 4 4" />
+              </svg>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onPlaceOrder}
+            disabled={placing || !canCheckout}
+            aria-busy={placing || undefined}
+            className={cn(
+              "flex h-12 min-w-0 flex-1 items-center justify-center rounded-full px-5",
+              "bg-accent text-white",
+              "text-[0.9375rem] font-medium",
+              "transition-[background-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
+              "hover:bg-accent-hover active:scale-[0.99]",
+              "disabled:pointer-events-none disabled:opacity-70",
+            )}
+          >
+            {placing ? "Processing…" : "Place Order"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

@@ -41,8 +41,14 @@ export function SiteChrome({
         {children}
       </main>
       {/* Bottom pad below `lg` keeps the footer's last line clear of the
-          fixed tab bar, and is dropped when the bar is not shown. */}
-      <div className={cn(showTabBar && "pb-16 lg:pb-0")}>
+          fixed tab bar, or on checkout of the fixed Place Order bar (its
+          h-12 button, py-3 and the safe area), and is dropped from `lg`. */}
+      <div
+        className={cn(
+          showTabBar && "pb-16 lg:pb-0",
+          isCheckout && "pb-[calc(env(safe-area-inset-bottom)+4.75rem)] lg:pb-0",
+        )}
+      >
         {isCheckout ? checkoutFooter : footer}
       </div>
       {showTabBar && <MobileTabBar />}

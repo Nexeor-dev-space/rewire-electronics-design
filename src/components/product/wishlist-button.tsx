@@ -41,7 +41,8 @@ export function WishlistButton({
         event.preventDefault();
         event.stopPropagation();
         toggleSaved(product.slug);
-        if (!saved) showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
+        if (saved) showToast(TOAST_MESSAGES.removedFromWishlist, "heart-outline");
+        else showToast(TOAST_MESSAGES.savedToWishlist(product.name), "heart");
       }}
       aria-pressed={saved}
       aria-label={

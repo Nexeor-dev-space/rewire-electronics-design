@@ -648,7 +648,15 @@ your cart", from `ToastProvider` (`components/ui/toast.tsx`, mounted once in
 never on a failed add. It shows on product cards and on the product page,
 for every product. When an add also opens the Add to cart modal, the
 toast is drawn above the modal so it is still seen. A quantity change on the
-stepper is not an add and shows no toast. The wording is `TOAST_MESSAGES.addedToCart` and
+stepper is not an add and shows no toast. A remove shows "Removed from Cart"
+(`TOAST_MESSAGES.removedFromCart`) at once: the cart page's Remove, and −
+taking a card or product page stepper to 0. `useRemoveCartItem` takes the line
+out of the cached cart before the request, so it disappears without waiting;
+the totals settle when the server's cart arrives, and a failed remove fetches
+the cart again, which brings the line back with the error.
+Unsaving shows "Removed from Wishlist" (`TOAST_MESSAGES.removedFromWishlist`,
+an outline heart): the heart on cards and the product page, and the wishlist
+page's Remove link. The wording is in `TOAST_MESSAGES` and
 the time on screen is `TOAST_DURATION_MS` (3 s), both in `src/lib/constants.ts`.
 How the toast looks and behaves is in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) §6.
 
@@ -678,36 +686,41 @@ unticking.
 
 ### 9.1 Checkout steps
 
-`/checkout` is a four step accordion: **01 Information** (contact and
-address), **02 Delivery** (method), **03 Payment**, **04 Review**. The order
-summary sits beside it from `lg`, and above it on smaller screens.
+`/checkout` is a three step accordion: **01 Information** (contact and
+address), **02 Delivery** (method), **03 Payment & review** (the payment
+method, with the order review — delivery, payment and total — under it in the
+same step). The order summary sits beside it from `lg`, and above it on
+smaller screens.
 
 1. **Strictly linear.** One step is open at a time (`openStep` in
    `checkout-view.tsx`). Steps before it are done, steps after it are locked
    and show only their title. A step opens only through the Continue button
    of the step before it.
 2. **Done steps collapse to a summary with Edit.** Information shows email,
-   phone and "city, emirate"; Delivery shows method, ETA and fee; Payment shows
-   the method. Edit reopens that step and locks every step after it again, so
+   phone and "city, emirate"; Delivery shows method, ETA and fee. Payment &
+   review is the last step, so it never collapses. Edit reopens that step and locks every step after it again, so
    the shopper continues through each once more. Edit does nothing while an
    order is being placed.
 3. **Bodies stay mounted.** `CheckoutSection` collapses a closed body to zero
    height with the shared `collapsePanel` / `collapsePanelBody` variants and
    marks it `inert`, so it cannot be tabbed into. The inputs keep their values,
    and Place Order reads the whole form with `FormData`.
-4. **Focus and scroll.** Opening a step moves focus to its heading. When the
-   open animation ends, the section scrolls to the top of the viewport
-   (instantly under reduced motion); its `scroll-mt-*` clears the header and
-   the progress bar.
+4. **Focus and scroll.** Opening a step moves focus to its heading and
+   scrolls the section to the top of the viewport in one eased motion
+   (`scrollAlongside` in `checkout-section.tsx`) that runs while the step
+   above collapses and this one opens. It measures the section on every frame,
+   so it ends exactly on it; under reduced motion it stays pinned there
+   instead of easing. A wheel, touch or key stops it. Its `scroll-mt-*` clears
+   the header and the progress bar.
 5. **Enter** in a field continues the open step, or places the order on
-   Review.
+   Payment & review.
 6. **Progress bar.** `CheckoutProgress` sits in a sticky bar just below the
-   checkout header (`top-16`, `md:top-20`). From `sm` it shows four pills: the
+   checkout header (`top-16`, `md:top-20`). From `sm` it shows three pills: the
    open one carries `aria-current="step"`, and done pills are buttons that
    reopen their step, the same as Edit. Below `sm` it compacts to "Step X of
-   4" and the step name, with no buttons; Edit on each section does the job.
+   3" and the step name, with no buttons; Edit on each section does the job.
 7. **Place Order waits for every step.** `OrderSummary` takes `stepsComplete`
-   (true only while Review is open) and keeps Place Order disabled until then,
+   (true only while Payment & review is open) and keeps Place Order disabled until then,
    with "Complete each step to place your order." under it. The mobile sticky
    bar is disabled on the same condition, and `handlePlaceOrder` checks it
    again.

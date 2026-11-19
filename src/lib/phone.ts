@@ -18,7 +18,7 @@ export const UAE_PHONE: PhoneCountry = {
   shortName: "UAE",
   example: "50 123 4567",
   nationalNumber: /^(5[024568]|[234679])\d{7}$/,
-  invalidMessage: "Enter a valid UAE phone number, e.g. 050 123 4567.",
+  invalidMessage: "Enter a valid UAE phone number, e.g. 50 123 4567.",
 };
 
 export const SAUDI_PHONE: PhoneCountry = {
@@ -26,7 +26,7 @@ export const SAUDI_PHONE: PhoneCountry = {
   shortName: "KSA",
   example: "50 123 4567",
   nationalNumber: /^5\d{8}$/,
-  invalidMessage: "Enter a valid Saudi phone number, e.g. 050 123 4567.",
+  invalidMessage: "Enter a valid Saudi phone number, e.g. 50 123 4567.",
 };
 
 export const PHONE_COUNTRIES: readonly PhoneCountry[] = [UAE_PHONE, SAUDI_PHONE];

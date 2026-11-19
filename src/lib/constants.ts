@@ -113,6 +113,8 @@ export const TOAST_DURATION_MS = 3_000;
 export const TOAST_MESSAGES = {
   addedToCart: (productName: string) => ` Added to Cart`,
   savedToWishlist: (productName: string) => ` Saved to Wishlist`,
+  removedFromCart: "Removed from Cart",
+  removedFromWishlist: "Removed from Wishlist",
 } as const;
 export const RETURN_WINDOW_DAYS = 30;
 export const RETURN_WINDOW_MAX_DAYS = 365;

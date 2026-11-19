@@ -19,6 +19,7 @@ export function PhoneField({
   disabled,
   className,
   controlClassName,
+  countryClassName,
 }: {
   id: string;
   label: string;
@@ -32,6 +33,8 @@ export function PhoneField({
   disabled?: boolean;
   className?: string;
   controlClassName?: string;
+  /** Extra classes for the country code select only, such as a wider width. */
+  countryClassName?: string;
 }) {
   const [draft, setDraft] = useState<PhoneParts>(() => splitPhone(value));
   const [checking, setChecking] = useState(value !== "");
@@ -59,7 +62,7 @@ export function PhoneField({
           disabled={disabled}
           value={parts.country.dialCode}
           onChange={(event) => changeCountry(event.target.value)}
-          className={cn("w-28 pl-3 pr-8", controlClassName)}
+          className={cn("w-28 pl-3 pr-8", controlClassName, countryClassName)}
         >
           {PHONE_COUNTRIES.map((country) => (
             <option key={country.dialCode} value={country.dialCode}>
