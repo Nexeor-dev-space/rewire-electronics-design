@@ -11,4 +11,4 @@ The guide slug is the last part of the guide address, for example
 guide works before all its screenshots exist.
 
 A screenshot uploaded in Storefront, Help Guides replaces the file for that
-step. `browsing/step-1.png` is a sample placeholder.
+step. The customer guides use screenshots of the public pages and the account pages; the originals are in `public/customer/`.
