@@ -41,10 +41,10 @@ export const CUSTOMER_GUIDES: GuideDefinition[] = [
         "Select a product card.",
         "Choose the storage, colour and condition. The price, photos and stock update as you choose.",
         "Read the specifications, what is included, the warranty and the terms further down.",
-        "Tick any add ons, such as a case, a charger or extended warranty. Some add months of warranty, shown as plus 12 months warranty.",
         "Select Add to cart.",
+        "Your product is added to the cart.",
       ],
-      next: ["The item is in your cart. Open the cart from the header at any time."],
+      next: ["Open the cart from the header at any time."],
       problems: [
         "A combination is not offered: choose another storage, colour or condition.",
         "The page says the item is out of stock: pick another version, or join the waitlist if the page offers it.",
