@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEV_APP_URL, SMTP_DEFAULT_HOST, SMTP_DEFAULT_PORT } from "@/lib/constants";
 import type { EmailEnv } from "./env";
-import { describeEmailTransport, resolveIntegrationConfig } from "./integration-config";
+import { describeEmailTransport, describeTestMode, resolveIntegrationConfig } from "./integration-config";
 
 const APP_URL = "https://rewire-electronics.com";
 
@@ -77,6 +77,21 @@ describe("describeEmailTransport", () => {
     );
     expect(describeEmailTransport(resolveIntegrationConfig(NOTHING, "production"))).toBe(
       "email transport: OFF (production needs SMTP_USER, SMTP_PASS, EMAIL_FROM and APP_URL)",
+    );
+  });
+});
+
+describe("describeTestMode", () => {
+  it("says on with the default reminder times", () => {
+    expect(describeTestMode({ on: true, ignored: null })).toBe(
+      "test mode: ON (new releases default to 10 and 5 minute reminders)",
+    );
+  });
+
+  it("says off, and names an ignored value", () => {
+    expect(describeTestMode({ on: false, ignored: null })).toBe("test mode: OFF");
+    expect(describeTestMode({ on: false, ignored: "yes" })).toBe(
+      'test mode: OFF (TEST_MODE="yes" ignored; only "true" turns it on)',
     );
   });
 });

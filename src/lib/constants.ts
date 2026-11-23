@@ -65,6 +65,11 @@ export const LOW_STOCK_THRESHOLD = 5;
 export const RELEASE_TITLE_MAX_LENGTH = 120;
 export const RELEASE_SLUG_SUFFIX_BYTES = 3;
 export const RELEASE_REMINDER_DEFAULTS_MINUTES = [2880, 60];
+export const RELEASE_TEST_REMINDER_DEFAULTS_MINUTES = [10, 5];
+export const RELEASE_REMINDERS_MAX = 5;
+export const RELEASE_TEST_EMAIL_SUBJECT_PREFIX = "[Test] ";
+export const RELEASE_TEST_ENTRY_ID = "test-entry";
+export const TEST_MODE_ON_VALUE = "true";
 export const RELEASE_EDITION_MAX_LENGTH = 60;
 export const RELEASE_DESCRIPTION_MAX_LENGTH = 2000;
 export const RELEASE_MAX_PER_CUSTOMER_DEFAULT = 1;
@@ -237,6 +242,7 @@ export const RATE_LIMITS = {
   joinWaitlist: { limit: 5, windowSeconds: 60 * 15 },
   createSupportTicket: { limit: 5, windowSeconds: 60 * 60 },
   integrationTest: { limit: 10, windowSeconds: 60 * 10 },
+  releaseTestEmails: { limit: 5, windowSeconds: 60 * 15 },
 } as const;
 export const SIGN_IN_PAGE_PATH = "/sign-in";
 export const REGISTER_PAGE_PATH = "/register";
@@ -294,6 +300,7 @@ export const PRODUCT_IMPORT_EXCEL_TEMPLATE_PATH = "/templates/rewire-product-upl
 
 /** Marketing automation and message history; see docs/MESSAGING.md. */
 export const MESSAGE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+export const RELEASE_SWEEP_INTERVAL_MS = MS_PER_MINUTE;
 /** Most recipients or records one sweep handles per message type, so a run stays small. */
 export const MESSAGE_SWEEP_BATCH = 50;
 /** A failed send is tried again by later sweeps until it has been attempted this many times. */
@@ -304,6 +311,7 @@ export const MESSAGE_SCHEDULE_GRACE_MINUTES = 60;
 export const COUNTDOWN_MIN_OFFSET_MINUTES = 24 * 60;
 /** How far ahead of an opening the sweep looks for due reminders. */
 export const RELEASE_REMINDER_LOOKAHEAD_DAYS = 14;
+export const RELEASE_REMINDER_MAX_MINUTES = RELEASE_REMINDER_LOOKAHEAD_DAYS * 24 * 60;
 export const ABANDONED_CHECKOUT_AFTER_HOURS = 2;
 export const ABANDONED_CHECKOUT_MAX_AGE_DAYS = 3;
 export const ABANDONED_CHECKOUT_COOLDOWN_DAYS = 7;

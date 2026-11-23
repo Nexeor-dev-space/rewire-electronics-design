@@ -4,6 +4,9 @@ import {
   RELEASE_DESCRIPTION_MAX_LENGTH,
   RELEASE_EDITION_MAX_LENGTH,
   RELEASE_MAX_PER_CUSTOMER_LIMIT,
+  RELEASE_REMINDER_LOOKAHEAD_DAYS,
+  RELEASE_REMINDER_MAX_MINUTES,
+  RELEASE_REMINDERS_MAX,
   RELEASE_TITLE_MAX_LENGTH,
   SEARCH_QUERY_MAX_LENGTH,
 } from "@/lib/constants";
@@ -22,6 +25,21 @@ export const releaseListQuerySchema = paginationQueryValidator.extend({
   status: z.enum(RELEASE_STATUSES).optional(),
   sort: z.enum(RELEASE_SORTS).default("opens_desc"),
 });
+
+export const reminderOffsetsValidator = z
+  .array(
+    z
+      .number("Enter a whole number for each reminder.")
+      .int("Use whole minutes.")
+      .min(1, "Use at least 1 minute.")
+      .max(
+        RELEASE_REMINDER_MAX_MINUTES,
+        `Use ${RELEASE_REMINDER_LOOKAHEAD_DAYS} days (${RELEASE_REMINDER_MAX_MINUTES} minutes) or fewer.`,
+      ),
+  )
+  .max(RELEASE_REMINDERS_MAX, `Add ${RELEASE_REMINDERS_MAX} reminders or fewer.`)
+  .refine((offsets) => new Set(offsets).size === offsets.length, "Each reminder time can appear once.")
+  .transform((offsets) => [...offsets].sort((a, b) => b - a));
 
 export const releaseSchema = z
   .object({
@@ -48,6 +66,7 @@ export const releaseSchema = z
       .min(1, "Allow at least 1.")
       .max(RELEASE_MAX_PER_CUSTOMER_LIMIT, `Use ${RELEASE_MAX_PER_CUSTOMER_LIMIT} or fewer.`),
     hidden: z.boolean().default(false),
+    reminders: reminderOffsetsValidator.optional(),
   })
   .superRefine((data, ctx) => {
     if (data.endsAt && endsBeforeStart(data.startsAt, data.endsAt)) {

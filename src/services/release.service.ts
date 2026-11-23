@@ -4,13 +4,15 @@ import { randomBytes } from "node:crypto";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
-import { DB_WRITE_TIMEOUT_MS, RELEASE_REMINDER_DEFAULTS_MINUTES, RELEASE_SLUG_SUFFIX_BYTES } from "@/lib/constants";
+import { DB_WRITE_TIMEOUT_MS, RELEASE_SLUG_SUFFIX_BYTES } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import { isTestMode } from "@/lib/env";
 import {
   RELEASE_STATUS_LABELS,
   allowedEdits,
   canChangeState,
   canDeleteRelease,
+  defaultReminderOffsets,
   endedWindow,
   publishBlocker,
   releaseStatus,
@@ -43,6 +45,7 @@ const rowSelect = {
 const detailSelect = {
   ...rowSelect,
   description: true,
+  reminderOffsetsMinutes: true,
   allocations: {
     orderBy: [{ variant: { product: { name: "asc" } } }, { variant: { sortOrder: "asc" } }],
     select: {
@@ -80,8 +83,13 @@ interface AllocationSums {
 
 const EMPTY_TOTALS: ReleaseTotals = { productCount: 0, allocated: 0, sold: 0, remaining: 0 };
 
-const notFound = () =>
+export const releaseNotFound = () =>
   new ServiceError("NOT_FOUND", "We couldn't find that release. It may have been deleted.", 404);
+
+const largestFirst = (a: number, b: number) => b - a;
+
+const sameOffsets = (a: number[], b: number[]) =>
+  [...a].sort(largestFirst).join() === [...b].sort(largestFirst).join();
 
 function sumAllocations(rows: AllocationSums[]): ReleaseTotals {
   return {
@@ -120,13 +128,14 @@ function toRow({ completedAt, ...row }: Row, totals: ReleaseTotals, now: Date): 
 }
 
 function toDetail(row: DetailRow, now: Date): AdminReleaseDetail {
-  const { allocations, description, ...base } = row;
+  const { allocations, description, reminderOffsetsMinutes, ...base } = row;
   const totals = sumAllocations(
     allocations.map((allocation) => ({ ...allocation, productId: allocation.variant.product.id })),
   );
   return {
     ...toRow(base, totals, now),
     description,
+    reminders: [...reminderOffsetsMinutes].sort(largestFirst),
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     allocations: allocations.map(({ variant, ...allocation }) => ({
       ...allocation,
@@ -145,6 +154,10 @@ export function notCompletedWhere(now: Date): Prisma.ReleaseWhereInput {
   return { completedAt: null, OR: [{ endsAt: null }, { endsAt: { gt: now } }] };
 }
 
+export function completedWhere(now: Date): Prisma.ReleaseWhereInput {
+  return { publishedAt: { not: null }, OR: [{ completedAt: { not: null } }, { endsAt: { lte: now } }] };
+}
+
 function openWhere(now: Date): Prisma.ReleaseWhereInput {
   return { publishedAt: { not: null }, startsAt: { lte: now }, AND: [notCompletedWhere(now)] };
 }
@@ -154,7 +167,7 @@ function statusWhere(status: ReleaseStatus, now: Date): Prisma.ReleaseWhereInput
     case "DRAFT":
       return { publishedAt: null };
     case "COMPLETED":
-      return { publishedAt: { not: null }, OR: [{ completedAt: { not: null } }, { endsAt: { lte: now } }] };
+      return completedWhere(now);
     case "UPCOMING":
       return { publishedAt: { not: null }, startsAt: { gt: now }, AND: [notCompletedWhere(now)] };
     case "LIVE":
@@ -175,7 +188,7 @@ async function lockRelease(db: Db, id: string, where: Prisma.ReleaseWhereInput =
 
 async function loadDetail(db: Db, id: string): Promise<DetailRow> {
   const row = await db.release.findUnique({ where: { id }, select: detailSelect });
-  if (!row) throw notFound();
+  if (!row) throw releaseNotFound();
   return row;
 }
 
@@ -257,7 +270,7 @@ export async function createRelease(data: ReleaseData): Promise<AdminReleaseDeta
       startsAt: new Date(data.startsAt),
       endsAt: data.endsAt ? new Date(data.endsAt) : null,
       maxPerCustomer: data.maxPerCustomer,
-      reminderOffsetsMinutes: RELEASE_REMINDER_DEFAULTS_MINUTES,
+      reminderOffsetsMinutes: data.reminders ?? defaultReminderOffsets(isTestMode()),
       hidden: data.hidden,
       active: !data.hidden,
     },
@@ -281,6 +294,7 @@ function lockedFieldErrors(current: DetailRow, next: ReleaseData, status: Releas
     maxPerCustomer: next.maxPerCustomer !== current.maxPerCustomer,
     startsAt: !sameTime(startsAt, current.startsAt),
     endsAt: !sameTime(endsAt, current.endsAt),
+    reminders: next.reminders !== undefined && !sameOffsets(next.reminders, current.reminderOffsetsMinutes),
   };
   const allowed: Record<keyof typeof changed, boolean> = {
     title: edits.text,
@@ -290,6 +304,7 @@ function lockedFieldErrors(current: DetailRow, next: ReleaseData, status: Releas
     maxPerCustomer: edits.maxPerCustomer,
     startsAt: edits.startsAt,
     endsAt: edits.endsAt,
+    reminders: edits.reminders,
   };
   const fields: Record<string, string[]> = {};
   for (const key of Object.keys(changed) as (keyof typeof changed)[]) {
@@ -307,7 +322,7 @@ function lockedFieldErrors(current: DetailRow, next: ReleaseData, status: Releas
 export async function updateRelease(id: string, data: ReleaseData): Promise<AdminReleaseDetail> {
   await prisma.$transaction(
     async (tx) => {
-      if (!(await lockRelease(tx, id))) throw notFound();
+      if (!(await lockRelease(tx, id))) throw releaseNotFound();
       const current = await loadDetail(tx, id);
       const now = new Date();
       const status = toDetail(current, now).status;
@@ -324,6 +339,7 @@ export async function updateRelease(id: string, data: ReleaseData): Promise<Admi
           startsAt: new Date(data.startsAt),
           endsAt: data.endsAt ? new Date(data.endsAt) : null,
           maxPerCustomer: data.maxPerCustomer,
+          reminderOffsetsMinutes: data.reminders,
           hidden: data.hidden,
           active: !data.hidden,
         },
@@ -337,7 +353,7 @@ export async function updateRelease(id: string, data: ReleaseData): Promise<Admi
 export async function deleteRelease(id: string) {
   await prisma.$transaction(
     async (tx) => {
-      if (!(await lockRelease(tx, id))) throw notFound();
+      if (!(await lockRelease(tx, id))) throw releaseNotFound();
       const current = await loadDetail(tx, id);
       if (!canDeleteRelease(toDetail(current, new Date()).status)) {
         throw new ServiceError("CONFLICT", "Only a draft or upcoming release can be deleted. End it instead.", 409);
@@ -371,7 +387,7 @@ const STATE_CONFLICT: Record<ReleaseStateAction, string> = {
 export async function changeReleaseState(id: string, action: ReleaseStateAction): Promise<AdminReleaseDetail> {
   await prisma.$transaction(
     async (tx) => {
-      if (!(await lockRelease(tx, id))) throw notFound();
+      if (!(await lockRelease(tx, id))) throw releaseNotFound();
       const current = await loadDetail(tx, id);
       const now = new Date();
       const detail = toDetail(current, now);

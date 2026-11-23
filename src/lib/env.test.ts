@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SMTP_DEFAULT_HOST, SMTP_DEFAULT_PORT } from "@/lib/constants";
-import { optionalDatabaseUrl, parseAuthEnv, parseDatabaseEnv, parseEmailEnv } from "./env";
+import { optionalDatabaseUrl, parseAuthEnv, parseDatabaseEnv, parseEmailEnv, parseTestModeEnv } from "./env";
 
 const SECRET = "x".repeat(32);
 const DATABASE_URL = "postgresql://user:pass@localhost:5432/rewire";
@@ -63,6 +63,23 @@ describe("parseEmailEnv", () => {
 
   it("rejects an APP_URL that is not a URL", () => {
     expect(() => parseEmailEnv({ APP_URL: "rewire.ae" })).toThrow(/APP_URL/);
+  });
+});
+
+describe("parseTestModeEnv", () => {
+  it("is on only for the exact value true", () => {
+    expect(parseTestModeEnv({ TEST_MODE: "true" })).toEqual({ on: true, ignored: null });
+    expect(parseTestModeEnv({ TEST_MODE: " true " })).toEqual({ on: true, ignored: null });
+  });
+
+  it("is off without a warning when missing or blank", () => {
+    expect(parseTestModeEnv({})).toEqual({ on: false, ignored: null });
+    expect(parseTestModeEnv({ TEST_MODE: "" })).toEqual({ on: false, ignored: null });
+    expect(parseTestModeEnv({ TEST_MODE: "  " })).toEqual({ on: false, ignored: null });
+  });
+
+  it.each(["TRUE", "1", "yes", "on", "false"])("is off for %s and reports the ignored value", (value) => {
+    expect(parseTestModeEnv({ TEST_MODE: value })).toEqual({ on: false, ignored: value });
   });
 });
 

@@ -51,6 +51,7 @@ const NO_EDITS: ReleaseEdits = {
   startsAt: false,
   endsAt: false,
   allocations: false,
+  reminders: false,
 };
 
 type Confirm = "END" | "DELETE" | null;
