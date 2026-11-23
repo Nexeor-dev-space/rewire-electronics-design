@@ -73,6 +73,7 @@ export const API_ENDPOINTS = {
       state: (id: string) => `${V1}/admin/releases/${id}/state`,
       allocations: (id: string) => `${V1}/admin/releases/${id}/allocations`,
       waitlist: (id: string) => `${V1}/admin/releases/${id}/waitlist`,
+      testEmails: (id: string) => `${V1}/admin/releases/${id}/test-emails`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,

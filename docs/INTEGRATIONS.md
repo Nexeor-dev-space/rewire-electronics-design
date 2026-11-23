@@ -1,7 +1,8 @@
 # Environment and email
 
 Every deployment value the app reads (database, signing secret, SMTP, sender
-address, site address), how it is validated, and how to set up email.
+address, site address, the test mode switch), how it is validated, and how to
+set up email.
 
 Read this before adding an env var, reading one in code, or setting up an
 environment. The auth flows that use these values are in [AUTH.md](AUTH.md).
@@ -38,19 +39,20 @@ should change belongs in the database instead.
 
 | File | Purpose |
 | --- | --- |
-| `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `stripeEnv()`, `stripeWebhookEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv`, `parseStripeEnv`, `parseStripeWebhookEnv` (tested in `env.test.ts`) |
+| `src/lib/env.ts` | Zod schemas and readers: `databaseEnv()`, `authEnv()`, `emailEnv()`, `stripeEnv()`, `stripeWebhookEnv()`, `optionalDatabaseUrl()`, and the pure `parseDatabaseEnv`, `parseAuthEnv`, `parseEmailEnv`, `parseStripeEnv`, `parseStripeWebhookEnv` (tested in `env.test.ts`). Also the test mode switch: `testModeEnv()`, `isTestMode()` and the pure `parseTestModeEnv`, which never throw (section 3a) |
 | `src/lib/stripe.ts` | `stripeClient()`: the Stripe SDK with `STRIPE_SECRET_KEY`. `describeStripe(env)`: configured or not, live or test mode, webhook secret set or not, never echoing a value (tested in `stripe.test.ts`). `checkStripeKey()`: asks Stripe whether it accepts the key |
-| `src/lib/integration-config.ts` | `resolveIntegrationConfig(env, nodeEnv)`, `describeEmailTransport(config)`, `getIntegrationConfig()` (tested in `integration-config.test.ts`) |
+| `src/lib/integration-config.ts` | `resolveIntegrationConfig(env, nodeEnv)`, `describeEmailTransport(config)`, `describeTestMode(env)`, `getIntegrationConfig()` (tested in `integration-config.test.ts`) |
 | `src/lib/email/send-email.ts` | `sendEmail`: sends, prints or refuses per the transport |
 | `src/lib/app-url.ts` | `appUrl(path)`: absolute links for emails, and the homepage address the integration Tests open |
 | `src/services/integration.service.ts` | The Email and Stripe status and Tests on the Integrations, API Keys screen, through `getIntegrationConfig()`, `describeStripe(process.env)` and `checkStripeKey()` ([INTEGRATIONS-ADMIN.md](INTEGRATIONS-ADMIN.md)) |
 | `src/lib/db.ts`, `prisma/seed.ts`, `prisma7.config.ts` | Read `DATABASE_URL` through `env.ts` |
 | `src/lib/auth/sign.ts` | Reads `AUTH_SECRET` through `authEnv()` |
 
-There are five readers, not one, on purpose: the Docker build has only
+There are five validating readers, not one, on purpose: the Docker build has only
 `DATABASE_URL`, a bad SMTP or Stripe value must not stop the database client or
 sign in, and a missing webhook secret must not stop card payments. Readers do not cache; parsing costs microseconds and secret rotation
-tests change `AUTH_SECRET` at runtime.
+tests change `AUTH_SECRET` at runtime. `testModeEnv()` is a sixth reader that
+validates nothing and cannot fail (section 3a).
 
 ---
 
@@ -58,7 +60,7 @@ tests change `AUTH_SECRET` at runtime.
 
 Empty strings count as unset. A value that breaks a rule throws
 `Invalid environment:` with every problem listed, the first time that reader
-runs.
+runs. `TEST_MODE` is the exception: it never throws (section 3a).
 
 | Key | Reader | Rule | Default |
 | --- | --- | --- | --- |
@@ -72,16 +74,55 @@ runs.
 | `APP_URL` | `emailEnv()` | A full URL, for example `https://rewire.ae` | `http://localhost:3000` outside production |
 | `STRIPE_SECRET_KEY` | `stripeEnv()` | Starts with `sk_` (or `rk_`); a `pk_` publishable key is refused. Needed only for card and Apple Pay ([PAYMENTS.md](PAYMENTS.md) §8) | none |
 | `STRIPE_WEBHOOK_SECRET` | `stripeWebhookEnv()` | Starts with `whsec_`; the signing secret of the Stripe webhook destination. Needed only for `POST webhooks/stripe` ([PAYMENTS.md](PAYMENTS.md) §6) | none |
+| `TEST_MODE` | `testModeEnv()`, `isTestMode()` | Optional. Only the exact value `true` turns it on; anything else is off and never throws (section 3a) | off |
 
 `prisma7.config.ts` uses `optionalDatabaseUrl()`, which never throws, so
 `prisma generate` runs in the Docker deps stage without a database.
 
 ---
 
+## 3a. `TEST_MODE`
+
+A switch for staging, so testers can check timed features in minutes instead
+of days. The owner approved it on 3 November 2026 for issue #118.
+
+1. **Optional.** A deployment that does not set it behaves like production.
+2. **On only for `true`.** The value must be exactly `true` (`TEST_MODE_ON_VALUE`
+   in `src/lib/constants.ts`), in lower case; spaces around it are ignored.
+3. **Anything else is off and never stops startup.** Missing, blank, `TRUE`,
+   `1`, `yes`, `on` and `false` all mean off. Unlike the other keys, a wrong
+   value throws nothing, so a mistake in the environment can never take the
+   site down or switch test behaviour on in production.
+4. **An odd value is reported.** `getIntegrationConfig()` logs the mode once
+   per process, right after the email transport line (section 4). A value
+   that was set but ignored is logged as a warning.
+5. **What it changes today.** One thing: a release created while it is on
+   starts with reminders 10 and 5 minutes before the opening
+   (`RELEASE_TEST_REMINDER_DEFAULTS_MINUTES`) instead of 48 hours and 1 hour.
+   Releases that already exist keep their times. The message timer, the batch
+   size and the number of emails a customer gets do not change
+   ([RELEASES.md](RELEASES.md) §13).
+6. **Where to set it.** On staging only. Never set it in production.
+7. **The name is generic on purpose.** A later feature that needs a test
+   switch reads `isTestMode()` instead of adding its own env var. Document
+   what it changes here when it does.
+
+| Line | When |
+| --- | --- |
+| `test mode: ON (new releases default to 10 and 5 minute reminders)` | `TEST_MODE=true` |
+| `test mode: OFF` | Missing or blank |
+| `test mode: OFF (TEST_MODE="..." ignored; only "true" turns it on)` | Any other value; logged as a warning |
+
+Code reads it only through `isTestMode()` in `src/lib/env.ts`, on the server.
+A client component that needs it gets it as a prop from a server page.
+
+---
+
 ## 4. Email transport
 
 `getIntegrationConfig()` resolves the transport once per process and logs one
-line, so the server log shows which one is in use:
+line, so the server log shows which one is in use. The test mode line
+(section 3a) follows it.
 
 | Line | When |
 | --- | --- |

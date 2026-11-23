@@ -37,6 +37,7 @@ values that differ per environment. The app reads them through
 | `APP_URL` | App | Public origin for email links and Stripe return links. Default `http://localhost:3000` outside production; required in production for email and card payments |
 | `STRIPE_SECRET_KEY` | App | Stripe secret key (`sk_test_…` locally, `sk_live_…` in production). Without it card and Apple Pay answer 503; cash on delivery works ([PAYMENTS.md](PAYMENTS.md)) |
 | `STRIPE_WEBHOOK_SECRET` | App | Signing secret (`whsec_…`) of the Stripe webhook destination for this environment. Without it `POST /api/v1/webhooks/stripe` answers 503 ([PAYMENTS.md](PAYMENTS.md) §8) |
+| `TEST_MODE` | App, optional | Set `TEST_MODE=true` on staging only, never in production. Only the exact value `true` turns it on; missing, blank or any other value behaves like production and never stops startup. An ignored odd value is logged as a warning next to the email transport line. Today it makes new releases start with reminders 10 and 5 minutes before the opening; existing releases, the message timer and email volume do not change ([INTEGRATIONS.md](INTEGRATIONS.md) §3a) |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Seed only | The first Admin. The seed refuses a password under 8 characters, and skips the Admin when either is unset |
 | `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE` | Seed only, optional | Default "Administrator" and "+971 00 000 0000" |
 
