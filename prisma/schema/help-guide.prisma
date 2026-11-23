@@ -1,0 +1,34 @@
+/// A guide staff have edited. A guide with no row shows its built in text
+/// from src/lib/user-guides, so nothing needs seeding.
+model HelpGuide {
+  id           String   @id @default(cuid())
+  /// "customer" or "admin". A slug is unique within an audience.
+  audience     String
+  /// Matches a guide in src/lib/user-guides.
+  slug         String
+  title        String
+  summary      String
+  /// Link to a silent screen recording, or null.
+  recordingUrl String?
+  /// GuideSection[], validated by helpGuideSchema on write.
+  sections     Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  images HelpGuideImage[]
+
+  @@unique([audience, slug])
+  @@map("help_guides")
+}
+
+/// Which screenshots a guide uses, so the image sweep keeps them.
+model HelpGuideImage {
+  guideId String
+  mediaId String
+
+  guide HelpGuide  @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@id([guideId, mediaId])
+  @@map("help_guide_images")
+}
