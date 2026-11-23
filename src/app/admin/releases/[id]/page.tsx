@@ -5,6 +5,7 @@ import { ReleaseDetailScreen } from "@/components/admin/releases/release-detail"
 import { SIGN_IN_PAGE_PATH } from "@/lib/constants";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
+import { isTestMode } from "@/lib/env";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -25,5 +26,5 @@ export default async function ReleaseDetailPage({ params }: Props) {
   }
 
   const { id } = await params;
-  return <ReleaseDetailScreen id={id} />;
+  return <ReleaseDetailScreen id={id} testMode={isTestMode()} />;
 }
