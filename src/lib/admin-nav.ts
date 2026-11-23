@@ -164,6 +164,13 @@ export const adminNav: AdminNavSection[] = [
         description:
           "CMS pages, FAQs, promotional blocks and the published policy documents.",
       },
+      {
+        key: "help-guides",
+        label: "Help Guides",
+        href: "/admin/storefront/help-guides",
+        description:
+          "The customer help pages and the admin guides: their wording, screenshots and recordings.",
+      },
     ],
   },
   {
@@ -395,13 +402,13 @@ export const adminNav: AdminNavSection[] = [
     items: [
       {
         key: "admin-guide",
-        label: "Admin Guide",
+        label: "Admin Guides",
         href: "/admin/help/admin-guide",
-        description: "Step by step help for running the shop from this console.",
+        description: "Step by step help for each screen of this console.",
       },
       {
         key: "customer-guide",
-        label: "Customer Guide",
+        label: "Customer Guides",
         href: "/admin/help/customer-guide",
         description: "How shoppers use the website, to help you support them.",
       },

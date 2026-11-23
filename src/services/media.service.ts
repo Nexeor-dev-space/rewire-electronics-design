@@ -71,6 +71,7 @@ export async function releaseImage(tx: Prisma.TransactionClient, imageId: string
       homepageOgImages: { none: {} },
       campaignBanners: { none: {} },
       campaignImages: { none: {} },
+      helpGuideImages: { none: {} },
     },
   });
 }

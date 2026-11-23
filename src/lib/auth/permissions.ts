@@ -37,6 +37,8 @@ export const PERMISSION_ACTION_LABELS: Record<PermissionAction, string> = {
 export const PERMISSIONS = {
   content: adminPermission("storefront", "content"),
   homepage: adminPermission("storefront", "homepage"),
+  /** Help Guides: edit the wording, screenshots and recording of any customer or admin guide. */
+  helpGuides: adminPermission("storefront", "help-guides"),
   /** Navigation: the header About menu, the footer and the mobile bar. Publish covers publish and restore. */
   navigation: adminPermission("storefront", "navigation"),
   /** Users → Customers. */
@@ -97,6 +99,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: PERMISSIONS.homepage, label: "Homepage Builder", actions: ALL_ACTIONS },
   { key: PERMISSIONS.navigation, label: "Navigation", actions: ["VIEW", "EDIT", "PUBLISH"] },
   { key: PERMISSIONS.content, label: "Content & Policies", actions: ["VIEW", "EDIT", "PUBLISH"] },
+  { key: PERMISSIONS.helpGuides, label: "Help Guides", actions: VIEW_EDIT },
   { key: PERMISSIONS.releases, label: "Releases", actions: CRUD },
   { key: PERMISSIONS.orders, label: "Orders", actions: VIEW_EDIT },
   { key: PERMISSIONS.fulfilment, label: "Fulfilment", actions: VIEW_EDIT },

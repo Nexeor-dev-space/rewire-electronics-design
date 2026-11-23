@@ -69,6 +69,7 @@ const prismaImageStorage: ImageStorage = {
         homepageOgImages: { none: {} },
         campaignBanners: { none: {} },
         campaignImages: { none: {} },
+        helpGuideImages: { none: {} },
       },
     });
     return count;

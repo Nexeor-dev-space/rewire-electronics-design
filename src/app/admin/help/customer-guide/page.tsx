@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { GuideView } from "@/components/admin/help/guide-view";
-import { CUSTOMER_GUIDE } from "@/lib/user-guides/customer-guide";
+import { GuideIndexRoute } from "@/components/admin/help/guide-routes";
 
-export const metadata: Metadata = { title: CUSTOMER_GUIDE.title };
+export const metadata: Metadata = { title: "Customer Guides" };
 
-export default function CustomerGuidePage() {
-  return <GuideView guide={CUSTOMER_GUIDE} />;
+export default function CustomerGuidesPage() {
+  return <GuideIndexRoute audience="customer" />;
 }
