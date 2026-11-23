@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { z } from "zod";
@@ -13,14 +21,19 @@ import {
   useRemoveCoupon,
 } from "@/hooks/use-cart";
 import { useGetMe } from "@/hooks/use-auth";
-import { usePlaceOrder } from "@/hooks/use-checkout";
+import { useHoldCheckout, usePlaceOrder } from "@/hooks/use-checkout";
+import { useCountdown } from "@/hooks/use-countdown";
 import { useGetDeliveryAreaOptions } from "@/hooks/use-delivery-zone";
 import { ApiError, apiFieldErrors } from "@/lib/api/api-client";
 import { signInHref } from "@/lib/auth/next-path";
 import {
   CHECKOUT_PAGE_PATH,
   CHECKOUT_SUCCESS_PAGE_PATH,
+  MS_PER_DAY,
+  MS_PER_HOUR,
+  MS_PER_MINUTE,
 } from "@/lib/constants";
+import { formatStoreDateTime } from "@/lib/dates";
 import {
   DELIVERY_MESSAGES,
   DELIVERY_METHOD_LABELS,
@@ -36,7 +49,7 @@ import {
   paysOnline,
   type PaymentMethod,
 } from "@/lib/orders";
-import { cn, randomUuid } from "@/lib/utils";
+import { cn, pad, randomUuid } from "@/lib/utils";
 import type { Cart } from "@/types/cart";
 import type { DeliveryAreaOptions } from "@/types/delivery";
 import {
@@ -86,6 +99,7 @@ const INFORMATION_FIELDS = {
 } as const;
 
 const MESSAGE_AREAS_LOADING = "Areas are still loading. Try again in a moment.";
+const MESSAGE_HOLD_ENDED = "Your hold has ended.";
 
 const RETRYABLE_ERROR_CODES: readonly string[] = [
   "NETWORK",
@@ -175,6 +189,8 @@ export function CheckoutView({ payment }: Props) {
   const applyCoupon = useApplyCoupon();
   const removeCoupon = useRemoveCoupon();
   const placeOrder = usePlaceOrder();
+  const holdCheckout = useHoldCheckout();
+  const { mutate: holdReleaseItems } = holdCheckout;
   const queryClient = useQueryClient();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
@@ -189,16 +205,37 @@ export function CheckoutView({ payment }: Props) {
   const [emailOptIn, setEmailOptIn] = useState(true);
   const [emailNeedsSignIn, setEmailNeedsSignIn] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [endedHold, setEndedHold] = useState<string | null>(null);
 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const idempotencyKey = useRef<string | null>(null);
   const keyChoices = useRef<string | null>(null);
+  const holdStatusRef = useRef<HTMLParagraphElement>(null);
 
   const placing = placeOrder.isPending || placeOrder.isSuccess;
   const cart = quote.data?.cart;
   const lines = cart?.items ?? [];
   const stepsComplete = openStep === PAYMENT_STEP;
+
+  const signedIn = Boolean(me);
+  const releaseLineKey = lines
+    .filter((line) => line.release)
+    .map((line) => `${line.id}:${line.quantity}`)
+    .join(",");
+  const holdNeeded = signedIn && releaseLineKey !== "";
+  const holdExpiresAt = holdCheckout.data?.expiresAt ?? null;
+  const holdEnded = holdExpiresAt !== null && endedHold === holdExpiresAt;
+  const holdReady = !holdNeeded || (holdCheckout.isSuccess && !holdEnded);
+
+  useEffect(() => {
+    if (signedIn && releaseLineKey) holdReleaseItems();
+  }, [signedIn, releaseLineKey, holdReleaseItems]);
+
+  const holdAgain = () =>
+    holdReleaseItems(undefined, {
+      onSuccess: () => holdStatusRef.current?.focus({ preventScroll: true }),
+    });
 
   const deliveryOptions: OptionListItem[] = (quote.data?.options ?? []).map(
     (option) => ({
@@ -275,6 +312,7 @@ export function CheckoutView({ payment }: Props) {
     const conflict =
       error instanceof ApiError && error.body.code === "CONFLICT";
     if (conflict) queryClient.invalidateQueries({ queryKey: cartKeys.all });
+    if (conflict && holdNeeded) holdReleaseItems();
 
     if (firstInformationError(errors)) {
       setEmailNeedsSignIn(conflict && Boolean(errors.email));
@@ -290,7 +328,8 @@ export function CheckoutView({ payment }: Props) {
       !cart ||
       lines.length === 0 ||
       !cart.canCheckout ||
-      !stepsComplete
+      !stepsComplete ||
+      !holdReady
     )
       return;
     const form = formRef.current;
@@ -394,6 +433,17 @@ export function CheckoutView({ payment }: Props) {
           activeIndex={openStep}
           onSelect={editStep}
         />
+        {holdNeeded && (
+          <ReleaseHoldBanner
+            pending={holdCheckout.isPending}
+            error={holdCheckout.error?.message ?? null}
+            expiresAt={holdExpiresAt}
+            ended={holdEnded}
+            statusRef={holdStatusRef}
+            onEnd={setEndedHold}
+            onHoldAgain={holdAgain}
+          />
+        )}
       </div>
 
       {/* grid-cols-1 is minmax(0, 1fr): without it the one mobile column grows to
@@ -727,7 +777,7 @@ export function CheckoutView({ payment }: Props) {
         </div>
 
         <div className="hidden lg:block">
-          <div className="sticky top-40">
+          <div className={cn("sticky", holdNeeded ? "top-56" : "top-40")}>
             <OrderSummary
               cart={cart!}
               onApplyCoupon={(code) => applyCoupon.mutate({ code })}
@@ -738,6 +788,7 @@ export function CheckoutView({ payment }: Props) {
               placing={placing}
               placeError={placeError}
               stepsComplete={stepsComplete}
+              placeBlocked={!holdReady}
               quotePending={quote.isFetching}
             />
           </div>
@@ -747,10 +798,87 @@ export function CheckoutView({ payment }: Props) {
       <StickyMobileCta
         placing={placing}
         cart={cart!}
-        canCheckout={cart!.canCheckout && stepsComplete}
+        canCheckout={cart!.canCheckout && stepsComplete && holdReady}
         onPlaceOrder={handlePlaceOrder}
       />
     </form>
+  );
+}
+
+function ReleaseHoldBanner({
+  pending,
+  error,
+  expiresAt,
+  ended,
+  statusRef,
+  onEnd,
+  onHoldAgain,
+}: {
+  pending: boolean;
+  error: string | null;
+  expiresAt: string | null;
+  ended: boolean;
+  statusRef: RefObject<HTMLParagraphElement | null>;
+  onEnd: (expiresAt: string) => void;
+  onHoldAgain: () => void;
+}) {
+  const failure = error ?? (ended ? MESSAGE_HOLD_ENDED : null);
+  if (!pending && !failure && !expiresAt) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-5 py-3">
+      {failure ? (
+        <>
+          <p role="alert" className="text-[0.875rem] text-danger">
+            {failure}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={onHoldAgain}>
+            Hold again
+          </Button>
+        </>
+      ) : (
+        <p
+          ref={statusRef}
+          role="status"
+          tabIndex={-1}
+          className="text-[0.875rem] text-ink-secondary"
+        >
+          {expiresAt && !pending ? (
+            <>
+              <span aria-hidden>
+                Release items held for <HoldTimer expiresAt={expiresAt} onEnd={onEnd} />
+              </span>
+              <span className="sr-only">
+                Release items are held until {formatStoreDateTime(expiresAt)}.
+              </span>
+            </>
+          ) : (
+            "Holding your release items…"
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function HoldTimer({
+  expiresAt,
+  onEnd,
+}: {
+  expiresAt: string;
+  onEnd: (expiresAt: string) => void;
+}) {
+  const { days, hours, minutes, seconds, isComplete } = useCountdown(expiresAt);
+  const totalMinutes = (days * MS_PER_DAY + hours * MS_PER_HOUR) / MS_PER_MINUTE + minutes;
+
+  useEffect(() => {
+    if (isComplete) onEnd(expiresAt);
+  }, [isComplete, expiresAt, onEnd]);
+
+  return (
+    <span className="font-mono tabular-nums text-ink">
+      {pad(totalMinutes)}:{pad(seconds)}
+    </span>
   );
 }
 

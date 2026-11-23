@@ -259,7 +259,7 @@ function DetailsForm({ release, canEdit }: { release: AdminReleaseDetail; canEdi
       ...(!edits.startsAt && { startsAt: release.startsAt }),
       ...(!edits.endsAt && { endsAt: release.endsAt }),
       ...(!edits.maxPerCustomer && { maxPerCustomer: release.maxPerCustomer }),
-      ...(!edits.reminders && { reminders: release.reminders }),
+      ...(!edits.reminders && { reminders: undefined }),
     });
     if (parsed.errors) {
       setErrors(parsed.errors);

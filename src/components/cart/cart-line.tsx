@@ -7,6 +7,7 @@ import { BLOCKING_CART_LINE_ISSUES } from "@/types/cart";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { LineBreakdown } from "@/components/order/line-breakdown";
 import { formatMoney } from "@/lib/money";
+import { releaseHref } from "@/lib/releases";
 import { cn } from "@/lib/utils";
 import { QuantityStepper } from "@/components/cart/quantity-stepper";
 import { useDebouncedQuantity } from "@/hooks/use-debounced-quantity";
@@ -24,6 +25,7 @@ interface CartLineProps {
 
 const ISSUE_MESSAGES: Record<CartLineIssue, string> = {
   UNAVAILABLE: "No longer available. Remove it to continue.",
+  RELEASE_CLOSED: "This release has closed. Remove this item to continue.",
   OUT_OF_STOCK: "Out of stock. Remove it to continue.",
   INSUFFICIENT_STOCK: "Only a few left — lower the quantity to continue.",
   PRICE_CHANGED: "The price changed since you added this.",
@@ -94,6 +96,22 @@ export function CartLine({
               {line.productName}
             </Link>
           </h3>
+
+          {line.release && (
+            <p className="mt-1.5 text-[0.8125rem] text-ink-secondary">
+              From{" "}
+              {line.release.slug ? (
+                <Link
+                  href={releaseHref(line.release.slug)}
+                  className="font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+                >
+                  {line.release.title}
+                </Link>
+              ) : (
+                line.release.title
+              )}
+            </p>
+          )}
 
           {/* Condition · Grade — two facts, one line. */}
           <p className="mt-2 text-[0.875rem] text-ink-secondary">

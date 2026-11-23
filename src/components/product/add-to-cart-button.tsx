@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { controlSwap } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { AVAILABILITY_LABELS } from "@/types";
+import type { CartLine } from "@/types/cart";
 
 const OUT_OF_STOCK_LABEL = AVAILABILITY_LABELS["sold-out"];
 
@@ -45,6 +46,7 @@ const OUT_OF_STOCK_LABEL = AVAILABILITY_LABELS["sold-out"];
  */
 export interface CartTarget {
   variantId?: string;
+  releaseId?: string;
   slug: string;
   name: string;
   soldOut?: boolean;
@@ -104,9 +106,9 @@ export function AddToCartButton({
   const soldOut = product.soldOut === true;
   const addInFlight = useRef(false);
 
-  const line = product.variantId
-    ? cart.data?.items.find((item) => item.variantId === product.variantId)
-    : undefined;
+  const isTarget = (item: CartLine) =>
+    item.variantId === product.variantId && item.release?.id === product.releaseId;
+  const line = product.variantId ? cart.data?.items.find(isTarget) : undefined;
   const inCartQty = line?.quantity ?? 0;
   /** Bumped on each successful add: plays the confetti. */
   const [celebrate, setCelebrate] = useState(0);
@@ -152,11 +154,11 @@ export function AddToCartButton({
     if (soldOut || addInFlight.current) return;
     addInFlight.current = true;
     addCartItem.mutate(
-      { variantId: product.variantId!, quantity: 1, addOnIds: [] },
+      { variantId: product.variantId!, releaseId: product.releaseId, quantity: 1, addOnIds: [] },
       {
         onSuccess: (next) => {
           setCelebrate((count) => count + 1);
-          const added = next.items.find((item) => item.variantId === product.variantId);
+          const added = next.items.find(isTarget);
           if (!added) return;
           showToast(TOAST_MESSAGES.addedToCart(product.name));
           // Cart extensions: offer this product's add-ons in the modal.

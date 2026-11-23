@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useChangeReleaseState, useDeleteRelease, useGetReleases } from "@/hooks/use-release";
+import {
+  useChangeReleaseState,
+  useDeleteRelease,
+  useGetReleaseSettings,
+  useGetReleases,
+} from "@/hooks/use-release";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { ADMIN_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import { formatStoreDateTime } from "@/lib/dates";
@@ -29,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { AdminReleaseRow } from "@/types/release";
 import { ReleaseFormModal } from "./release-form-modal";
+import { ReleaseSettingsDialog } from "./release-settings-dialog";
 import { ReleaseBadges, releaseAdminHref } from "./release-shared";
 
 const COLUMNS =
@@ -43,6 +49,7 @@ export function ReleaseManagement() {
   const [sort, setSort] = useState<ReleaseSort>(RELEASE_SORTS[0]);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [editingHold, setEditingHold] = useState(false);
   const [toDelete, setToDelete] = useState<AdminReleaseRow | null>(null);
 
   const releases = useGetReleases({
@@ -143,11 +150,14 @@ export function ReleaseManagement() {
       title="Releases"
       description="Limited drops with their own stock allocation and opening window."
       actions={
-        access.create && (
-          <Button size="sm" onClick={() => setCreating(true)}>
-            New release
-          </Button>
-        )
+        <div className="flex flex-wrap items-center gap-3">
+          <ReleaseHoldAction canEdit={access.edit} onEdit={() => setEditingHold(true)} />
+          {access.create && (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              New release
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="mb-5 flex flex-wrap gap-3">
@@ -195,6 +205,7 @@ export function ReleaseManagement() {
       {content}
 
       {creating && <ReleaseFormModal onClose={() => setCreating(false)} />}
+      {editingHold && <ReleaseSettingsDialog onClose={() => setEditingHold(false)} />}
 
       <ConfirmDialog
         open={toDelete !== null}
@@ -207,6 +218,28 @@ export function ReleaseManagement() {
         onConfirm={confirmDelete}
       />
     </AdminPage>
+  );
+}
+
+function ReleaseHoldAction({ canEdit, onEdit }: { canEdit: boolean; onEdit: () => void }) {
+  const settings = useGetReleaseSettings();
+
+  if (settings.isPending) return <Skeleton className="h-10 w-32 rounded-full" />;
+  if (settings.isError) {
+    return (
+      <Button variant="outline" size="sm" onClick={() => settings.refetch()}>
+        Hold time unavailable. Retry
+      </Button>
+    );
+  }
+
+  const label = `Hold: ${settings.data.releaseHoldMinutes} min`;
+  if (!canEdit) return <p className="text-sm text-ink-secondary">{label}</p>;
+
+  return (
+    <Button variant="outline" size="sm" onClick={onEdit}>
+      {label}
+    </Button>
   );
 }
 
