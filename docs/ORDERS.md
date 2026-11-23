@@ -53,8 +53,13 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    `deliveryEtaMaxDays`, and `deliveryAreaId` (nullable, `onDelete: SetNull`,
    indexed; the area's name is snapshotted in `city`). Money: `subtotal`, `discount`, `deliveryFee`,
    `total`, `vatIncluded`, `vatRatePercent`, `refundedAmount`, `couponCode`.
+   `releaseHoldUntil`: the payment deadline of a card or Apple Pay order with
+   release lines, else null ([RELEASES.md](RELEASES.md) §14).
 2. **`OrderItem`** (`order_items`), cascade from the order. `variantId` and
-   `imageId` are nullable and `SetNull`. Everything shown is a snapshot:
+   `imageId` are nullable and `SetNull`. `releaseId` is the release the line
+   was bought from (nullable, `Restrict`, so a release with orders can't be
+   deleted); its units are tracked by the release holds linked to the order
+   (`ReleaseHold.orderId`). Everything shown is a snapshot:
    `productName`, `productSlug`, `brandName`, `sku`, `storage`, `colour`,
    `condition`, `grade`, `warrantyMonths`, `imageAlt`, `unitPrice`,
    `addOnUnitPrice`, `quantity`, `lineTotal`. Not a snapshot:
@@ -209,22 +214,33 @@ failed with `P2028` on the last step:
    "Some items in your cart changed. Review your cart." (`fields.cart`); an
    attached coupon that is not valid is 409 with its message (`fields.code`);
    a total different from `expectedTotal` is 409 "Prices changed since you
-   opened checkout. Check the new total." (`fields.expectedTotal`).
-4. **Stock.** Lines sorted by `variantId`, so concurrent orders lock in one
-   order. Each is `updateMany where { id, stock >= quantity }` with a
-   decrement. Count 0 is 409 "Only {n} left of {product}." or, at 0, "{product}
-   is out of stock." (`fields.cart`).
-5. **Coupon, signed in only.** `updateMany where { id, usageLimit is null or
+   opened checkout. Check the new total." (`fields.expectedTotal`). A line
+   on a closed or hidden release is `RELEASE_CLOSED` and blocks here.
+4. **Release holds.** With release lines, `convertCartHolds` locks their
+   releases, needs each Live or Sold out and not hidden, needs an unexpired
+   hold covering every release line, turns the holds into order holds, moves
+   their units from reserved to sold and adds them to the customer's tally
+   under the release's limit. Failures are 409 on `fields.cart`: "{release}
+   isn't open for sale.", "Your hold has ended. Hold again." or the limit
+   message ([RELEASES.md](RELEASES.md) §14).
+5. **Stock.** Shop lines only, sorted by `variantId`, so concurrent orders
+   lock in one order. Each is `updateMany where { id, stock >= quantity }`
+   with a decrement. Count 0 is 409 "Only {n} left of {product}." or, at 0,
+   "{product} is out of stock." (`fields.cart`). Release lines never touch
+   `ProductVariant.stock`.
+6. **Coupon, signed in only.** `updateMany where { id, usageLimit is null or
    redemptionCount < usageLimit }` incrementing `redemptionCount`. Count 0 is
    409 with the usage limit message (`fields.code`). A guest cart is never
    priced with a coupon ([CART.md](CART.md) §4.3), so a guest never redeems.
-6. **Write.** One `order.create` with the nested items, add-ons and the first
-   `OrderStatusEvent` (status from `initialStatus`), then the
-   `CouponRedemption`, then the cart is emptied and its `couponId` cleared
-   (`clearCheckedOutCart`).
+7. **Write.** One `order.create` with the nested items (`releaseId` on
+   release lines), add-ons and the first `OrderStatusEvent` (status from
+   `initialStatus`), the release holds linked to the order, and, for a card
+   or Apple Pay order with release lines, `releaseHoldUntil` from
+   `paymentDeadline`. Then the `CouponRedemption`, then the cart is emptied
+   and its `couponId` cleared (`clearCheckedOutCart`).
 
-Any thrown error rolls the whole thing back: stock, coupon count and the cart
-are untouched.
+Any thrown error rolls the whole thing back: stock, release holds and
+counters, coupon count and the cart are untouched.
 
 After commit, the route calls `after(() => sendOrderConfirmation(order))`
 when the order was created (not on a replay). It builds
@@ -294,13 +310,38 @@ sign-up can claim it. That row is a **shadow user**.
 
 1. The change is `updateMany where { id, status: from }`. Count 0 means
    someone else changed it: 409 "This order changed. Refresh and try again."
-2. One `OrderStatusEvent` with the actor and the note.
-3. `CANCELLED`: `releaseOrder` adds each line's quantity back to its variant
-   (lines whose variant was deleted are skipped), deletes the
-   `CouponRedemption` and decrements the coupon's `redemptionCount`.
+2. One `OrderStatusEvent` with the actor and the note. The actor is null for
+   the automatic cancel below.
+3. `CANCELLED`: `releaseOrder` adds each shop line's quantity back to its
+   variant (lines whose variant was deleted are skipped) and gives release
+   lines back through `releaseOrderHolds`: to the release while it is open,
+   or to the variant's stock once it is completed, and off the customer's
+   tally ([RELEASES.md](RELEASES.md) §14). Every variant stock write is in
+   one pass by id. Then it deletes the `CouponRedemption` and decrements the
+   coupon's `redemptionCount`.
 
 A transition the table does not allow is 409 "An order that is {from} can't
-move to {to}." on `fields.status`.
+move to {to}." on `fields.status`. `changeOrderStatus` and
+`updateFulfilment` run with `timeout: DB_WRITE_TIMEOUT_MS`, like checkout.
+
+**Lapsed release orders.** A card or Apple Pay order with release lines that
+is still Awaiting payment and Unpaid after `releaseHoldUntil` is cancelled by
+the timer. `closeLapsedReleaseOrders` in `payment.service.ts` closes its
+Stripe page first ([PAYMENTS.md](PAYMENTS.md) §4), then calls
+`cancelLapsedOrder(number, sessionId)`, which in one transaction:
+
+1. touches the order only where it is still `PENDING_PAYMENT`, `UNPAID`,
+   past `releaseHoldUntil` and still on the Stripe page just closed
+   (`stripeCheckoutSessionId`), so a payment or a new page in between leaves
+   it alone;
+2. cancels it through `applyStatusChange` with no actor and the note
+   "Cancelled automatically: payment wasn't completed in time", with the
+   side effects above.
+
+After commit it sends the Cancelled email through `notifyOrderStatus`
+(section 16). `lapsedReleaseOrderNumbers(now)` picks the orders,
+`RELEASE_LAPSED_ORDER_BATCH` (10) a minute, earliest deadline first. Cash on
+delivery orders have no deadline and are never cancelled this way.
 
 ---
 
@@ -602,6 +643,8 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
     name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
     serial inputs.
 14. **The carrier is free text**, not a list of couriers (section 16).
+15. **Release lines** have their own limits; see [RELEASES.md](RELEASES.md)
+    §11.
 
 ---
 
@@ -653,11 +696,10 @@ sending is in `src/services/customer-email.service.ts`; the wording is in
 5. Cancelled: says a refund applies when the order was paid, otherwise that no
    payment was taken.
 
-`notifyOrderStatus` is called from `changeOrderStatus` (Orders screen) and
-`updateFulfilment` (Fulfilment screen), the two paths that move a status.
-Today an expired Stripe payment page only adds a staff note
-([PAYMENTS.md](PAYMENTS.md)); if that ever cancels an order, it must go through
-`notifyOrderStatus` too.
+`notifyOrderStatus` is called from `changeOrderStatus` (Orders screen),
+`updateFulfilment` (Fulfilment screen) and `cancelLapsedOrder`, the automatic
+cancel of an unpaid release order (§7). Otherwise an expired Stripe payment
+page only adds a staff note ([PAYMENTS.md](PAYMENTS.md)).
 
 **Config, database, API.** No new env var, no database change, no API change.
 
