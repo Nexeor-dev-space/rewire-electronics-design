@@ -26,7 +26,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Support Tickets, ticket statuses, priorities and categories, replies, ticket assignment and ticket emails, `support.service.ts`, `src/lib/support-tickets.ts` | [docs/SUPPORT.md](docs/SUPPORT.md) |
 | Warranty & Claims, device serials and IMEIs, warranty dates and status, warranty claims and their lifecycle | [docs/WARRANTY.md](docs/WARRANTY.md) |
-| Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens | [docs/RELEASES.md](docs/RELEASES.md) |
+| Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens, release reminder times, the release test emails, the waitlist deletion | [docs/RELEASES.md](docs/RELEASES.md) |
 | The account Saved Addresses screen, `account/addresses`, `use-address.ts` | [docs/ACCOUNT-ADDRESSES.md](docs/ACCOUNT-ADDRESSES.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Tax invoices, the invoice PDF, invoice numbers, `invoice.service.ts`, the Invoice details settings, `@react-pdf/renderer` | [docs/INVOICES.md](docs/INVOICES.md) |
@@ -39,7 +39,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Sign-in, sign-up, sessions, `getSession` / `authorizeApi`, password reset, email verification, rate limits, the `(auth)` pages, the account gate, `account/profile` and the Account Settings name and phone | [docs/AUTH.md](docs/AUTH.md) |
 | Automated emails and WhatsApp messages, `MessageLog`, `dispatchEmail`, the message timer in `src/instrumentation.ts`, abandoned checkout, release reminders, warranty notices, the Marketing Messages screen | [docs/MESSAGING.md](docs/MESSAGING.md) |
 | Phone numbers, `src/lib/phone.ts`, `PhoneField`, the +971 and +966 rules | [docs/PHONE-NUMBERS.md](docs/PHONE-NUMBERS.md) |
-| Env vars, `src/lib/env.ts`, email (SMTP), the site address, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |
+| Env vars, `src/lib/env.ts`, email (SMTP), the site address, `TEST_MODE`, adding any third party credential | [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) |
 | The Integrations, API Keys screen, `admin/integrations`, the GA4, Clarity, Search Console and Meta Pixel IDs, `integration.service.ts`, the storefront tags and their admin guard, the purchase event | [docs/INTEGRATIONS-ADMIN.md](docs/INTEGRATIONS-ADMIN.md) |
 | The `Dockerfile`, `.dockerignore`, standalone output, the Node version, Coolify build settings | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 | The Admin Guide and Customer Guide pages, the Help area of the admin sidebar, `src/lib/user-guides/` | [docs/USER-GUIDES.md](docs/USER-GUIDES.md) |
