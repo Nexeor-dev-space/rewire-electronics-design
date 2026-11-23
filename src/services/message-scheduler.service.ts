@@ -21,6 +21,8 @@ import { abandonedCheckoutMessage, warrantyFollowUpMessage } from "@/lib/email/m
 import { dedupeKey, sweepsDueOnTick } from "@/lib/messaging";
 import { loadClaim, notifyOrderEmail } from "@/services/customer-email.service";
 import { dispatchEmail, settledRefs } from "@/services/message.service";
+import { closeLapsedReleaseOrders } from "@/services/payment.service";
+import { completeEndedReleases, expireHolds } from "@/services/release-hold.service";
 import { sweepCampaignMessages, sweepReleaseSequence } from "@/services/release-message.service";
 import { purgeEndedWaitlists } from "@/services/waitlist.service";
 
@@ -208,6 +210,9 @@ async function sweepWarrantyFollowUps(now: Date) {
 /* ---------- the run ---------- */
 
 const SWEEPS: { name: string; run: (now: Date) => Promise<void>; everyTick?: boolean }[] = [
+  { name: "expired release holds", run: expireHolds, everyTick: true },
+  { name: "lapsed release orders", run: closeLapsedReleaseOrders, everyTick: true },
+  { name: "ended releases", run: completeEndedReleases, everyTick: true },
   { name: "release sequence", run: sweepReleaseSequence, everyTick: true },
   { name: "campaign messages", run: sweepCampaignMessages },
   { name: "abandoned checkouts", run: sweepAbandonedCheckouts },

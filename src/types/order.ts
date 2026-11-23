@@ -214,6 +214,10 @@ export interface PlacedOrder {
   paymentUrl: string | null;
 }
 
+export interface CheckoutHold {
+  expiresAt: string | null;
+}
+
 export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
 export type TrackOrderInput = z.input<typeof trackOrderSchema>;
 export type UpdateOrderInput = z.input<typeof updateOrderSchema>;

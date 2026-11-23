@@ -12,6 +12,7 @@ import type {
 
 export const CART_LINE_ISSUES = [
   "UNAVAILABLE",
+  "RELEASE_CLOSED",
   "OUT_OF_STOCK",
   "INSUFFICIENT_STOCK",
   "PRICE_CHANGED",
@@ -22,6 +23,7 @@ export type CartLineIssue = (typeof CART_LINE_ISSUES)[number];
 
 export const BLOCKING_CART_LINE_ISSUES: readonly CartLineIssue[] = [
   "UNAVAILABLE",
+  "RELEASE_CLOSED",
   "OUT_OF_STOCK",
   "INSUFFICIENT_STOCK",
 ];
@@ -35,9 +37,16 @@ export interface CartLineAddOn {
 
 export type OfferedAddOn = Omit<ShopAddOn, "popular">;
 
+export interface CartLineRelease {
+  id: string;
+  title: string;
+  slug: string;
+}
+
 export interface CartLine {
   id: string;
   variantId: string;
+  release: CartLineRelease | null;
   productId: string;
   productSlug: string;
   productName: string;

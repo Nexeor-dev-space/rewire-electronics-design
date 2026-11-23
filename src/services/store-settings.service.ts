@@ -3,18 +3,26 @@ import "server-only";
 import { cache } from "react";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { LOW_STOCK_THRESHOLD, RETURN_WINDOW_DAYS, VAT_RATE_PERCENT } from "@/lib/constants";
+import {
+  LOW_STOCK_THRESHOLD,
+  RELEASE_HOLD_MINUTES_DEFAULT,
+  RETURN_WINDOW_DAYS,
+  VAT_RATE_PERCENT,
+} from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import type { ContactDetails } from "@/types/contact";
 import type { InvoiceSettingsView } from "@/types/invoice";
+import type { ReleaseSettingsView } from "@/types/release";
 import type { StoreSettingsView } from "@/types/return";
 import type { invoiceSettingsSchema } from "@/validators/invoice.validator";
+import type { releaseSettingsSchema } from "@/validators/release.validator";
 import type { storeSettingsSchema } from "@/validators/return.validator";
 import type { vatSettingsSchema } from "@/validators/vat.validator";
 
 type StoreSettingsData = z.output<typeof storeSettingsSchema>;
 type VatSettingsData = z.output<typeof vatSettingsSchema>;
 type InvoiceSettingsData = z.output<typeof invoiceSettingsSchema>;
+type ReleaseSettingsData = z.output<typeof releaseSettingsSchema>;
 
 const SETTINGS_ID = 1;
 
@@ -70,6 +78,36 @@ export async function updateStoreSettings(actorId: string, input: StoreSettingsD
     select: settingsSelect,
   });
   return toView(row);
+}
+
+const releaseSettingsSelect = { releaseHoldMinutes: true, updatedAt: true } satisfies Prisma.StoreSettingsSelect;
+
+type ReleaseSettingsRow = Prisma.StoreSettingsGetPayload<{ select: typeof releaseSettingsSelect }>;
+
+function toReleaseView(row: ReleaseSettingsRow | null): ReleaseSettingsView {
+  return {
+    releaseHoldMinutes: row?.releaseHoldMinutes ?? RELEASE_HOLD_MINUTES_DEFAULT,
+    updatedAt: row ? row.updatedAt.toISOString() : null,
+  };
+}
+
+export async function getReleaseSettings(db: Prisma.TransactionClient = prisma): Promise<ReleaseSettingsView> {
+  const row = await db.storeSettings.findUnique({ where: { id: SETTINGS_ID }, select: releaseSettingsSelect });
+  return toReleaseView(row);
+}
+
+export async function getReleaseHoldMinutes(db: Prisma.TransactionClient = prisma): Promise<number> {
+  return (await getReleaseSettings(db)).releaseHoldMinutes;
+}
+
+export async function updateReleaseSettings(actorId: string, input: ReleaseSettingsData): Promise<ReleaseSettingsView> {
+  const row = await prisma.storeSettings.upsert({
+    where: { id: SETTINGS_ID },
+    create: { id: SETTINGS_ID, releaseHoldMinutes: input.releaseHoldMinutes, updatedById: actorId },
+    update: { releaseHoldMinutes: input.releaseHoldMinutes, updatedById: actorId },
+    select: releaseSettingsSelect,
+  });
+  return toReleaseView(row);
 }
 
 /* ---------- invoice seller details (docs/INVOICES.md) ---------- */

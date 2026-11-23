@@ -12,6 +12,8 @@ import type {
   ReleaseAllocationsInput,
   ReleaseFilters,
   ReleaseInput,
+  ReleaseSettingsInput,
+  ReleaseSettingsView,
   ReleaseStateInput,
   ReleaseTestEmailsResult,
 } from "@/types/release";
@@ -22,6 +24,7 @@ const releaseKeys = {
   list: (filters: ReleaseFilters) => ["releases", "list", filters] as const,
   detail: (id: string) => ["releases", "detail", id] as const,
   waitlist: (id: string, page: number) => ["releases", "waitlist", id, page] as const,
+  settings: ["releases", "settings"] as const,
 };
 
 const endpoints = API_ENDPOINTS.admin.releases;
@@ -121,6 +124,22 @@ export function useSetReleaseAllocations() {
     mutationFn: ({ id, ...input }: ReleaseAllocationsInput & { id: string }) =>
       apiRequest<AdminReleaseDetail>(endpoints.allocations(id), { method: "PUT", body: input }),
     onSuccess: invalidate,
+  });
+}
+
+export function useGetReleaseSettings() {
+  return useQuery({
+    queryKey: releaseKeys.settings,
+    queryFn: ({ signal }) => apiRequest<ReleaseSettingsView>(API_ENDPOINTS.admin.releaseSettings, { signal }),
+  });
+}
+
+export function useUpdateReleaseSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReleaseSettingsInput) =>
+      apiRequest<ReleaseSettingsView>(API_ENDPOINTS.admin.releaseSettings, { method: "PUT", body: input }),
+    onSuccess: (saved) => queryClient.setQueryData(releaseKeys.settings, saved),
   });
 }
 

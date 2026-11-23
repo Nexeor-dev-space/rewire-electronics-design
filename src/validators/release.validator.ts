@@ -3,6 +3,7 @@ import {
   RELEASE_ALLOCATIONS_MAX,
   RELEASE_DESCRIPTION_MAX_LENGTH,
   RELEASE_EDITION_MAX_LENGTH,
+  RELEASE_HOLD_MINUTES_MAX,
   RELEASE_MAX_PER_CUSTOMER_LIMIT,
   RELEASE_REMINDER_LOOKAHEAD_DAYS,
   RELEASE_REMINDER_MAX_MINUTES,
@@ -76,6 +77,14 @@ export const releaseSchema = z
 
 export const releaseStateSchema = z.object({
   action: z.enum(RELEASE_STATE_ACTIONS, { error: "Choose an action." }),
+});
+
+export const releaseSettingsSchema = z.object({
+  releaseHoldMinutes: z
+    .number("Enter a number of minutes.")
+    .int("Use whole minutes.")
+    .min(1, "Use at least 1 minute.")
+    .max(RELEASE_HOLD_MINUTES_MAX, `Use ${RELEASE_HOLD_MINUTES_MAX} minutes or fewer.`),
 });
 
 export const releaseAllocationsSchema = z.object({

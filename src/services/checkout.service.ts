@@ -11,15 +11,17 @@ import {
   REFERENCE_NUMBER_ATTEMPTS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
-import { initialStatus } from "@/lib/orders";
+import { initialStatus, paysOnline } from "@/lib/orders";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { generateReference } from "@/lib/reference-number";
+import { paymentDeadline } from "@/lib/releases";
 import { unitNumbers } from "@/lib/warranty";
 import { notifyOrderPlaced } from "@/services/customer-email.service";
 import { clearCheckedOutCart, loadPricedCart, lockCart, type PricedCart } from "@/services/cart.service";
 import { DELIVERY_MESSAGES } from "@/lib/delivery";
 import { resolveDelivery } from "@/services/delivery-zone.service";
 import { getOrderDetail } from "@/services/order.service";
+import { convertCartHolds, type ReleaseLine } from "@/services/release-hold.service";
 import type { SessionUser } from "@/types/auth";
 import type { OrderDetail } from "@/types/order";
 import { CITY_REQUIRED_MESSAGE, type placeOrderSchema } from "@/validators/checkout.validator";
@@ -91,8 +93,18 @@ function assertPriced(priced: PricedCart | null, expectedTotal: number): PricedC
   return priced;
 }
 
+function releaseLines(priced: PricedCart): ReleaseLine[] {
+  return priced.lines.flatMap(({ item }) =>
+    item.releaseId
+      ? [{ releaseId: item.releaseId, variantId: item.variant.id, quantity: item.quantity, productName: item.variant.product.name }]
+      : [],
+  );
+}
+
 async function takeStock(tx: Tx, priced: PricedCart) {
-  const lines = [...priced.lines].sort((a, b) => a.item.variant.id.localeCompare(b.item.variant.id));
+  const lines = priced.lines
+    .filter(({ item }) => !item.releaseId)
+    .sort((a, b) => a.item.variant.id.localeCompare(b.item.variant.id));
   for (const { item } of lines) {
     const { count } = await tx.productVariant.updateMany({
       where: { id: item.variant.id, stock: { gte: item.quantity } },
@@ -122,6 +134,7 @@ async function redeemCoupon(tx: Tx, couponId: string) {
 function orderItems(priced: PricedCart): Prisma.OrderItemCreateWithoutOrderInput[] {
   return priced.lines.map(({ item, line, pricing, imageId }) => ({
     variant: { connect: { id: item.variant.id } },
+    ...(item.releaseId ? { release: { connect: { id: item.releaseId } } } : {}),
     ...(imageId ? { image: { connect: { id: imageId } } } : {}),
     productName: item.variant.product.name,
     productSlug: item.variant.product.slug,
@@ -186,6 +199,7 @@ async function placeInTransaction(
     await loadPricedCart(tx, owner, { deliveryFee: delivery.fee, now }),
     input.expectedTotal,
   );
+  const held = await convertCartHolds(tx, priced.cartId, customer.id, releaseLines(priced), now);
   await takeStock(tx, priced);
 
   const redeemed = sessionUser && priced.coupon && priced.pricing.coupon?.ok ? priced.coupon : null;
@@ -193,6 +207,7 @@ async function placeInTransaction(
 
   const { pricing } = priced;
   const status = initialStatus(input.paymentMethod);
+  const releaseHoldUntil = held.expiresAt && paysOnline(input.paymentMethod) ? paymentDeadline(held.expiresAt, now) : null;
   const order = await tx.order.create({
     data: {
       number: generateReference(ORDER_NUMBER_PREFIX),
@@ -201,6 +216,8 @@ async function placeInTransaction(
       placedAsGuest: customer.placedAsGuest,
       status,
       paymentMethod: input.paymentMethod,
+      releaseHoldUntil,
+      ...(held.holdIds.length > 0 ? { releaseHolds: { connect: held.holdIds.map((id) => ({ id })) } } : {}),
       email: customer.email,
       phone: input.phone,
       firstName: input.firstName,
