@@ -11,7 +11,7 @@ import Image from "next/image";
 export function Thumbnail({ url }: { url: string | null }) {
   return (
     <div className="relative size-9 shrink-0 overflow-hidden rounded-md border border-line bg-surface-2">
-      {/* `unoptimized`: these come from /api/v1/media, already sized for a
+      {/* `unoptimized`: these come from the media bucket, already sized for a
           36px cell, and running them through the optimiser buys nothing. */}
       {url && (
         <Image src={url} alt="" fill sizes="36px" className="object-contain p-1" unoptimized />

@@ -17,7 +17,7 @@ export interface CategorySummary {
   /** Derived from `parentId`, never stored. */
   type: CategoryType;
   parentId: string | null;
-  /** `/api/v1/media/<id>`, or null when the category has no image. */
+  /** The image's address in the media bucket, or null when the category has no image. */
   imageUrl: string | null;
   description: string;
   seoTitle: string | null;
