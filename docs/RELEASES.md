@@ -717,7 +717,8 @@ No migration came with this part. The tables and columns are from
 
 `POST /api/v1/cart/items` with `releaseId` next to `variantId` adds a release
 line ([CART.md](CART.md) §7). Guests can add; only signed in customers can
-hold and check out.
+hold and check out. At sign in the guest's release line moves to the account
+cart ([CART.md](CART.md) §6), and opening checkout holds it.
 
 1. The variant must be allocated to that release and its product must not be
    in Trash. Shop visibility is not checked, because a release only product

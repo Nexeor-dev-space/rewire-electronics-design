@@ -170,20 +170,18 @@ the note "Payment received". Any other payment-only change records an
 
 ## 5. The checkout transaction
 
-`placeOrder(owner, sessionUser, input)` in `checkout.service.ts`, called by
-`POST checkout`. `placeOrderSchema` is `checkoutInformationSchema` plus
+`placeOrder(user, input)` in `checkout.service.ts`, called by
+`POST checkout`. Checkout needs sign in (issue #141): the route answers 401
+without a session, and the order always belongs to the session user. `placeOrderSchema` is `checkoutInformationSchema` plus
 `deliveryMethod`, `paymentMethod`, `expectedTotal` (fils, at least 0) and
 `idempotencyKey` (a UUID).
 
 Before the transaction:
 
-1. No cart owner (no session and no guest cookie) answers 409 "Your cart is
-   empty."
-2. **Replay.** An order with this key is returned when the signed in caller
-   owns it, or the caller is a guest and the order is `placedAsGuest`.
+1. **Replay.** An order with this key is returned when the caller owns it.
    Otherwise 409 "This checkout was already used. Refresh the page and try
    again."
-3. `resolveDelivery(emirate, areaId)` (in `delivery-zone.service.ts`, see
+2. `resolveDelivery(emirate, areaId)` (in `delivery-zone.service.ts`, see
    [CART.md](CART.md) §5) gives the fee and ETA for the method. The client
    never sends a fee: a mismatch only shows up as the `expectedTotal` 409
    below. Failures are 422 with a field:
@@ -207,8 +205,8 @@ failed with `P2028` on the last step:
 1. **Lock the cart.** `lockCart` touches the cart row. No cart gives 409
    empty. Then the replay check runs again, which closes the double click
    race.
-2. **Owner.** Signed in: the session user, and the order stores the session
-   email. Guest: `resolveGuestUser` (section 6) and `placedAsGuest: true`.
+2. **Owner.** The session user. The order stores the session email and
+   `placedAsGuest: false`.
 3. **Price.** `loadPricedCart(db, owner, { deliveryFee, now })` in
    `cart.service.ts`. No lines is 409 empty; a blocking line issue is 409
    "Some items in your cart changed. Review your cart." (`fields.cart`); an
@@ -228,10 +226,9 @@ failed with `P2028` on the last step:
    with a decrement. Count 0 is 409 "Only {n} left of {product}." or, at 0,
    "{product} is out of stock." (`fields.cart`). Release lines never touch
    `ProductVariant.stock`.
-6. **Coupon, signed in only.** `updateMany where { id, usageLimit is null or
+6. **Coupon.** `updateMany where { id, usageLimit is null or
    redemptionCount < usageLimit }` incrementing `redemptionCount`. Count 0 is
-   409 with the usage limit message (`fields.code`). A guest cart is never
-   priced with a coupon ([CART.md](CART.md) §4.3), so a guest never redeems.
+   409 with the usage limit message (`fields.code`).
 7. **Write.** One `order.create` with the nested items (`releaseId` on
    release lines), add-ons and the first `OrderStatusEvent` (status from
    `initialStatus`), the release holds linked to the order, and, for a card
@@ -263,8 +260,9 @@ after a 4xx or a success. `expectedTotal` is the on screen total. See
 
 ## 6. Guest users and claiming
 
-A guest checkout needs an owner row so the order has a `userId` and a later
-sign-up can claim it. That row is a **shadow user**.
+Orders placed as a guest before checkout needed sign in (issue #141) belong
+to a **shadow user**, so the order has a `userId` and a later sign-up can
+claim it. No new shadow rows are made: checkout no longer accepts guests.
 
 1. **Shadow row:** `isGuest` true, `passwordHash` null, `emailVerifiedAt`
    null, role `CUSTOMER`, state `ACTIVE`. All three of `isGuest`, role and
@@ -275,28 +273,17 @@ sign-up can claim it. That row is a **shadow user**.
 2. **Invariant:** every path that sets a password also sets `isGuest` false
    (sign-up upgrade, password reset, admin `updateUser`). `updateUser` also
    sets it false when the role leaves `CUSTOMER`.
-3. **`resolveGuestUser(tx, { email, fullName, phone })`** in
-   `src/lib/auth/guest-user.ts`. It takes a transaction client and imports no
-   `prisma` instance, so Vitest can drive it with a stub. It runs
-   `createMany({ skipDuplicates: true })` (Postgres `ON CONFLICT DO NOTHING`)
-   and re-selects by email. A shadow row is returned, with `fullName` and
-   `phone` refreshed when it already existed; the refresh is guarded by
-   `SHADOW_USER_WHERE`, so a sign-up that claims the row first makes it 409. A registered or `INACTIVE` row
-   is 409 "An account with this email already exists. Sign in to continue."
-   on `fields.email`. `skipDuplicates` is used instead of catching `P2002`,
-   because a unique violation aborts the whole Postgres transaction. Two first
-   time checkouts with one email make one shadow row.
-4. **Sign-up upgrade.** `registerCustomer` calls `accountForSignUp(existing)`:
+3. **Sign-up upgrade.** `registerCustomer` calls `accountForSignUp(existing)`:
    none gives `create`, a shadow row gives `upgrade`, anything else
    `conflict` (the existing 409). An upgrade is `updateMany where { id,
    ...SHADOW_USER_WHERE }` with `upgradeData`: name, phone (null when not given, so
    the checkout phone does not survive), password hash, `isGuest: false`,
    `emailVerifiedAt: null` and `sessionVersion` incremented. A VERIFY email
    goes out as for any sign-up.
-5. **Reset claims it.** `resetPassword` sets `isGuest: false`, and the
+4. **Reset claims it.** `resetPassword` sets `isGuest: false`, and the
    `sessionVersion` bump signs out anyone who squatted on the address. The
    reset link proves the inbox, so `emailVerifiedAt` is set.
-6. **What an account sees.** `accountOrdersWhere(user)` is `{ userId }`, plus
+5. **What an account sees.** `accountOrdersWhere(user)` is `{ userId }`, plus
    `placedAsGuest: false` while `emailVerified` is false. Every account order
    read uses it. So someone who signs up with a guest's email first sees none
    of its guest orders until they verify the email; the real owner takes the
@@ -600,8 +587,7 @@ See [PERMISSIONS.md](PERMISSIONS.md).
 
 `npm test` runs Vitest. Phase 5 added `src/lib/orders.test.ts` (transition
 matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
-`src/lib/auth/guest-user.test.ts` (stub transaction: create, reuse, the race,
-`accountForSignUp`, `upgradeData`), `src/lib/reference-number.test.ts`,
+`src/lib/auth/guest-user.test.ts` (`accountForSignUp`, `upgradeData`), `src/lib/reference-number.test.ts`,
 `src/validators/order.validator.test.ts` and additions to
 `checkout.validator.test.ts`. Warranty tracking added `warrantyEndsAt` and
 `lineWarrantyMonths` cases to `orders.test.ts` and the `serials` cases to

@@ -3,7 +3,6 @@ import "server-only";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, isUniqueViolation } from "@/lib/api/api-response";
-import { resolveGuestUser } from "@/lib/auth/guest-user";
 import type { CartOwner } from "@/lib/cart-owner";
 import {
   DB_WRITE_TIMEOUT_MS,
@@ -68,16 +67,15 @@ function stockMessage(productName: string, stock: number) {
 async function findKeyOwner(db: Tx, idempotencyKey: string) {
   return db.order.findUnique({
     where: { idempotencyKey },
-    select: { number: true, userId: true, placedAsGuest: true },
+    select: { number: true, userId: true },
   });
 }
 
-async function replayFor(db: Tx, idempotencyKey: string, sessionUser: SessionUser | null) {
+async function replayFor(db: Tx, idempotencyKey: string, user: SessionUser) {
   const existing = await findKeyOwner(db, idempotencyKey);
   if (!existing) return null;
 
-  const owned = sessionUser ? existing.userId === sessionUser.id : existing.placedAsGuest;
-  if (!owned) throw conflict(MESSAGE_KEY_USED);
+  if (existing.userId !== user.id) throw conflict(MESSAGE_KEY_USED);
   return existing.number;
 }
 
@@ -174,35 +172,24 @@ function orderItems(priced: PricedCart): Prisma.OrderItemCreateWithoutOrderInput
 async function placeInTransaction(
   tx: Tx,
   owner: Owner,
-  sessionUser: SessionUser | null,
+  user: SessionUser,
   input: PlaceOrderData,
   delivery: DeliveryChoice,
 ): Promise<TransactionOutcome> {
   const now = new Date();
   if (!(await lockCart(tx, owner, now))) throw conflict(MESSAGE_EMPTY_CART);
 
-  const replay = await replayFor(tx, input.idempotencyKey, sessionUser);
+  const replay = await replayFor(tx, input.idempotencyKey, user);
   if (replay) return { kind: "replay", number: replay };
-
-  const customer = sessionUser
-    ? { id: sessionUser.id, email: sessionUser.email, placedAsGuest: false }
-    : {
-        ...(await resolveGuestUser(tx, {
-          email: input.email,
-          fullName: `${input.firstName} ${input.lastName}`,
-          phone: input.phone,
-        })),
-        placedAsGuest: true,
-      };
 
   const priced = assertPriced(
     await loadPricedCart(tx, owner, { deliveryFee: delivery.fee, now }),
     input.expectedTotal,
   );
-  const held = await convertCartHolds(tx, priced.cartId, customer.id, releaseLines(priced), now);
+  const held = await convertCartHolds(tx, priced.cartId, user.id, releaseLines(priced), now);
   await takeStock(tx, priced);
 
-  const redeemed = sessionUser && priced.coupon && priced.pricing.coupon?.ok ? priced.coupon : null;
+  const redeemed = priced.coupon && priced.pricing.coupon?.ok ? priced.coupon : null;
   if (redeemed) await redeemCoupon(tx, redeemed.id);
 
   const { pricing } = priced;
@@ -212,13 +199,13 @@ async function placeInTransaction(
     data: {
       number: generateReference(ORDER_NUMBER_PREFIX),
       idempotencyKey: input.idempotencyKey,
-      user: { connect: { id: customer.id } },
-      placedAsGuest: customer.placedAsGuest,
+      user: { connect: { id: user.id } },
+      placedAsGuest: false,
       status,
       paymentMethod: input.paymentMethod,
       releaseHoldUntil,
       ...(held.holdIds.length > 0 ? { releaseHolds: { connect: held.holdIds.map((id) => ({ id })) } } : {}),
-      email: customer.email,
+      email: user.email,
       phone: input.phone,
       firstName: input.firstName,
       lastName: input.lastName,
@@ -246,7 +233,7 @@ async function placeInTransaction(
             couponRedemption: {
               create: {
                 coupon: { connect: { id: redeemed.id } },
-                user: { connect: { id: customer.id } },
+                user: { connect: { id: user.id } },
                 discount: pricing.discount,
               },
             },
@@ -289,14 +276,9 @@ async function loadPlaced(number: string): Promise<OrderDetail> {
   return order;
 }
 
-export async function placeOrder(
-  owner: CartOwner,
-  sessionUser: SessionUser | null,
-  input: PlaceOrderData,
-): Promise<PlaceOrderResult> {
-  if (!owner) throw conflict(MESSAGE_EMPTY_CART);
-
-  const early = await replayFor(prisma, input.idempotencyKey, sessionUser);
+export async function placeOrder(user: SessionUser, input: PlaceOrderData): Promise<PlaceOrderResult> {
+  const owner: Owner = { kind: "user", userId: user.id };
+  const early = await replayFor(prisma, input.idempotencyKey, user);
   if (early) return { order: await loadPlaced(early), created: false };
 
   const delivery = await deliveryChoice(input);
@@ -304,13 +286,13 @@ export async function placeOrder(
   for (let attempt = 1; ; attempt += 1) {
     try {
       const outcome = await prisma.$transaction(
-        (tx) => placeInTransaction(tx, owner, sessionUser, input, delivery),
+        (tx) => placeInTransaction(tx, owner, user, input, delivery),
         { timeout: DB_WRITE_TIMEOUT_MS },
       );
       return { order: await loadPlaced(outcome.number), created: outcome.kind === "created" };
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
-      const replay = await replayFor(prisma, input.idempotencyKey, sessionUser);
+      const replay = await replayFor(prisma, input.idempotencyKey, user);
       if (replay) return { order: await loadPlaced(replay), created: false };
       if (attempt >= REFERENCE_NUMBER_ATTEMPTS) throw error;
     }
