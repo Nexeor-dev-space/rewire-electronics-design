@@ -63,7 +63,7 @@ export default async function ReleasePage({ params }: Params) {
     <div className="page-top pb-(--spacing-section)">
       <Container width="wide">
         <div className="grid gap-12 lg:grid-cols-12 lg:items-start lg:gap-10">
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-5">
             <Breadcrumb
               trail={[
                 { label: "Home", href: "/" },
@@ -100,7 +100,7 @@ export default async function ReleasePage({ params }: Params) {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-(--spacing-page-top-lg) lg:col-span-5 lg:col-start-8">
+          <aside className="lg:sticky lg:top-(--spacing-page-top-lg) lg:col-span-7">
             <div className="rounded-xl border border-line bg-surface p-6 shadow-(--shadow-soft) sm:p-8">
               {countdownTarget && (
                 <div className="border-b border-line pb-6">
@@ -139,28 +139,26 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 function ReleaseProduct({ product, release }: { product: StorefrontReleaseProduct; release: ReleaseRef }) {
   const image = product.images[0];
   return (
-    <li className="grid gap-x-8 sm:grid-cols-2 sm:items-start">
+    <li>
       <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-plate">
         {image && (
           <Image
             src={image.url}
             alt={image.alt}
             fill
-            sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 28vw"
+            sizes="(max-width: 1024px) 92vw, 40vw"
             className="object-cover mix-blend-multiply"
           />
         )}
       </div>
-      <div className="mt-5 sm:mt-0">
-        <h3 className="text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
-          {product.name}
-        </h3>
-        <ul className="mt-4 divide-y divide-line border-y border-line">
-          {product.variants.map((variant) => (
-            <VariantRow key={variant.id} variant={variant} product={product} release={release} />
-          ))}
-        </ul>
-      </div>
+      <h3 className="mt-5 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+        {product.name}
+      </h3>
+      <ul className="mt-4 divide-y divide-line border-y border-line">
+        {product.variants.map((variant) => (
+          <VariantRow key={variant.id} variant={variant} product={product} release={release} />
+        ))}
+      </ul>
     </li>
   );
 }
