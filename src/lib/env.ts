@@ -143,6 +143,8 @@ export function parseTestModeEnv(source: Source): TestModeEnv {
   const value = source.TEST_MODE?.trim() ?? "";
   if (value === TEST_MODE_ON_VALUE) return { on: true, ignored: null };
   return { on: false, ignored: value === "" ? null : value };
+}
+
 export function parseStorageEnv(source: Source): StorageEnv {
   return parse(storageSchema, source);
 }
