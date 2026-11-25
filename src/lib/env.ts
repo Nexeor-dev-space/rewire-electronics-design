@@ -64,6 +64,24 @@ const stripeWebhookSchema = z.object({
   ),
 });
 
+/** A bare host such as `minio.example.com`. MinIO is always reached over HTTPS on the default port. */
+const HOST_ONLY = /^[a-z0-9.-]+$/i;
+
+const requiredMinio = (key: string) =>
+  z.preprocess(blankToUndefined, z.string({ error: `${key} must be set.` }).trim());
+
+/** Where the bucket's objects can be fetched anonymously. */
+const mediaPublicUrl = (endpoint: string, bucket: string) => `https://${endpoint}/${bucket}`;
+
+const storageSchema = z.object({
+  MINIO_ENDPOINT: requiredMinio("MINIO_ENDPOINT").pipe(
+    z.string().regex(HOST_ONLY, "MINIO_ENDPOINT must be a host only, e.g. minio.example.com (no https://, no path)."),
+  ),
+  MINIO_ACCESS_KEY: requiredMinio("MINIO_ACCESS_KEY"),
+  MINIO_SECRET_KEY: requiredMinio("MINIO_SECRET_KEY"),
+  MINIO_BUCKET: requiredMinio("MINIO_BUCKET"),
+});
+
 const emailSchema = z
   .object({
     SMTP_HOST: z.preprocess(blankToUndefined, z.string().trim().default(SMTP_DEFAULT_HOST)),
@@ -88,6 +106,7 @@ export type AuthEnv = z.output<typeof authSchema>;
 export type EmailEnv = z.output<typeof emailSchema>;
 export type StripeEnv = z.output<typeof stripeSchema>;
 export type StripeWebhookEnv = z.output<typeof stripeWebhookSchema>;
+export type StorageEnv = z.output<typeof storageSchema>;
 
 export interface TestModeEnv {
   on: boolean;
@@ -124,6 +143,20 @@ export function parseTestModeEnv(source: Source): TestModeEnv {
   const value = source.TEST_MODE?.trim() ?? "";
   if (value === TEST_MODE_ON_VALUE) return { on: true, ignored: null };
   return { on: false, ignored: value === "" ? null : value };
+export function parseStorageEnv(source: Source): StorageEnv {
+  return parse(storageSchema, source);
+}
+
+/**
+ * The public media address (`https://<endpoint>/<bucket>`) without needing the
+ * MinIO keys — for image links, and for `next.config.ts`, which runs at build
+ * time and only has to allow the host. Undefined when endpoint or bucket is unset.
+ */
+export function optionalMediaPublicUrl(source: Source = process.env): string | undefined {
+  const endpoint = source.MINIO_ENDPOINT?.trim();
+  const bucket = source.MINIO_BUCKET?.trim();
+  if (!endpoint || !bucket || !HOST_ONLY.test(endpoint)) return undefined;
+  return mediaPublicUrl(endpoint, bucket);
 }
 
 export function optionalDatabaseUrl(source: Source = process.env): string | undefined {
@@ -144,6 +177,11 @@ export function emailEnv(): EmailEnv {
 
 export function stripeEnv(): StripeEnv {
   return parseStripeEnv(process.env);
+}
+
+/** Media storage. Read on first upload or download, so a missing key never stops the storefront booting. */
+export function storageEnv(): StorageEnv {
+  return parseStorageEnv(process.env);
 }
 
 /** Separate from `stripeEnv` so a missing webhook secret never stops card payments. */
