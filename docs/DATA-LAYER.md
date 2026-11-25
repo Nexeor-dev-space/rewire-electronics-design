@@ -287,18 +287,22 @@ this list rather than returning another unbounded array.
 
 ### Binary responses
 
-`GET /api/v1/media/[id]` returns raw image bytes with a `Content-Type` header
-instead of the envelope, because an image cannot be wrapped in JSON. It is the
-only binary endpoint, and it still fails through `apiErrorFrom`, so a missing
-id answers in the standard error shape. Add to this list rather than inventing
-another convention.
+`GET /api/v1/media/[id]` is the old address of an uploaded image. Images now
+live in MinIO and pages link straight to the bucket (`imageUrl` in
+`src/lib/storage/image-storage.ts`), so this route answers with a `308`
+redirect to the bucket address. For an image still held in the database, or
+while storage isn't set up, it returns the raw bytes with a
+`Content-Type` header instead of the envelope, because an image cannot be
+wrapped in JSON. It is the only binary endpoint, and it still fails through
+`apiErrorFrom`, so a missing id answers in the standard error shape. Add to
+this list rather than inventing another convention.
 
 The matching client exception is `src/lib/api/upload-client.ts`: uploads go
 through `XMLHttpRequest` rather than `apiRequest`, because `fetch` cannot
 report upload progress. It unwraps the same envelope and throws the same
 `ApiError`, so callers cannot tell the difference.
 
-No API route answers with a redirect.
+No other API route answers with a redirect.
 
 ---
 

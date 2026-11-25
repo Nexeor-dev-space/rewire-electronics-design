@@ -97,7 +97,7 @@ export function PromoBanner({ section }: { section: PublishedSection }) {
               "lg:col-span-6 lg:col-start-7",
             )}
           >
-            {/* `unoptimized`: served by /api/v1/media, as in the console. */}
+            {/* `unoptimized`: served from the media bucket, as in the console. */}
             <Image
               src={section.imageUrl}
               alt=""
