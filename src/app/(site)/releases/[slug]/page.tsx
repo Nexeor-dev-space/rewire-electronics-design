@@ -70,24 +70,35 @@ export default async function ReleasePage({ params }: Params) {
           ]}
         />
 
-        <div className="mt-10 grid gap-12 lg:grid-cols-12 lg:gap-10">
-          <header className="lg:col-span-7">
-            {release.edition && <p className="eyebrow">{release.edition}</p>}
-            <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
-            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
-              <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
-                {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
-              </p>
-            </div>
-            {release.description && (
-              <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
-                {release.description}
-              </p>
-            )}
-          </header>
+        <header className="mt-10">
+          {release.edition && <p className="eyebrow">{release.edition}</p>}
+          <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
+            <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
+              {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
+            </p>
+          </div>
+          {release.description && (
+            <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
+              {release.description}
+            </p>
+          )}
+        </header>
 
-          <aside className="lg:col-span-5 lg:col-start-8">
+        <div className="mt-12 grid gap-12 lg:grid-cols-12 lg:items-start lg:gap-10">
+          <section aria-labelledby="release-products-heading" className="lg:col-span-8">
+            <h2 id="release-products-heading" className="eyebrow">
+              In this release
+            </h2>
+            <ul className="mt-8 grid gap-x-6 gap-y-14 sm:grid-cols-2">
+              {release.products.map((product) => (
+                <ReleaseProduct key={product.id} product={product} release={release} />
+              ))}
+            </ul>
+          </section>
+
+          <aside className="lg:sticky lg:top-(--spacing-page-top-lg) lg:col-span-4">
             <div className="rounded-xl border border-line bg-surface p-6 shadow-(--shadow-soft) sm:p-8">
               {countdownTarget && (
                 <div className="border-b border-line pb-6">
@@ -109,17 +120,6 @@ export default async function ReleasePage({ params }: Params) {
             </div>
           </aside>
         </div>
-
-        <section aria-labelledby="release-products-heading" className="pt-(--spacing-section-sm)">
-          <h2 id="release-products-heading" className="eyebrow">
-            In this release
-          </h2>
-          <ul className="mt-8 grid gap-x-6 gap-y-14 md:grid-cols-2 xl:grid-cols-3">
-            {release.products.map((product) => (
-              <ReleaseProduct key={product.id} product={product} release={release} />
-            ))}
-          </ul>
-        </section>
       </Container>
     </div>
   );
@@ -144,7 +144,7 @@ function ReleaseProduct({ product, release }: { product: StorefrontReleaseProduc
             src={image.url}
             alt={image.alt}
             fill
-            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 30vw"
+            sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 30vw"
             className="object-cover mix-blend-multiply"
           />
         )}
@@ -181,8 +181,8 @@ function VariantRow({
   const label = details.join(" · ");
 
   return (
-    <li className="flex items-center gap-4 py-3">
-      <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <li className={cn("flex flex-col gap-3 pt-3", buyable ? "pb-7" : "pb-3")}>
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span className="min-w-0 text-[0.8125rem] text-ink-secondary">{label}</span>
         <span className="flex shrink-0 items-baseline gap-2.5">
           <span
@@ -219,7 +219,7 @@ function VariantRow({
             slug: product.slug,
             name: [product.name, ...details].join(", "),
           }}
-          className="sm:w-44"
+          className="w-full"
         />
       )}
     </li>
