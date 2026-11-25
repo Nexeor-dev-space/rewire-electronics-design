@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AUTH_SECRET_MIN_LENGTH, SMTP_DEFAULT_HOST, SMTP_DEFAULT_PORT } from "./constants";
+import { AUTH_SECRET_MIN_LENGTH, SMTP_DEFAULT_HOST, SMTP_DEFAULT_PORT, TEST_MODE_ON_VALUE } from "./constants";
 
 type Source = Record<string, string | undefined>;
 
@@ -108,6 +108,11 @@ export type StripeEnv = z.output<typeof stripeSchema>;
 export type StripeWebhookEnv = z.output<typeof stripeWebhookSchema>;
 export type StorageEnv = z.output<typeof storageSchema>;
 
+export interface TestModeEnv {
+  on: boolean;
+  ignored: string | null;
+}
+
 function parse<T extends z.ZodType>(schema: T, source: Source): z.output<T> {
   const result = schema.safeParse(source);
   if (!result.success) throw new Error(`Invalid environment:\n${z.prettifyError(result.error)}`);
@@ -148,6 +153,10 @@ export function optionalMediaPublicUrl(source: Source = process.env): string | u
   const bucket = source.MINIO_BUCKET?.trim();
   if (!endpoint || !bucket || !HOST_ONLY.test(endpoint)) return undefined;
   return mediaPublicUrl(endpoint, bucket);
+export function parseTestModeEnv(source: Source): TestModeEnv {
+  const value = source.TEST_MODE?.trim() ?? "";
+  if (value === TEST_MODE_ON_VALUE) return { on: true, ignored: null };
+  return { on: false, ignored: value === "" ? null : value };
 }
 
 export function optionalDatabaseUrl(source: Source = process.env): string | undefined {
@@ -178,4 +187,12 @@ export function storageEnv(): StorageEnv {
 /** Separate from `stripeEnv` so a missing webhook secret never stops card payments. */
 export function stripeWebhookEnv(): StripeWebhookEnv {
   return parseStripeWebhookEnv(process.env);
+}
+
+export function testModeEnv(): TestModeEnv {
+  return parseTestModeEnv(process.env);
+}
+
+export function isTestMode(): boolean {
+  return testModeEnv().on;
 }

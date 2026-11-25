@@ -13,6 +13,7 @@ import type {
   ReleaseFilters,
   ReleaseInput,
   ReleaseStateInput,
+  ReleaseTestEmailsResult,
 } from "@/types/release";
 import type { AdminWaitlistEntry } from "@/types/storefront-release";
 
@@ -120,5 +121,12 @@ export function useSetReleaseAllocations() {
     mutationFn: ({ id, ...input }: ReleaseAllocationsInput & { id: string }) =>
       apiRequest<AdminReleaseDetail>(endpoints.allocations(id), { method: "PUT", body: input }),
     onSuccess: invalidate,
+  });
+}
+
+export function useSendReleaseTestEmails() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest<ReleaseTestEmailsResult>(endpoints.testEmails(id), { method: "POST" }),
   });
 }

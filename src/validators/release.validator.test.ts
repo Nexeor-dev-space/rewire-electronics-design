@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   RELEASE_ALLOCATIONS_MAX,
   RELEASE_MAX_PER_CUSTOMER_LIMIT,
+  RELEASE_REMINDER_MAX_MINUTES,
+  RELEASE_REMINDERS_MAX,
   RELEASE_TITLE_MAX_LENGTH,
 } from "@/lib/constants";
 import {
@@ -38,6 +40,31 @@ describe("releaseSchema", () => {
     ["a fractional cap", { maxPerCustomer: 1.5 }],
   ])("rejects %s", (_label, override) => {
     expect(releaseSchema.safeParse({ ...valid, ...override }).success).toBe(false);
+  });
+
+  it("leaves reminders out when they are not sent", () => {
+    expect(releaseSchema.parse(valid).reminders).toBeUndefined();
+  });
+
+  it("accepts reminders, an empty list and the longest time, largest first", () => {
+    expect(releaseSchema.parse({ ...valid, reminders: [60, 2880, 10] }).reminders).toEqual([2880, 60, 10]);
+    expect(releaseSchema.parse({ ...valid, reminders: [] }).reminders).toEqual([]);
+    expect(releaseSchema.parse({ ...valid, reminders: [RELEASE_REMINDER_MAX_MINUTES] }).reminders).toEqual([
+      RELEASE_REMINDER_MAX_MINUTES,
+    ]);
+  });
+
+  it.each([
+    ["a zero reminder", [0]],
+    ["a negative reminder", [-5]],
+    ["a fractional reminder", [1.5]],
+    ["a reminder beyond the longest time", [RELEASE_REMINDER_MAX_MINUTES + 1]],
+    ["a repeated reminder", [60, 60]],
+    ["too many reminders", Array.from({ length: RELEASE_REMINDERS_MAX + 1 }, (_, i) => i + 1)],
+    ["text in place of minutes", ["60"]],
+  ])("rejects %s", (_label, reminders) => {
+    const result = releaseSchema.safeParse({ ...valid, reminders });
+    expect(result.success).toBe(false);
   });
 });
 

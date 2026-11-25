@@ -45,8 +45,16 @@ export interface ReleaseAllocationRow {
 
 export interface AdminReleaseDetail extends AdminReleaseRow {
   description: string;
+  reminders: number[];
   completedAt: string | null;
   allocations: ReleaseAllocationRow[];
+}
+
+export interface ReleaseTestEmailsResult {
+  recipient: string;
+  sent: number;
+  logged: number;
+  failed: number;
 }
 
 export interface LiveRelease extends ReleaseTotals {

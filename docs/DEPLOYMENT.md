@@ -154,6 +154,25 @@ environment (the runtime image has no `tsx`).
 Old `/api/v1/media/<id>` links (order emails, search results) keep working:
 they redirect to the bucket. After `npm run db:seed`, run the script too,
 because the seed writes catalogue images straight into the database.
+`TEST_MODE` is optional and belongs to the staging app only:
+
+1. Set `TEST_MODE=true` in the staging app's environment. Leave it out of the
+   production app's. Staging and production are two Coolify apps (section 5),
+   so each has its own value.
+2. Only the exact value `true` turns it on. Missing, blank or any other value
+   behaves like production and never stops startup, so a forgotten or
+   mistyped value is safe.
+3. The server log shows `test mode: ON` or `test mode: OFF` right after the
+   email transport line. A value that was set but ignored is logged as a
+   warning.
+4. Today it changes one thing: a release created while it is on starts with
+   reminders 10 and 5 minutes before the opening
+   (`RELEASE_TEST_REMINDER_DEFAULTS_MINUTES`). Existing releases keep their
+   times, and the message timer and email volume do not change.
+5. It is a runtime value, not a build variable. Coolify redeploys on save.
+
+The rules are in [INTEGRATIONS.md](INTEGRATIONS.md) §3a and the staging test
+steps in [RELEASES.md](RELEASES.md) §13.
 
 ---
 
