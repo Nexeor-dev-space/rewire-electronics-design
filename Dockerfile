@@ -19,6 +19,10 @@ FROM deps AS build
 COPY . .
 # Required for migrations and while collecting page data; set as a build variable in Coolify.
 ARG DATABASE_URL
+# Where uploaded images are served from, so next.config.ts can allow the image
+# optimiser to fetch them. Addresses only — the MinIO keys stay runtime-only.
+ARG MINIO_ENDPOINT
+ARG MINIO_BUCKET
 RUN npm run db:deploy
 ENV NEXT_TELEMETRY_DISABLED=1
 # Type checking runs out of memory on the default heap. See docs/DEPLOYMENT.md.

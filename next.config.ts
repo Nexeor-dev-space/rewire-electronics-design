@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
+import { optionalMediaPublicUrl } from "./src/lib/env";
 import { siteConfig } from "./src/lib/site";
+
+/**
+ * Uploaded images are served straight from the MinIO bucket, so the image
+ * optimiser must be allowed to fetch from it. Read at build time: the MinIO
+ * variables have to be build variables too (docs/DEPLOYMENT.md).
+ */
+const mediaPublicUrl = optionalMediaPublicUrl();
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -10,6 +18,7 @@ const nextConfig: NextConfig = {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     formats: ["image/avif", "image/webp"],
+    remotePatterns: mediaPublicUrl ? [new URL(`${mediaPublicUrl}/media/**`)] : [],
   },
 
   async redirects() {

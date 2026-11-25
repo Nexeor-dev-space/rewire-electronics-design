@@ -1,7 +1,10 @@
+/// The bytes live in MinIO under `media/<id>`. `data` only holds images
+/// uploaded before the move, until `npm run db:media-to-minio -- --clear`
+/// empties it.
 model MediaAsset {
   id       String @id @default(cuid())
   mimeType String
-  data     Bytes
+  data     Bytes?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
