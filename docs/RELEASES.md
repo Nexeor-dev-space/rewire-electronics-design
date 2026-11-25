@@ -389,7 +389,9 @@ The pages call these services directly; there is no storefront GET API.
    breadcrumb, title, description and products share the left 7 columns, and
    the countdown and facts panel takes the right 5. The panel starts level
    with the breadcrumb and sticks at the page top offset, so it stays still
-   while the page scrolls. On mobile and tablet the
+   while the page scrolls. Each product is one row: image on the left, name
+   and variants on the right (stacked on phones), so a single product fills
+   the column. On mobile and tablet the
    products come before the panel. Each variant row puts the details over a
    full width button, with room under it for the button's error line.
 3. The homepage's **Upcoming drops** shows the first `HOMEPAGE_DROPS_LIMIT`.

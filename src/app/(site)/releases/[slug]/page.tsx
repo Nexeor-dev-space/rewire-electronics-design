@@ -92,7 +92,7 @@ export default async function ReleasePage({ params }: Params) {
               <h2 id="release-products-heading" className="eyebrow">
                 In this release
               </h2>
-              <ul className="mt-8 grid gap-x-6 gap-y-14 sm:grid-cols-2">
+              <ul className="mt-8 grid gap-y-14">
                 {release.products.map((product) => (
                   <ReleaseProduct key={product.id} product={product} release={release} />
                 ))}
@@ -139,7 +139,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 function ReleaseProduct({ product, release }: { product: StorefrontReleaseProduct; release: ReleaseRef }) {
   const image = product.images[0];
   return (
-    <li className="flex flex-col">
+    <li className="grid gap-x-8 sm:grid-cols-2 sm:items-start">
       <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-plate">
         {image && (
           <Image
@@ -151,14 +151,16 @@ function ReleaseProduct({ product, release }: { product: StorefrontReleaseProduc
           />
         )}
       </div>
-      <h3 className="mt-5 text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
-        {product.name}
-      </h3>
-      <ul className="mt-4 divide-y divide-line border-y border-line">
-        {product.variants.map((variant) => (
-          <VariantRow key={variant.id} variant={variant} product={product} release={release} />
-        ))}
-      </ul>
+      <div className="mt-5 sm:mt-0">
+        <h3 className="text-[1.0625rem] font-medium leading-tight tracking-[-0.015em] text-ink">
+          {product.name}
+        </h3>
+        <ul className="mt-4 divide-y divide-line border-y border-line">
+          {product.variants.map((variant) => (
+            <VariantRow key={variant.id} variant={variant} product={product} release={release} />
+          ))}
+        </ul>
+      </div>
     </li>
   );
 }
