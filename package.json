@@ -16,6 +16,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:seed:areas": "tsx prisma/seed-areas-only.ts",
+    "db:media-to-minio": "tsx prisma/move-media-to-minio.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
