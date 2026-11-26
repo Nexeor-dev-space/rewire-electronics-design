@@ -385,12 +385,13 @@ The pages call these services directly; there is no storefront GET API.
    prices and "N left" or "Sold out" per variant. While the release is Live,
    a variant with units left has **Add to cart** (section 14). **Notify me**
    opens the waitlist dialog in every status. Product names are not linked,
-   since a release only product may not be public. Layout: on desktop the
-   breadcrumb, title, description and products take the left 5 columns,
-   each product as its image with the name, variants and Add to cart under
-   it. The box with the countdown, the facts and Notify me takes the right 7.
-   It starts level with the breadcrumb and scrolls with the page like the
-   left column. On mobile and tablet the products
+   since a release only product may not be public. Layout: the breadcrumb,
+   title, description and the "In this release" heading run across the top.
+   Under them on desktop the products take the left 5 columns, each product
+   as its image with the name, variants and Add to cart under it, and the box
+   with the countdown, the facts and Notify me takes the right 7. The box's
+   top lines up with the first product image, and it scrolls with the page
+   like the products. On mobile and tablet the products
    come first and the box follows. Each variant row puts the details over a full
    width button, with room under it for the button's error line.
 3. The homepage's **Upcoming drops** shows the first `HOMEPAGE_DROPS_LIMIT`.

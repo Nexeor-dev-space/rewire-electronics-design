@@ -62,43 +62,42 @@ export default async function ReleasePage({ params }: Params) {
   return (
     <div className="page-top pb-(--spacing-section)">
       <Container width="wide">
-        <div className="grid gap-12 lg:grid-cols-12 lg:items-start lg:gap-10">
-          <div className="lg:col-span-5">
-            <Breadcrumb
-              trail={[
-                { label: "Home", href: "/" },
-                { label: "Releases", href: RELEASES_PAGE_PATH },
-                { label: release.title },
-              ]}
-            />
+        <Breadcrumb
+          trail={[
+            { label: "Home", href: "/" },
+            { label: "Releases", href: RELEASES_PAGE_PATH },
+            { label: release.title },
+          ]}
+        />
 
-            <header className="mt-10">
-              {release.edition && <p className="eyebrow">{release.edition}</p>}
-              <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
-              <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
-                <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
-                  {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
-                </p>
-              </div>
-              {release.description && (
-                <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
-                  {release.description}
-                </p>
-              )}
-            </header>
-
-            <section aria-labelledby="release-products-heading" className="mt-12">
-              <h2 id="release-products-heading" className="eyebrow">
-                In this release
-              </h2>
-              <ul className="mt-8 grid gap-y-14">
-                {release.products.map((product) => (
-                  <ReleaseProduct key={product.id} product={product} release={release} />
-                ))}
-              </ul>
-            </section>
+        <header className="mt-10">
+          {release.edition && <p className="eyebrow">{release.edition}</p>}
+          <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
+            <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
+              {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
+            </p>
           </div>
+          {release.description && (
+            <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
+              {release.description}
+            </p>
+          )}
+        </header>
+
+        <h2 id="release-products-heading" className="eyebrow mt-12">
+          In this release
+        </h2>
+
+        <div className="mt-8 grid gap-12 lg:grid-cols-12 lg:items-start lg:gap-10">
+          <section aria-labelledby="release-products-heading" className="lg:col-span-5">
+            <ul className="grid gap-y-14">
+              {release.products.map((product) => (
+                <ReleaseProduct key={product.id} product={product} release={release} />
+              ))}
+            </ul>
+          </section>
 
           <aside className="lg:col-span-7">
             <div className="rounded-xl border border-line bg-surface p-6 shadow-(--shadow-soft) sm:p-8">
