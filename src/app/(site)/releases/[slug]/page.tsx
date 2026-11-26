@@ -100,7 +100,7 @@ export default async function ReleasePage({ params }: Params) {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-(--spacing-page-top-lg) lg:col-span-7">
+          <aside className="lg:col-span-7">
             <div className="rounded-xl border border-line bg-surface p-6 shadow-(--shadow-soft) sm:p-8">
               {countdownTarget && (
                 <div className="border-b border-line pb-6">

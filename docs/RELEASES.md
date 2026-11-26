@@ -389,8 +389,8 @@ The pages call these services directly; there is no storefront GET API.
    breadcrumb, title, description and products take the left 5 columns,
    each product as its image with the name, variants and Add to cart under
    it. The box with the countdown, the facts and Notify me takes the right 7.
-   It starts level with the breadcrumb and sticks at the page top offset, so
-   it stays still while the page scrolls. On mobile and tablet the products
+   It starts level with the breadcrumb and scrolls with the page like the
+   left column. On mobile and tablet the products
    come first and the box follows. Each variant row puts the details over a full
    width button, with room under it for the button's error line.
 3. The homepage's **Upcoming drops** shows the first `HOMEPAGE_DROPS_LIMIT`.
