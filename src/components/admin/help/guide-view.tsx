@@ -21,7 +21,7 @@ export function GuideView({ guide, canEdit }: { guide: Guide; canEdit: boolean }
         ) : undefined
       }
     >
-      <GuideBody guide={guide} />
+      <GuideBody guide={guide} stickyClassName="lg:top-20" />
     </AdminPage>
   );
 }

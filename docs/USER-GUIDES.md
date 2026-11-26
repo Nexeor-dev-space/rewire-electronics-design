@@ -66,6 +66,13 @@ The list is not an API: the two list screens are Server Components that call `li
 3. **Recordings** are a link to a video file, not an upload. Video bytes would sit in the database next to the images, and the server is small. Host the clip anywhere that serves a direct https link ending in `.mp4` or `.webm`. Clips are silent, under three minutes, with captions in the video.
 4. Capture media on a staging site with fictional data, only after launch fixes to a screen are done.
 
+## Screen sizes
+
+1. **Phones**: the contents list is one column above the guide. A screenshot takes the full width of its section, and tapping it opens the full size file in a new tab so it can be zoomed.
+2. **Tablets**: the contents list is two columns above the guide.
+3. **From 1024px**: the contents list sits beside the guide and stays on screen while reading. `GuideBody` takes `stickyClassName` for its top offset, because the storefront header and the admin top bar have different heights. `HelpShell` uses `overflow-clip`, since `overflow-hidden` stops the list from sticking.
+4. **Wide screens**: the guide list has four columns from 1536px.
+
 ## Last updated date
 
 A guide edited by staff shows the date it was saved. A guide with no edits shows `GUIDE_TEXT_UPDATED` in `catalogue.ts`. Change that date when you edit the built in text in code.

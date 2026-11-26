@@ -143,7 +143,7 @@ export function AdminShell({
             sidebarCollapsed ? CONTENT_PAD_COLLAPSED : CONTENT_PAD_EXPANDED,
           )}
         >
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-void/85 px-4 backdrop-blur-md md:px-8">
+          <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-void/85 px-3 backdrop-blur-md sm:gap-3 sm:px-4 md:px-8">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -170,7 +170,8 @@ export function AdminShell({
               className="flex items-center gap-2 text-ink lg:hidden"
             >
               <LogoMark className="h-6" />
-              <span className="text-sm text-ink-muted">{adminConsole.label}</span>
+              {/* Hidden under about 350px, where it would push the account menu off the screen. */}
+              <span className="text-sm text-ink-muted max-[22rem]:hidden">{adminConsole.label}</span>
             </Link>
 
             <div className="ml-auto flex items-center gap-2">

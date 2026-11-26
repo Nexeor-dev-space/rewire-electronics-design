@@ -59,7 +59,7 @@ function RowButtons({
   label: string;
 }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap gap-1">
       <Button type="button" variant="ghost" size="sm" aria-label={`Move ${label} up`} onClick={onUp}>
         Up
       </Button>
@@ -88,7 +88,7 @@ function StepRow({
 }) {
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="eyebrow">Step {index + 1}</span>
         <RowButtons
           label={`step ${index + 1}`}
@@ -131,8 +131,8 @@ function SectionCard({
   const idBase = `section-${index}`;
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface-2 p-5">
-      <div className="flex items-center justify-between gap-3">
+    <section className="flex flex-col gap-4 rounded-xl border border-line bg-surface-2 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="eyebrow">Section {index + 1}</h2>
         <RowButtons label={`section ${index + 1}`} onUp={() => onMove(-1)} onDown={() => onMove(1)} onRemove={onRemove} />
       </div>
@@ -189,7 +189,7 @@ function SectionCard({
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium text-ink">Notes</p>
         {section.notes.map((note, noteIndex) => (
-          <div key={noteIndex} className="flex items-start gap-2">
+          <div key={noteIndex} className="flex flex-col items-end gap-2 sm:flex-row sm:items-start">
             <Textarea
               aria-label={`Note ${noteIndex + 1}`}
               rows={2}

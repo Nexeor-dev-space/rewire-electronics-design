@@ -25,7 +25,7 @@ export default async function HelpGuidePage({ params }: Props) {
 
   return (
     <HelpShell title={guide.title} lede={guide.summary}>
-      <GuideBody guide={guide} />
+      <GuideBody guide={guide} stickyClassName="lg:top-(--spacing-page-top-lg)" />
     </HelpShell>
   );
 }

@@ -79,7 +79,7 @@ export function ImageField({ label, value, previewUrl, onChange, error }: ImageF
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
 
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <div
           className={cn(
             "relative size-24 shrink-0 overflow-hidden rounded-lg border border-line bg-surface-2",

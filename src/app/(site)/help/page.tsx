@@ -19,12 +19,12 @@ export default async function HelpPage() {
       title="Help guides"
       lede="Short, step by step guides for everything you can do on Rewire, from your first order to a warranty claim."
     >
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {guides.map((guide) => (
           <li key={guide.slug}>
             <Link
               href={`${HELP_PAGE_PATH}/${guide.slug}`}
-              className="flex h-full flex-col gap-3 rounded-xl border border-line bg-surface-2 p-6 transition-[transform,border-color,background-color] duration-(--duration-base) ease-(--ease-out-expo) hover:-translate-y-1 hover:border-line-strong hover:bg-surface motion-reduce:hover:translate-y-0"
+              className="flex h-full flex-col gap-3 rounded-xl border border-line bg-surface-2 p-5 sm:p-6 transition-[transform,border-color,background-color] duration-(--duration-base) ease-(--ease-out-expo) hover:-translate-y-1 hover:border-line-strong hover:bg-surface motion-reduce:hover:translate-y-0"
             >
               <span className="font-sans text-xl font-light tracking-[-0.02em] text-ink">{guide.title}</span>
               <span className="text-sm leading-relaxed text-ink-secondary">{guide.summary}</span>
