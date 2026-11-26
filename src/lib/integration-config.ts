@@ -1,5 +1,5 @@
-import { DEV_APP_URL, SMTP_IMPLICIT_TLS_PORT } from "@/lib/constants";
-import { emailEnv, type EmailEnv } from "@/lib/env";
+import { DEV_APP_URL, RELEASE_TEST_REMINDER_DEFAULTS_MINUTES, SMTP_IMPLICIT_TLS_PORT, TEST_MODE_ON_VALUE } from "@/lib/constants";
+import { emailEnv, testModeEnv, type EmailEnv, type TestModeEnv } from "@/lib/env";
 
 export interface SmtpConfig {
   host: string;
@@ -50,12 +50,29 @@ export function describeEmailTransport(config: IntegrationConfig): string {
   }
 }
 
+export function describeTestMode(env: TestModeEnv): string {
+  if (env.on) {
+    return `test mode: ON (new releases default to ${RELEASE_TEST_REMINDER_DEFAULTS_MINUTES.join(" and ")} minute reminders)`;
+  }
+  if (env.ignored !== null) {
+    return `test mode: OFF (TEST_MODE="${env.ignored}" ignored; only "${TEST_MODE_ON_VALUE}" turns it on)`;
+  }
+  return "test mode: OFF";
+}
+
+function logTestMode(env: TestModeEnv) {
+  const line = describeTestMode(env);
+  if (env.ignored === null) console.info(line);
+  else console.warn(line);
+}
+
 let config: IntegrationConfig | undefined;
 
 export function getIntegrationConfig(): IntegrationConfig {
   if (!config) {
     config = resolveIntegrationConfig(emailEnv(), process.env.NODE_ENV);
     console.info(describeEmailTransport(config));
+    logTestMode(testModeEnv());
   }
   return config;
 }

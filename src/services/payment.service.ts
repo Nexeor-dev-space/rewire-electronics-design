@@ -18,9 +18,11 @@ import {
 } from "@/lib/stripe-checkout";
 import {
   addPaymentNote,
+  cancelLapsedOrder,
   claimCheckoutSession,
   getCheckoutSessionId,
   getOrderDetail,
+  lapsedReleaseOrderNumbers,
   recordStripePayment,
 } from "@/services/order.service";
 import type { OrderDetail, PlacedOrder } from "@/types/order";
@@ -193,6 +195,34 @@ export async function startOnlinePayment(order: OrderDetail, attempt = 1): Promi
   await closeSession(stripe, session.id);
   if (attempt >= SESSION_CLAIM_ATTEMPTS) throw pageFailed();
   return startOnlinePayment(order, attempt + 1);
+}
+
+export interface ClosedPayment {
+  completed: boolean;
+  sessionId: string | null;
+}
+
+export async function closeOrderPayment(number: string): Promise<ClosedPayment> {
+  const sessionId = await getCheckoutSessionId(number);
+  if (!sessionId) return { completed: false, sessionId };
+  const stripe = stripeOrUnavailable();
+  const saved = await savedSession(stripe, sessionId);
+  const session = saved?.status === "open" ? await closeSession(stripe, saved.id) : saved;
+  if (session?.status !== "complete") return { completed: false, sessionId };
+  const order = await getOrderDetail({ number });
+  if (order) await settleSession(session, order);
+  return { completed: true, sessionId };
+}
+
+export async function closeLapsedReleaseOrders(now: Date): Promise<void> {
+  for (const number of await lapsedReleaseOrderNumbers(now)) {
+    try {
+      const payment = await closeOrderPayment(number);
+      if (!payment.completed) await cancelLapsedOrder(number, payment.sessionId);
+    } catch (error) {
+      console.error(`Lapsed release order ${number} could not be closed`, error);
+    }
+  }
 }
 
 /* ---------- webhooks ---------- */

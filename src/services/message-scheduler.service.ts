@@ -18,17 +18,21 @@ import {
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { abandonedCheckoutMessage, warrantyFollowUpMessage } from "@/lib/email/message-templates";
-import { dedupeKey } from "@/lib/messaging";
+import { dedupeKey, sweepsDueOnTick } from "@/lib/messaging";
 import { loadClaim, notifyOrderEmail } from "@/services/customer-email.service";
 import { dispatchEmail, settledRefs } from "@/services/message.service";
+import { closeLapsedReleaseOrders } from "@/services/payment.service";
+import { completeEndedReleases, expireHolds } from "@/services/release-hold.service";
 import { sweepCampaignMessages, sweepReleaseSequence } from "@/services/release-message.service";
+import { purgeEndedWaitlists } from "@/services/waitlist.service";
 
 /**
  * Sends the messages that depend on time passing, from live records: a cart
  * left behind, an order delivered a week ago, a warranty nearing its end, a
  * returned repair. Each sweep looks at a bounded window, sends at most
  * `MESSAGE_SWEEP_BATCH`, and records every send, so running twice never sends
- * twice. Started on a timer by `src/instrumentation.ts`. See docs/MESSAGING.md.
+ * twice. The last sweep sends nothing: it deletes the waitlists of completed
+ * releases. Started on a timer by `src/instrumentation.ts`. See docs/MESSAGING.md.
  */
 
 const CART_LINK_LABEL = "Return to my cart";
@@ -205,27 +209,36 @@ async function sweepWarrantyFollowUps(now: Date) {
 
 /* ---------- the run ---------- */
 
-const SWEEPS: { name: string; run: (now: Date) => Promise<void> }[] = [
-  { name: "release sequence", run: sweepReleaseSequence },
+const SWEEPS: { name: string; run: (now: Date) => Promise<void>; everyTick?: boolean }[] = [
+  { name: "expired release holds", run: expireHolds, everyTick: true },
+  { name: "lapsed release orders", run: closeLapsedReleaseOrders, everyTick: true },
+  { name: "ended releases", run: completeEndedReleases, everyTick: true },
+  { name: "release sequence", run: sweepReleaseSequence, everyTick: true },
   { name: "campaign messages", run: sweepCampaignMessages },
   { name: "abandoned checkouts", run: sweepAbandonedCheckouts },
   { name: "review requests", run: sweepReviewRequests },
   { name: "warranty expiry notices", run: sweepWarrantyExpiry },
   { name: "entitlement reminders", run: sweepEntitlementReminders },
   { name: "warranty follow-ups", run: sweepWarrantyFollowUps },
+  { name: "ended waitlists", run: purgeEndedWaitlists },
 ];
 
 let running = false;
+let tick = 0;
 
 /**
- * One pass over every timed message. A failing sweep is logged and the others
- * still run; a pass that starts while another is running does nothing.
+ * One tick of the timer. The release sequence runs on every tick
+ * (`RELEASE_SWEEP_INTERVAL_MS`); the other sweeps run once per
+ * `MESSAGE_SWEEP_INTERVAL_MS`. A failing sweep is logged and the others still
+ * run; a tick that starts while another is running does nothing.
  */
 export async function runScheduledMessages(now: Date = new Date()): Promise<void> {
   if (running) return;
   running = true;
+  const due = sweepsDueOnTick(SWEEPS, tick);
+  tick += 1;
   try {
-    for (const sweep of SWEEPS) {
+    for (const sweep of due) {
       try {
         await sweep.run(now);
       } catch (error) {

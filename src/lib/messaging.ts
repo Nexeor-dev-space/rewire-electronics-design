@@ -2,7 +2,9 @@ import {
   COUNTDOWN_MIN_OFFSET_MINUTES,
   MESSAGE_MAX_ATTEMPTS,
   MESSAGE_SCHEDULE_GRACE_MINUTES,
+  MESSAGE_SWEEP_INTERVAL_MS,
   MS_PER_MINUTE,
+  RELEASE_SWEEP_INTERVAL_MS,
 } from "@/lib/constants";
 
 /* ---------- triggers, channels, statuses ----------
@@ -93,6 +95,15 @@ export function isDue(dueAt: Date, now: Date): boolean {
 /** The moment a release's reminder with this offset is due. */
 export function reminderDueAt(startsAt: Date, offsetMinutes: number): Date {
   return new Date(startsAt.getTime() - offsetMinutes * MS_PER_MINUTE);
+}
+
+/* ---------- the timer ---------- */
+
+export const SLOW_SWEEP_EVERY_TICKS = Math.max(1, Math.round(MESSAGE_SWEEP_INTERVAL_MS / RELEASE_SWEEP_INTERVAL_MS));
+
+export function sweepsDueOnTick<Sweep extends { everyTick?: boolean }>(sweeps: readonly Sweep[], tick: number): Sweep[] {
+  const slowTick = tick % SLOW_SWEEP_EVERY_TICKS === 0;
+  return sweeps.filter((sweep) => sweep.everyTick || slowTick);
 }
 
 /* ---------- dedupe keys ---------- */

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache, type ReactNode } from "react";
 import { Container } from "@/components/layout/container";
 import { Breadcrumb } from "@/components/product/detail/breadcrumb";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { NotifyMeButton } from "@/components/releases/notify-me-button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Countdown } from "@/components/ui/countdown";
@@ -11,14 +12,20 @@ import { conditionLabel, gradeLabel } from "@/lib/catalogue";
 import { RELEASES_PAGE_PATH, SEO_DESCRIPTION_MAX_LENGTH } from "@/lib/constants";
 import { formatStoreDateTime } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { RELEASE_STATUS_LABELS, releaseHref, type ReleaseStatus } from "@/lib/releases";
+import { RELEASE_STATUS_LABELS, releaseHref, releaseOpenForSale, type ReleaseStatus } from "@/lib/releases";
 import { clip, pageMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { getStorefrontRelease } from "@/services/release-storefront.service";
-import type { StorefrontReleaseProduct, StorefrontReleaseVariant } from "@/types/storefront-release";
+import type {
+  StorefrontRelease,
+  StorefrontReleaseProduct,
+  StorefrontReleaseVariant,
+} from "@/types/storefront-release";
 
 export const dynamic = "force-dynamic";
+
+type ReleaseRef = Pick<StorefrontRelease, "id" | "status">;
 
 interface Params {
   params: Promise<{ slug: string }>;
@@ -63,24 +70,36 @@ export default async function ReleasePage({ params }: Params) {
           ]}
         />
 
-        <div className="mt-10 grid gap-12 lg:grid-cols-12 lg:gap-10">
-          <header className="lg:col-span-7">
-            {release.edition && <p className="eyebrow">{release.edition}</p>}
-            <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
-            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
-              <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
-                {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
-              </p>
-            </div>
-            {release.description && (
-              <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
-                {release.description}
-              </p>
-            )}
-          </header>
+        <header className="mt-10">
+          {release.edition && <p className="eyebrow">{release.edition}</p>}
+          <h1 className="mt-3 text-display-lg font-light text-ink">{release.title}</h1>
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Badge variant={STATUS_BADGE[release.status]}>{RELEASE_STATUS_LABELS[release.status]}</Badge>
+            <p className="font-mono text-[0.75rem] uppercase tracking-[0.16em] text-ink-secondary">
+              {upcoming ? "Opens" : "Opened"} {formatStoreDateTime(release.startsAt)}
+            </p>
+          </div>
+          {release.description && (
+            <p className="mt-8 max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink-secondary">
+              {release.description}
+            </p>
+          )}
+        </header>
 
-          <aside className="lg:col-span-5 lg:col-start-8">
+        <h2 id="release-products-heading" className="eyebrow mt-12">
+          In this release
+        </h2>
+
+        <div className="mt-8 grid gap-12 lg:grid-cols-12 lg:items-start lg:gap-10">
+          <section aria-labelledby="release-products-heading" className="lg:col-span-5">
+            <ul className="grid gap-y-14">
+              {release.products.map((product) => (
+                <ReleaseProduct key={product.id} product={product} release={release} />
+              ))}
+            </ul>
+          </section>
+
+          <aside className="lg:col-span-7">
             <div className="rounded-xl border border-line bg-surface p-6 shadow-(--shadow-soft) sm:p-8">
               {countdownTarget && (
                 <div className="border-b border-line pb-6">
@@ -102,17 +121,6 @@ export default async function ReleasePage({ params }: Params) {
             </div>
           </aside>
         </div>
-
-        <section aria-labelledby="release-products-heading" className="pt-(--spacing-section-sm)">
-          <h2 id="release-products-heading" className="eyebrow">
-            In this release
-          </h2>
-          <ul className="mt-8 grid gap-x-6 gap-y-14 md:grid-cols-2 xl:grid-cols-3">
-            {release.products.map((product) => (
-              <ReleaseProduct key={product.id} product={product} />
-            ))}
-          </ul>
-        </section>
       </Container>
     </div>
   );
@@ -127,17 +135,17 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ReleaseProduct({ product }: { product: StorefrontReleaseProduct }) {
+function ReleaseProduct({ product, release }: { product: StorefrontReleaseProduct; release: ReleaseRef }) {
   const image = product.images[0];
   return (
-    <li className="flex flex-col">
+    <li>
       <div className="relative aspect-square overflow-hidden rounded-xl border border-line bg-plate">
         {image && (
           <Image
             src={image.url}
             alt={image.alt}
             fill
-            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 46vw, 30vw"
+            sizes="(max-width: 1024px) 92vw, 40vw"
             className="object-cover mix-blend-multiply"
           />
         )}
@@ -147,53 +155,74 @@ function ReleaseProduct({ product }: { product: StorefrontReleaseProduct }) {
       </h3>
       <ul className="mt-4 divide-y divide-line border-y border-line">
         {product.variants.map((variant) => (
-          <VariantRow key={variant.id} variant={variant} />
+          <VariantRow key={variant.id} variant={variant} product={product} release={release} />
         ))}
       </ul>
     </li>
   );
 }
 
-function VariantRow({ variant }: { variant: StorefrontReleaseVariant }) {
+function VariantRow({
+  variant,
+  product,
+  release,
+}: {
+  variant: StorefrontReleaseVariant;
+  product: StorefrontReleaseProduct;
+  release: ReleaseRef;
+}) {
   const soldOut = variant.available === 0;
-  const label = [
+  const buyable = !soldOut && releaseOpenForSale(release.status);
+  const details = [
     variant.storage,
     variant.colour,
     conditionLabel(variant.condition),
     variant.grade && gradeLabel(variant.grade),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter(Boolean);
+  const label = details.join(" · ");
 
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
-      <span className="min-w-0 text-[0.8125rem] text-ink-secondary">{label}</span>
-      <span className="flex shrink-0 items-baseline gap-2.5">
-        <span
-          className={cn(
-            "text-[0.9375rem] font-medium tabular-nums",
-            soldOut ? "text-ink-muted line-through" : "text-ink",
+    <li className={cn("flex flex-col gap-3 pt-3", buyable ? "pb-7" : "pb-3")}>
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="min-w-0 text-[0.8125rem] text-ink-secondary">{label}</span>
+        <span className="flex shrink-0 items-baseline gap-2.5">
+          <span
+            className={cn(
+              "text-[0.9375rem] font-medium tabular-nums",
+              soldOut ? "text-ink-muted line-through" : "text-ink",
+            )}
+          >
+            {formatMoney(variant.price)}
+          </span>
+          {variant.compareAtPrice !== null && variant.compareAtPrice > variant.price && !soldOut && (
+            <>
+              <span className="sr-only">was </span>
+              <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
+                {formatMoney(variant.compareAtPrice)}
+              </s>
+            </>
           )}
-        >
-          {formatMoney(variant.price)}
+          <span
+            className={cn(
+              "font-mono text-[0.625rem] uppercase tracking-[0.16em]",
+              soldOut ? "text-ink-muted" : "text-ink-secondary",
+            )}
+          >
+            {soldOut ? "Sold out" : `${variant.available} left`}
+          </span>
         </span>
-        {variant.compareAtPrice !== null && variant.compareAtPrice > variant.price && !soldOut && (
-          <>
-            <span className="sr-only">was </span>
-            <s className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
-              {formatMoney(variant.compareAtPrice)}
-            </s>
-          </>
-        )}
-        <span
-          className={cn(
-            "font-mono text-[0.625rem] uppercase tracking-[0.16em]",
-            soldOut ? "text-ink-muted" : "text-ink-secondary",
-          )}
-        >
-          {soldOut ? "Sold out" : `${variant.available} left`}
-        </span>
-      </span>
+      </div>
+      {buyable && (
+        <AddToCartButton
+          product={{
+            variantId: variant.id,
+            releaseId: release.id,
+            slug: product.slug,
+            name: [product.name, ...details].join(", "),
+          }}
+          className="w-full"
+        />
+      )}
     </li>
   );
 }

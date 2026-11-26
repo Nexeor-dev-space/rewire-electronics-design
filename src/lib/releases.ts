@@ -1,4 +1,15 @@
-import { RELEASE_EARLY_END_OPENING_SHIFT_MS, RELEASES_PAGE_PATH } from "./constants";
+import {
+  MS_PER_DAY,
+  MS_PER_HOUR,
+  MS_PER_MINUTE,
+  RELEASE_EARLY_END_OPENING_SHIFT_MS,
+  RELEASE_MIN_PAYMENT_MINUTES,
+  RELEASE_REMINDER_DEFAULTS_MINUTES,
+  RELEASE_TEST_REMINDER_DEFAULTS_MINUTES,
+  RELEASES_PAGE_PATH,
+} from "./constants";
+import { LOCALE } from "./money";
+import type { ReleaseTestEmailsResult } from "@/types/release";
 
 export const RELEASE_STATUSES = ["DRAFT", "UPCOMING", "LIVE", "SOLD_OUT", "COMPLETED"] as const;
 
@@ -61,6 +72,7 @@ export interface ReleaseEdits {
   startsAt: boolean;
   endsAt: boolean;
   allocations: boolean;
+  reminders: boolean;
 }
 
 const ALL_EDITS: ReleaseEdits = {
@@ -70,9 +82,10 @@ const ALL_EDITS: ReleaseEdits = {
   startsAt: true,
   endsAt: true,
   allocations: true,
+  reminders: true,
 };
 
-const OPEN_EDITS: ReleaseEdits = { ...ALL_EDITS, startsAt: false };
+const OPEN_EDITS: ReleaseEdits = { ...ALL_EDITS, startsAt: false, reminders: false };
 
 const COMPLETED_EDITS: ReleaseEdits = {
   text: true,
@@ -81,6 +94,7 @@ const COMPLETED_EDITS: ReleaseEdits = {
   startsAt: false,
   endsAt: false,
   allocations: false,
+  reminders: false,
 };
 
 const EDITS_BY_STATUS: Record<ReleaseStatus, ReleaseEdits> = {
@@ -93,6 +107,82 @@ const EDITS_BY_STATUS: Record<ReleaseStatus, ReleaseEdits> = {
 
 export function allowedEdits(status: ReleaseStatus): ReleaseEdits {
   return EDITS_BY_STATUS[status];
+}
+
+export function defaultReminderOffsets(testMode: boolean): number[] {
+  return [...(testMode ? RELEASE_TEST_REMINDER_DEFAULTS_MINUTES : RELEASE_REMINDER_DEFAULTS_MINUTES)];
+}
+
+export const REMINDER_UNITS = ["MINUTES", "HOURS", "DAYS"] as const;
+
+export type ReminderUnit = (typeof REMINDER_UNITS)[number];
+
+export const REMINDER_UNIT_LABELS: Record<ReminderUnit, string> = {
+  MINUTES: "Minutes",
+  HOURS: "Hours",
+  DAYS: "Days",
+};
+
+const REMINDER_UNIT_WORDS: Record<ReminderUnit, string> = {
+  MINUTES: "minute",
+  HOURS: "hour",
+  DAYS: "day",
+};
+
+const REMINDER_UNIT_MINUTES: Record<ReminderUnit, number> = {
+  MINUTES: 1,
+  HOURS: MS_PER_HOUR / MS_PER_MINUTE,
+  DAYS: MS_PER_DAY / MS_PER_MINUTE,
+};
+
+const LARGEST_UNIT_FIRST = [...REMINDER_UNITS].reverse();
+
+export interface ReminderRow {
+  amount: string;
+  unit: ReminderUnit;
+}
+
+export const NEW_REMINDER_ROW: ReminderRow = { amount: "", unit: "HOURS" };
+
+export function toReminderRow(offsetMinutes: number): ReminderRow {
+  const unit =
+    LARGEST_UNIT_FIRST.find((candidate) => offsetMinutes % REMINDER_UNIT_MINUTES[candidate] === 0) ?? "MINUTES";
+  return { amount: String(offsetMinutes / REMINDER_UNIT_MINUTES[unit]), unit };
+}
+
+export function reminderRowMinutes(row: ReminderRow): number {
+  const text = row.amount.trim();
+  const amount = Number(text);
+  return text === "" || !Number.isInteger(amount) ? Number.NaN : amount * REMINDER_UNIT_MINUTES[row.unit];
+}
+
+export function reminderLabel(offsetMinutes: number): string {
+  const { amount, unit } = toReminderRow(offsetMinutes);
+  return `${amount} ${REMINDER_UNIT_WORDS[unit]}${amount === "1" ? "" : "s"}`;
+}
+
+export function listInWords(items: readonly string[]): string {
+  return new Intl.ListFormat(LOCALE, { style: "long", type: "conjunction" }).format(items);
+}
+
+export function remindersSummary(offsets: readonly number[]): string {
+  if (offsets.length === 0) return "No reminders will be sent.";
+  const labels = [...offsets].sort((a, b) => b - a).map(reminderLabel);
+  return `Sends ${listInWords(labels)} before opening.`;
+}
+
+const testEmails = (count: number) => `${count} test ${count === 1 ? "email" : "emails"}`;
+
+export function testEmailsSummary({ recipient, sent, logged, failed }: ReleaseTestEmailsResult): string {
+  const parts: string[] = [];
+  if (sent > 0) parts.push(`Sent ${testEmails(sent)} to ${recipient}.`);
+  if (logged > 0) {
+    parts.push(
+      `Email isn't set up on this server, so ${testEmails(logged)} for ${recipient} ${logged === 1 ? "was" : "were"} printed to the server log.`,
+    );
+  }
+  if (failed > 0) parts.push(`${testEmails(failed)} failed.`);
+  return parts.length > 0 ? parts.join(" ") : "No test emails were sent.";
 }
 
 export function canChangeState(status: ReleaseStatus, action: ReleaseStateAction): boolean {
@@ -138,4 +228,42 @@ export function releaseHref(slug: string): string {
 export function endedWindow(startsAt: Date, now: Date): { startsAt: Date; endsAt: Date } {
   if (startsAt < now) return { startsAt, endsAt: now };
   return { startsAt: new Date(now.getTime() - RELEASE_EARLY_END_OPENING_SHIFT_MS), endsAt: now };
+}
+
+export function releaseOpenForSale(status: ReleaseStatus, { held = false } = {}): boolean {
+  return status === "LIVE" || (held && status === "SOLD_OUT");
+}
+
+export function releaseCapLeft(maxPerCustomer: number, bought: number): number {
+  return Math.max(0, maxPerCustomer - bought);
+}
+
+export function releaseCapMessage(left: number): string {
+  return left > 0
+    ? `You can buy up to ${left} from this release.`
+    : "You've already bought as many as this release allows.";
+}
+
+export interface HeldUnits {
+  allocationId: string;
+  quantity: number;
+}
+
+export interface HeldUnitsUntil extends HeldUnits {
+  expiresAt: Date;
+}
+
+export function holdCoversLines(
+  holds: readonly HeldUnitsUntil[],
+  lines: readonly HeldUnits[],
+  now: Date,
+): boolean {
+  if (holds.length !== lines.length) return false;
+  const held = new Map(holds.filter((hold) => hold.expiresAt > now).map((hold) => [hold.allocationId, hold.quantity]));
+  return lines.every((line) => held.get(line.allocationId) === line.quantity);
+}
+
+export function paymentDeadline(holdExpiresAt: Date, placedAt: Date): Date {
+  const earliest = placedAt.getTime() + RELEASE_MIN_PAYMENT_MINUTES * MS_PER_MINUTE;
+  return new Date(Math.max(holdExpiresAt.getTime(), earliest));
 }

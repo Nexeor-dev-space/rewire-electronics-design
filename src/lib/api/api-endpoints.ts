@@ -76,6 +76,7 @@ export const API_ENDPOINTS = {
       state: (id: string) => `${V1}/admin/releases/${id}/state`,
       allocations: (id: string) => `${V1}/admin/releases/${id}/allocations`,
       waitlist: (id: string) => `${V1}/admin/releases/${id}/waitlist`,
+      testEmails: (id: string) => `${V1}/admin/releases/${id}/test-emails`,
     },
     coupons: {
       list: `${V1}/admin/coupons`,
@@ -133,6 +134,7 @@ export const API_ENDPOINTS = {
     storeSettings: `${V1}/admin/store-settings`,
     dashboard: `${V1}/admin/dashboard`,
     vatSettings: `${V1}/admin/vat-settings`,
+    releaseSettings: `${V1}/admin/release-settings`,
     invoiceSettings: `${V1}/admin/invoice-settings`,
     integrations: {
       list: `${V1}/admin/integrations`,
@@ -182,6 +184,7 @@ export const API_ENDPOINTS = {
   },
   checkout: {
     place: `${V1}/checkout`,
+    hold: `${V1}/checkout/hold`,
     confirmPayment: `${V1}/checkout/payment`,
   },
   deliveryAreas: `${V1}/delivery-areas`,

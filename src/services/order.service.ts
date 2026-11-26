@@ -4,7 +4,13 @@ import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError, type Paginated } from "@/lib/api/api-response";
 import { toShopCondition, toShopGrade } from "@/lib/catalogue";
-import { ACCOUNT_LIST_PAGE_SIZE, ORDER_EVENT_LIMIT, ORDER_RETURNS_LIMIT } from "@/lib/constants";
+import {
+  ACCOUNT_LIST_PAGE_SIZE,
+  DB_WRITE_TIMEOUT_MS,
+  ORDER_EVENT_LIMIT,
+  ORDER_RETURNS_LIMIT,
+  RELEASE_LAPSED_ORDER_BATCH,
+} from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import {
   FULFILMENT_QUEUE_STATUSES,
@@ -25,6 +31,7 @@ import { returnableQuantity } from "@/lib/returns";
 import { PAYMENT_NOTES, paymentOutcome, type PaymentOutcome } from "@/lib/stripe-checkout";
 import { imageUrlOrNull } from "@/lib/storage/image-storage";
 import { notifyDeliveryAttemptFailed, notifyOrderPaid, notifyOrderStatus } from "@/services/customer-email.service";
+import { releaseOrderHolds } from "@/services/release-hold.service";
 import { returnedQuantities } from "@/services/return.service";
 import { getStoreSettings } from "@/services/store-settings.service";
 import type {
@@ -58,6 +65,7 @@ const MESSAGE_ORDER_NOT_FOUND = "We couldn't find that order.";
 const MESSAGE_TRACK_NOT_FOUND = "We couldn't find an order with those details.";
 const MESSAGE_ORDER_CHANGED = "This order changed. Refresh and try again.";
 const MESSAGE_NOT_IN_FULFILMENT = "This order isn't in the fulfilment queue.";
+const NOTE_PAYMENT_LAPSED = "Cancelled automatically: payment wasn't completed in time";
 /** A Stripe payment that loses a race with another call for the same order runs once more. */
 const STRIPE_PAYMENT_ATTEMPTS = 2;
 
@@ -518,17 +526,14 @@ async function findState(tx: Tx, number: string): Promise<StateRow> {
 
 async function releaseOrder(tx: Tx, orderId: string) {
   const items = await tx.orderItem.findMany({
-    where: { orderId, variantId: { not: null } },
+    where: { orderId, variantId: { not: null }, releaseId: null },
     select: { variantId: true, quantity: true },
-    orderBy: { variantId: "asc" },
   });
-  for (const item of items) {
-    if (!item.variantId) continue;
-    await tx.productVariant.updateMany({
-      where: { id: item.variantId },
-      data: { stock: { increment: item.quantity } },
-    });
+  const shelf = new Map<string, number>();
+  for (const { variantId, quantity } of items) {
+    if (variantId) shelf.set(variantId, (shelf.get(variantId) ?? 0) + quantity);
   }
+  await releaseOrderHolds(tx, orderId, shelf);
 
   const redemption = await tx.couponRedemption.findUnique({
     where: { orderId },
@@ -560,7 +565,7 @@ async function applyStatusChange(
   order: StateRow,
   to: OrderStatus,
   note: string,
-  actorId: string,
+  actorId: string | null,
 ) {
   if (!nextStatuses(order).includes(to)) {
     const message = `An order that is ${statusLabel(order.status)} can't move to ${statusLabel(to)}.`;
@@ -622,10 +627,13 @@ export async function updateOrder(number: string, data: UpdateOrderData) {
 }
 
 export async function changeOrderStatus(actorId: string, number: string, { status, note }: StatusChangeData) {
-  await prisma.$transaction(async (tx) => {
-    const order = await findState(tx, number);
-    await applyStatusChange(tx, order, status, note, actorId);
-  });
+  await prisma.$transaction(
+    async (tx) => {
+      const order = await findState(tx, number);
+      await applyStatusChange(tx, order, status, note, actorId);
+    },
+    { timeout: DB_WRITE_TIMEOUT_MS },
+  );
   await notifyOrderStatus(number, status);
   return getAdminOrder(number);
 }
@@ -726,10 +734,44 @@ export async function getCheckoutSessionId(number: string): Promise<string | nul
  */
 export async function claimCheckoutSession(number: string, previous: string | null, next: string): Promise<boolean> {
   const { count } = await prisma.order.updateMany({
-    where: { number, stripeCheckoutSessionId: previous },
+    where: { number, stripeCheckoutSessionId: previous, status: "PENDING_PAYMENT", paymentStatus: "UNPAID" },
     data: { stripeCheckoutSessionId: next },
   });
   return count > 0;
+}
+
+export async function lapsedReleaseOrderNumbers(now: Date): Promise<string[]> {
+  const rows = await prisma.order.findMany({
+    where: { status: "PENDING_PAYMENT", paymentStatus: "UNPAID", releaseHoldUntil: { lte: now } },
+    select: { number: true },
+    orderBy: [{ releaseHoldUntil: "asc" }, { id: "asc" }],
+    take: RELEASE_LAPSED_ORDER_BATCH,
+  });
+  return rows.map((row) => row.number);
+}
+
+export async function cancelLapsedOrder(number: string, sessionId: string | null): Promise<boolean> {
+  const now = new Date();
+  const cancelled = await prisma.$transaction(
+    async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: {
+          number,
+          status: "PENDING_PAYMENT",
+          paymentStatus: "UNPAID",
+          releaseHoldUntil: { lte: now },
+          stripeCheckoutSessionId: sessionId,
+        },
+        data: { updatedAt: now },
+      });
+      if (count === 0) return false;
+      await applyStatusChange(tx, await findState(tx, number), "CANCELLED", NOTE_PAYMENT_LAPSED, null);
+      return true;
+    },
+    { timeout: DB_WRITE_TIMEOUT_MS },
+  );
+  if (cancelled) await notifyOrderStatus(number, "CANCELLED");
+  return cancelled;
 }
 
 /** A failed attempt or an expired payment page. `whileUnpaid` skips orders that were paid since. */
@@ -768,7 +810,7 @@ export async function updateFulfilment(actorId: string, number: string, data: Fu
       }
     }
     if (data.status) await applyStatusChange(tx, order, data.status, "", actorId);
-  });
+  }, { timeout: DB_WRITE_TIMEOUT_MS });
   if (data.status) await notifyOrderStatus(number, data.status);
   return getAdminOrderRow(number);
 }

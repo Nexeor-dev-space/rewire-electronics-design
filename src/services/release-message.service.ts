@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
+import { ServiceError } from "@/lib/api/api-response";
 import { appUrl } from "@/lib/app-url";
 import {
   MESSAGE_SCHEDULE_GRACE_MINUTES,
@@ -8,20 +9,30 @@ import {
   MS_PER_DAY,
   MS_PER_MINUTE,
   RELEASE_REMINDER_LOOKAHEAD_DAYS,
+  RELEASE_TEST_EMAIL_SUBJECT_PREFIX,
+  RELEASE_TEST_ENTRY_ID,
 } from "@/lib/constants";
 import { formatStoreDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
+import type { EmailContent } from "@/lib/email/email-outcome";
 import {
   campaignMessage,
   dropLiveMessage,
   dropReminderMessage,
   releaseCountdownMessage,
+  waitlistWelcomeMessage,
+  type ReleaseEmailInput,
 } from "@/lib/email/message-templates";
+import { sendEmail } from "@/lib/email/send-email";
+import { waitlistConfirmMessage } from "@/lib/email/templates";
 import { dedupeKey, isDue, reminderDueAt, reminderTrigger, timeUntilLabel, type MessageTrigger } from "@/lib/messaging";
 import { releaseHref } from "@/lib/releases";
-import { releaseLinks } from "@/lib/waitlist-urls";
+import { releaseLinks, waitlistConfirmUrl } from "@/lib/waitlist-urls";
 import { dropLiveWhatsApp, releaseCountdownWhatsApp } from "@/lib/whatsapp/templates";
 import { dispatchEmail, dispatchWhatsApp, settledRecipients } from "@/services/message.service";
+import { releaseNotFound } from "@/services/release.service";
+import type { SessionUser } from "@/types/auth";
+import type { ReleaseTestEmailsResult } from "@/types/release";
 
 /**
  * The release sequence and campaign messages, sent by the scheduler when a
@@ -29,8 +40,9 @@ import { dispatchEmail, dispatchWhatsApp, settledRecipients } from "@/services/m
  * release. Email needs the entry's email opt in. WhatsApp is used only for
  * countdown, drop reminder and drop live, only with the WhatsApp opt in and
  * a phone. A sweep sends at most `MESSAGE_SWEEP_BATCH` per message type and
- * release, and the next sweep carries on with whoever is left. See
- * docs/MESSAGING.md.
+ * release, and the next sweep carries on with whoever is left. The one
+ * exception is `sendReleaseTestEmails`, which sends a release's emails to the
+ * signed in admin and records nothing. See docs/MESSAGING.md.
  */
 
 type ReleaseTrigger = Extract<MessageTrigger, "COUNTDOWN_UPDATE" | "DROP_REMINDER" | "DROP_LIVE">;
@@ -67,6 +79,17 @@ function minutesAgo(now: Date, minutes: number): Date {
 
 /* ---------- release sequence ---------- */
 
+interface SequenceTiming {
+  timeLeft: string;
+  opensAt: string;
+}
+
+function sequenceEmail(trigger: ReleaseTrigger, links: ReleaseEmailInput, timing: SequenceTiming): EmailContent {
+  if (trigger === "COUNTDOWN_UPDATE") return releaseCountdownMessage({ ...links, ...timing });
+  if (trigger === "DROP_REMINDER") return dropReminderMessage({ ...links, ...timing });
+  return dropLiveMessage(links);
+}
+
 async function emailWave(release: SequenceRelease, trigger: ReleaseTrigger, part: string, now: Date) {
   const prefix = `${dedupeKey(trigger, "EMAIL", release.id, part)}:`;
   const handled = await settledRecipients(trigger, release.id, prefix);
@@ -85,13 +108,11 @@ async function emailWave(release: SequenceRelease, trigger: ReleaseTrigger, part
       refId: release.id,
       refLabel: `Release ${release.title}`,
       dedupeKey: `${prefix}${entry.id}`,
-      build: async () => {
-        const links = await releaseLinks(release, entry.id);
-        const timing = { timeLeft: timeUntilLabel(now, release.startsAt), opensAt: formatStoreDateTime(release.startsAt.toISOString()) };
-        if (trigger === "COUNTDOWN_UPDATE") return releaseCountdownMessage({ ...links, ...timing });
-        if (trigger === "DROP_REMINDER") return dropReminderMessage({ ...links, ...timing });
-        return dropLiveMessage(links);
-      },
+      build: async () =>
+        sequenceEmail(trigger, await releaseLinks(release, entry.id), {
+          timeLeft: timeUntilLabel(now, release.startsAt),
+          opensAt: formatStoreDateTime(release.startsAt.toISOString()),
+        }),
     });
   }
 }
@@ -174,6 +195,48 @@ export async function sweepReleaseSequence(now: Date): Promise<void> {
   for (const release of opened) {
     await sendWave(release, "DROP_LIVE", String(release.startsAt.getTime()), now);
   }
+}
+
+/* ---------- test emails ---------- */
+
+export async function sendReleaseTestEmails(releaseId: string, user: SessionUser): Promise<ReleaseTestEmailsResult> {
+  const release = await prisma.release.findUnique({ where: { id: releaseId }, select: releaseSelect });
+  if (!release) throw releaseNotFound();
+
+  const [links, confirmUrl] = await Promise.all([
+    releaseLinks(release, RELEASE_TEST_ENTRY_ID),
+    waitlistConfirmUrl(RELEASE_TEST_ENTRY_ID),
+  ]);
+  const opensAt = formatStoreDateTime(release.startsAt.toISOString());
+  const messages = [
+    waitlistConfirmMessage({ ...links, confirmUrl }),
+    waitlistWelcomeMessage({ ...links, opensAt, started: release.startsAt.getTime() <= Date.now() }),
+    ...release.reminderOffsetsMinutes.map((offset) =>
+      sequenceEmail(reminderTrigger(offset), links, {
+        timeLeft: timeUntilLabel(reminderDueAt(release.startsAt, offset), release.startsAt),
+        opensAt,
+      }),
+    ),
+    dropLiveMessage(links),
+  ];
+
+  const result: ReleaseTestEmailsResult = { recipient: user.email, sent: 0, logged: 0, failed: 0 };
+  for (const message of messages) {
+    try {
+      const outcome = await sendEmail({
+        ...message,
+        to: user.email,
+        subject: `${RELEASE_TEST_EMAIL_SUBJECT_PREFIX}${message.subject}`,
+      });
+      if (outcome === "SENT") result.sent += 1;
+      else result.logged += 1;
+    } catch (error) {
+      if (error instanceof ServiceError) throw error;
+      console.error(`release test email "${message.subject}" failed`, error);
+      result.failed += 1;
+    }
+  }
+  return result;
 }
 
 /* ---------- campaigns ---------- */

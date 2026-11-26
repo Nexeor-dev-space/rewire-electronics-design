@@ -221,8 +221,12 @@ described in [TRASH-AUDIT.md](TRASH-AUDIT.md).
 Sales → **Releases** (`/admin/releases`, `/admin/releases/[id]`,
 `sales.releases`). Limited drops with their own schedule, products, stock set
 aside per variant and a purchase limit. A release's page also has its
-**Waitlist** panel, 50 people a page, with Export CSV. Statuses, what can
-change when, the allocation rules, the waitlists and the API are in
+**Waitlist** panel, 50 people a page, with Export CSV. The list's **Hold: N
+min** button sets how long checkout holds release units for every release
+(`StoreSettings.releaseHoldMinutes`, 1 to 30 minutes, through
+`GET` and `PUT /api/v1/admin/release-settings`: View on
+`PERMISSIONS.releases` reads it, Edit saves it). Statuses, what can change
+when, the allocation rules, the waitlists, the holds and the API are in
 [RELEASES.md](RELEASES.md).
 
 ## Reports

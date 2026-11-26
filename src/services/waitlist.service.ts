@@ -10,6 +10,7 @@ import { readWaitlistToken } from "@/lib/waitlist-links";
 import { releaseLinks, waitlistConfirmUrl, type LinkRelease } from "@/lib/waitlist-urls";
 import { dispatchEmail } from "@/services/message.service";
 import { sendWaitlistWelcome } from "@/services/message-triggers.service";
+import { completedWhere } from "@/services/release.service";
 import { visibleReleaseWhere } from "@/services/release-storefront.service";
 import type {
   AdminWaitlistEntry,
@@ -144,6 +145,11 @@ export async function leaveWaitlist(token: string): Promise<void> {
   const entryId = readWaitlistToken(token, "leave");
   if (!entryId) throw invalidLink();
   await prisma.waitlistEntry.deleteMany({ where: { id: entryId } });
+}
+
+export async function purgeEndedWaitlists(now: Date): Promise<void> {
+  const { count } = await prisma.waitlistEntry.deleteMany({ where: { release: completedWhere(now) } });
+  if (count > 0) console.info(`deleted ${count} waitlist entries of completed releases`);
 }
 
 function ownedWhere(user: SessionUser): Prisma.WaitlistEntryWhereInput {

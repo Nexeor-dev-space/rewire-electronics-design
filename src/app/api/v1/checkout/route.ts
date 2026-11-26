@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         z.flattenError(input.error).fieldErrors);
     }
 
-    const { order, created } = await placeOrder({ kind: "user", userId: user.id }, user, input.data);
+    const { order, created } = await placeOrder(user, input.data);
     if (created) {
       after(() =>
         sendOrderConfirmation(order).catch((error: unknown) =>

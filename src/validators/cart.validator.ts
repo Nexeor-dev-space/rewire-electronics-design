@@ -17,6 +17,7 @@ const quantityValidator = z
 
 export const addCartItemSchema = z.object({
   variantId: idValidator,
+  releaseId: idValidator.optional(),
   quantity: quantityValidator.default(1),
   addOnIds: addOnIdsValidator.default([]),
 });

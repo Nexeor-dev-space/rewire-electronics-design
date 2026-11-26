@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { ReleaseSort, ReleaseStateAction, ReleaseStatus } from "@/lib/releases";
-import type { releaseAllocationsSchema, releaseSchema } from "@/validators/release.validator";
+import type { releaseAllocationsSchema, releaseSchema, releaseSettingsSchema } from "@/validators/release.validator";
 import type { ProductCondition } from "@/validators/product.validator";
 import type { NamedRef } from "./product";
 
@@ -45,8 +45,16 @@ export interface ReleaseAllocationRow {
 
 export interface AdminReleaseDetail extends AdminReleaseRow {
   description: string;
+  reminders: number[];
   completedAt: string | null;
   allocations: ReleaseAllocationRow[];
+}
+
+export interface ReleaseTestEmailsResult {
+  recipient: string;
+  sent: number;
+  logged: number;
+  failed: number;
 }
 
 export interface LiveRelease extends ReleaseTotals {
@@ -66,6 +74,12 @@ export type ReleaseFilters = {
   sort?: ReleaseSort;
 };
 
+export interface ReleaseSettingsView {
+  releaseHoldMinutes: number;
+  updatedAt: string | null;
+}
+
 export type ReleaseInput = z.input<typeof releaseSchema>;
 export type ReleaseAllocationsInput = z.input<typeof releaseAllocationsSchema>;
+export type ReleaseSettingsInput = z.input<typeof releaseSettingsSchema>;
 export type ReleaseStateInput = { action: ReleaseStateAction };

@@ -18,6 +18,7 @@ export function isProductVisible(product: VisibilityInput): boolean {
 
 export interface LineIssueInput {
   visible: boolean;
+  releaseClosed: boolean;
   stock: number;
   quantity: number;
   unitPrice: number;
@@ -28,6 +29,7 @@ export interface LineIssueInput {
 export function lineIssues(line: LineIssueInput): CartLineIssue[] {
   const issues: CartLineIssue[] = [];
   if (!line.visible) issues.push("UNAVAILABLE");
+  else if (line.releaseClosed) issues.push("RELEASE_CLOSED");
   else if (line.stock <= 0) issues.push("OUT_OF_STOCK");
   else if (line.stock < line.quantity) issues.push("INSUFFICIENT_STOCK");
 
@@ -81,6 +83,7 @@ export function pickLineImage<T extends LineImage>(images: readonly T[], colour:
 export interface MergeLine {
   id: string;
   variantId: string;
+  releaseId: string | null;
   quantity: number;
   addOnIds: string[];
 }
@@ -105,7 +108,9 @@ export function planCartMerge(userLines: readonly MergeLine[], guestLinesNewestF
 
   for (const guest of guestLinesNewestFirst) {
     const match = byVariant.get(guest.variantId);
-    if (match) {
+    if (match && match.releaseId !== guest.releaseId) {
+      plan.dropped.push(guest.id);
+    } else if (match) {
       plan.updates.push({
         userLineId: match.id,
         guestLineId: guest.id,

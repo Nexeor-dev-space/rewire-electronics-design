@@ -41,6 +41,7 @@ import {
   releaseFormValues,
   type FieldErrors,
 } from "./release-form-modal";
+import { ReleaseEmails } from "./release-emails";
 import { RELEASES_ADMIN_PATH, ReleaseBadges } from "./release-shared";
 import { ReleaseWaitlist } from "./release-waitlist";
 
@@ -51,6 +52,7 @@ const NO_EDITS: ReleaseEdits = {
   startsAt: false,
   endsAt: false,
   allocations: false,
+  reminders: false,
 };
 
 type Confirm = "END" | "DELETE" | null;
@@ -94,7 +96,7 @@ function BackLink() {
   );
 }
 
-export function ReleaseDetailScreen({ id }: { id: string }) {
+export function ReleaseDetailScreen({ id, testMode }: { id: string; testMode: boolean }) {
   const release = useGetRelease(id);
   const access = useModuleAccess(PERMISSIONS.releases);
 
@@ -119,10 +121,18 @@ export function ReleaseDetailScreen({ id }: { id: string }) {
     );
   }
 
-  return <ReleaseDetailBody release={release.data} access={access} />;
+  return <ReleaseDetailBody release={release.data} access={access} testMode={testMode} />;
 }
 
-function ReleaseDetailBody({ release, access }: { release: AdminReleaseDetail; access: ModuleAccess }) {
+function ReleaseDetailBody({
+  release,
+  access,
+  testMode,
+}: {
+  release: AdminReleaseDetail;
+  access: ModuleAccess;
+  testMode: boolean;
+}) {
   const router = useRouter();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const changeState = useChangeReleaseState();
@@ -204,6 +214,9 @@ function ReleaseDetailBody({ release, access }: { release: AdminReleaseDetail; a
         >
           <AllocationsPanel release={release} canEdit={access.edit} />
         </Panel>
+        <Panel title="Emails" hint="What the waitlist receives, and when.">
+          <ReleaseEmails release={release} canSend={access.edit} testMode={testMode} />
+        </Panel>
         <Panel title="Waitlist" hint="Everyone who joined this release, oldest first.">
           <ReleaseWaitlist release={release} />
         </Panel>
@@ -246,6 +259,7 @@ function DetailsForm({ release, canEdit }: { release: AdminReleaseDetail; canEdi
       ...(!edits.startsAt && { startsAt: release.startsAt }),
       ...(!edits.endsAt && { endsAt: release.endsAt }),
       ...(!edits.maxPerCustomer && { maxPerCustomer: release.maxPerCustomer }),
+      ...(!edits.reminders && { reminders: undefined }),
     });
     if (parsed.errors) {
       setErrors(parsed.errors);

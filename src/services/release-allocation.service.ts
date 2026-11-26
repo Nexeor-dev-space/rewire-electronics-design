@@ -24,12 +24,13 @@ const byVariant = (a: { variantId: string }, b: { variantId: string }) => (a.var
 const conflict = (message: string, variantId?: string) =>
   new ServiceError("CONFLICT", message, 409, variantId ? { [variantId]: [message] } : undefined);
 
+export async function lockRelease(db: Db, id: string, where: Prisma.ReleaseWhereInput = {}) {
+  const { count } = await db.release.updateMany({ where: { id, ...where }, data: { updatedAt: new Date() } });
+  return count > 0;
+}
+
 async function lockOpenRelease(tx: Db, releaseId: string) {
-  const { count } = await tx.release.updateMany({
-    where: { id: releaseId, completedAt: null },
-    data: { updatedAt: new Date() },
-  });
-  if (count > 0) return;
+  if (await lockRelease(tx, releaseId, { completedAt: null })) return;
   const exists = await tx.release.count({ where: { id: releaseId } });
   if (exists === 0) throw new ServiceError("NOT_FOUND", "We couldn't find that release. It may have been deleted.", 404);
   throw conflict("This release has completed, so its allocations can't change.");

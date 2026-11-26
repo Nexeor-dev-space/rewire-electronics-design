@@ -361,7 +361,7 @@ const faqEntries: [anchor: string, question: string, answer: string][] = [
   [
     "launch-notifications",
     "When will I receive launch notifications?",
-    "Waitlist members get one message 48 hours before a drop and one the moment it opens. Nothing else: no newsletters, no partner mail, and your address is never passed on.",
+    "Waitlist members get one message 48 hours before a drop, one 1 hour before, and one the moment it opens. Nothing else: no newsletters, no partner mail, and your address is never passed on.",
   ],
   [
     "certified-meaning",

@@ -10,7 +10,7 @@ import { formatMoney } from "@/lib/money";
 import { COUPON_MESSAGES } from "@/lib/pricing/coupon";
 import { CONDITION_META, GRADE_META } from "@/lib/shop";
 import { Spinner } from "@/components/ui/spinner";
-import type { AppliedCoupon, Cart, CartLine } from "@/types/cart";
+import { BLOCKING_CART_LINE_ISSUES, type AppliedCoupon, type Cart, type CartLine } from "@/types/cart";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
   placing?: boolean;
   placeError?: string | null;
   stepsComplete?: boolean;
+  placeBlocked?: boolean;
   className?: string;
   compact?: boolean;
   /** True while a new delivery quote is loading in the background. */
@@ -39,6 +40,7 @@ export function OrderSummary({
   placing,
   placeError,
   stepsComplete = true,
+  placeBlocked,
   className,
   compact,
   quotePending,
@@ -102,7 +104,7 @@ export function OrderSummary({
           <button
             type="button"
             onClick={onPlaceOrder}
-            disabled={placing || items.length === 0 || !canCheckout || !stepsComplete}
+            disabled={placing || placeBlocked || items.length === 0 || !canCheckout || !stepsComplete}
             aria-busy={placing || undefined}
             className={cn(
               "relative inline-flex h-14 w-full items-center justify-center gap-2 rounded-full px-6",
@@ -223,9 +225,7 @@ export function PriceBreakdown({
 
 function LineRow({ line }: { line: CartLine }) {
   const variantLabel = [line.storage, line.colour].filter(Boolean).join(" · ");
-  const blocked = line.issues.some((issue) =>
-    ["UNAVAILABLE", "OUT_OF_STOCK", "INSUFFICIENT_STOCK"].includes(issue),
-  );
+  const blocked = line.issues.some((issue) => BLOCKING_CART_LINE_ISSUES.includes(issue));
 
   return (
     <li className="flex items-start gap-4 py-5">

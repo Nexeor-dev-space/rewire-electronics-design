@@ -5,7 +5,7 @@ import { cartKeys } from "@/hooks/use-cart";
 import { orderKeys } from "@/hooks/use-order";
 import { apiRequest } from "@/lib/api/api-client";
 import { API_ENDPOINTS } from "@/lib/api/api-endpoints";
-import type { OrderDetail, PlaceOrderInput, PlacedOrder } from "@/types/order";
+import type { CheckoutHold, OrderDetail, PlaceOrderInput, PlacedOrder } from "@/types/order";
 
 export const checkoutKeys = {
   all: ["checkout"] as const,
@@ -18,6 +18,12 @@ export function usePlacedOrder(number: string) {
     queryKey: checkoutKeys.placed(number),
     queryFn: skipToken,
     staleTime: Infinity,
+  });
+}
+
+export function useHoldCheckout() {
+  return useMutation({
+    mutationFn: () => apiRequest<CheckoutHold>(API_ENDPOINTS.checkout.hold, { method: "POST" }),
   });
 }
 

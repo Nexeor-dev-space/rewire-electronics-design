@@ -55,7 +55,10 @@ see from the columns alone:
    `src/lib/auth/tokens.ts`). A database leak does not hand out live carts.
 3. **One line per variant.** `@@unique([cartId, variantId])`. Add-ons are a set
    on the line (`CartItemAddOn`, keyed on line and add-on). Adding the same
-   variant again adds to its quantity and unions the add-on set.
+   variant again adds to its quantity and unions the add-on set. A line
+   bought from a release carries `CartItem.releaseId` (deleted with the
+   release); because of the unique key, one variant can't be on a cart from
+   the shop and from a release at once ([RELEASES.md](RELEASES.md) §14).
 4. **Seen prices.** `CartItem.seenUnitPrice` and `CartItemAddOn.seenPrice` hold
    the price the shopper last saw. They drive the `PRICE_CHANGED` flag
    (section 7); they are not what the shopper pays. The live price is always
@@ -396,7 +399,7 @@ coupon. Mutations answer with the whole fresh `Cart`.
 | Endpoint | Method | Session | Input | Success |
 | --- | --- | --- | --- | --- |
 | `/api/v1/cart` | `GET` | optional | | 200 `Cart` |
-| `/api/v1/cart/items` | `POST` | optional | `addCartItemSchema`: `variantId`, `quantity` (1 to 5, default 1), `addOnIds` (default `[]`) | 201 `Cart` |
+| `/api/v1/cart/items` | `POST` | optional | `addCartItemSchema`: `variantId`, `releaseId` (optional, the release the line is bought from), `quantity` (1 to 5, default 1), `addOnIds` (default `[]`) | 201 `Cart` |
 | `/api/v1/cart/items/[id]` | `PATCH` | optional | `updateCartItemSchema`: `quantity` and/or `addOnIds` (the full new set) | 200 `Cart` |
 | `/api/v1/cart/items/[id]` | `DELETE` | optional | | 200 `Cart` |
 | `/api/v1/cart/coupon` | `POST` | **required** | `applyCouponSchema`: `code` | 200 `Cart` |
@@ -424,16 +427,30 @@ Errors by route:
    5. 409 `CONFLICT` on `quantity`: "Only {n} left in stock.", "This item is
       out of stock.", "You can add up to 5 of this item.", or "Your cart is
       full." at `CART_MAX_LINES` lines.
+   6. With `releaseId` ([RELEASES.md](RELEASES.md) §14): 404 as above when
+      the variant isn't allocated to that release or its product is in Trash
+      (shop visibility is not checked); stock is the release's units, not the
+      variant's; 409 on `quantity` "This item is already in your cart from
+      the shop. Remove it to buy it from the release." or "This item is
+      already in your cart from a release. Remove it to buy it here." when
+      the variant is a line from another source; 409 "This release isn't
+      open for sale." unless the release is Live, not hidden and has a slug;
+      409 "You can buy up to {n} from this release." or "You've already
+      bought as many as this release allows." past the release's limit.
    On first add a guest gets a new cart and the `rewire_cart` cookie. Adding a
    variant already on the cart adds to its quantity, unions the add-ons and
-   refreshes the line's seen prices.
+   refreshes the line's seen prices. Adding to a release line drops the
+   cart's release holds.
 3. **PATCH cart/items/[id].** 404 "That item isn't in your cart." when the
    line is not in the caller's cart (the ownership check, the same answer as a
    missing id); 422 on the body ("Nothing to update." when both fields are
-   missing); 409 as above when *raising* the quantity; 422 on `addOnIds` as
+   missing); 409 as above when *raising* the quantity, a release line checked
+   against its release as on add; 422 on `addOnIds` as
    above. Lowering a quantity is always allowed, even on a blocked line. Any
-   edit refreshes that line's seen prices, clearing its `PRICE_CHANGED`.
-4. **DELETE cart/items/[id].** 404 as above.
+   edit refreshes that line's seen prices, clearing its `PRICE_CHANGED`. Any
+   edit of a release line drops the cart's release holds.
+4. **DELETE cart/items/[id].** 404 as above. Removing a release line drops
+   the cart's release holds.
 5. **POST cart/coupon.** 401 `UNAUTHENTICATED` "Sign in to use a discount
    code."; 429 (`RATE_LIMITS.applyCoupon`, 10 per 10 minutes per user); 422
    on the body; 409 "Add something to your cart first." for an empty cart; 422
@@ -459,10 +476,12 @@ Types in `src/types/cart.ts`.
    `CART_MAX_LINES`), `itemCount` (sum of quantities over every line, flagged
    ones included), `coupon` (`AppliedCoupon` or null), `totals` (`CartTotals`),
    `canCheckout` (at least one line and no blocking issue), `couponsAllowed`.
-2. `CartLine`: ids, product slug, name and brand, `imageUrl` (the first image
+2. `CartLine`: ids, `release` (`{ id, title, slug }` for a release line,
+   else null), product slug, name and brand, `imageUrl` (the first image
    tagged with the variant colour, else the first untagged, else the first),
    condition, grade, storage, colour, `quantity`, `maxQuantity`
-   (`min(stock, CART_MAX_LINE_QUANTITY)`), `unitPrice`, `compareAtPrice`,
+   (`min(stock, CART_MAX_LINE_QUANTITY)`; a release line's stock is its
+   allocation's `available` plus the units this cart holds), `unitPrice`, `compareAtPrice`,
    `previousUnitPrice` (the seen price when the variant price changed),
    `addOns` (chosen, each with `available` and its effective `price`),
    `offeredAddOns` (what the row may offer, the same rule as the product page,
@@ -477,12 +496,13 @@ Types in `src/types/cart.ts`.
 ### 7.2 Line issues
 
 Computed by `lineIssues` in `src/lib/cart-rules.ts`. At most one of the first
-three applies.
+four applies.
 
 | Issue | When | Blocks checkout | Priced |
 | --- | --- | --- | --- |
-| `UNAVAILABLE` | Product not published, or its category (or parent) hidden | yes | no |
-| `OUT_OF_STOCK` | Variant stock is 0 | yes | no |
+| `UNAVAILABLE` | Product not published, or its category (or parent) hidden. For a release line: its product is in Trash | yes | no |
+| `RELEASE_CLOSED` | A release line whose release is gone, hidden, or neither Live nor Sold out ([RELEASES.md](RELEASES.md) §14) | yes | no |
+| `OUT_OF_STOCK` | Variant stock is 0 (for a release line, its release stock, §7.1) | yes | no |
 | `INSUFFICIENT_STOCK` | Stock is above 0 but below the quantity | yes | yes, at the quantity asked |
 | `PRICE_CHANGED` | The variant price, or an available chosen add-on's effective price, differs from the seen price. Also shown once for a line added before the product got an override | no | yes, at the current price |
 | `ADD_ON_UNAVAILABLE` | A chosen add-on is inactive or no longer offered on the product | no | the add-on is not charged |
@@ -512,12 +532,15 @@ The cart reuses the catalogue's exported rules instead of copying them:
    count is free for them.
 2. A cart read is one query for the cart with lines, variants, products,
    category visibility, images, chosen add-ons and coupon, plus one for the
-   offered add-ons across all lines. Bounded by `CART_MAX_LINES`.
+   offered add-ons across all lines, plus one for the release allocations
+   only when the cart has release lines. Bounded by `CART_MAX_LINES`.
 3. A quote adds one lookup on `delivery_zones`, plus one on `delivery_areas`
    (a count without an area, a find by id with one).
 4. The area dropdown is one count and one bounded `findMany`, fetched once per
    emirate and cached by React Query, not on every quote.
-5. No stock is reserved. Stock is only taken at checkout ([ORDERS.md](ORDERS.md) §5).
+5. No stock is reserved by the cart. Shop stock is only taken at checkout
+   ([ORDERS.md](ORDERS.md) §5); release units are held when checkout opens
+   ([RELEASES.md](RELEASES.md) §14).
 
 ---
 
@@ -551,17 +574,23 @@ In one transaction:
    hash cleared).
 3. The user has a cart: guest lines, newest first, are planned by
    `planCartMerge`:
-   1. The same variant is already on the user cart: quantity becomes
+   1. The same variant from the same source (the shop, or the same release)
+      is already on the user cart: quantity becomes
       `min(sum, CART_MAX_LINE_QUANTITY)`, new add-ons are added (with the
       guest's seen prices), the user line keeps its own seen price.
-   2. Otherwise the line moves to the user cart with its seen prices, while
-      the user cart has fewer than `CART_MAX_LINES` lines. Lines past the cap
-      are dropped.
+   2. The same variant from another source (the shop and a release, or two
+      releases): the user's line is kept and the guest line dropped.
+   3. Otherwise the line moves to the user cart with its seen prices and its
+      `releaseId`, while the user cart has fewer than `CART_MAX_LINES` lines.
+      Lines past the cap are dropped.
    Then the guest cart is deleted. The user's coupon stays and is re-evaluated
-   on the next read.
+   on the next read. When the merge changed a user release line or moved a
+   release line in, the user cart's release holds are dropped
+   ([RELEASES.md](RELEASES.md) §14).
 4. The cookie is cleared.
 
-Stock is not checked during the merge; the next read flags it. Sign-in,
+Stock and release limits are not checked during the merge; the next read
+and the hold flag them. Sign-in,
 sign-up and sign-out all call `queryClient.clear()` on the client, so the
 merged cart loads on the next render. Sign-out does not touch carts: the user
 cart stays on the account and the browser starts a fresh guest cart on its
@@ -635,7 +664,7 @@ Every mutation writes the returned cart straight into the cache
 | Surface | File | Reads |
 | --- | --- | --- |
 | Header count | `components/layout/cart-button.tsx` | `useGetCart().itemCount`, hidden while pending |
-| Cart page | `components/cart/cart-view.tsx`, `cart-line.tsx`, `cart-summary.tsx` | `useGetCart`. Line issues on each row; a "price changed" notice with "Got it" (`useAcknowledgeCart`); add-on chips from `offeredAddOns`, plus any chosen add-on no longer offered so it can be removed; Proceed to checkout disabled with "Remove unavailable items to continue." when `!canCheckout`. Delivery reads "Calculated at checkout" |
+| Cart page | `components/cart/cart-view.tsx`, `cart-line.tsx`, `cart-summary.tsx` | `useGetCart`. Line issues on each row; a "price changed" notice with "Got it" (`useAcknowledgeCart`); add-on chips from `offeredAddOns`, plus any chosen add-on no longer offered so it can be removed; Proceed to checkout disabled with "Remove unavailable items to continue." when `!canCheckout`. Delivery reads "Calculated at checkout". A release line shows "From {release}", linked to its release page |
 | Add to cart modal | `components/cart/add-to-cart-modal.tsx`, `cart-feedback-provider.tsx` | The cart extensions after an add from a **product card** (issue #127) or the **product page**. Opens only when the add succeeded and the line has `offeredAddOns`; otherwise only the confetti plays. It opens `POPUP_DELAY_MS` (0.8 s, the confetti's `DURATION.slow`, in `cart-feedback-provider.tsx`) after the add, so the confetti is seen before the backdrop covers the button; a second add inside that time restarts the wait, and closing cancels it. Either way the "added to your cart" toast shows (§ Toasts below). `notifyAdded(lineId)` stores the line id and the modal reads that line live from `useGetCart`: the product, its line total, the line's add-ons under the cart page's "Complete the setup" heading, but one per full width row with the price on the right (`LineAddOns` with `layout="rows"`; the cart page keeps the default `layout="chips"`; each is toggled with `toggledAddOnIds` through `useUpdateCartItem`, so ticking one updates the line at once), the cart's item count and subtotal, Continue Shopping and View Cart. On phones (under `sm`) a bottom sheet that slides up and covers at most half the screen (`max-h-[50dvh]`), so the page stays in view above it; the add-ons scroll inside it. To leave the room to the add-ons, the sheet is compact on phones: a 64px product photo with no "Added to cart" tick (the header already says it), tighter padding, and Continue Shopping and View Cart side by side in two equal 40px buttons. From `sm` up a full height side panel, at most 26rem wide, that slides in from the right with the same shape and motion as the shop's filter drawer. The direction is read from `SIDE_PANEL_QUERY` when the panel opens; the motion is `DURATION.base` with `EASE_OUT_EXPO`, and a plain fade under reduced motion; Escape, the backdrop and the close button close it, and a line removed elsewhere closes it |
 | Product page | `components/product/detail/product-buy-panel.tsx` | Order on every width: options, then a full width 64px Add to Cart (`Button size="xl"`, or the stepper at `size="xl"` once added), the warranty line (which counts the extra months of the add-ons on the line), a full width "Save to wishlist" heart, then the trust row. No add-ons are listed on the page itself. Add to cart adds the selected variant with no add-ons; a successful add plays a small confetti pop from the button (`components/ui/confetti-burst.tsx`), shows the "added to your cart" toast and, when the new line has `offeredAddOns`, opens the Add to cart modal (row above) to pick them, the same as a product card; with no add-ons it only plays the confetti. The stepper (`components/cart/quantity-stepper.tsx`) updates or removes the line; the maximum is the line's `maxQuantity`, or `min(stock, CART_MAX_LINE_QUANTITY)` before a line exists. While `useGetCart` is still pending, the slot shows a same-size skeleton rather than guessing button or stepper; an error falls back to the button |
 | Product card | `components/product/add-to-cart-button.tsx` | Adds `ShopCard.variantId` with no add-ons, plays the confetti pop and, when the new line has `offeredAddOns`, opens the Add to cart modal with them, and shows the "added to your cart" toast; while the add is in flight the button stays at full strength with a spinner in place of its label and ignores further clicks, so rapid clicks are one add; a quantity or remove error (for example "Only 2 left in stock.") shows under the stepper, the same way an add error shows under the button; once that variant is a line the card shows the same stepper (`size="md"`), sharing the one `useGetCart` cache with every other card; a skeleton fills the slot while pending. A card without a variant id (mock data) links to the product page as "View & Buy". An out of stock card shows a disabled "Out of stock" button; the product page does the same for an out of stock variant. `POST cart.items` also rejects it with 409 "This item is out of stock." |
@@ -724,6 +753,11 @@ smaller screens.
    with "Complete each step to place your order." under it. The mobile sticky
    bar is disabled on the same condition, and `handlePlaceOrder` checks it
    again.
+8. **Release hold.** With release lines in the cart, checkout holds them
+   once when it opens (`useHoldCheckout`) and the progress bar shows "Release
+   items held for MM:SS" on every step. At zero, or when the hold fails,
+   Place order is disabled and **Hold again** holds again
+   ([RELEASES.md](RELEASES.md) §14).
 
 **Information is validated with `checkoutInformationSchema`**
 (`src/validators/checkout.validator.ts`): email (`emailValidator`), phone
@@ -798,6 +832,9 @@ Delivery areas extended `delivery.test.ts` (`effectiveRates`,
 `deliveryAreaListQuerySchema`, the zone's `enabled`).
 Per-product add-ons added `src/lib/add-on-rules.test.ts`
 (`resolveOfferedAddOns`, `addOnScopeOf`).
+Release lines (#119) added `src/validators/cart.validator.test.ts`
+(`addCartItemSchema` with `releaseId`) and extended `cart-rules.test.ts`
+(`RELEASE_CLOSED`, `planCartMerge` with release lines).
 They cover the pure rules only; the routes, the service and the checkout
 steps have no automated tests. Phase 5 tests are listed in
 [ORDERS.md](ORDERS.md) §14.

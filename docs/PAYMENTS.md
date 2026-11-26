@@ -5,8 +5,9 @@ hosted payment page, and how Stripe webhooks keep orders right when the
 customer never comes back, pays twice, or the network fails. Issue #80.
 
 Read this before you change `src/services/payment.service.ts`,
-`src/lib/stripe-checkout.ts`, `src/lib/stripe.ts`, `recordStripePayment` or
-`addPaymentNote` in `order.service.ts`, `POST checkout`,
+`src/lib/stripe-checkout.ts`, `src/lib/stripe.ts`, `recordStripePayment`,
+`addPaymentNote`, `claimCheckoutSession` or `cancelLapsedOrder` in
+`order.service.ts`, `POST checkout`,
 `POST checkout/payment`, `POST webhooks/stripe`, or the checkout success page.
 [ORDERS.md](ORDERS.md) covers orders and their statuses,
 [INTEGRATIONS.md](INTEGRATIONS.md) covers env values.
@@ -17,7 +18,8 @@ Read this before you change `src/services/payment.service.ts`,
 
 | Built | Later steps |
 | --- | --- |
-| Card and Apple Pay go to Stripe's payment page | Cancelling orders that are never paid |
+| Card and Apple Pay go to Stripe's payment page | Cancelling unpaid orders without release lines |
+| Unpaid orders with release lines closed and cancelled after their payment deadline (section 4) | |
 | Coming back from Stripe marks the order paid | |
 | Webhooks: paid, failed, expired, async bank results | Refunds through Stripe (refunds stay manual) |
 | Stripe's payment id kept on the order and shown to staff | |
@@ -62,6 +64,11 @@ instead.
    Awaiting payment.
 7. **Page closed unpaid:** after `CHECKOUT_PAYMENT_WINDOW_MINUTES` (30) Stripe
    sends `checkout.session.expired`; the order gets a staff note.
+8. **An order with release lines** has a payment deadline,
+   `Order.releaseHoldUntil`, which always falls before its page closes on its
+   own. Once it passes, the timer closes the page and cancels the order
+   unless Stripe says it completed (section 4,
+   [RELEASES.md](RELEASES.md) §14).
 
 The confirmation email still goes out when the order is placed. For card and
 Apple Pay it reads "We'll confirm your order as soon as your payment goes
@@ -135,13 +142,34 @@ applies `savedSessionAction` (pure, tested):
    reads it back: complete is settled as above; still open is a 502, so a
    second page is never opened.
 2. A new page is saved with `claimCheckoutSession(number, previous, next)`,
-   an update guarded on the previous value. When two checkouts race, the
-   loser closes its own page and runs once more (`SESSION_CLAIM_ATTEMPTS`),
-   reusing the winner's page.
+   an update guarded on the previous value and on the order still being
+   `PENDING_PAYMENT` and `UNPAID`. When two checkouts race, the loser closes
+   its own page and runs once more (`SESSION_CLAIM_ATTEMPTS`), reusing the
+   winner's page. An order that was cancelled or paid meanwhile never gets a
+   new page saved: the page just opened is closed and the call ends in a 502.
 3. If Stripe can't be reached to check the saved page, the call is a 502
    rather than a guess. The customer presses Place order again.
 4. Closing a page makes Stripe send `checkout.session.expired`, which adds the
    usual "page closed" staff note.
+
+**Closing a lapsed release order's page.** `closeOrderPayment(number)`
+reuses `closeSession` and `settleSession` and answers
+`{ completed, sessionId }` (`ClosedPayment`):
+
+1. No saved page, or Stripe no longer has it: not completed.
+2. An open page is closed (`sessions.expire`). A page Stripe refuses to
+   close because it was just paid is read back as above; one still open is a
+   502, which the sweep logs and tries again next minute.
+3. A complete page is settled as above and answers completed, so the order
+   is not cancelled. An expired page answers not completed.
+
+`closeLapsedReleaseOrders(now)` runs it on every timer tick for up to
+`RELEASE_LAPSED_ORDER_BATCH` (10) orders that are Awaiting payment, Unpaid
+and past `releaseHoldUntil`, then calls `cancelLapsedOrder(number,
+sessionId)` when it did not complete. That cancel applies only while the
+order still holds the same page, so a page a retried checkout saved in
+between is closed on the next tick first ([ORDERS.md](ORDERS.md) §7). A
+failure on one order is logged and the next is tried.
 
 **Staff notes** are `OrderStatusEvent`s on the order's current status with no
 actor, added by `addNoteOnce`, which skips a note already present (a resent
@@ -285,6 +313,8 @@ In `src/lib/constants.ts` unless noted.
 | `RATE_LIMITS.confirmPayment` | 20 per 10 minutes, per IP | `POST checkout/payment` |
 | `STRIPE_PAYMENT_ATTEMPTS` (`order.service.ts`) | 2 | Rerun after losing a race |
 | `PAYMENT_NOTES` (`stripe-checkout.ts`) | | Every staff note text |
+| `RELEASE_LAPSED_ORDER_BATCH` | 10 | Lapsed release orders closed per timer tick |
+| `RELEASE_MIN_PAYMENT_MINUTES` | 5 | Least time to pay a release order after placing it ([RELEASES.md](RELEASES.md) §14) |
 
 The payment window is a constant for now. It should move to store settings,
 since it is part of how the feature behaves.
@@ -304,7 +334,8 @@ route are verified by hand with test keys.
 
 1. **Checking out again starts from an empty cart.** The first order emptied
    it, and that unpaid order stays Awaiting payment with its stock held until
-   it is cancelled.
+   it is cancelled. An order with release lines is cancelled automatically
+   after its payment deadline (section 4).
 2. **Duplicate payments are flagged, not refunded.** One order has one open
    page at a time, so a double charge needs something outside checkout (for
    example staff marking it paid by hand, or a second order). Staff refund it
@@ -314,3 +345,7 @@ route are verified by hand with test keys.
 4. **A staff note is skipped when the exact same text is already on the
    order.** Two different failures with the same reason on the same payment
    show once.
+5. **A completed page without a confirmed payment** (a delayed bank method
+   still processing) keeps a release order Awaiting payment past its
+   deadline. It is never cancelled automatically and is checked with Stripe
+   every minute ([RELEASES.md](RELEASES.md) §11).
