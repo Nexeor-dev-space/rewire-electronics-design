@@ -341,3 +341,17 @@ export const WHATSAPP_TEMPLATE_LANGUAGE = "en";
 export const WHATSAPP_REQUEST_TIMEOUT_MS = 10_000;
 export const WHATSAPP_API_BASE = "https://graph.facebook.com/v21.0";
 export const EMAIL_INLINE_IMAGE_MAX_BYTES = 300 * 1024;
+
+/** Help guides: the customer help pages and their limits. See docs/USER-GUIDES.md. */
+export const HELP_PAGE_PATH = "/help";
+/** Sample screenshots for the built in guides: `<base>/<slug>/step-<n>.png`, in `public/`. */
+export const HELP_GUIDE_IMAGE_BASE = "/help-guides";
+export const HELP_GUIDE_TITLE_MAX_LENGTH = 120;
+export const HELP_GUIDE_SUMMARY_MAX_LENGTH = 300;
+export const HELP_GUIDE_SECTIONS_LIMIT = 20;
+export const HELP_GUIDE_STEPS_LIMIT = 30;
+export const HELP_GUIDE_NOTES_LIMIT = 10;
+export const HELP_GUIDE_TEXT_MAX_LENGTH = 600;
+export const HELP_GUIDE_URL_MAX_LENGTH = 500;
+/** Help guides: the recording is a direct link to one of these video files. */
+export const HELP_GUIDE_VIDEO_EXTENSIONS = [".mp4", ".webm"] as const;

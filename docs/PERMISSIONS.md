@@ -118,6 +118,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
 | Navigation | `storefront.navigation` | View, Edit, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
+| Help Guides | `storefront.help-guides` | View, Edit | No access, View, Edit (see docs/USER-GUIDES.md) |
 | Releases | `sales.releases` | View, Create, Edit, Delete | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Returns | `service.returns` | View, Edit | No access, View, Edit |

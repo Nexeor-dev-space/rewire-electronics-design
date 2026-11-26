@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
+import { HelpLink } from "./help/help-link";
 
 /**
  * AdminPage — the page frame inside the shell: breadcrumb trail, title,
@@ -27,7 +28,10 @@ export function AdminPage({
 }: AdminPageProps) {
   return (
     <div className="mx-auto w-full max-w-[90rem]">
-      <AdminBreadcrumbs />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <AdminBreadcrumbs />
+        <HelpLink />
+      </div>
 
       <header className="mb-8 mt-3 flex flex-wrap items-end justify-between gap-4">
         <div>

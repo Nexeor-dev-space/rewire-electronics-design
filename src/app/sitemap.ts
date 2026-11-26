@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { ABOUT_PAGE_PATH, RELEASES_PAGE_PATH, SUPPORT_PAGE_PATH } from "@/lib/constants";
+import { ABOUT_PAGE_PATH, HELP_PAGE_PATH, RELEASES_PAGE_PATH, SUPPORT_PAGE_PATH } from "@/lib/constants";
 import { listPolicies } from "@/lib/policies";
 import { POLICY_ROUTES } from "@/lib/policy-types";
 import { releaseHref } from "@/lib/releases";
@@ -24,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl(RELEASES_PAGE_PATH) },
     { url: absoluteUrl(ABOUT_PAGE_PATH) },
     { url: absoluteUrl(SUPPORT_PAGE_PATH) },
+    { url: absoluteUrl(HELP_PAGE_PATH) },
     ...policies
       .filter((policy) => policy.published)
       .map((policy) => ({

@@ -18,6 +18,7 @@ model MediaAsset {
   homepageOgImages       HomepageState[]
   campaignBanners        Campaign[]
   campaignImages         CampaignImage[]
+  helpGuideImages        HelpGuideImage[]
 
   @@map("media_assets")
 }

@@ -60,6 +60,9 @@ export const API_ENDPOINTS = {
       discard: `${V1}/admin/homepage/discard`,
       seo: `${V1}/admin/homepage/seo`,
     },
+    helpGuides: {
+      detail: (audience: string, slug: string) => `${V1}/admin/help-guides/${audience}/${slug}`,
+    },
     navigation: {
       draft: `${V1}/admin/navigation`,
       publish: `${V1}/admin/navigation/publish`,

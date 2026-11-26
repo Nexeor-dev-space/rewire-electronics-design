@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { HELP_PAGE_PATH } from "@/lib/constants";
 import { getSupportPolicies } from "@/lib/support";
 import { policyLink } from "@/lib/policy-types";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export function SupportIntro() {
       wide: policy.wide ?? false,
     })),
     { ...policyLink("faq"), meta: "Answered", away: true, wide: false },
+    { label: "Help guides", meta: "Step by step", href: HELP_PAGE_PATH, away: true, wide: false },
     { label: "Contact", meta: "A person replies", href: "#contact", away: false, wide: false },
   ];
 
@@ -96,7 +98,7 @@ export function SupportIntro() {
           viewport={viewportOnce}
           variants={staggerChildren(0.06, 0.15)}
           aria-label="On this page"
-          className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-16 lg:grid-cols-5 lg:gap-4"
+          className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mt-16 lg:grid-cols-6 lg:gap-4"
         >
           {jumps.map((jump) => (
             <motion.li

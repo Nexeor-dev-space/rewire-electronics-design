@@ -11,6 +11,7 @@ const UPLOAD_MODULES = [
   PERMISSIONS.homepage,
   PERMISSIONS.content,
   PERMISSIONS.campaigns,
+  PERMISSIONS.helpGuides,
 ];
 
 /**
