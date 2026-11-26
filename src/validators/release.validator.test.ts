@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   RELEASE_ALLOCATIONS_MAX,
+  RELEASE_HOLD_MINUTES_MAX,
   RELEASE_MAX_PER_CUSTOMER_LIMIT,
   RELEASE_REMINDER_MAX_MINUTES,
   RELEASE_REMINDERS_MAX,
@@ -10,6 +11,7 @@ import {
   releaseAllocationsSchema,
   releaseListQuerySchema,
   releaseSchema,
+  releaseSettingsSchema,
   releaseStateSchema,
 } from "@/validators/release.validator";
 
@@ -104,5 +106,20 @@ describe("releaseAllocationsSchema", () => {
     ["too many rows", Array.from({ length: RELEASE_ALLOCATIONS_MAX + 1 }, (_, i) => ({ variantId: `v${i}`, allocated: 1 }))],
   ])("rejects %s", (_label, allocations) => {
     expect(releaseAllocationsSchema.safeParse({ allocations }).success).toBe(false);
+  });
+});
+
+describe("releaseSettingsSchema", () => {
+  it.each([1, 15, RELEASE_HOLD_MINUTES_MAX])("accepts %i minutes", (releaseHoldMinutes) => {
+    expect(releaseSettingsSchema.safeParse({ releaseHoldMinutes }).success).toBe(true);
+  });
+
+  it.each([0, -1, RELEASE_HOLD_MINUTES_MAX + 1, 2.5, Number.NaN])("rejects %s", (releaseHoldMinutes) => {
+    expect(releaseSettingsSchema.safeParse({ releaseHoldMinutes }).success).toBe(false);
+  });
+
+  it("rejects a missing or non numeric value", () => {
+    expect(releaseSettingsSchema.safeParse({}).success).toBe(false);
+    expect(releaseSettingsSchema.safeParse({ releaseHoldMinutes: "15" }).success).toBe(false);
   });
 });

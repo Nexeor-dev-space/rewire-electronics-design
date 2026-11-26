@@ -26,7 +26,7 @@ The docs in `docs/` are the contract. Read the one that matches the task
 | Returns, refunds, the return window setting, the admin Returns screens, the account returns screen | [docs/RETURNS.md](docs/RETURNS.md) |
 | Support Tickets, ticket statuses, priorities and categories, replies, ticket assignment and ticket emails, `support.service.ts`, `src/lib/support-tickets.ts` | [docs/SUPPORT.md](docs/SUPPORT.md) |
 | Warranty & Claims, device serials and IMEIs, warranty dates and status, warranty claims and their lifecycle | [docs/WARRANTY.md](docs/WARRANTY.md) |
-| Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens, release reminder times, the release test emails, the waitlist deletion | [docs/RELEASES.md](docs/RELEASES.md) |
+| Releases, release statuses, stock allocation per release, `releaseStatus` / `allowedEdits`, the admin Releases screens, release reminder times, the release test emails, the waitlist deletion, buying a release, release holds and `release-hold.service.ts`, the per customer limit, the release hold time setting, the release stock sweeps on the timer | [docs/RELEASES.md](docs/RELEASES.md) |
 | The account Saved Addresses screen, `account/addresses`, `use-address.ts` | [docs/ACCOUNT-ADDRESSES.md](docs/ACCOUNT-ADDRESSES.md) |
 | Checkout, orders and their statuses, the order APIs, guest users and claiming, Track Order, the admin Orders and Fulfilment screens, the account order screens | [docs/ORDERS.md](docs/ORDERS.md) |
 | Tax invoices, the invoice PDF, invoice numbers, `invoice.service.ts`, the Invoice details settings, `@react-pdf/renderer` | [docs/INVOICES.md](docs/INVOICES.md) |

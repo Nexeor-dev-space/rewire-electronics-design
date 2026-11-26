@@ -3,6 +3,7 @@ import {
   MS_PER_HOUR,
   MS_PER_MINUTE,
   RELEASE_EARLY_END_OPENING_SHIFT_MS,
+  RELEASE_MIN_PAYMENT_MINUTES,
   RELEASE_REMINDER_DEFAULTS_MINUTES,
   RELEASE_TEST_REMINDER_DEFAULTS_MINUTES,
   RELEASES_PAGE_PATH,
@@ -227,4 +228,42 @@ export function releaseHref(slug: string): string {
 export function endedWindow(startsAt: Date, now: Date): { startsAt: Date; endsAt: Date } {
   if (startsAt < now) return { startsAt, endsAt: now };
   return { startsAt: new Date(now.getTime() - RELEASE_EARLY_END_OPENING_SHIFT_MS), endsAt: now };
+}
+
+export function releaseOpenForSale(status: ReleaseStatus, { held = false } = {}): boolean {
+  return status === "LIVE" || (held && status === "SOLD_OUT");
+}
+
+export function releaseCapLeft(maxPerCustomer: number, bought: number): number {
+  return Math.max(0, maxPerCustomer - bought);
+}
+
+export function releaseCapMessage(left: number): string {
+  return left > 0
+    ? `You can buy up to ${left} from this release.`
+    : "You've already bought as many as this release allows.";
+}
+
+export interface HeldUnits {
+  allocationId: string;
+  quantity: number;
+}
+
+export interface HeldUnitsUntil extends HeldUnits {
+  expiresAt: Date;
+}
+
+export function holdCoversLines(
+  holds: readonly HeldUnitsUntil[],
+  lines: readonly HeldUnits[],
+  now: Date,
+): boolean {
+  if (holds.length !== lines.length) return false;
+  const held = new Map(holds.filter((hold) => hold.expiresAt > now).map((hold) => [hold.allocationId, hold.quantity]));
+  return lines.every((line) => held.get(line.allocationId) === line.quantity);
+}
+
+export function paymentDeadline(holdExpiresAt: Date, placedAt: Date): Date {
+  const earliest = placedAt.getTime() + RELEASE_MIN_PAYMENT_MINUTES * MS_PER_MINUTE;
+  return new Date(Math.max(holdExpiresAt.getTime(), earliest));
 }

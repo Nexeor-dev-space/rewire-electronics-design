@@ -53,8 +53,13 @@ model has `id` (cuid), `createdAt` and `updatedAt`.
    `deliveryEtaMaxDays`, and `deliveryAreaId` (nullable, `onDelete: SetNull`,
    indexed; the area's name is snapshotted in `city`). Money: `subtotal`, `discount`, `deliveryFee`,
    `total`, `vatIncluded`, `vatRatePercent`, `refundedAmount`, `couponCode`.
+   `releaseHoldUntil`: the payment deadline of a card or Apple Pay order with
+   release lines, else null ([RELEASES.md](RELEASES.md) §14).
 2. **`OrderItem`** (`order_items`), cascade from the order. `variantId` and
-   `imageId` are nullable and `SetNull`. Everything shown is a snapshot:
+   `imageId` are nullable and `SetNull`. `releaseId` is the release the line
+   was bought from (nullable, `Restrict`, so a release with orders can't be
+   deleted); its units are tracked by the release holds linked to the order
+   (`ReleaseHold.orderId`). Everything shown is a snapshot:
    `productName`, `productSlug`, `brandName`, `sku`, `storage`, `colour`,
    `condition`, `grade`, `warrantyMonths`, `imageAlt`, `unitPrice`,
    `addOnUnitPrice`, `quantity`, `lineTotal`. Not a snapshot:
@@ -165,20 +170,18 @@ the note "Payment received". Any other payment-only change records an
 
 ## 5. The checkout transaction
 
-`placeOrder(owner, sessionUser, input)` in `checkout.service.ts`, called by
-`POST checkout`. `placeOrderSchema` is `checkoutInformationSchema` plus
+`placeOrder(user, input)` in `checkout.service.ts`, called by
+`POST checkout`. Checkout needs sign in (issue #141): the route answers 401
+without a session, and the order always belongs to the session user. `placeOrderSchema` is `checkoutInformationSchema` plus
 `deliveryMethod`, `paymentMethod`, `expectedTotal` (fils, at least 0) and
 `idempotencyKey` (a UUID).
 
 Before the transaction:
 
-1. No cart owner (no session and no guest cookie) answers 409 "Your cart is
-   empty."
-2. **Replay.** An order with this key is returned when the signed in caller
-   owns it, or the caller is a guest and the order is `placedAsGuest`.
+1. **Replay.** An order with this key is returned when the caller owns it.
    Otherwise 409 "This checkout was already used. Refresh the page and try
    again."
-3. `resolveDelivery(emirate, areaId)` (in `delivery-zone.service.ts`, see
+2. `resolveDelivery(emirate, areaId)` (in `delivery-zone.service.ts`, see
    [CART.md](CART.md) §5) gives the fee and ETA for the method. The client
    never sends a fee: a mismatch only shows up as the `expectedTotal` 409
    below. Failures are 422 with a field:
@@ -202,29 +205,39 @@ failed with `P2028` on the last step:
 1. **Lock the cart.** `lockCart` touches the cart row. No cart gives 409
    empty. Then the replay check runs again, which closes the double click
    race.
-2. **Owner.** Signed in: the session user, and the order stores the session
-   email. Guest: `resolveGuestUser` (section 6) and `placedAsGuest: true`.
+2. **Owner.** The session user. The order stores the session email and
+   `placedAsGuest: false`.
 3. **Price.** `loadPricedCart(db, owner, { deliveryFee, now })` in
    `cart.service.ts`. No lines is 409 empty; a blocking line issue is 409
    "Some items in your cart changed. Review your cart." (`fields.cart`); an
    attached coupon that is not valid is 409 with its message (`fields.code`);
    a total different from `expectedTotal` is 409 "Prices changed since you
-   opened checkout. Check the new total." (`fields.expectedTotal`).
-4. **Stock.** Lines sorted by `variantId`, so concurrent orders lock in one
-   order. Each is `updateMany where { id, stock >= quantity }` with a
-   decrement. Count 0 is 409 "Only {n} left of {product}." or, at 0, "{product}
-   is out of stock." (`fields.cart`).
-5. **Coupon, signed in only.** `updateMany where { id, usageLimit is null or
+   opened checkout. Check the new total." (`fields.expectedTotal`). A line
+   on a closed or hidden release is `RELEASE_CLOSED` and blocks here.
+4. **Release holds.** With release lines, `convertCartHolds` locks their
+   releases, needs each Live or Sold out and not hidden, needs an unexpired
+   hold covering every release line, turns the holds into order holds, moves
+   their units from reserved to sold and adds them to the customer's tally
+   under the release's limit. Failures are 409 on `fields.cart`: "{release}
+   isn't open for sale.", "Your hold has ended. Hold again." or the limit
+   message ([RELEASES.md](RELEASES.md) §14).
+5. **Stock.** Shop lines only, sorted by `variantId`, so concurrent orders
+   lock in one order. Each is `updateMany where { id, stock >= quantity }`
+   with a decrement. Count 0 is 409 "Only {n} left of {product}." or, at 0,
+   "{product} is out of stock." (`fields.cart`). Release lines never touch
+   `ProductVariant.stock`.
+6. **Coupon.** `updateMany where { id, usageLimit is null or
    redemptionCount < usageLimit }` incrementing `redemptionCount`. Count 0 is
-   409 with the usage limit message (`fields.code`). A guest cart is never
-   priced with a coupon ([CART.md](CART.md) §4.3), so a guest never redeems.
-6. **Write.** One `order.create` with the nested items, add-ons and the first
-   `OrderStatusEvent` (status from `initialStatus`), then the
-   `CouponRedemption`, then the cart is emptied and its `couponId` cleared
-   (`clearCheckedOutCart`).
+   409 with the usage limit message (`fields.code`).
+7. **Write.** One `order.create` with the nested items (`releaseId` on
+   release lines), add-ons and the first `OrderStatusEvent` (status from
+   `initialStatus`), the release holds linked to the order, and, for a card
+   or Apple Pay order with release lines, `releaseHoldUntil` from
+   `paymentDeadline`. Then the `CouponRedemption`, then the cart is emptied
+   and its `couponId` cleared (`clearCheckedOutCart`).
 
-Any thrown error rolls the whole thing back: stock, coupon count and the cart
-are untouched.
+Any thrown error rolls the whole thing back: stock, release holds and
+counters, coupon count and the cart are untouched.
 
 After commit, the route calls `after(() => sendOrderConfirmation(order))`
 when the order was created (not on a replay). It builds
@@ -247,8 +260,9 @@ after a 4xx or a success. `expectedTotal` is the on screen total. See
 
 ## 6. Guest users and claiming
 
-A guest checkout needs an owner row so the order has a `userId` and a later
-sign-up can claim it. That row is a **shadow user**.
+Orders placed as a guest before checkout needed sign in (issue #141) belong
+to a **shadow user**, so the order has a `userId` and a later sign-up can
+claim it. No new shadow rows are made: checkout no longer accepts guests.
 
 1. **Shadow row:** `isGuest` true, `passwordHash` null, `emailVerifiedAt`
    null, role `CUSTOMER`, state `ACTIVE`. All three of `isGuest`, role and
@@ -259,28 +273,17 @@ sign-up can claim it. That row is a **shadow user**.
 2. **Invariant:** every path that sets a password also sets `isGuest` false
    (sign-up upgrade, password reset, admin `updateUser`). `updateUser` also
    sets it false when the role leaves `CUSTOMER`.
-3. **`resolveGuestUser(tx, { email, fullName, phone })`** in
-   `src/lib/auth/guest-user.ts`. It takes a transaction client and imports no
-   `prisma` instance, so Vitest can drive it with a stub. It runs
-   `createMany({ skipDuplicates: true })` (Postgres `ON CONFLICT DO NOTHING`)
-   and re-selects by email. A shadow row is returned, with `fullName` and
-   `phone` refreshed when it already existed; the refresh is guarded by
-   `SHADOW_USER_WHERE`, so a sign-up that claims the row first makes it 409. A registered or `INACTIVE` row
-   is 409 "An account with this email already exists. Sign in to continue."
-   on `fields.email`. `skipDuplicates` is used instead of catching `P2002`,
-   because a unique violation aborts the whole Postgres transaction. Two first
-   time checkouts with one email make one shadow row.
-4. **Sign-up upgrade.** `registerCustomer` calls `accountForSignUp(existing)`:
+3. **Sign-up upgrade.** `registerCustomer` calls `accountForSignUp(existing)`:
    none gives `create`, a shadow row gives `upgrade`, anything else
    `conflict` (the existing 409). An upgrade is `updateMany where { id,
    ...SHADOW_USER_WHERE }` with `upgradeData`: name, phone (null when not given, so
    the checkout phone does not survive), password hash, `isGuest: false`,
    `emailVerifiedAt: null` and `sessionVersion` incremented. A VERIFY email
    goes out as for any sign-up.
-5. **Reset claims it.** `resetPassword` sets `isGuest: false`, and the
+4. **Reset claims it.** `resetPassword` sets `isGuest: false`, and the
    `sessionVersion` bump signs out anyone who squatted on the address. The
    reset link proves the inbox, so `emailVerifiedAt` is set.
-6. **What an account sees.** `accountOrdersWhere(user)` is `{ userId }`, plus
+5. **What an account sees.** `accountOrdersWhere(user)` is `{ userId }`, plus
    `placedAsGuest: false` while `emailVerified` is false. Every account order
    read uses it. So someone who signs up with a guest's email first sees none
    of its guest orders until they verify the email; the real owner takes the
@@ -294,13 +297,38 @@ sign-up can claim it. That row is a **shadow user**.
 
 1. The change is `updateMany where { id, status: from }`. Count 0 means
    someone else changed it: 409 "This order changed. Refresh and try again."
-2. One `OrderStatusEvent` with the actor and the note.
-3. `CANCELLED`: `releaseOrder` adds each line's quantity back to its variant
-   (lines whose variant was deleted are skipped), deletes the
-   `CouponRedemption` and decrements the coupon's `redemptionCount`.
+2. One `OrderStatusEvent` with the actor and the note. The actor is null for
+   the automatic cancel below.
+3. `CANCELLED`: `releaseOrder` adds each shop line's quantity back to its
+   variant (lines whose variant was deleted are skipped) and gives release
+   lines back through `releaseOrderHolds`: to the release while it is open,
+   or to the variant's stock once it is completed, and off the customer's
+   tally ([RELEASES.md](RELEASES.md) §14). Every variant stock write is in
+   one pass by id. Then it deletes the `CouponRedemption` and decrements the
+   coupon's `redemptionCount`.
 
 A transition the table does not allow is 409 "An order that is {from} can't
-move to {to}." on `fields.status`.
+move to {to}." on `fields.status`. `changeOrderStatus` and
+`updateFulfilment` run with `timeout: DB_WRITE_TIMEOUT_MS`, like checkout.
+
+**Lapsed release orders.** A card or Apple Pay order with release lines that
+is still Awaiting payment and Unpaid after `releaseHoldUntil` is cancelled by
+the timer. `closeLapsedReleaseOrders` in `payment.service.ts` closes its
+Stripe page first ([PAYMENTS.md](PAYMENTS.md) §4), then calls
+`cancelLapsedOrder(number, sessionId)`, which in one transaction:
+
+1. touches the order only where it is still `PENDING_PAYMENT`, `UNPAID`,
+   past `releaseHoldUntil` and still on the Stripe page just closed
+   (`stripeCheckoutSessionId`), so a payment or a new page in between leaves
+   it alone;
+2. cancels it through `applyStatusChange` with no actor and the note
+   "Cancelled automatically: payment wasn't completed in time", with the
+   side effects above.
+
+After commit it sends the Cancelled email through `notifyOrderStatus`
+(section 16). `lapsedReleaseOrderNumbers(now)` picks the orders,
+`RELEASE_LAPSED_ORDER_BATCH` (10) a minute, earliest deadline first. Cash on
+delivery orders have no deadline and are never cancelled this way.
 
 ---
 
@@ -559,8 +587,7 @@ See [PERMISSIONS.md](PERMISSIONS.md).
 
 `npm test` runs Vitest. Phase 5 added `src/lib/orders.test.ts` (transition
 matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
-`src/lib/auth/guest-user.test.ts` (stub transaction: create, reuse, the race,
-`accountForSignUp`, `upgradeData`), `src/lib/reference-number.test.ts`,
+`src/lib/auth/guest-user.test.ts` (`accountForSignUp`, `upgradeData`), `src/lib/reference-number.test.ts`,
 `src/validators/order.validator.test.ts` and additions to
 `checkout.validator.test.ts`. Warranty tracking added `warrantyEndsAt` and
 `lineWarrantyMonths` cases to `orders.test.ts` and the `serials` cases to
@@ -602,6 +629,8 @@ matrix, payment rules, `returnableUntil`, `accountOrdersWhere`, timeline),
     name, SKU, quantity, serial), at most `CART_MAX_LINES` per order, for the
     serial inputs.
 14. **The carrier is free text**, not a list of couriers (section 16).
+15. **Release lines** have their own limits; see [RELEASES.md](RELEASES.md)
+    §11.
 
 ---
 
@@ -653,11 +682,10 @@ sending is in `src/services/customer-email.service.ts`; the wording is in
 5. Cancelled: says a refund applies when the order was paid, otherwise that no
    payment was taken.
 
-`notifyOrderStatus` is called from `changeOrderStatus` (Orders screen) and
-`updateFulfilment` (Fulfilment screen), the two paths that move a status.
-Today an expired Stripe payment page only adds a staff note
-([PAYMENTS.md](PAYMENTS.md)); if that ever cancels an order, it must go through
-`notifyOrderStatus` too.
+`notifyOrderStatus` is called from `changeOrderStatus` (Orders screen),
+`updateFulfilment` (Fulfilment screen) and `cancelLapsedOrder`, the automatic
+cancel of an unpaid release order (§7). Otherwise an expired Stripe payment
+page only adds a staff note ([PAYMENTS.md](PAYMENTS.md)).
 
 **Config, database, API.** No new env var, no database change, no API change.
 

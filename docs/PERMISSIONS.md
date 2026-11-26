@@ -118,6 +118,7 @@ only the levels that grant more than the one below (`availableLevels`):
 | Homepage Builder | `storefront.homepage` | View, Create, Edit, Delete, Publish | all |
 | Navigation | `storefront.navigation` | View, Edit, Publish | all |
 | Content & Policies | `storefront.content` | View, Edit, Publish | all |
+| Releases | `sales.releases` | View, Create, Edit, Delete | all |
 | Customers | `service.customers` | View, Create, Edit, Delete | all |
 | Returns | `service.returns` | View, Edit | No access, View, Edit |
 | Warranty & Claims | `service.warranty` | View, Edit | No access, View, Edit |
@@ -153,6 +154,11 @@ VAT & Configuration (`PERMISSIONS.vat`, `governance.vat`) offers View and Edit
 and can be granted to a Staff role. Existing Staff roles hold No access until
 an Admin sets a level. View opens the page and reads the rate; Edit saves it
 (`admin/vat-settings` routes). See [VAT.md](VAT.md).
+
+Releases (`PERMISSIONS.releases`, `sales.releases`) also covers the release
+hold time, one setting for every release: View reads it and Edit saves it
+(`admin/release-settings` routes, the Hold button on the Releases list). See
+[RELEASES.md](RELEASES.md) §14.
 
 Integrations, API Keys (`PERMISSIONS.integrations`, `integrations.api-keys`)
 offers View and Edit and can be granted to a Staff role. It is not Admin only,

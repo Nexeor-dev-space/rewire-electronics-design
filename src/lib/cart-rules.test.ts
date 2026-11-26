@@ -14,6 +14,7 @@ import {
 
 const baseLine: LineIssueInput = {
   visible: true,
+  releaseClosed: false,
   stock: 10,
   quantity: 1,
   unitPrice: 100_00,
@@ -21,8 +22,8 @@ const baseLine: LineIssueInput = {
   addOns: [],
 };
 
-function line(id: string, variantId: string, quantity = 1, addOnIds: string[] = []): MergeLine {
-  return { id, variantId, quantity, addOnIds };
+function line(id: string, variantId: string, quantity = 1, addOnIds: string[] = [], releaseId: string | null = null): MergeLine {
+  return { id, variantId, releaseId, quantity, addOnIds };
 }
 
 describe("isProductVisible", () => {
@@ -54,6 +55,12 @@ describe("lineIssues", () => {
 
   it("flags unavailable before any stock issue", () => {
     expect(lineIssues({ ...baseLine, visible: false, stock: 0 })).toEqual(["UNAVAILABLE"]);
+  });
+
+  it("flags a closed release after unavailable and before any stock issue", () => {
+    expect(lineIssues({ ...baseLine, releaseClosed: true })).toEqual(["RELEASE_CLOSED"]);
+    expect(lineIssues({ ...baseLine, releaseClosed: true, stock: 0 })).toEqual(["RELEASE_CLOSED"]);
+    expect(lineIssues({ ...baseLine, releaseClosed: true, visible: false })).toEqual(["UNAVAILABLE"]);
   });
 
   it("flags out of stock and insufficient stock", () => {
@@ -162,6 +169,25 @@ describe("planCartMerge", () => {
     const plan = planCartMerge(userLines, [line("new", "v1"), line("old", "v2")]);
     expect(plan.moves).toEqual(["new"]);
     expect(plan.dropped).toEqual(["old"]);
+  });
+
+  it("sums the same variant from the same release", () => {
+    const plan = planCartMerge([line("u1", "v1", 1, [], "r1")], [line("g1", "v1", 1, [], "r1")]);
+    expect(plan.updates).toEqual([{ userLineId: "u1", guestLineId: "g1", quantity: 2, addOnIds: [] }]);
+  });
+
+  it("keeps the user's line when the same variant comes from the shop and a release", () => {
+    const fromRelease = planCartMerge([line("u1", "v1")], [line("g1", "v1", 1, [], "r1")]);
+    expect(fromRelease).toEqual({ updates: [], moves: [], dropped: ["g1"] });
+    const fromShop = planCartMerge([line("u1", "v1", 1, [], "r1")], [line("g1", "v1")]);
+    expect(fromShop).toEqual({ updates: [], moves: [], dropped: ["g1"] });
+    const otherRelease = planCartMerge([line("u1", "v1", 1, [], "r1")], [line("g1", "v1", 1, [], "r2")]);
+    expect(otherRelease.dropped).toEqual(["g1"]);
+  });
+
+  it("moves a release line the user does not have, keeping its release", () => {
+    const plan = planCartMerge([line("u1", "v1")], [line("g1", "v2", 1, [], "r1")]);
+    expect(plan.moves).toEqual(["g1"]);
   });
 
   it("merges a matching variant even when the cart is full", () => {

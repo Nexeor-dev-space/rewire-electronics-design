@@ -14,6 +14,7 @@ import {
   quantityProblem,
   unionIds,
   type MergeLine,
+  type MergePlan,
   type QuantityCheck,
   type QuantityProblem,
 } from "@/lib/cart-rules";
@@ -23,10 +24,12 @@ import {
   CART_COOKIE_MAX_AGE_SECONDS,
   CART_MAX_LINES,
   CART_MAX_LINE_QUANTITY,
+  DB_WRITE_TIMEOUT_MS,
   MAX_PRODUCT_ADD_ONS,
 } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { releaseCapLeft, releaseCapMessage, releaseOpenForSale, releaseStatus } from "@/lib/releases";
 import { lineTotal } from "@/lib/pricing/arithmetic";
 import { campaignPrice, campaignVariantPrice, type CampaignDiscount } from "@/lib/pricing/campaign";
 import { COUPON_MESSAGES, COUPON_MINIMUM_TOKEN } from "@/lib/pricing/coupon";
@@ -42,6 +45,7 @@ import {
   toShopAddOn,
 } from "@/services/catalogue.service";
 import { resolveDelivery } from "@/services/delivery-zone.service";
+import { releaseCartHolds } from "@/services/release-hold.service";
 import { getVatRatePercent } from "@/services/store-settings.service";
 import {
   BLOCKING_CART_LINE_ISSUES,
@@ -73,6 +77,9 @@ const MESSAGE_CART_FULL = "Your cart is full.";
 const MESSAGE_LINE_NOT_FOUND = "That item isn't in your cart.";
 const MESSAGE_ADD_ON_UNAVAILABLE = "One of the chosen add-ons isn't available for this item.";
 const MESSAGE_EMPTY_CART = "Add something to your cart first.";
+const MESSAGE_RELEASE_CLOSED = "This release isn't open for sale.";
+const MESSAGE_IN_CART_FROM_SHOP = "This item is already in your cart from the shop. Remove it to buy it from the release.";
+const MESSAGE_IN_CART_FROM_RELEASE = "This item is already in your cart from a release. Remove it to buy it here.";
 
 const couponSelect = {
   id: true,
@@ -102,6 +109,19 @@ const cartSelect = {
       id: true,
       quantity: true,
       seenUnitPrice: true,
+      releaseId: true,
+      release: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          publishedAt: true,
+          completedAt: true,
+          startsAt: true,
+          endsAt: true,
+          hidden: true,
+        },
+      },
       variant: {
         select: {
           id: true,
@@ -119,6 +139,7 @@ const cartSelect = {
               slug: true,
               name: true,
               status: true,
+              deletedAt: true,
               categoryId: true,
               warrantyMonths: true,
               addOns: { select: { addOnId: true, priceOverride: true } },
@@ -167,9 +188,32 @@ export interface PricedCart {
 
 type OfferedRow = Prisma.AddOnGetPayload<{ select: typeof offeredAddOnSelect }>;
 
+interface ReleaseLineState {
+  stock: number;
+  closed: boolean;
+}
+
+const CLOSED_RELEASE_LINE: ReleaseLineState = { stock: 0, closed: true };
+
+interface LineContext {
+  offeredRows: OfferedRow[];
+  discounts: Map<string, CampaignDiscount>;
+  releaseLines: Map<string, ReleaseLineState>;
+}
+
+interface ReleaseQuantityCheck {
+  cartId: string;
+  releaseId: string;
+  variantId: string;
+  requested: number;
+  current: number;
+  visible: boolean;
+}
+
 const mergeLineSelect = {
   id: true,
   variantId: true,
+  releaseId: true,
   quantity: true,
   addOns: { select: { addOnId: true, seenPrice: true } },
 } satisfies Prisma.CartItemSelect;
@@ -199,11 +243,13 @@ function quantityMessage(problem: QuantityProblem, stock: number) {
   }
 }
 
+function quantityConflict(message: string) {
+  return new ServiceError("CONFLICT", message, 409, { quantity: [message] });
+}
+
 function assertQuantity(check: QuantityCheck) {
   const problem = quantityProblem(check);
-  if (!problem) return;
-  const message = quantityMessage(problem, check.stock);
-  throw new ServiceError("CONFLICT", message, 409, { quantity: [message] });
+  if (problem) throw quantityConflict(quantityMessage(problem, check.stock));
 }
 
 function couponRejected(message: string) {
@@ -265,11 +311,7 @@ function assertAddOnsOffered(addOnIds: string[], offered: Map<string, number>) {
 
 /* ---------- mapping ---------- */
 
-function buildLine(
-  item: CartItemRow,
-  offeredRows: OfferedRow[],
-  discounts: Map<string, CampaignDiscount>,
-): PricedCartLine {
+function buildLine(item: CartItemRow, { offeredRows, discounts, releaseLines }: LineContext): PricedCartLine {
   const { variant } = item;
   const { product } = variant;
   const { price: unitPrice, compareAtPrice, campaignDiscounted } = campaignVariantPrice(
@@ -279,7 +321,10 @@ function buildLine(
   const scope = addOnScopeOf(product);
   const offeredAddOns = offeredForLine(offeredRows, scope);
   const offeredPrices = new Map(offeredAddOns.map((addOn) => [addOn.id, addOn.price]));
-  const visible = isProductVisible(product);
+  const releaseLine = item.releaseId ? (releaseLines.get(item.id) ?? CLOSED_RELEASE_LINE) : null;
+  const visible = releaseLine ? product.deletedAt === null : isProductVisible(product);
+  const stock = releaseLine ? releaseLine.stock : variant.stock;
+  const releaseClosed = releaseLine?.closed ?? false;
 
   const addOns = item.addOns.map((link) => ({
     id: link.addOn.id,
@@ -298,7 +343,7 @@ function buildLine(
       .filter((addOn) => addOn.available)
       .reduce((sum, addOn) => sum + addOn.price, 0),
     quantity: item.quantity,
-    purchasable: visible && variant.stock > 0,
+    purchasable: visible && !releaseClosed && stock > 0,
     campaignDiscounted,
   };
 
@@ -306,6 +351,7 @@ function buildLine(
   const line: CartLine = {
     id: item.id,
     variantId: variant.id,
+    release: item.release ? { id: item.release.id, title: item.release.title, slug: item.release.slug ?? "" } : null,
     productId: product.id,
     productSlug: product.slug,
     productName: product.name,
@@ -317,7 +363,7 @@ function buildLine(
     storage: variant.storage,
     colour: variant.colour,
     quantity: item.quantity,
-    maxQuantity: maxLineQuantity(variant.stock),
+    maxQuantity: maxLineQuantity(stock),
     unitPrice,
     compareAtPrice,
     previousUnitPrice: unitPrice !== item.seenUnitPrice ? item.seenUnitPrice : null,
@@ -326,7 +372,8 @@ function buildLine(
     lineTotal: lineTotal(pricing),
     issues: lineIssues({
       visible,
-      stock: variant.stock,
+      releaseClosed,
+      stock,
       quantity: item.quantity,
       unitPrice,
       seenUnitPrice: item.seenUnitPrice,
@@ -373,13 +420,12 @@ interface PriceOptions {
 function priceRow(
   row: CartRow,
   owner: Owner,
-  offeredRows: OfferedRow[],
+  context: LineContext,
   customerRedemptions: number,
   vatRatePercent: number,
-  discounts: Map<string, CampaignDiscount>,
   { deliveryFee, now }: PriceOptions,
 ): PricedCart {
-  const lines = row.items.map((item) => buildLine(item, offeredRows, discounts));
+  const lines = row.items.map((item) => buildLine(item, context));
   const couponRow = owner.kind === "user" ? row.coupon : null;
   const pricing = priceCart({
     lines: lines.map((entry) => entry.pricing),
@@ -414,6 +460,47 @@ function lineDiscounts(db: Tx, row: CartRow, now: Date) {
   return liveCampaignDiscounts(db, row.items.map((item) => item.variant.product.id), now);
 }
 
+const allocationKey = (releaseId: string, variantId: string) => `${releaseId}:${variantId}`;
+
+async function releaseLineStates(db: Tx, row: CartRow, now: Date): Promise<Map<string, ReleaseLineState>> {
+  const lines = row.items.flatMap((item) => (item.releaseId ? [{ item, releaseId: item.releaseId }] : []));
+  if (lines.length === 0) return new Map();
+
+  const allocations = await db.releaseAllocation.findMany({
+    where: { OR: lines.map(({ item, releaseId }) => ({ releaseId, variantId: item.variant.id })) },
+    select: {
+      releaseId: true,
+      variantId: true,
+      available: true,
+      holds: { where: { cartId: row.id, status: "HELD" }, select: { quantity: true } },
+    },
+  });
+  const stock = new Map(
+    allocations.map((allocation) => [
+      allocationKey(allocation.releaseId, allocation.variantId),
+      allocation.available + allocation.holds.reduce((sum, hold) => sum + hold.quantity, 0),
+    ]),
+  );
+  return new Map(
+    lines.map(({ item, releaseId }) => {
+      const units = stock.get(allocationKey(releaseId, item.variant.id)) ?? 0;
+      const open =
+        item.release !== null &&
+        !item.release.hidden &&
+        releaseOpenForSale(releaseStatus(item.release, units, now), { held: true });
+      return [item.id, { stock: units, closed: !open }];
+    }),
+  );
+}
+
+async function loadLineContext(db: Tx, row: CartRow, now: Date): Promise<LineContext> {
+  return {
+    offeredRows: row.items.length > 0 ? await offeredAddOnsFor(db, lineScopes(row)) : [],
+    discounts: await lineDiscounts(db, row, now),
+    releaseLines: await releaseLineStates(db, row, now),
+  };
+}
+
 /** The price a shopper sees for one variant right now, stored as the line's seen price. */
 async function currentUnitPrice(price: number, productId: string) {
   const discounts = await liveCampaignDiscounts(prisma, [productId], new Date());
@@ -432,12 +519,11 @@ export async function loadPricedCart(db: Tx, owner: Owner, options: PriceOptions
   const row = await loadCartRow(owner, db);
   if (!row) return null;
 
-  const offeredRows = row.items.length > 0 ? await offeredAddOnsFor(db, lineScopes(row)) : [];
+  const context = await loadLineContext(db, row, options.now);
   const customerRedemptions =
     owner.kind === "user" && row.coupon ? await countRedemptions(db, row.coupon.id, owner.userId) : 0;
   const vatRatePercent = await getVatRatePercent(db);
-  const discounts = await lineDiscounts(db, row, options.now);
-  return priceRow(row, owner, offeredRows, customerRedemptions, vatRatePercent, discounts, options);
+  return priceRow(row, owner, context, customerRedemptions, vatRatePercent, options);
 }
 
 export async function lockCart(tx: Tx, owner: Owner, now: Date): Promise<boolean> {
@@ -502,23 +588,71 @@ async function writeLineAddOns(tx: Tx, cartItemId: string, addOnIds: string[], o
   });
 }
 
-function findPurchasableVariant(variantId: string) {
-  return prisma.productVariant.findFirst({
-    where: { id: variantId, product: PUBLISHED },
+const purchasableVariantSelect = {
+  id: true,
+  price: true,
+  stock: true,
+  product: {
     select: {
       id: true,
-      price: true,
-      stock: true,
-      product: {
-        select: {
-          id: true,
-          categoryId: true,
-          category: { select: { parentId: true } },
-          addOns: { select: { addOnId: true, priceOverride: true } },
-        },
+      categoryId: true,
+      category: { select: { parentId: true } },
+      addOns: { select: { addOnId: true, priceOverride: true } },
+    },
+  },
+} satisfies Prisma.ProductVariantSelect;
+
+function findPurchasableVariant(variantId: string, releaseId: string | null) {
+  const where: Prisma.ProductVariantWhereInput = releaseId
+    ? { id: variantId, product: { deletedAt: null }, releaseAllocations: { some: { releaseId } } }
+    : { id: variantId, product: PUBLISHED };
+  return prisma.productVariant.findFirst({ where, select: purchasableVariantSelect });
+}
+
+function sourceConflict(existingReleaseId: string | null) {
+  return quantityConflict(existingReleaseId ? MESSAGE_IN_CART_FROM_RELEASE : MESSAGE_IN_CART_FROM_SHOP);
+}
+
+async function assertReleaseQuantity(tx: Tx, owner: Owner, check: ReleaseQuantityCheck) {
+  if (check.requested <= check.current) return;
+  const release = await tx.release.findUnique({
+    where: { id: check.releaseId },
+    select: {
+      publishedAt: true,
+      completedAt: true,
+      startsAt: true,
+      endsAt: true,
+      hidden: true,
+      slug: true,
+      maxPerCustomer: true,
+      allocations: {
+        where: { variantId: check.variantId },
+        select: { available: true, holds: { where: { cartId: check.cartId, status: "HELD" }, select: { quantity: true } } },
       },
     },
   });
+  const allocation = release?.allocations[0];
+  if (!release || !allocation) throw new ServiceError("NOT_FOUND", MESSAGE_ITEM_UNAVAILABLE, 404);
+
+  const stock = allocation.available + allocation.holds.reduce((sum, hold) => sum + hold.quantity, 0);
+  assertQuantity({ requested: check.requested, current: check.current, stock, visible: check.visible });
+  if (release.hidden || !release.slug || !releaseOpenForSale(releaseStatus(release, stock, new Date()))) {
+    throw quantityConflict(MESSAGE_RELEASE_CLOSED);
+  }
+
+  const others = await tx.cartItem.aggregate({
+    where: { cartId: check.cartId, releaseId: check.releaseId, variantId: { not: check.variantId } },
+    _sum: { quantity: true },
+  });
+  const tally =
+    owner.kind === "user"
+      ? await tx.releaseCustomerTally.findUnique({
+          where: { releaseId_userId: { releaseId: check.releaseId, userId: owner.userId } },
+          select: { quantity: true },
+        })
+      : null;
+  const left = releaseCapLeft(release.maxPerCustomer, tally?.quantity ?? 0);
+  if ((others._sum.quantity ?? 0) + check.requested > left) throw quantityConflict(releaseCapMessage(left));
 }
 
 function findOwnedLine(owner: Owner, itemId: string) {
@@ -527,16 +661,19 @@ function findOwnedLine(owner: Owner, itemId: string) {
     select: {
       id: true,
       cartId: true,
+      releaseId: true,
       quantity: true,
       addOns: { select: { addOnId: true } },
       variant: {
         select: {
+          id: true,
           price: true,
           stock: true,
           product: {
             select: {
               id: true,
               status: true,
+              deletedAt: true,
               categoryId: true,
               category: {
                 select: { status: true, parentId: true, parent: { select: { status: true } } },
@@ -576,7 +713,8 @@ export async function addCartItem(
   owner: CartOwner,
   input: AddCartItemData,
 ): Promise<{ cart: Cart; newGuestToken: string | null }> {
-  const variant = await findPurchasableVariant(input.variantId);
+  const releaseId = input.releaseId ?? null;
+  const variant = await findPurchasableVariant(input.variantId, releaseId);
   if (!variant) throw new ServiceError("NOT_FOUND", MESSAGE_ITEM_UNAVAILABLE, 404);
   const offered = await offeredPricesFor(addOnScopeOf(variant.product));
   assertAddOnsOffered(input.addOnIds, offered);
@@ -592,39 +730,49 @@ export async function addCartItem(
     await sweepStaleGuestCarts(new Date());
   }
 
-  await prisma.$transaction(async (tx) => {
-    const cartId = await findOrCreateCart(tx, target);
-    const existing = await tx.cartItem.findUnique({
-      where: { cartId_variantId: { cartId, variantId: variant.id } },
-      select: { id: true, quantity: true, addOns: { select: { addOnId: true } } },
-    });
-    if (!existing && (await tx.cartItem.count({ where: { cartId } })) >= CART_MAX_LINES) {
-      throw new ServiceError("CONFLICT", MESSAGE_CART_FULL, 409, { quantity: [MESSAGE_CART_FULL] });
-    }
+  await prisma.$transaction(
+    async (tx) => {
+      const cartId = await findOrCreateCart(tx, target);
+      await touchCart(tx, cartId);
+      const existing = await tx.cartItem.findUnique({
+        where: { cartId_variantId: { cartId, variantId: variant.id } },
+        select: { id: true, quantity: true, releaseId: true, addOns: { select: { addOnId: true } } },
+      });
+      if (existing && existing.releaseId !== releaseId) throw sourceConflict(existing.releaseId);
+      if (!existing && (await tx.cartItem.count({ where: { cartId } })) >= CART_MAX_LINES) {
+        throw quantityConflict(MESSAGE_CART_FULL);
+      }
 
-    const current = existing?.quantity ?? 0;
-    const quantity = current + input.quantity;
-    assertQuantity({ requested: quantity, current, stock: variant.stock, visible: true });
+      const current = existing?.quantity ?? 0;
+      const quantity = current + input.quantity;
+      if (releaseId) {
+        const check = { cartId, releaseId, variantId: variant.id, requested: quantity, current, visible: true };
+        await assertReleaseQuantity(tx, target, check);
+      } else {
+        assertQuantity({ requested: quantity, current, stock: variant.stock, visible: true });
+      }
 
-    const lineId = existing
-      ? (
-          await tx.cartItem.update({
-            where: { id: existing.id },
-            data: { quantity, seenUnitPrice },
-            select: { id: true },
-          })
-        ).id
-      : (
-          await tx.cartItem.create({
-            data: { cartId, variantId: variant.id, quantity, seenUnitPrice },
-            select: { id: true },
-          })
-        ).id;
+      const lineId = existing
+        ? (
+            await tx.cartItem.update({
+              where: { id: existing.id },
+              data: { quantity, seenUnitPrice },
+              select: { id: true },
+            })
+          ).id
+        : (
+            await tx.cartItem.create({
+              data: { cartId, variantId: variant.id, releaseId, quantity, seenUnitPrice },
+              select: { id: true },
+            })
+          ).id;
 
-    const addOnIds = unionIds(existing?.addOns.map((link) => link.addOnId) ?? [], input.addOnIds);
-    await writeLineAddOns(tx, lineId, addOnIds, offered);
-    await touchCart(tx, cartId);
-  });
+      const addOnIds = unionIds(existing?.addOns.map((link) => link.addOnId) ?? [], input.addOnIds);
+      await writeLineAddOns(tx, lineId, addOnIds, offered);
+      if (releaseId) await releaseCartHolds(tx, cartId);
+    },
+    { timeout: DB_WRITE_TIMEOUT_MS },
+  );
 
   return { cart: await getCart(target), newGuestToken };
 }
@@ -639,22 +787,39 @@ export async function updateCartItem(owner: CartOwner, itemId: string, input: Up
   if (input.addOnIds) assertAddOnsOffered(input.addOnIds, offered);
 
   const quantity = input.quantity ?? line.quantity;
-  assertQuantity({
-    requested: quantity,
-    current: line.quantity,
-    stock: line.variant.stock,
-    visible: isProductVisible(product),
-  });
+  const { releaseId } = line;
+  if (!releaseId) {
+    assertQuantity({
+      requested: quantity,
+      current: line.quantity,
+      stock: line.variant.stock,
+      visible: isProductVisible(product),
+    });
+  }
   const seenUnitPrice = await currentUnitPrice(line.variant.price, product.id);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.cartItem.update({
-      where: { id: line.id },
-      data: { quantity, seenUnitPrice },
-    });
-    await writeLineAddOns(tx, line.id, input.addOnIds ?? line.addOns.map((link) => link.addOnId), offered);
-    await touchCart(tx, line.cartId);
-  });
+  await prisma.$transaction(
+    async (tx) => {
+      await touchCart(tx, line.cartId);
+      if (releaseId) {
+        await assertReleaseQuantity(tx, owner, {
+          cartId: line.cartId,
+          releaseId,
+          variantId: line.variant.id,
+          requested: quantity,
+          current: line.quantity,
+          visible: product.deletedAt === null,
+        });
+      }
+      await tx.cartItem.update({
+        where: { id: line.id },
+        data: { quantity, seenUnitPrice },
+      });
+      await writeLineAddOns(tx, line.id, input.addOnIds ?? line.addOns.map((link) => link.addOnId), offered);
+      if (releaseId) await releaseCartHolds(tx, line.cartId);
+    },
+    { timeout: DB_WRITE_TIMEOUT_MS },
+  );
 
   return getCart(owner);
 }
@@ -663,14 +828,18 @@ export async function removeCartItem(owner: CartOwner, itemId: string) {
   if (!owner) throw lineNotFound();
   const line = await prisma.cartItem.findFirst({
     where: { id: itemId, cart: ownerWhere(owner) },
-    select: { id: true, cartId: true },
+    select: { id: true, cartId: true, releaseId: true },
   });
   if (!line) throw lineNotFound();
 
-  await prisma.$transaction([
-    prisma.cartItem.deleteMany({ where: { id: line.id } }),
-    prisma.cart.update({ where: { id: line.cartId }, data: { updatedAt: new Date() } }),
-  ]);
+  await prisma.$transaction(
+    async (tx) => {
+      await touchCart(tx, line.cartId);
+      await tx.cartItem.deleteMany({ where: { id: line.id } });
+      if (line.releaseId) await releaseCartHolds(tx, line.cartId);
+    },
+    { timeout: DB_WRITE_TIMEOUT_MS },
+  );
   return getCart(owner);
 }
 
@@ -679,9 +848,8 @@ export async function acknowledgeCart(owner: CartOwner) {
   const row = await loadCartRow(owner);
   if (!row) return getCart(owner);
 
-  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
-  const discounts = await lineDiscounts(prisma, row, new Date());
-  const lines = row.items.map((item) => buildLine(item, offeredRows, discounts));
+  const context = await loadLineContext(prisma, row, new Date());
+  const lines = row.items.map((item) => buildLine(item, context));
 
   const lineUpdates = lines
     .filter(({ item, line }) => item.seenUnitPrice !== line.unitPrice)
@@ -721,12 +889,11 @@ export async function applyCartCoupon(userId: string, code: string) {
   const coupon = await prisma.coupon.findUnique({ where: { code }, select: couponSelect });
   if (!coupon) throw couponRejected(COUPON_MESSAGES.INVALID);
 
-  const offeredRows = await offeredAddOnsFor(prisma, lineScopes(row));
-  const customerRedemptions = await countRedemptions(prisma, coupon.id, userId);
   const now = new Date();
-  const discounts = await lineDiscounts(prisma, row, now);
+  const context = await loadLineContext(prisma, row, now);
+  const customerRedemptions = await countRedemptions(prisma, coupon.id, userId);
   const pricing = priceCart({
-    lines: row.items.map((item) => buildLine(item, offeredRows, discounts).pricing),
+    lines: row.items.map((item) => buildLine(item, context).pricing),
     coupon: { rule: toCouponRule(coupon), customerRedemptions },
     deliveryFee: null,
     vatRatePercent: await getVatRatePercent(prisma),
@@ -751,9 +918,18 @@ function toMergeLines(rows: MergeLineRow[]): MergeLine[] {
   return rows.map((row) => ({
     id: row.id,
     variantId: row.variantId,
+    releaseId: row.releaseId,
     quantity: row.quantity,
     addOnIds: row.addOns.map((link) => link.addOnId),
   }));
+}
+
+function mergeTouchesRelease(plan: MergePlan, userLines: MergeLineRow[], guestLines: Map<string, MergeLineRow>) {
+  const userReleases = new Map(userLines.map((line) => [line.id, line.releaseId]));
+  return (
+    plan.updates.some((update) => userReleases.get(update.userLineId)) ||
+    plan.moves.some((id) => guestLines.get(id)?.releaseId)
+  );
 }
 
 async function mergeGuestCart(tx: Tx, userId: string, tokenHash: string) {
@@ -778,6 +954,7 @@ async function mergeGuestCart(tx: Tx, userId: string, tokenHash: string) {
     return;
   }
 
+  await touchCart(tx, user.id);
   const plan = planCartMerge(toMergeLines(user.items), toMergeLines(guest.items));
   const guestLines = new Map(guest.items.map((line) => [line.id, line]));
 
@@ -801,14 +978,14 @@ async function mergeGuestCart(tx: Tx, userId: string, tokenHash: string) {
     await tx.cartItem.updateMany({ where: { id: { in: plan.moves } }, data: { cartId: user.id } });
   }
   await tx.cart.delete({ where: { id: guest.id } });
-  await touchCart(tx, user.id);
+  if (mergeTouchesRelease(plan, user.items, guestLines)) await releaseCartHolds(tx, user.id);
 }
 
 export async function adoptGuestCart(userId: string): Promise<void> {
   try {
     const tokenHash = await readGuestTokenHash();
     if (tokenHash) {
-      await prisma.$transaction((tx) => mergeGuestCart(tx, userId, tokenHash));
+      await prisma.$transaction((tx) => mergeGuestCart(tx, userId, tokenHash), { timeout: DB_WRITE_TIMEOUT_MS });
     }
     await clearGuestCartCookie();
   } catch (error) {

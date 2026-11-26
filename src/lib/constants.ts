@@ -196,6 +196,12 @@ export const CHECKOUT_SUCCESS_PAGE_PATH = "/checkout/success";
 export const CHECKOUT_PAYMENT_WINDOW_MINUTES = 30;
 /** A retried checkout reuses the order's open Stripe page only while at least this much time is left. */
 export const CHECKOUT_SESSION_REUSE_MIN_MINUTES = 5;
+export const RELEASE_MIN_PAYMENT_MINUTES = 5;
+export const RELEASE_HOLD_MINUTES_DEFAULT = 15;
+export const RELEASE_HOLD_MINUTES_MAX = CHECKOUT_PAYMENT_WINDOW_MINUTES;
+export const RELEASE_HOLD_SWEEP_BATCH = 20;
+export const RELEASE_LAPSED_ORDER_BATCH = 10;
+export const RELEASE_COMPLETE_BATCH = 5;
 export const MS_PER_MINUTE = 60 * 1000;
 export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 /** Query keys on the success page that Stripe returns the customer to. */

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { RELEASE_REMINDER_DEFAULTS_MINUTES, RELEASE_TEST_REMINDER_DEFAULTS_MINUTES } from "@/lib/constants";
+import {
+  MS_PER_MINUTE,
+  RELEASE_MIN_PAYMENT_MINUTES,
+  RELEASE_REMINDER_DEFAULTS_MINUTES,
+  RELEASE_TEST_REMINDER_DEFAULTS_MINUTES,
+} from "@/lib/constants";
 import {
   allowedEdits,
   canChangeState,
@@ -7,7 +12,12 @@ import {
   canDropAllocation,
   defaultReminderOffsets,
   endedWindow,
+  holdCoversLines,
+  paymentDeadline,
   publishBlocker,
+  releaseCapLeft,
+  releaseCapMessage,
+  releaseOpenForSale,
   releaseStatus,
   reminderLabel,
   reminderRowMinutes,
@@ -227,5 +237,74 @@ describe("endedWindow", () => {
     const window = endedWindow(FUTURE, NOW);
     expect(window.endsAt).toEqual(NOW);
     expect(window.startsAt.getTime()).toBeLessThan(NOW.getTime());
+  });
+});
+
+describe("releaseOpenForSale", () => {
+  it("lets only a live release take new lines and holds", () => {
+    expect(releaseOpenForSale("LIVE")).toBe(true);
+    expect(releaseOpenForSale("SOLD_OUT")).toBe(false);
+    expect(releaseOpenForSale("UPCOMING")).toBe(false);
+    expect(releaseOpenForSale("COMPLETED")).toBe(false);
+    expect(releaseOpenForSale("DRAFT")).toBe(false);
+  });
+
+  it("lets an already held order go through while live or sold out", () => {
+    expect(releaseOpenForSale("LIVE", { held: true })).toBe(true);
+    expect(releaseOpenForSale("SOLD_OUT", { held: true })).toBe(true);
+    expect(releaseOpenForSale("COMPLETED", { held: true })).toBe(false);
+    expect(releaseOpenForSale("UPCOMING", { held: true })).toBe(false);
+  });
+});
+
+describe("releaseCapLeft", () => {
+  it("is the limit less what was bought, never below 0", () => {
+    expect(releaseCapLeft(2, 0)).toBe(2);
+    expect(releaseCapLeft(2, 1)).toBe(1);
+    expect(releaseCapLeft(2, 2)).toBe(0);
+    expect(releaseCapLeft(1, 3)).toBe(0);
+  });
+
+  it("names the units left, or says none are", () => {
+    expect(releaseCapMessage(2)).toBe("You can buy up to 2 from this release.");
+    expect(releaseCapMessage(0)).toBe("You've already bought as many as this release allows.");
+  });
+});
+
+describe("holdCoversLines", () => {
+  const until = new Date(NOW.getTime() + MS_PER_MINUTE);
+  const lines = [
+    { allocationId: "a1", quantity: 1 },
+    { allocationId: "a2", quantity: 2 },
+  ];
+  const holds = lines.map((line) => ({ ...line, expiresAt: until }));
+
+  it("passes when every line has an unexpired hold of the same quantity", () => {
+    expect(holdCoversLines(holds, lines, NOW)).toBe(true);
+    expect(holdCoversLines([...holds].reverse(), lines, NOW)).toBe(true);
+  });
+
+  it("fails on an expired hold", () => {
+    expect(holdCoversLines([holds[0], { ...holds[1], expiresAt: NOW }], lines, NOW)).toBe(false);
+  });
+
+  it("fails on a different quantity, a missing hold or an extra hold", () => {
+    expect(holdCoversLines([holds[0], { ...holds[1], quantity: 1 }], lines, NOW)).toBe(false);
+    expect(holdCoversLines([holds[0]], lines, NOW)).toBe(false);
+    expect(holdCoversLines(holds, [lines[0]], NOW)).toBe(false);
+  });
+});
+
+describe("paymentDeadline", () => {
+  const minimum = new Date(NOW.getTime() + RELEASE_MIN_PAYMENT_MINUTES * MS_PER_MINUTE);
+
+  it("is the hold's end when that leaves enough time to pay", () => {
+    const later = new Date(minimum.getTime() + MS_PER_MINUTE);
+    expect(paymentDeadline(later, NOW)).toEqual(later);
+  });
+
+  it("gives at least the minimum payment time when the hold ends sooner", () => {
+    expect(paymentDeadline(new Date(NOW.getTime() + MS_PER_MINUTE), NOW)).toEqual(minimum);
+    expect(paymentDeadline(PAST, NOW)).toEqual(minimum);
   });
 });

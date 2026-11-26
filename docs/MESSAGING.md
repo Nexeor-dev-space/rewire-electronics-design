@@ -12,7 +12,8 @@ Read this before you add a message, change when one is sent, or touch
 A release's own reminder times, its test emails and the deletion of a
 completed release's waitlist (`purgeEndedWaitlists` in
 `src/services/waitlist.service.ts`, run by this module's timer) are in
-[RELEASES.md](RELEASES.md) §13.
+[RELEASES.md](RELEASES.md) §13. The release stock sweeps the same timer runs
+are in [RELEASES.md](RELEASES.md) §14.
 
 ---
 
@@ -154,18 +155,25 @@ ticks every `RELEASE_SWEEP_INTERVAL_MS` (1 minute) and calls
 `runScheduledMessages` in `message-scheduler.service.ts`, which runs the
 sweeps that are due on that tick:
 
-1. **Every tick:** the release sequence (`sweepReleaseSequence` in
+1. **Every tick, first:** the three release stock sweeps, in this order:
+   expired release holds (`expireHolds`), lapsed release orders
+   (`closeLapsedReleaseOrders`) and ended releases
+   (`completeEndedReleases`). They move stock and send no message of their
+   own, except the usual Cancelled email of a lapsed order. They run first,
+   so the release sequence reads stock that is up to date. See
+   [RELEASES.md](RELEASES.md) §14.
+2. **Every tick, then:** the release sequence (`sweepReleaseSequence` in
    `release-message.service.ts`), so a reminder or the drop live message
    leaves within about a minute of its time.
-2. **Once per `MESSAGE_SWEEP_INTERVAL_MS` (5 minutes):** every other sweep,
+3. **Once per `MESSAGE_SWEEP_INTERVAL_MS` (5 minutes):** every other sweep,
    in this order: campaign messages, abandoned checkouts, review requests,
    warranty expiry notices, entitlement reminders, warranty follow ups and,
    last, the deletion of completed releases' waitlists.
 
 How the choice is made:
 
-1. An entry of `SWEEPS` with `everyTick: true` runs on every tick. Only the
-   release sequence has it.
+1. An entry of `SWEEPS` with `everyTick: true` runs on every tick. The
+   three stock sweeps and the release sequence have it.
 2. `sweepsDueOnTick(sweeps, tick)` in `src/lib/messaging.ts` returns the
    sweeps for a tick: the every tick ones always, the rest when the tick
    number divides by `SLOW_SWEEP_EVERY_TICKS`. It is pure and tested in
@@ -180,7 +188,10 @@ What a quiet minute costs: the release sequence reads the `releases` table
 twice, once for openings ahead inside the reminder window and once for
 openings in the last hour, at most `MESSAGE_SWEEP_BATCH` rows each, and sends
 nothing. That cost does not grow with the number of customers. Only a release
-with a message due reads its waitlist.
+with a message due reads its waitlist. The three stock sweeps add one
+bounded read each: lapsed holds on the `(status, expiresAt)` index, lapsed
+orders on `(status, releaseHoldUntil)`, ended releases on
+`(completedAt, endsAt)`.
 
 The rules every sweep follows:
 
@@ -196,7 +207,10 @@ The rules every sweep follows:
 4. Nothing is sent when the event has not occurred: each sweep selects only
    records in the right state (published, confirmed, delivered, within the
    date window).
-5. The last sweep, `purgeEndedWaitlists`, sends nothing. It deletes the
+5. The stock sweeps are safe to run twice, on several servers too: every
+   step is a guarded update, so the second run moves nothing
+   ([RELEASES.md](RELEASES.md) §14).
+6. The last sweep, `purgeEndedWaitlists`, sends nothing. It deletes the
    waitlist entries of completed releases for good, to keep the privacy
    policy's promise. `MessageLog` rows are kept. See
    [RELEASES.md](RELEASES.md) §13.
@@ -206,6 +220,8 @@ The two intervals are `RELEASE_SWEEP_INTERVAL_MS` and
 `src/lib/constants.ts`:
 `ABANDONED_CHECKOUT_AFTER_HOURS`, `ABANDONED_CHECKOUT_MAX_AGE_DAYS`,
 `ABANDONED_CHECKOUT_COOLDOWN_DAYS`, `REVIEW_REQUEST_AFTER_DAYS`,
+`RELEASE_HOLD_SWEEP_BATCH`, `RELEASE_LAPSED_ORDER_BATCH`,
+`RELEASE_COMPLETE_BATCH`,
 `REVIEW_REQUEST_MAX_AGE_DAYS`, `ENTITLEMENT_REMINDER_DAYS_BEFORE_END`,
 `WARRANTY_EXPIRY_NOTICE_DAYS_BEFORE_END`, `WARRANTY_FOLLOW_UP_AFTER_DAYS`,
 `WARRANTY_FOLLOW_UP_MAX_AGE_DAYS`, `RELEASE_REMINDER_LOOKAHEAD_DAYS`.

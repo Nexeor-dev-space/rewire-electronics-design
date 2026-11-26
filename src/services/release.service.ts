@@ -20,6 +20,8 @@ import {
   type ReleaseStatus,
 } from "@/lib/releases";
 import { slugify } from "@/lib/utils";
+import { lockRelease } from "@/services/release-allocation.service";
+import { completeRelease } from "@/services/release-hold.service";
 import type { AdminReleaseDetail, AdminReleaseRow, LiveRelease, ReleaseTotals } from "@/types/release";
 import type { releaseListQuerySchema, releaseSchema } from "@/validators/release.validator";
 
@@ -179,11 +181,6 @@ function statusWhere(status: ReleaseStatus, now: Date): Prisma.ReleaseWhereInput
 
 function newSlug(title: string) {
   return `${slugify(title) || "release"}-${randomBytes(RELEASE_SLUG_SUFFIX_BYTES).toString("hex")}`;
-}
-
-async function lockRelease(db: Db, id: string, where: Prisma.ReleaseWhereInput = {}) {
-  const { count } = await db.release.updateMany({ where: { id, ...where }, data: { updatedAt: new Date() } });
-  return count > 0;
 }
 
 async function loadDetail(db: Db, id: string): Promise<DetailRow> {
@@ -401,6 +398,7 @@ export async function changeReleaseState(id: string, action: ReleaseStateAction)
         await tx.release.update({ where: { id }, data: { publishedAt: null } });
       } else {
         await tx.release.update({ where: { id }, data: endedWindow(current.startsAt, now) });
+        await completeRelease(tx, id, now);
       }
     },
     { timeout: DB_WRITE_TIMEOUT_MS },
