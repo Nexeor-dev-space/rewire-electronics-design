@@ -47,6 +47,9 @@ function nextSectionId(sections: GuideSection[]): string {
   return `section-${n}`;
 }
 
+/** Narrower on phones, so Up, Down and Remove stay on one line. */
+const ROW_BUTTON_CLASS = "px-2 sm:px-5";
+
 function RowButtons({
   onUp,
   onDown,
@@ -59,14 +62,14 @@ function RowButtons({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
-      <Button type="button" variant="ghost" size="sm" aria-label={`Move ${label} up`} onClick={onUp}>
+    <div className="flex shrink-0 gap-1">
+      <Button type="button" variant="ghost" size="sm" className={ROW_BUTTON_CLASS} aria-label={`Move ${label} up`} onClick={onUp}>
         Up
       </Button>
-      <Button type="button" variant="ghost" size="sm" aria-label={`Move ${label} down`} onClick={onDown}>
+      <Button type="button" variant="ghost" size="sm" className={ROW_BUTTON_CLASS} aria-label={`Move ${label} down`} onClick={onDown}>
         Down
       </Button>
-      <Button type="button" variant="ghost" size="sm" aria-label={`Remove ${label}`} onClick={onRemove}>
+      <Button type="button" variant="ghost" size="sm" className={ROW_BUTTON_CLASS} aria-label={`Remove ${label}`} onClick={onRemove}>
         Remove
       </Button>
     </div>
