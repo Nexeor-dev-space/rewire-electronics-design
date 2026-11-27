@@ -139,6 +139,20 @@ export function parseStripeWebhookEnv(source: Source): StripeWebhookEnv {
   return parse(stripeWebhookSchema, source);
 }
 
+export function parseStorageEnv(source: Source): StorageEnv {
+  return parse(storageSchema, source);
+}
+
+/**
+ * The public media address (`https://<endpoint>/<bucket>`) without needing the
+ * MinIO keys — for image links, and for `next.config.ts`, which runs at build
+ * time and only has to allow the host. Undefined when endpoint or bucket is unset.
+ */
+export function optionalMediaPublicUrl(source: Source = process.env): string | undefined {
+  const endpoint = source.MINIO_ENDPOINT?.trim();
+  const bucket = source.MINIO_BUCKET?.trim();
+  if (!endpoint || !bucket || !HOST_ONLY.test(endpoint)) return undefined;
+  return mediaPublicUrl(endpoint, bucket);
 export function parseTestModeEnv(source: Source): TestModeEnv {
   const value = source.TEST_MODE?.trim() ?? "";
   if (value === TEST_MODE_ON_VALUE) return { on: true, ignored: null };
