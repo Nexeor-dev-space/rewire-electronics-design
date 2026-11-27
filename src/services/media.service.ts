@@ -1,13 +1,15 @@
 import "server-only";
 
+import { after } from "next/server";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES, formatBytes, isImageMimeType } from "@/lib/media";
-import { imageStorage, imageUrl } from "@/lib/storage/image-storage";
+import { type StoredImage, UNREFERENCED_MEDIA, imageStorage, imageUrl, publicImageUrl } from "@/lib/storage/image-storage";
 
 /**
  * Uploading and serving images. The category, brand and homepage section
  * modals all upload through here, which is why there is one endpoint rather than two.
+ * The bytes go to MinIO (see `@/lib/storage/image-storage`).
  */
 
 const EXTENSIONS = IMAGE_MIME_TYPES.map((mime) => mime.replace("image/", "").toUpperCase()).join(
@@ -26,13 +28,15 @@ export async function saveImage(file: File) {
   }
 
   // An image uploaded into a modal that was then cancelled is referenced by
-  // nothing. Collecting strays here keeps the table tidy without a scheduled
-  // job — and a failed sweep must never fail the upload it was riding on.
-  try {
-    await imageStorage.sweepOrphans();
-  } catch (error) {
-    console.error("sweepOrphans failed", error);
-  }
+  // nothing. Collecting strays on upload keeps the table and the bucket tidy
+  // without a scheduled job. It runs after the response is sent: the hourly
+  // pass lists the whole bucket, and the upload must never wait on that — nor
+  // fail because the sweep did.
+  after(() =>
+    imageStorage.sweepOrphans().catch((error: unknown) => {
+      console.error("sweepOrphans failed", error);
+    }),
+  );
 
   const { id } = await imageStorage.put({
     data: new Uint8Array(await file.arrayBuffer()),
@@ -42,12 +46,26 @@ export async function saveImage(file: File) {
   return { id, url: imageUrl(id) };
 }
 
+const imageGone = () => new ServiceError("NOT_FOUND", "That image no longer exists.", 404);
+
 export async function readImage(id: string) {
   const image = await imageStorage.get(id);
-  if (!image) {
-    throw new ServiceError("NOT_FOUND", "That image no longer exists.", 404);
-  }
+  if (!image) throw imageGone();
   return image;
+}
+
+/**
+ * What the old `/api/v1/media/<id>` link should answer: a redirect to the
+ * bucket once the asset lives there, or the bytes while they are still in the
+ * database (or while storage isn't set up).
+ */
+export async function resolveImageLink(id: string): Promise<{ redirect: string } | { image: StoredImage }> {
+  const location = await imageStorage.locate(id);
+  if (!location) throw imageGone();
+  if (location.kind === "database") return { image: location.image };
+
+  const url = publicImageUrl(id);
+  return url ? { redirect: url } : { image: await readImage(id) };
 }
 
 /**
@@ -56,24 +74,9 @@ export async function readImage(id: string) {
  * removed, so the "referenced by nothing" test sees the new state.
  */
 export async function releaseImage(tx: Prisma.TransactionClient, imageId: string) {
-  await tx.mediaAsset.deleteMany({
-    where: {
-      id: imageId,
-      categories: { none: {} },
-      brands: { none: {} },
-      productImages: { none: {} },
-      productOgImages: { none: {} },
-      homepageSections: { none: {} },
-      homepageMobileSections: { none: {} },
-      homepageItems: { none: {} },
-      orderItems: { none: {} },
-      policyOgImages: { none: {} },
-      homepageOgImages: { none: {} },
-      campaignBanners: { none: {} },
-      campaignImages: { none: {} },
-      helpGuideImages: { none: {} },
-    },
-  });
+  // Only the row goes here. Its object is collected by the orphan sweep: deleting
+  // it now would break the image if this transaction then rolled back.
+  await tx.mediaAsset.deleteMany({ where: { id: imageId, ...UNREFERENCED_MEDIA } });
 }
 
 /** Lets a service refuse a stale image id with a field error instead of a foreign-key 500. */

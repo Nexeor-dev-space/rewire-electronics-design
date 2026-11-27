@@ -64,7 +64,7 @@ export interface HomepageSection {
   ctaHref: string | null;
   /** Submitted back unchanged when the modal leaves the image alone. */
   imageId: string | null;
-  /** `/api/v1/media/<id>`, or null. */
+  /** The image's address in the media bucket, or null. */
   imageUrl: string | null;
   mobileImageId: string | null;
   mobileImageUrl: string | null;

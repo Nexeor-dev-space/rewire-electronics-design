@@ -4,7 +4,7 @@ import type { brandSchema } from "@/validators/brand.validator";
 export interface BrandListItem {
   id: string;
   name: string;
-  /** `/api/v1/media/<id>`, or null when the brand has no image. */
+  /** The image's address in the media bucket, or null when the brand has no image. */
   imageUrl: string | null;
   /** ISO string — shown as "Last edited". */
   updatedAt: string;

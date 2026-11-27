@@ -117,6 +117,64 @@ SMTP login and `APP_URL`, production email is off and the log says
 The rules are in [INTEGRATIONS.md](INTEGRATIONS.md) §3a and the staging test
 steps in [RELEASES.md](RELEASES.md) §13.
 
+### Media storage (MinIO)
+
+Uploaded images live in a MinIO bucket, under `media/<id>`. Pages link straight
+to the bucket; the MinIO keys never leave the server.
+
+| Variable | Required | Build variable too | Meaning |
+| --- | --- | --- | --- |
+| `MINIO_ENDPOINT` | yes | yes | Host only, e.g. `minio.example.com` (no `https://`, no path) |
+| `MINIO_ACCESS_KEY` | yes | **no** | Server-only |
+| `MINIO_SECRET_KEY` | yes | **no** | Server-only |
+| `MINIO_BUCKET` | yes | yes | e.g. `rewire-media`: lowercase letters, numbers, dots and hyphens |
+
+MinIO is always reached over HTTPS on the default port, and image links are
+`https://MINIO_ENDPOINT/MINIO_BUCKET/media/<id>`.
+
+`MINIO_ENDPOINT` and `MINIO_BUCKET` are needed at **build** time as well, because
+`next.config.ts` allows the image optimiser to fetch from that host when the
+app is built. The `Dockerfile` receives them as `ARG`s. Without them, product
+cards and the hero (which go through the optimiser) show broken images.
+
+**Bucket.** The first upload creates the bucket if it is missing and, if the
+bucket has no policy yet, makes `media/*` publicly readable (read only; nobody
+anonymous can list or write). If the keys aren't allowed to set a policy, the
+log says so; set it by hand once:
+
+```sh
+mc anonymous set download myminio/rewire-media/media
+```
+
+**One bucket per environment.** Staging and production must not share a
+bucket. Uploads clean up after themselves: once an hour the app removes
+objects under `media/` that are over a day old and have no row in *its own*
+database. A shared bucket would let staging delete production's images.
+
+Without MinIO settings, uploads answer "Image storage isn't set up yet" and
+image links fall back to `/api/v1/media/<id>`.
+
+### Moving existing images to MinIO
+
+Images uploaded before MinIO sit in the database (`media_assets.data`).
+`npm run db:media-to-minio` copies them to the bucket. It only reads, can run
+again safely, and skips anything already copied. Run it from a machine with
+the repo, with `DATABASE_URL` and the `MINIO_*` variables of the target
+environment (the runtime image has no `tsx`).
+
+1. Run `npm run db:media-to-minio` **before** deploying, so every existing
+   image is in the bucket when pages start linking there.
+2. Deploy. The migration makes `data` optional.
+3. Run `npm run db:media-to-minio` again straight away, for anything uploaded
+   between step 1 and the deploy.
+4. Once the site shows images from MinIO, run
+   `npm run db:media-to-minio -- --clear`. It empties `data` on every copied
+   row, which frees the database space.
+
+Old `/api/v1/media/<id>` links (order emails, search results) keep working:
+they redirect to the bucket. After `npm run db:seed`, run the script too,
+because the seed writes catalogue images straight into the database.
+
 ---
 
 ## 4. Coolify settings
