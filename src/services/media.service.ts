@@ -1,5 +1,6 @@
 import "server-only";
 
+import { after } from "next/server";
 import type { Prisma } from "@/generated/prisma/client";
 import { ServiceError } from "@/lib/api/api-response";
 import { IMAGE_MIME_TYPES, MAX_IMAGE_BYTES, formatBytes, isImageMimeType } from "@/lib/media";
@@ -27,13 +28,15 @@ export async function saveImage(file: File) {
   }
 
   // An image uploaded into a modal that was then cancelled is referenced by
-  // nothing. Collecting strays here keeps the table tidy without a scheduled
-  // job — and a failed sweep must never fail the upload it was riding on.
-  try {
-    await imageStorage.sweepOrphans();
-  } catch (error) {
-    console.error("sweepOrphans failed", error);
-  }
+  // nothing. Collecting strays on upload keeps the table and the bucket tidy
+  // without a scheduled job. It runs after the response is sent: the hourly
+  // pass lists the whole bucket, and the upload must never wait on that — nor
+  // fail because the sweep did.
+  after(() =>
+    imageStorage.sweepOrphans().catch((error: unknown) => {
+      console.error("sweepOrphans failed", error);
+    }),
+  );
 
   const { id } = await imageStorage.put({
     data: new Uint8Array(await file.arrayBuffer()),
